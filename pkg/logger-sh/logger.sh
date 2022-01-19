@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. ./stdlib.sh
+. ../../pkg/stdlib-sh/stdlib.sh
 
 # info logs the given argument at info log level.
 info() {
@@ -38,11 +38,11 @@ __log() {
         --arg msg "$msg" \
         '.timestamp=$timestamp|.log_level=$log_level|.msg=$msg'
 }
-.
+
 info_s() {
     __log "INFO" "$@"
 }
-.
+
 warn_s() {
     __log "WARN" "$@"
 }
