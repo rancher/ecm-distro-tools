@@ -2,10 +2,7 @@
 
 set -e
 
-. ../pkg/logger-sh/logger.sh
-. ../pkg/stdlib-sh/stdlib.sh
-
-set_debug
+. ..logger-sh/logger.sh
 
 usage() {
     echo "usage: $0 [onrsph]
