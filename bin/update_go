@@ -1,0 +1,168 @@
+#!/bin/sh
+
+set -e
+
+. ../pkg/logger-sh/logger.sh
+. ../pkg/stdlib-sh/stdlib.sh
+
+set_debug
+
+usage() {
+    echo "usage: $0 [onrsph]
+    -o    version     
+    -n    version
+    -r    repository (rancher/image-build-base)
+    -s    display the hardened-build-base version of a target repository
+    -p    path to clone repositories 
+    -h    show help
+
+examples: 
+    $0 -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd"
+}
+
+get_repo() {
+    repo=$1
+    repo_path=$2/"${repo}"
+
+    if [ ! -d "${repo_path}" ]; then
+        warn "${repo_path} does not exist. cloning ..."
+        gh repo clone  "rancher/${repo}" "${repo_path}" > /dev/null 2>&1
+    else
+        cd "${repo_path}"
+        git pull > /dev/null 2>&1
+        cd "${OLDPWD}"
+    fi
+}
+
+get_version() {
+    repo=$1
+    repo_path="$2/${repo}"
+
+    for i in "Dockerfile" "Dockerfile.amd64"; do
+        if [ -e  "${repo_path}/${i}" ]; then
+             info ${repo_path}
+            info $(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")
+        fi 
+    done
+
+    return 0
+}
+
+GO_VERSIONS=$(gh api repos/rancher/image-build-base/git/refs/tags -q ".[] | .ref" | sed 's/refs\/tags\///')
+
+valid_version() {
+    version=$1
+
+    if ! $(echo ${GO_VERSIONS} | grep -q "${version}"); then
+        fatal "the supplied version ${version} is not a valid Go version"
+    fi
+
+    return 0
+}
+
+substitute_go_version() {
+    old=$1
+    new=$2
+    repo=$3
+    clone_path=$4
+    repo_path="${clone_path}/${repo}"
+
+    for i in "Dockerfile" "Dockerfile.amd64"; do
+        if [ -e  "${repo_path}/${i}" ]; then
+           sed --posix -i 's/GO_IMAGE=rancher\/hardened-build-base:'"${old}"'/GO_IMAGE=rancher\/hardened-build-base:'"${new}"'/g' "${repo_path}/${i}"
+        fi 
+    done
+
+    return 0
+}
+
+update_go() {
+    old=$1
+    new=$2
+    repo=$3
+    clone_path=$4
+
+
+    if [ ! -z "${repo}" ]; then
+        get_repo "${repo}" ${clone_path}
+        substitute_go_version "${old}" "${new}" "${repo}" "${clone_path}"
+        return 0
+    fi
+
+    repos=$(gh repo list rancher -L 500 --json "name" --jq '.[] | .name' | grep "image-build-")
+
+    for i in ${repos}; do
+        get_repo ${i} ${clone_path}
+        substitute_go_version "${old}" "${new}" ${repo} ${clone_path}
+    done
+
+    return 0
+}
+
+# main
+
+while getopts 'o:n:r:p:sh' c; do
+    case $c in
+    o) 
+        OLD_VERSION=$OPTARG
+    ;;
+    n) 
+        NEW_VERSION=$OPTARG
+    ;;
+    r) 
+        REPOSITORY=$OPTARG
+    ;;
+    s)
+        SHOW=true
+    ;;
+    p)
+        CLONE_PATH=$OPTARG
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+
+    esac
+done
+
+if [ -z "${CLONE_PATH}" ]; then
+    CLONE_PATH="${HOME}/go/src/github.com/rancher"
+fi
+
+if [ ! -d "${CLONE_PATH}" ]; then
+    fatal "path does not exist: ${CLONE_PATH}"
+fi
+
+if [ ${SHOW} ]; then
+    if [ ! -z "${REPOSITORY}" ]; then
+        get_repo ${REPOSITORY} ${CLONE_PATH}
+        get_version ${REPOSITORY} ${CLONE_PATH}
+        exit 0
+    fi
+
+    fatal "repository required as argument"
+fi
+
+if [ -z "${OLD_VERSION}" ]; then
+    fatal "old Go version not set"
+fi
+
+if [ -z "${NEW_VERSION}" ]; then
+    fatal "new Go version not set"
+fi
+
+if [ "${OLD_VERSION}" = "${NEW_VERSION}" ]; then
+    fatal "old and new versions are the same"
+fi
+
+
+valid_version "${OLD_VERSION}" && valid_version "${NEW_VERSION}"
+
+update_go "${OLD_VERSION}" "${NEW_VERSION}" "${REPOSITORY}" "${CLONE_PATH}"
+
+exit 0

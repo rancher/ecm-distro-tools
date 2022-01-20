@@ -27,7 +27,6 @@ _testmain.go
 .idea
 *.iml
 
-bin
 cmd/gen-release-notes/bin/*
 cmd/backport/bin/*
 
@@ -38,7 +37,5 @@ data/*
 *.csr
 *.crt
 *.srl
-
-bin/*
 
 .DS_Store
