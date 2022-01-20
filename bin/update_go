@@ -6,7 +6,7 @@ set -e
 . ../../pkg/stdlib-sh/stdlib.sh
 
 usage() {
-    echo "usage: update_go [onrsh]
+    echo "usage: $0 [onrsh]
         -o    version     
         -n    version
         -r    repository (rancher/image-build-base)
