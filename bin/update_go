@@ -14,7 +14,7 @@ usage() {
         -h    show help
 
     examples: 
-        update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd"
+        $0 -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd"
 }
 
 get_repo() {
