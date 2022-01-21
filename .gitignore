@@ -39,3 +39,5 @@ data/*
 *.srl
 
 .DS_Store
+
+.vscode

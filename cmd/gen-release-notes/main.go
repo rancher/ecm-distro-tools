@@ -98,8 +98,6 @@ func main() {
 	}
 
 	// account for processing against an rc
-	milestone = strings.Replace(milestone, "-rc", "", -1)
-
 	idx := strings.Index(milestone, "-rc")
 	if idx != -1 {
 		tmpMilestone := []rune(milestone)

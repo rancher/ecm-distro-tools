@@ -13,8 +13,8 @@ import (
 
 const (
 	releaseNoteSection = "```release-note"
-
-	httpTimeout = time.Second * 10
+	emptyReleaseNote   = "```release-note\r\n\r\n```"
+	httpTimeout        = time.Second * 10
 )
 
 // repoToOrg associates repo to org.
@@ -137,7 +137,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 	}
 
 	var found []ChangeLog
-
+	addedPRs := make(map[int]bool)
 	for _, commit := range comp.Commits {
 		sha := commit.GetSHA()
 		if sha == "" {
@@ -149,10 +149,14 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 			return nil, err
 		}
 		if len(prs) == 1 {
+			if exists := addedPRs[prs[0].GetNumber()]; exists {
+				continue
+			}
+
 			body := prs[0].GetBody()
 
 			var releaseNote string
-			if strings.Contains(body, releaseNoteSection) {
+			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) {
 				lines := strings.Split(body, "\n")
 				for i, line := range lines {
 					if strings.Contains(line, releaseNoteSection) {
@@ -172,6 +176,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				Number: prs[0].GetNumber(),
 				URL:    prs[0].GetHTMLURL(),
 			})
+			addedPRs[prs[0].GetNumber()] = true
 		}
 	}
 
