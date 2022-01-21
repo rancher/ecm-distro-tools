@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. ../pkg/stdlib-sh/stdlib.sh
+. ../stdlib-sh/stdlib.sh
 
 # info logs the given argument at info log level.
 info() {

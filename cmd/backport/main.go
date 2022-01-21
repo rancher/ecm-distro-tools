@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rancher/ecm-distro-tools/pkg/repository"
+	"github.com/rancher/ecm-distro-tools/repository"
 )
 
 var (

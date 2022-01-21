@@ -1,0 +1,45 @@
+#!/bin/sh
+
+usage() {
+    echo "usage: $0 [rh]
+    -r    releases to check for
+    -h    show help
+
+examples:
+    $0 -r 'v1.22.6'
+    $0 -r 'v1.20.15 v1.21.9 v1.22.6 v1.23.2'"
+}
+
+while getopts 'r:h' c; do
+    case $c in
+    r) 
+        CHECK_RELEASES=$OPTARG
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+if [ -z "${CHECK_RELEASES}" ]; then
+    #fatal "old Go version not set"
+    echo "repositories required"
+    exit 1
+fi
+
+RELEASES=$(gh api repos/kubernetes/kubernetes/git/refs/tags -q ".[] | .ref" | grep -Ev 'alpha|beta|rc.|v0.' | sed 's/refs\/tags\///')
+
+for i in ${CHECK_RELEASES}; do
+    for r in ${RELEASES}; do
+        if [ "${i}" = "${r}" ]; then
+            echo "${i} is available"
+        fi
+    done
+done
+
+exit 0
