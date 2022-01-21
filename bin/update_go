@@ -2,7 +2,7 @@
 
 set -e
 
-. ..logger-sh/logger.sh
+. ../logger-sh/logger.sh
 
 usage() {
     echo "usage: $0 [onrsph]
