@@ -1,0 +1,56 @@
+---
+kind: pipeline
+type: docker
+name: build-amd64
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: docker-build
+  image: plugins/docker
+  settings:
+    dockerfile: Dockerfile
+    repo: nikolaishields/ecm-distro-tools
+    auto_tag: true
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  volumes:
+    - name: docker
+      path: /var/run/docker.sock
+  when:
+    ref:
+    - refs/head/master
+    - refs/tags/*
+    event:
+      - commit
+      - push
+      - tag
+
+- name: docker-publish
+  image: plugins/docker
+  settings:
+    dockerfile: Dockerfile
+    repo: nikolaishields/ecm-distro-tools
+    auto_tag: true
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  volumes:
+    - name: docker
+      path: /var/run/docker.sock
+  when:
+    ref:
+    - refs/head/master
+    - refs/tags/*
+    event:
+    - tag
+
+volumes:
+- name: docker
+  host:
+    path: /var/run/docker.sock
