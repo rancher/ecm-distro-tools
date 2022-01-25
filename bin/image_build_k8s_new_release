@@ -9,8 +9,8 @@ usage() {
     -h    show help
 
 examples:
-    $0 -r 'v1.22.6+rke2r1'
-    $0 -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6 v1.23.2+rke2r1'"
+    $0 -r 'v1.22.6-rke2r1'
+    $0 -r 'v1.20.15-rke2r1 v1.21.9-rke2r1 v1.22.6 v1.23.2-rke2r1'"
 }
 
 while getopts 'r:p:h' c; do
@@ -33,8 +33,17 @@ while getopts 'r:p:h' c; do
 done
 
 if [ -z "${RELEASE_VERSIONS}" ]; then
-    echo "error: versions required"
+    echo "error: version(s) required"
     exit 1
+fi
+
+# make sure that there is no "+" in the given version. 
+# A typical RKE2 version looks like "v1.23.3+rke2r1" 
+# however we use a hyphen in the version in place of the
+# "+" when building the Kubernetes hardened images.
+if echo "${RELEASE_VERSIONS}" | grep -q '+'; then
+    echo "error: version(s) required"
+    exit 1 
 fi
 
 if [ -z "${REPO_PATH}" ]; then
