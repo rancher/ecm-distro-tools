@@ -156,17 +156,26 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 			body := prs[0].GetBody()
 
 			var releaseNote string
+			inNote := false
 			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) {
 				lines := strings.Split(body, "\n")
-				for i, line := range lines {
+				for _, line := range lines {
 					if strings.Contains(line, releaseNoteSection) {
-						if lines[i+1] == "```" || lines[i+1] == "" {
-							continue
-						}
-						releaseNote += lines[i+1]
+						inNote = true
+						continue
+					} else if strings.Contains(line, "```") {
+						inNote = false
+					}
+					if inNote && line != "" {
+						releaseNote += line
 					}
 				}
 				releaseNote = strings.TrimSpace(releaseNote)
+
+				if strings.Contains(releaseNote, "\r") {
+					releaseNote = prs[0].GetTitle() + "\n * " + releaseNote
+					releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n * ")
+				}
 			} else {
 				releaseNote = prs[0].GetTitle()
 			}
