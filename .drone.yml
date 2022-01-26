@@ -27,25 +27,6 @@ steps:
         event:
           - tag
 
-- name: docker-publish
-  image: plugins/docker
-  settings:
-    dockerfile: Dockerfile
-    repo: rancher/ecm-distro-tools
-    username:
-      from_secret: docker_username
-    password:
-      from_secret: docker_password
-  volumes:
-    - name: docker
-      path: /var/run/docker.sock
-      when:
-        ref:
-        - refs/head/master
-        - refs/tags/*
-        event:
-        - tag
-
 volumes:
 - name: docker
   host:
