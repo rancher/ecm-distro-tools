@@ -12,8 +12,7 @@ steps:
   image: plugins/docker
   settings:
     dockerfile: Dockerfile
-    repo: nikolaishields/ecm-distro-tools
-    auto_tag: true
+    repo: rancher/ecm-distro-tools
     username:
       from_secret: docker_username
     password:
@@ -21,21 +20,18 @@ steps:
   volumes:
     - name: docker
       path: /var/run/docker.sock
-  when:
-    ref:
-    - refs/head/master
-    - refs/tags/*
-    event:
-      - commit
-      - push
-      - tag
+      when:
+        ref:
+        - refs/head/master
+        - refs/tags/*
+        event:
+          - tag
 
 - name: docker-publish
   image: plugins/docker
   settings:
     dockerfile: Dockerfile
-    repo: nikolaishields/ecm-distro-tools
-    auto_tag: true
+    repo: rancher/ecm-distro-tools
     username:
       from_secret: docker_username
     password:
@@ -43,12 +39,12 @@ steps:
   volumes:
     - name: docker
       path: /var/run/docker.sock
-  when:
-    ref:
-    - refs/head/master
-    - refs/tags/*
-    event:
-    - tag
+      when:
+        ref:
+        - refs/head/master
+        - refs/tags/*
+        event:
+        - tag
 
 volumes:
 - name: docker
