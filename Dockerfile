@@ -16,5 +16,5 @@ RUN apk --no-cache add \
 
 COPY --from=builder /build/cmd/gen-release-notes/bin/gen-release-notes /bin
 COPY --from=builder /build/cmd/backport/bin/backport bin/
-COPY --from=builder /build/pkg/*-sh/* /bin
-COPY --from=builder /build/pkg/*-sh/* /bin
+COPY --from=builder /bin/* /bin
+
