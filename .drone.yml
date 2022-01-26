@@ -1,10 +1,10 @@
 ---
 kind: pipeline
 type: docker
-name: build-amd64
+name: container-images
 
 steps:
-- name: docker-build
+- name: build-and-publish-container-images
   image: plugins/docker
   settings:
     dry_run: true
