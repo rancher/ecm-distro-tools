@@ -31,17 +31,22 @@ has_curl() {
 
 has_docker() {
     DOCKER="$(command -v docker)"
-    cmd_check "${DOCKER}"
+    __cmd_check "${DOCKER}"
 }
 
 has_git() {
     GIT="$(command -v git)"
-    cmd_check "${GIT}"
+    __cmd_check "${GIT}"
 }
 
 has_jq() {
     JQ="$(command -v jq)"
     __cmd_check "${JQ}"
+}
+
+has_gh() {
+    GH="$(command -v gh)"
+    __cmd_check "${GH}"
 }
 
 # setup_verify_arch set arch and suffix,
@@ -90,4 +95,21 @@ setup_tmp() {
         exit $code
     }
     trap cleanup INT EXIT
+}
+
+# date functions
+day_ago_unix() {
+    echo $(($(date +%s) - 86400))
+}
+
+week_ago_unix() {
+    echo $(($(date +%s) - 604800))
+}
+
+month_ago_unix() {
+    echo $(($(date +%s) - 2592000))
+}
+
+year_ago_unix() {
+    echo $(($(date +%s) - 31557600))
 }

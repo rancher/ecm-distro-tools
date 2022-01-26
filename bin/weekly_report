@@ -1,0 +1,123 @@
+#!/bin/sh
+
+set -e
+
+. ./stdlib-sh/stdlib.sh
+
+usage() {
+    echo "usage: $0 [rh]
+    -r    repository and org. eg: rancher/rke2
+    -h    show help
+
+examples:
+    $0 -r k3s-io/k3s"
+}
+
+while getopts 'r:h' c; do
+    case $c in
+    r) 
+        ORG_REPOSITORY=$OPTARG
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+if [ -z "${ORG_REPOSITORY}" ]; then
+    echo "error: org/repo required"
+    exit 1
+fi
+
+# make sure the Github CLI is 
+# installed and exit if it's not.
+has_gh
+
+OS=$(uname)
+if [ "${OS}" = "Darwin" ]; then
+    WEEKAGO=$(date -v -7d +%F)
+else
+    WEEKAGO=$(date --date="last week" +%F)
+fi
+
+WEEK_NO=$(date +"%U %Y")
+TEMPLATE="{{range .}}* [#{{.number}}]({{.url}}):  {{.title}}{{\"\n\"}}{{end}}"
+
+ORG=$(echo "${ORG_REPOSITORY}" | awk -F '/' '{print $1}')
+REPO=$(echo "${ORG_REPOSITORY}" | awk -F '/' '{print $2}')
+
+ORG_NAME="$(gh api -X GET "orgs/${ORG}/members" -F per_page=100 --paginate --cache 1h --template='{{range .}}-author:{{.login}} {{end}}')"
+CLOSED_PR=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "closed:>${WEEKAGO}" -s closed -t="${TEMPLATE}" --json=title,milestone,url,number)
+OPENED_PR=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "created:>${WEEKAGO}" -s all -t="${TEMPLATE}" --json=title,milestone,url,number)
+CLOSED_ISSUES=$(gh issue list --limit 100 --repo "${ORG_REPOSITORY}" -S "closed:>${WEEKAGO}" -s closed -t="${TEMPLATE}" --json=title,milestone,url,number)
+OPENED_ISSUES=$(gh issue list --limit 100 --repo "${ORG_REPOSITORY}" -S "created:>${WEEKAGO}" -s all -t="${TEMPLATE}" --json=title,milestone,url,number)
+COMMUNITY_PR_CLOSED=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "closed:>${WEEKAGO} ${ORG_NAME}" -s closed -t="${TEMPLATE}" --json=title,milestone,url,number)
+COMMUNITY_PR_OPEN=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "created:>${WEEKAGO} ${ORG_NAME}" -s all -t="${TEMPLATE}" --json=title,milestone,url,number)
+FORKS_STARS=$(gh api -X GET "repos/${ORG_REPOSITORY}" --template='{{.forks}} {{.stargazers_count}}')
+
+FORKS=$(echo "${FORKS_STARS}" | awk -F ' ' '{print $1}')
+STARS=$(echo "${FORKS_STARS}" | awk -F ' ' '{print $2}')
+
+none_or_print () {
+    if [ -z "$1" ]; then
+        echo "None"
+    else
+        echo "$1"
+    fi
+}
+
+printf "# Weekly Report
+Weekly status report for %s Week #%s
+
+## Here's what the team has focused on this week:
+* 
+
+## Weekly Stats
+| | Opened this week| Closed this week|
+|--|---|-----|
+|Issues| %s | %s |
+|PR's| %s | %s |
+|  |  |
+|--|--|
+| Stars | %s |
+| Forks | %s |
+
+## PR's Closed
+%s
+
+## PR's Opened
+%s
+
+## Issues Opened
+%s
+
+## Issues Closed
+%s
+
+## Community PRs Closed
+%s
+
+## Community PRs Opened
+%s
+"                                               \
+    "${REPO}"                                   \
+    "${WEEK_NO}"                                \
+    "$(echo "${OPENED_ISSUES}" | wc -l)"        \
+    "$(echo "${CLOSED_ISSUES}" | wc -l)"        \
+    "$(echo "${OPENED_PR}" | wc -l)"            \
+    "$(echo "${CLOSED_PR}" | wc -l)"            \
+    "${STARS}"                                  \
+    "${FORKS}"                                  \
+    "$(none_or_print "${CLOSED_PR}")"           \
+    "$(none_or_print "${OPENED_PR}")"           \
+    "$(none_or_print "${OPENED_ISSUES}")"       \
+    "$(none_or_print "${CLOSED_ISSUES}")"       \
+    "$(none_or_print "${COMMUNITY_PR_CLOSED}")" \
+    "$(none_or_print "${COMMUNITY_PR_OPEN}")"
+
+exit 0

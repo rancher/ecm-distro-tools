@@ -4,7 +4,7 @@ This repo ECM Distro Tools (codename: dirt-weasel) is a collection of programs, 
 
 ## Building
 
-## Adding Features
+## Contributing
 
 ## License
 
