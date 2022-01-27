@@ -25,12 +25,6 @@ steps:
   volumes:
     - name: docker
       path: /var/run/docker.sock
-  when:
-    ref:
-    - refs/head/master
-    - refs/tags/*
-    event:
-      - tag
 
 volumes:
 - name: docker
