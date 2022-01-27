@@ -19,10 +19,6 @@ fatal() {
     exit 1
 }
 
-__timestamp(){
-    date "+%Y%m%dT%H%M%S"
-}
-
 __log() {
     has_jq
 
@@ -33,10 +29,10 @@ __log() {
         --monochrome-output \
         --compact-output \
         --raw-output \
-        --arg timestamp "$(__timestamp)" \
-        --arg log_level "$log_level" \
-        --arg msg "$msg" \
-        '.timestamp=$timestamp|.log_level=$log_level|.msg=$msg'
+        --arg timestamp "$(date "+%Y%m%dT%H%M%S")" \
+        --arg log_level "${log_level}" \
+        --arg msg "${msg}" \
+        '.timestamp=${timestamp}|.log_level=${log_level}|.msg=${msg}'
 }
 
 info_s() {
