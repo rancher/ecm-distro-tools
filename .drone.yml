@@ -15,7 +15,6 @@ steps:
     DOCKER_PASSWORD:
       from_secret: docker_password
   settings:
-    dry_run: true
     dockerfile: Dockerfile
     repo: "rancher/ecm-distro-tools"
     build_args_from_env:
