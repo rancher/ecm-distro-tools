@@ -25,13 +25,13 @@ __log() {
     log_level="$1"
     msg="$2"
 
-    echo '{}' | jq \
-        --monochrome-output \
-        --compact-output \
-        --raw-output \
-        --arg timestamp "$(date "+%Y%m%dT%H%M%S")" \
-        --arg log_level "${log_level}" \
-        --arg msg "${msg}" \
+    echo '{}' | jq                      \
+        --monochrome-output             \
+        --compact-output                \
+        --raw-output                    \
+        --arg timestamp "$(date '+%s')" \
+        --arg log_level "${log_level}"  \
+        --arg msg "${msg}"              \
         '.timestamp=${timestamp}|.log_level=${log_level}|.msg=${msg}'
 }
 
