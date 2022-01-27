@@ -6,11 +6,11 @@ set -e
 
 usage() {
     echo "usage: $0 [rh]
-    -r    repository and org. eg: rancher/rke2
+    -r    repository
     -h    show help
 
 examples:
-    $0 -r k3s-io/k3s"
+    $0 -r k3s"
 }
 
 while getopts 'r:h' c; do
@@ -30,7 +30,7 @@ while getopts 'r:h' c; do
 done
 
 if [ -z "${ORG_REPOSITORY}" ]; then
-    echo "error: org/repo required"
+    echo "error: repo required"
     exit 1
 fi
 
@@ -48,10 +48,10 @@ fi
 WEEK_NO=$(date +"%U %Y")
 TEMPLATE="{{range .}}* [#{{.number}}]({{.url}}):  {{.title}}{{\"\n\"}}{{end}}"
 
-ORG=$(echo "${ORG_REPOSITORY}" | awk -F '/' '{print $1}')
+#ORG=$(echo "${ORG_REPOSITORY}" | awk -F '/' '{print $1}')
 REPO=$(echo "${ORG_REPOSITORY}" | awk -F '/' '{print $2}')
 
-ORG_NAME="$(gh api -X GET "orgs/${ORG}/members" -F per_page=100 --paginate --cache 1h --template='{{range .}}-author:{{.login}} {{end}}')"
+ORG_NAME="$(gh api -X GET "orgs/rancher/members" -F per_page=100 --paginate --cache 1h --template='{{range .}}-author:{{.login}} {{end}}')"
 CLOSED_PR=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "closed:>${WEEKAGO}" -s closed -t="${TEMPLATE}" --json=title,milestone,url,number)
 OPENED_PR=$(gh pr list --limit 100 --repo "${ORG_REPOSITORY}" -S "created:>${WEEKAGO}" -s all -t="${TEMPLATE}" --json=title,milestone,url,number)
 CLOSED_ISSUES=$(gh issue list --limit 100 --repo "${ORG_REPOSITORY}" -S "closed:>${WEEKAGO}" -s closed -t="${TEMPLATE}" --json=title,milestone,url,number)
