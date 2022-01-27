@@ -1,0 +1,27 @@
+---
+kind: pipeline
+name: container-images
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: docker-publish
+  image: plugins/docker
+  environment:
+  settings:
+    dockerfile: Dockerfile
+    repo: "rancher/ecm-distro-tools"
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  volumes:
+    - name: docker
+      path: /var/run/docker.sock
+
+volumes:
+- name: docker
+  host:
+    path: /var/run/docker.sock
