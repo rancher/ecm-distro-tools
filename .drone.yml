@@ -6,16 +6,17 @@ name: container-images
 steps:
 - name: build-and-publish-container-images
   image: plugins/docker
-  volumes:
-  - name: docker
-    path: /var/run/docker.sock
   settings:
+    dry_run: true
     dockerfile: Dockerfile
     repo: rancher/ecm-distro-tools
     username:
       from_secret: docker_username
     password:
       from_secret: docker_password
+  volumes:
+    - name: docker
+      path: /var/run/docker.sock
   when:
     ref:
     - refs/head/master
