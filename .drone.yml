@@ -1,19 +1,27 @@
 ---
 kind: pipeline
-type: docker
 name: container-images
+
+platform:
+  os: linux
+  arch: amd64
 
 steps:
 - name: build-and-publish-container-images
   image: plugins/docker
+  environment:
+    DOCKER_USERNAME:
+      from_secret: docker_username
+    DOCKER_PASSWORD:
+      from_secret: docker_password
   settings:
     dry_run: true
     dockerfile: Dockerfile
-    repo: rancher/ecm-distro-tools
-    username:
-      from_secret: docker_username
-    password:
-      from_secret: docker_password
+    repo: "rancher/ecm-distro-tools"
+    build_args_from_env:
+    - DOCKER_USERNAME
+    - DOCKER_PASSWORD
+    - DRONE_TAG
   volumes:
     - name: docker
       path: /var/run/docker.sock
