@@ -7,20 +7,16 @@ platform:
   arch: amd64
 
 steps:
-- name: build-and-publish-container-images
+- name: docker-publish
   image: plugins/docker
   environment:
-    DOCKER_USERNAME:
-      from_secret: docker_username
-    DOCKER_PASSWORD:
-      from_secret: docker_password
   settings:
     dockerfile: Dockerfile
     repo: "rancher/ecm-distro-tools"
-    build_args_from_env:
-    - DOCKER_USERNAME
-    - DOCKER_PASSWORD
-    - DRONE_TAG
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
   volumes:
     - name: docker
       path: /var/run/docker.sock
