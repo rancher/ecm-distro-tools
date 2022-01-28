@@ -2,7 +2,7 @@
 
 set -e
 
-. ./logger-sh/logger.sh
+. liblogger-ecm.sh
 
 usage() {
     echo "usage: $0 [onrsph]
