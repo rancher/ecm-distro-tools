@@ -8,3 +8,6 @@ RUN apk --no-cache add \
     py-pip \
     pigz
 
+COPY cmd/gen-release-notes/bin/gen-release-notes /usr/local/bin
+COPY cmd/backport/bin/backport /usr/local/bin
+COPY bin/. /usr/local/bin
