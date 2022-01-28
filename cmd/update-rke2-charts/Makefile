@@ -1,7 +1,7 @@
 GO = go
 
 BINDIR := bin
-BINARY := chart-up
+BINARY := update-rke2-charts
 
 VERSION = v0.1.0
 GIT_SHA = $(shell git rev-parse HEAD)

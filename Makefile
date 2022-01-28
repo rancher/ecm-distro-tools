@@ -1,5 +1,5 @@
 .PHONY: all
-all: gen-release-notes backport chart-up
+all: gen-release-notes backport update-rke2-charts
 
 .PHONY: gen-release-notes
 gen-release-notes:
@@ -9,6 +9,6 @@ gen-release-notes:
 backport:
 	cd cmd/$@ && $(MAKE)
 
-.PHONY: chart-up
-chart-up:
+.PHONY: update-rke2-charts
+update-rke2-charts:
 	cd cmd/$@ && $(MAKE)
