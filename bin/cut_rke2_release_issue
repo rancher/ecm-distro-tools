@@ -11,7 +11,7 @@ usage() {
     -h    show help
 
 examples:
-    $0 -r 'v1.22.6+rke2r1' -c 'Nikolai Shields'
+    $0 -r 'v1.22.6+rke2r1' -c 'briandowns'
     $0 -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6+rke2r1 v1.23.2+rke2r1'"
 }
 
@@ -99,12 +99,11 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 "
-    # gh issue create --repo "rancher/rke2" \
-        # --assignee "${CAPTAIN}"           \
-        # --title "Cut ${release}"          \
-        # --milestone "${release}"          \
-        # --label "kind/release"            \
-        # --body "${body}"
+    gh issue create --repo "rancher/rke2" \
+        --assignee "${CAPTAIN}"           \
+        --title "Cut ${release}"          \
+        --milestone "${release}"          \
+        --label "kind/release"
 done
 
 exit 0
