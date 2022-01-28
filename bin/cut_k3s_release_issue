@@ -47,7 +47,13 @@ fi
 has_gh
 
 for release in ${RELEASE_VERSIONS}; do
-    echo "**Summary:**
+    echo 
+    gh issue create --repo "k3s-io/k3s" \
+        --assignee "${CAPTAIN}"         \
+        --title "Cut ${release}"        \
+        --milestone "${release}"        \
+        --label "kind/release"          \
+        --body "**Summary:**
 Task covering patch release work.
 
 Dev Complete: RELEASE_DATE (Typically ~1 week prior to upstream release date)
@@ -76,11 +82,7 @@ _To release once have approval from QA:_
 - [ ] Release Captain: Prepare PRs as needed to update [KDM](https://github.com/rancher/kontainer-driver-metadata/) in the appropriate dev branches.
 - [ ] PM: Close the milestone in GitHub.
 "
-    gh issue create --repo "k3s-io/k3s" \
-        --assignee "${CAPTAIN}"         \
-        --title "Cut ${release}"        \
-        --milestone "${release}"        \
-        --label "kind/release"
+
 done
 
 exit 0

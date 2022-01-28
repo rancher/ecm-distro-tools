@@ -47,7 +47,13 @@ fi
 has_gh
 
 for release in ${RELEASE_VERSIONS}; do
-    echo "**Summary:**
+    echo 
+    gh issue create --repo "rancher/rke2" \
+        --assignee "${CAPTAIN}"           \
+        --title "Cut ${release}"          \
+        --milestone "${release}"          \
+        --label "kind/release"            \
+        --body "**Summary:**
 Task covering patch release work.
 
 Dev Complete: 1/12 (Typically ~1 week prior to upstream release date)
@@ -99,11 +105,7 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 "
-    gh issue create --repo "rancher/rke2" \
-        --assignee "${CAPTAIN}"           \
-        --title "Cut ${release}"          \
-        --milestone "${release}"          \
-        --label "kind/release"
+
 done
 
 exit 0
