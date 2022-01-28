@@ -1,0 +1,86 @@
+#!/bin/sh
+
+set -e
+
+. ./stdlib-sh/stdlib.sh
+
+usage() {
+    echo "usage: $0 [rch]
+    -r    releases to create
+    -c    release captain (github username)
+    -h    show help
+
+examples:
+    $0 -r 'v1.22.6+k3s1' -c 'dereknola'
+    $0 -r 'v1.20.15+k3s1 v1.21.9+k3s1 v1.22.6+k3s1 v1.23.2+k3s1'"
+}
+
+while getopts 'r:c:h' c; do
+    case $c in
+    r) 
+        RELEASE_VERSIONS=$OPTARG
+    ;;
+    c) 
+        CAPTAIN=$OPTARG
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+if [ -z "${RELEASE_VERSIONS}" ]; then
+    echo "error: release version(s) required"
+    exit 1
+fi
+
+if [ -z "${CAPTAIN}" ]; then
+    echo "error: captain required"
+    exit 1
+fi
+
+has_gh
+
+for release in ${RELEASE_VERSIONS}; do
+    echo "**Summary:**
+Task covering patch release work.
+
+Dev Complete: RELEASE_DATE (Typically ~1 week prior to upstream release date)
+
+**List of required releases:**
+_To release as soon as able for QA:_
+- ${release}
+
+_To release once have approval from QA:_
+- ${release} (Never release on a Friday unless specified otherwise)
+
+**Prep work:**
+- [ ] PM: Dev and QA team to be notified of the incoming releases - add event to team calendar
+- [ ] PM: Dev and QA team to be notified of the date we will mark the latest release as stable - add event to team calendar [ONLY APPLICABLE FOR LATEST MINOR RELEASE]
+- [ ] QA: Review changes and understand testing efforts
+- [ ] Release Captain: Prepare release notes in our private release-notes repo (submit PR for changes taking care to carefully check links and the components, once merged, create the release in GitHub and mark as a draft and check the pre-release box, fill in title, set target release branch, leave tag version blank for now until we are ready to release)
+- [ ] QA: Validate and close out all issues in the release milestone.
+
+**Vendor and release work:**
+- [ ] Release Captain: Vendor in the new patch version and release rancher/kubernetes
+- [ ] Release Captain: Tag and release any necessary RCs for QA to test K3s and KDM on the Rancher side
+- [ ] Release Captain: Tag and release when have QA approval
+
+**Post-Release work:**
+- [ ] Release Captain: Once release is fully complete (CI is all green and all release artifacts exist), edit the release, uncheck \"Pre-release\", and save.
+- [ ] Release Captain: Prepare PRs as needed to update [KDM](https://github.com/rancher/kontainer-driver-metadata/) in the appropriate dev branches.
+- [ ] PM: Close the milestone in GitHub.
+"
+    gh issue create --repo "k3s-io/k3s" \
+        --assignee "${CAPTAIN}"         \
+        --title "Cut ${release}"        \
+        --milestone "${release}"        \
+        --label "kind/release"
+done
+
+exit 0
