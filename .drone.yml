@@ -13,13 +13,10 @@ steps:
   commands:
     - make all
   when:
-    instance:
-      - drone-publish.rancher.io
-    ref:
-      include:
-        - "refs/heads/master"
     event:
       - tag
+    instance:
+      - drone-publish.rancher.io
 
 - name: docker-publish
   image: plugins/docker
@@ -34,13 +31,10 @@ steps:
     - name: docker
       path: /var/run/docker.sock
   when:
-    instance:
-      - drone-publish.rancher.io
-    ref:
-      include:
-        - "refs/heads/master"
     event:
       - tag
+    instance:
+      - drone-publish.rancher.io
 
 volumes:
 - name: docker
