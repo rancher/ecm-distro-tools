@@ -2,7 +2,7 @@
 
 set -e
 
-. ./stdlib-sh/stdlib.sh
+. libstd-ecm.sh
 
 usage() {
     echo "usage: $0 [rh]
