@@ -3,6 +3,7 @@ RUN apk --no-cache add \
     curl \
     file \
     git \
+    github-cli \
     gcc \
     bsd-compat-headers \
     py-pip \
