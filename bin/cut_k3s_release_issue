@@ -47,7 +47,6 @@ fi
 has_gh
 
 for release in ${RELEASE_VERSIONS}; do
-    echo 
     gh issue create --repo "k3s-io/k3s" \
         --assignee "${CAPTAIN}"         \
         --title "Cut ${release}"        \
