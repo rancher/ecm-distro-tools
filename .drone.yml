@@ -23,7 +23,6 @@ steps:
 
 - name: docker-publish
   image: plugins/docker
-  environment:
   settings:
     dockerfile: Dockerfile
     repo: "rancher/ecm-distro-tools"
