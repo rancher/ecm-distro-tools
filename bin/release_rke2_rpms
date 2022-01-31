@@ -1,0 +1,65 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+
+usage() {
+    echo "usage: $0 [rtlsh]
+    -r    releases to create
+    -t    create testing release
+    -l    create latest release
+    -s    create stable release
+    -h    show help
+
+examples:
+    $0 -t -r 'v1.22.6-rke2r1'
+    $0 -s -r 'v1.20.15-rke2r1 v1.21.9-rke2r1 v1.22.6 v1.23.2-rke2r1'"
+}
+
+while getopts 'r:tlsh' c; do
+    case $c in
+    r) 
+        RELEASE_VERSIONS=$OPTARG
+    ;;
+    t)
+        TAG="testing.0"
+    ;;
+    l)
+        TAG="latest.0"
+    ;;
+    s)
+        TAG="stable.0"
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+if [ $# -ne 3 ]; then
+   usage
+   exit 1
+fi
+
+if [ -z "${RELEASE_VERSIONS}" ]; then
+    echo "error: version(s) required"
+    exit 1
+fi
+
+has_gh
+
+for i in ${RELEASE_VERSIONS}; do
+    FULL_TAG="${i}.${TAG}"
+    gh release create "${FULL_TAG}" \
+        --title "${FULL_TAG}"       \
+        --target "master"           \
+        --notes ""
+done
+
+exit 0

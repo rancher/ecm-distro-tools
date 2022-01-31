@@ -62,7 +62,6 @@ for i in ${RELEASE_VERSIONS}; do
     TAG="${i}-build${DATE}"
 
     gh release create "${TAG}" \
-        --prerelease           \
         --title "${TAG}"       \
         --target "master"      \
         --notes ""
