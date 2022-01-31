@@ -166,63 +166,29 @@ type yamlUpdater interface {
 }
 
 func newUpdater(targets []string) yamlUpdater {
-	m := make(map[string]interface{})
-
-	return &versionTree{
-		targets:  targets,
-		yaml:     nil,
-		Versions: m,
+	u := &simpleVT{
+		targets: targets,
 	}
+	u.Versions = make(map[string]interface{})
+
+	return u
 }
 
 func newImageUpdater(target string) yamlUpdater {
-	v := make(map[string]interface{})
 	r := make(map[string][]map[string]interface{})
-
-	return &versionTreeR{
+	u := &referecedVT{
 		target:            target,
-		yaml:              nil,
-		Versions:          v,
 		versionReferences: r,
 	}
+
+	u.Versions = make(map[string]interface{})
+
+	return u
 }
 
 type versionTree struct {
 	yaml     chartutil.Values
-	targets  []string
-	modified bool
 	Versions map[string]interface{}
-}
-
-func (v *versionTree) Load(b []byte) error {
-	values, err := chartutil.ReadValues(b)
-	if err != nil {
-		return err
-	}
-
-	v.yaml = values
-	for _, t := range v.targets {
-		if val, ok := values[t]; ok {
-			v.Versions[t] = val
-		}
-	}
-
-	return nil
-}
-
-func (v *versionTree) Update(overrides map[string]string) {
-	m := v.yaml.AsMap()
-	for _, t := range v.targets {
-		if val, ok := overrides[t]; ok {
-			v.modified = true
-			m[t] = val
-			v.Versions[t] = val
-		}
-	}
-}
-
-func (v *versionTree) HasChanged() bool {
-	return v.modified
 }
 
 func (v *versionTree) MarshalJSON() ([]byte, error) {
@@ -233,15 +199,51 @@ func (v *versionTree) String() string {
 	return chartutil.ToYaml(v.Versions)
 }
 
-type versionTreeR struct {
-	yaml              chartutil.Values
-	target            string
-	Versions          map[string]interface{}
-	versionReferences map[string][]map[string]interface{}
-	modified          bool
+type simpleVT struct {
+	targets  []string
+	modified bool
+	versionTree
 }
 
-func (v *versionTreeR) Load(b []byte) error {
+func (s *simpleVT) Load(b []byte) error {
+	values, err := chartutil.ReadValues(b)
+	if err != nil {
+		return err
+	}
+
+	s.yaml = values
+	for _, t := range s.targets {
+		if val, ok := values[t]; ok {
+			s.Versions[t] = val
+		}
+	}
+
+	return nil
+}
+
+func (s *simpleVT) Update(overrides map[string]string) {
+	m := s.yaml.AsMap()
+	for _, t := range s.targets {
+		if val, ok := overrides[t]; ok {
+			s.modified = true
+			m[t] = val
+			s.Versions[t] = val
+		}
+	}
+}
+
+func (s *simpleVT) HasChanged() bool {
+	return s.modified
+}
+
+type referecedVT struct {
+	target            string
+	versionReferences map[string][]map[string]interface{}
+	modified          bool
+	versionTree
+}
+
+func (v *referecedVT) Load(b []byte) error {
 	values, err := chartutil.ReadValues(b)
 	if err != nil {
 		return err
@@ -257,7 +259,7 @@ func (v *versionTreeR) Load(b []byte) error {
 	return nil
 }
 
-func (v *versionTreeR) Update(overrides map[string]string) {
+func (v *referecedVT) Update(overrides map[string]string) {
 	for k := range v.versionReferences {
 		if val, ok := overrides[k]; ok {
 			v.modified = true
@@ -269,16 +271,8 @@ func (v *versionTreeR) Update(overrides map[string]string) {
 	}
 }
 
-func (v *versionTreeR) HasChanged() bool {
+func (v *referecedVT) HasChanged() bool {
 	return v.modified
-}
-
-func (v *versionTreeR) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.yaml)
-}
-
-func (v *versionTreeR) String() string {
-	return chartutil.ToYaml(v.Versions)
 }
 
 func targetLookup(target string, tree map[string]interface{}, dictionary map[string][]map[string]interface{}) {
@@ -296,7 +290,9 @@ func targetLookup(target string, tree map[string]interface{}, dictionary map[str
 		if k == target {
 			continue
 		}
-		relative = v.(string)
+		if _, ok := v.(string); ok {
+			relative = v.(string)
+		}
 	}
 
 	l := dictionary[relative]
