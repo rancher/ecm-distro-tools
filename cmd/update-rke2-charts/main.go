@@ -105,7 +105,7 @@ func main() {
 		}
 
 		var u yamlUpdater
-		switch filepath.Base(path) {
+		switch info.Name() {
 		case fileChart:
 			u = newUpdater([]string{"appVersion", "version"})
 		case filePackage:
