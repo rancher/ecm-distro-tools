@@ -243,36 +243,36 @@ type referecedVT struct {
 	versionTree
 }
 
-func (v *referecedVT) Load(b []byte) error {
+func (r *referecedVT) Load(b []byte) error {
 	values, err := chartutil.ReadValues(b)
 	if err != nil {
 		return err
 	}
 
-	v.yaml = values
-	targetLookup(v.target, values.AsMap(), v.versionReferences)
+	r.yaml = values
+	targetLookup(r.target, values.AsMap(), r.versionReferences)
 
-	for k, val := range v.versionReferences {
-		v.Versions[k] = val[0][v.target]
+	for k, val := range r.versionReferences {
+		r.Versions[k] = val[0][r.target]
 	}
 
 	return nil
 }
 
-func (v *referecedVT) Update(overrides map[string]string) {
-	for k := range v.versionReferences {
+func (r *referecedVT) Update(overrides map[string]string) {
+	for k := range r.versionReferences {
 		if val, ok := overrides[k]; ok {
-			v.modified = true
-			v.Versions[k] = val
-			for _, ref := range v.versionReferences[k] {
-				ref[v.target] = val
+			r.modified = true
+			r.Versions[k] = val
+			for _, ref := range r.versionReferences[k] {
+				ref[r.target] = val
 			}
 		}
 	}
 }
 
-func (v *referecedVT) HasChanged() bool {
-	return v.modified
+func (r *referecedVT) HasChanged() bool {
+	return r.modified
 }
 
 func targetLookup(target string, tree map[string]interface{}, dictionary map[string][]map[string]interface{}) {
