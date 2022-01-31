@@ -200,8 +200,8 @@ func (v *versionTree) String() string {
 }
 
 type simpleVT struct {
-	targets  []string
 	modified bool
+	targets  []string
 	versionTree
 }
 
@@ -237,9 +237,9 @@ func (s *simpleVT) HasChanged() bool {
 }
 
 type referecedVT struct {
+	modified          bool
 	target            string
 	versionReferences map[string][]map[string]interface{}
-	modified          bool
 	versionTree
 }
 
@@ -250,7 +250,7 @@ func (r *referecedVT) Load(b []byte) error {
 	}
 
 	r.yaml = values
-	targetLookup(r.target, values.AsMap(), r.versionReferences)
+	targetRelativeLookup(r.target, values.AsMap(), r.versionReferences)
 
 	for k, val := range r.versionReferences {
 		r.Versions[k] = val[0][r.target]
@@ -275,11 +275,11 @@ func (r *referecedVT) HasChanged() bool {
 	return r.modified
 }
 
-func targetLookup(target string, tree map[string]interface{}, dictionary map[string][]map[string]interface{}) {
+func targetRelativeLookup(target string, tree map[string]interface{}, dictionary map[string][]map[string]interface{}) {
 	if _, found := tree[target]; !found {
 		for _, v := range tree {
 			if vv, ok := v.(map[string]interface{}); ok {
-				targetLookup(target, vv, dictionary)
+				targetRelativeLookup(target, vv, dictionary)
 			}
 		}
 		return
