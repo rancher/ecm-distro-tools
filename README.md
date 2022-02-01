@@ -16,54 +16,18 @@ docker build . -t rancher/ecm-distro-tools:local
 ## Utility Index 
 The following is a non-exausitve list of the utilities included in this repository and their corresponding usage.
 (see bin/ and cmd/ for all utilities.)
-### Using the docker image
 
+### Bump the GO_VERSION in rancher projects
 ```sh
-docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools <utility> <args>
+docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd
 ```
-### update_go
-
+### Create a backport
 ```sh
-usage: /usr/local/bin/update_go [onrsph]
-    -o    version     
-    -n    version
-    -r    repository (rancher/image-build-base)
-    -s    display the hardened-build-base version of a target repository
-    -p    path to clone repositories 
-    -h    show help
-
-examples: 
-    /usr/local/bin/update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd
+docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools backport -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
 ```
-```
-### backport
+### Generate release notes
 ```sh
-version: v0.1.0
-Usage: backport [-t token] [-r repo] [-m milestone] 
-Options:
-    -h                   help
-    -v                   show version and exit
-    -t                   github token (optional)
-    -r repo              repository that should be used
-    -i issue id          original issue id
-    -c commit            commit id that is being bacported
-    -b branch(es)        branches issue is being backported to
-Examples: 
-    backport -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
-```
-### gen-release-notes
-```sh
-version: v0.4.0
-Usage: gen-release-notes [-r repo] [-m milestone] [-p prev milestone]
-Options:
-    -h                   help
-    -v                   show version and exit
-    -t                   github token (optional)
-    -r repo              repository that should be used
-    -m milestone         milestone to be used
-        -p prev milestone    previous milestone
-Examples: 
-    gen-release-notes -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
+docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools gen-release-notes -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
 ```
 
 ## Contributing
