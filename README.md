@@ -13,8 +13,13 @@ To compile the container image locally, perform:
 docker build . -t rancher/ecm-distro-tools:local
 ```
 ## Utility Index 
-The following is a detailed list of the utilities included in this repository and their corresponding usage.
+The following is a non-exausitve list of the utilities included in this repository and their corresponding usage.
+(see bin/ and cmd/ for all utilities.)
+### Using the docker image
 
+```sh
+docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools <utility> <args>
+```
 ### update_go
 
 ```sh
@@ -29,49 +34,6 @@ usage: /usr/local/bin/update_go [onrsph]
 examples: 
     /usr/local/bin/update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd
 ```
-
-### weekly_report
-```sh
-usage: /usr/local/bin/weekly_report [rh]
-    -r    repository
-    -h    show help
-
-examples:
-    /usr/local/bin/weekly_report -r k3s
-```
-
-### cut_k3s_release_issue
-```sh
-usage: /usr/local/bin/cut_k3s_release_issue [rch]
-    -r    releases to create
-    -c    release captain (github username)
-    -h    show help
-
-examples:
-    /usr/local/bin/cut_k3s_release_issue -r 'v1.22.6+k3s1' -c 'dereknola'
-    /usr/local/bin/cut_k3s_release_issue -r 'v1.20.15+k3s1 v1.21.9+k3s1 v1.22.6+k3s1 v1.23.2+k3s1'
-```
-### cut_rke2_release_issue
-```sh
-usage: /usr/local/bin/cut_rke2_release_issue [rch]
-    -r    releases to create
-    -c    release captain (github username)
-    -h    show help
-
-examples:
-    /usr/local/bin/cut_rke2_release_issue -r 'v1.22.6+rke2r1' -c 'briandowns'
-    /usr/local/bin/cut_rke2_release_issue -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6+rke2r1 v1.23.2+rke2r1'
-```
-### image_build_k8s_new_release
-```sh
-usage: /usr/local/bin/image_build_k8s_new_release [rph]
-    -r    releases to create
-    -p    path to clone repositories    
-    -h    show help
-
-examples:
-    /usr/local/bin/image_build_k8s_new_release -r 'v1.22.6-rke2r1'
-    /usr/local/bin/image_build_k8s_new_release -r 'v1.20.15-rke2r1 v1.21.9-rke2r1 v1.22.6 v1.23.2-rke2r1'
 ```
 ### backport
 ```sh
