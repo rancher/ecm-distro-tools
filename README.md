@@ -19,15 +19,33 @@ The following is a non-exausitve list of the utilities included in this reposito
 
 ### Bump the GO_VERSION in rancher projects
 ```sh
-docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build--envtcd
 ```
 ### Create a backport
 ```sh
-docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools backport -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools backport -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
 ```
 ### Generate release notes
 ```sh
-docker run --rm --it -e GITHUB_TOKEN=<token> rancher/ecm-distro-tools gen-release-notes -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools gen-release-notes -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
+```
+### Check for a single kubernetes release
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r v1.23.3
+```
+
+### Check for multiple kubernetes releases
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r 'v1.23.3 v1.22.6 v1.21.9 v1.20.15'
+```
+
+### Create a weekly report for k3s
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools -r k3s
+```
+### Create a weekly report for RKE2
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools -r rke2
 ```
 
 ## Contributing
