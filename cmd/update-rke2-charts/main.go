@@ -81,15 +81,14 @@ func main() {
 	chartName := flag.Arg(0)
 	chartPath := filepath.Join(chartsDir, "packages", chartName)
 
-	overrides := make(map[string]string, len(args))
-	for _, v := range args[1:] {
-		a := strings.Split(v, "=")
-
-		if len(a) < 2 {
+	overrides := make(map[string]string, len(args)-1)
+	for _, arg := range args[1:] {
+		i := strings.Index(arg, "=")
+		if i < 1 {
 			continue
 		}
 
-		overrides[a[0]] = a[1]
+		overrides[strings.TrimSpace(arg[:i])] = strings.TrimSpace(arg[i+1:])
 	}
 
 	err := filepath.Walk(chartPath, func(path string, info fs.FileInfo, err error) error {
