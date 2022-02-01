@@ -13,6 +13,7 @@ To compile the container image locally, perform:
 ```sh
 docker build . -t rancher/ecm-distro-tools:local
 ```
+
 ## Utility Index 
 The following is a non-exausitve list of the utilities included in this repository and their corresponding usage.
 (see bin/ and cmd/ for all utilities.)
@@ -33,19 +34,17 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools gen-rele
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r v1.23.3
 ```
-
 ### Check for multiple kubernetes releases
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r 'v1.23.3 v1.22.6 v1.21.9 v1.20.15'
 ```
-
 ### Create a weekly report for k3s
 ```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools -r k3s
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_report -r k3s
 ```
 ### Create a weekly report for RKE2
 ```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools -r rke2
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_report -r rke2
 ```
 
 ## Contributing
