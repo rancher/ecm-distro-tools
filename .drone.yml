@@ -9,7 +9,7 @@ platform:
 
 steps:
   - name: shellcheck
-    image: koalaman/shellcheck
+    image: koalaman/shellcheck-alpine:latest
     commands:
       - shellcheck --shell sh --check-sourced --exclude SC1091 $(git ls-files bin/)
     when:
