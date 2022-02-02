@@ -84,12 +84,15 @@ func main() {
 	overrides := make(map[string]string, len(args)-1)
 	for _, arg := range args[1:] {
 		i := strings.Index(arg, "=")
-		if i < 1 {
+		if i < 0 {
 			continue
 		}
 
 		overrides[strings.TrimSpace(arg[:i])] = strings.TrimSpace(arg[i+1:])
 	}
+
+	var pkg, chart *simpleTree
+	var values *RTree
 
 	err := filepath.Walk(chartPath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -103,14 +106,17 @@ func main() {
 			return nil
 		}
 
-		var u yamlUpdater
+		var u treeUpdater
 		switch info.Name() {
 		case fileChart:
-			u = newUpdater([]string{"appVersion", "version"})
+			chart = newTree([]string{"appVersion", "version"})
+			u = chart
 		case filePackage:
-			u = newUpdater([]string{"packageVersion"})
+			pkg = newTree([]string{"packageVersion"})
+			u = pkg
 		case fileValues:
-			u = newImageUpdater("tag")
+			values = newReferencedTree("tag")
+			u = values
 		default:
 			return nil
 		}
@@ -158,14 +164,14 @@ func exitErr(msg interface{}) {
 	os.Exit(1)
 }
 
-type yamlUpdater interface {
+type treeUpdater interface {
 	Load([]byte) error
 	Update(map[string]string)
 	HasChanged() bool
 }
 
-func newUpdater(targets []string) yamlUpdater {
-	u := &simpleVT{
+func newTree(targets []string) *simpleTree {
+	u := &simpleTree{
 		targets: targets,
 	}
 	u.Versions = make(map[string]interface{})
@@ -173,9 +179,9 @@ func newUpdater(targets []string) yamlUpdater {
 	return u
 }
 
-func newImageUpdater(target string) yamlUpdater {
+func newReferencedTree(target string) *RTree {
 	r := make(map[string][]map[string]interface{})
-	u := &referecedVT{
+	u := &RTree{
 		target:            target,
 		versionReferences: r,
 	}
@@ -198,13 +204,13 @@ func (v *versionTree) String() string {
 	return chartutil.ToYaml(v.Versions)
 }
 
-type simpleVT struct {
+type simpleTree struct {
 	modified bool
 	targets  []string
 	versionTree
 }
 
-func (s *simpleVT) Load(b []byte) error {
+func (s *simpleTree) Load(b []byte) error {
 	values, err := chartutil.ReadValues(b)
 	if err != nil {
 		return err
@@ -220,7 +226,7 @@ func (s *simpleVT) Load(b []byte) error {
 	return nil
 }
 
-func (s *simpleVT) Update(overrides map[string]string) {
+func (s *simpleTree) Update(overrides map[string]string) {
 	m := s.yaml.AsMap()
 	for _, t := range s.targets {
 		if val, ok := overrides[t]; ok {
@@ -231,18 +237,18 @@ func (s *simpleVT) Update(overrides map[string]string) {
 	}
 }
 
-func (s *simpleVT) HasChanged() bool {
+func (s *simpleTree) HasChanged() bool {
 	return s.modified
 }
 
-type referecedVT struct {
+type RTree struct {
 	modified          bool
 	target            string
 	versionReferences map[string][]map[string]interface{}
 	versionTree
 }
 
-func (r *referecedVT) Load(b []byte) error {
+func (r *RTree) Load(b []byte) error {
 	values, err := chartutil.ReadValues(b)
 	if err != nil {
 		return err
@@ -258,7 +264,7 @@ func (r *referecedVT) Load(b []byte) error {
 	return nil
 }
 
-func (r *referecedVT) Update(overrides map[string]string) {
+func (r *RTree) Update(overrides map[string]string) {
 	for k := range r.versionReferences {
 		if val, ok := overrides[k]; ok {
 			r.modified = true
@@ -270,7 +276,7 @@ func (r *referecedVT) Update(overrides map[string]string) {
 	}
 }
 
-func (r *referecedVT) HasChanged() bool {
+func (r *RTree) HasChanged() bool {
 	return r.modified
 }
 

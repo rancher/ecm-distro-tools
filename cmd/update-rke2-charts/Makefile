@@ -15,7 +15,3 @@ $(BINDIR)/$(BINARY): clean
 clean:
 	$(GO) clean
 	rm -f $(BINDIR)/$(BINARY)
-
-.PHONY: image
-image: $(BINDIR)/$(BINARY)
-	docker build -t rancher/$(BINARY):$(VERSION) .
