@@ -69,24 +69,24 @@ We welcome additions to this repo and are excited to keep expanding its function
 
 To contribute, please do the following:
 
-Features and Bugs
+### Features and Bugs
 
 * Open an issue explaining the feature(s) / bug(s) you are looking to add/fix.
 * Fork the repo, create a branch, push your changes, and open a pull request.
 * Request review
 
-Expectations
+### Expectations
 
 A set of patterns have been established with the Go and shell code that will need to be adhered to. Usage output and flags should be copied and pasted from other code files and adjusted to keep the UX as similar as possible to the rest of the utilities in the repo.
 
 Library code has been written for Go and shell which provide simpler access to Github, loggers, and means of validating common checks.
 
-Go
+#### Go
 
 * Go code additions are expected to have been linted, vetted, and fmt'd prior to pushing the code. 
 * Prefer the standard library over 3rd party libraries when possible
 
-Shell
+#### Shell
 
 * Shell scripts are expected to be POSIX compliant, avoiding specific shell features for portability. We are currently using `shellcheck` to perform these checks and validations.
 
