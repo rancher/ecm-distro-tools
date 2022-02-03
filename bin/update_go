@@ -38,7 +38,7 @@ get_version() {
     for i in "Dockerfile" "Dockerfile.amd64"; do
         if [ -e  "${repo_path}/${i}" ]; then
              info ${repo_path}
-            info $(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")
+            info "$(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")"
         fi 
     done
 
@@ -50,7 +50,7 @@ GO_VERSIONS=$(gh api repos/rancher/image-build-base/git/refs/tags -q ".[] | .ref
 valid_version() {
     version=$1
 
-    if ! $(echo ${GO_VERSIONS} | grep -q "${version}"); then
+    if ! eval "echo ${GO_VERSIONS}" | grep -q "${version}"; then
         fatal "the supplied version ${version} is not a valid Go version"
     fi
 
@@ -81,7 +81,7 @@ update_go() {
 
 
     if [ ! -z "${repo}" ]; then
-        get_repo "${repo}" ${clone_path}
+        get_repo "${repo}" "${clone_path}"
         substitute_go_version "${old}" "${new}" "${repo}" "${clone_path}"
         return 0
     fi
@@ -89,8 +89,8 @@ update_go() {
     repos=$(gh repo list rancher -L 500 --json "name" --jq '.[] | .name' | grep "image-build-")
 
     for i in ${repos}; do
-        get_repo ${i} ${clone_path}
-        substitute_go_version "${old}" "${new}" ${repo} ${clone_path}
+        get_repo "${i}" "${clone_path}"
+        substitute_go_version "${old}" "${new}" "${repo}" "${clone_path}"
     done
 
     return 0
@@ -137,8 +137,8 @@ fi
 
 if [ ${SHOW} ]; then
     if [ ! -z "${REPOSITORY}" ]; then
-        get_repo ${REPOSITORY} ${CLONE_PATH}
-        get_version ${REPOSITORY} ${CLONE_PATH}
+        get_repo "${REPOSITORY}" "${CLONE_PATH}"
+        get_version "${REPOSITORY}" "${CLONE_PATH}"
         exit 0
     fi
 
