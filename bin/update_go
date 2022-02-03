@@ -38,7 +38,7 @@ get_version() {
     for i in "Dockerfile" "Dockerfile.amd64"; do
         if [ -e  "${repo_path}/${i}" ]; then
              info ${repo_path}
-            info $(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")
+            info "$(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")"
         fi 
     done
 
