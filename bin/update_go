@@ -37,7 +37,7 @@ get_version() {
 
     for i in "Dockerfile" "Dockerfile.amd64"; do
         if [ -e  "${repo_path}/${i}" ]; then
-             info ${repo_path}
+             info "${repo_path}"
             info "$(awk -F ':' '/hardened-build-base/ {print $2}' "${repo_path}/${i}")"
         fi 
     done
@@ -80,7 +80,7 @@ update_go() {
     clone_path=$4
 
 
-    if [ ! -z "${repo}" ]; then
+    if [ -n "${repo}" ]; then
         get_repo "${repo}" "${clone_path}"
         substitute_go_version "${old}" "${new}" "${repo}" "${clone_path}"
         return 0
@@ -136,7 +136,7 @@ if [ ! -d "${CLONE_PATH}" ]; then
 fi
 
 if [ ${SHOW} ]; then
-    if [ ! -z "${REPOSITORY}" ]; then
+    if [ -n "${REPOSITORY}" ]; then
         get_repo "${REPOSITORY}" "${CLONE_PATH}"
         get_version "${REPOSITORY}" "${CLONE_PATH}"
         exit 0
