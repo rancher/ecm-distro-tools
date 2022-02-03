@@ -11,7 +11,7 @@ steps:
   - name: shellcheck
     image: koalaman/shellcheck-alpine:latest
     commands:
-      - shellcheck --shell sh --check-sourced --exclude SC1091 bin/*
+      - shellcheck --shell sh --check-sourced -S warning error --exclude SC1091 bin/*
     when:
       event:
         - pull_request
