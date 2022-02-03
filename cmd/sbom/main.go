@@ -82,32 +82,32 @@ func main() {
 
 	fileOut := generateFileName()
 	format := DEFAULT_FORMAT
-	config := getGoModAndSumConfig()
+	config := getBuildImagesConfig()
 
-	docBuildGo, err := builder.Build2_2("go", packageRootDir, config)
+	docBuildImages, err := builder.Build2_2("buildimages", packageRootDir, config)
 	if err != nil {
 		fmt.Printf("Error while building document: %v\n", err)
 		return
 	}
 
-	docBuildGo.CreationInfo.DocumentName = fmt.Sprintf("SBOM_SPDX_%s-%s", repo, upVersion)
+	docBuildImages.CreationInfo.DocumentName = fmt.Sprintf("SBOM_SPDX_%s-%s", repo, upVersion)
 
-	fmt.Printf("Successfully created document for package %s\n", "go")
-	goFileOut := fmt.Sprintf("%s_%s.%s", fileOut, "gomod", format)
-	wGo, err := os.Create(goFileOut)
+	fmt.Printf("Successfully created document for package %s\n", "images")
+	goFileOut := fmt.Sprintf("%s_%s.%s", fileOut, "buildimages", format)
+	w, err := os.Create(goFileOut)
 	if err != nil {
 		fmt.Printf("Error while opening %v for writing: %v\n", goFileOut, err)
 		return
 	}
-	defer wGo.Close()
+	defer w.Close()
 
-	err = tvsaver.Save2_2(docBuildGo, wGo)
+	err = tvsaver.Save2_2(docBuildImages, w)
 	if err != nil {
 		fmt.Printf("Error while saving %v: %v", goFileOut, err)
 		return
 	}
 
-	fmt.Printf("Successfully go module saved %v\n", fileOut)
+	fmt.Printf("Successfully buildimages module saved %v\n", fileOut)
 
 	err = callSbomSpdxTool(packageRootDir, "")
 	if err != nil {
@@ -122,7 +122,7 @@ func generateFileName() string {
 	return fmt.Sprintf("sbom-spdf-%s-%s", repo, upVersion)
 }
 
-func getGoModAndSumConfig() *builder.Config2_2 {
+func getBuildImagesConfig() *builder.Config2_2 {
 	return &builder.Config2_2{
 
 		NamespacePrefix: namespaces[repo],
@@ -139,7 +139,6 @@ func getGoModAndSumConfig() *builder.Config2_2 {
 			"/.github/",
 			"/.vagrant/",
 			"/bin/",
-			"/build/",
 			"/bundle/",
 			"/charts/",
 			"/contrib/",
@@ -173,6 +172,7 @@ func getGoModAndSumConfig() *builder.Config2_2 {
 			"/mkdocs.yml",
 			"/go-deps-list.json",
 			"/go.sum",
+			"/go.mod",
 			"/install.ps1",
 			"/install.sh",
 			"/main.go",
@@ -181,6 +181,7 @@ func getGoModAndSumConfig() *builder.Config2_2 {
 
 			// ignore folder anywhere within the directory tree
 			"**/.DS_Store",
+			"**/images/",
 		},
 	}
 }
