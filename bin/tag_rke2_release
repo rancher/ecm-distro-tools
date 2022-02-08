@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# This script is meant to create new releases for on
+# specific release branches. E.g. release-1.21. For 
+# releases that are needed to be tagged from master,
+# they will need to be done manually.
+
+set -e
+
+#. libstd-ecm.sh
+
+usage() {
+    echo "usage: $0 [rdh]
+    -r    releases to create
+    -d    dry run
+    -h    show help
+
+examples:
+    $0 -r 'v1.22.6-rke2r1'
+    $0 -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6 v1.23.2+rke2r1'"
+}
+
+while getopts 'r:dh' c; do
+    case $c in
+    r) 
+        RELEASE_VERSIONS=$OPTARG
+    ;;
+    d)
+        DRY_RUN=true
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+if [ -z "${RELEASE_VERSIONS}" ]; then
+    echo "error: version(s) required"
+    exit 1
+fi
+
+#has_gh
+
+for release in ${RELEASE_VERSIONS}; do
+    BRANCH="$(echo "v1.21.9+rke2" | awk -F '.' '{ gsub("v", ""); print "release-"$1"."$2 }')"
+
+    if [ ${DRY_RUN} ]; then
+        echo "gh release create ${release} --title ${release} --prerelease --target ${BRANCH} --notes ''"
+    else
+        echo ""
+        # gh release create "${release}" \
+        #     --title "${release}"       \
+        #     --target "${BRANCH}"       \
+        #     --prerelease
+        #     --notes ""
+    fi
+done
+
+exit 0
