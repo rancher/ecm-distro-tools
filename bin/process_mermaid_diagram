@@ -1,0 +1,87 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+
+: "${OUTPUT_DIR:=$(pwd)}"
+: "${_WORKSPACE:=$(mktemp -d '/tmp/XXXXXX')}"
+
+cleanup() {
+  exit_code=$?
+  trap - EXIT INT
+  rm -rf "${_WORKSPACE}"
+  exit ${exit_code}
+}
+trap cleanup EXIT INT
+
+usage() {
+    echo "usage: $0 [h]
+    -h    show help
+    -t    target output directory. default: .
+
+examples:
+    $0 -t developer-docs https://gist.github.com/jossemargt-3pillar/4c93f23821a8cf9558692002d10c70ef
+"
+}
+
+while getopts 't:dh' c; do
+    case $c in
+    d)
+        set_debug
+        ;;
+    t)
+        OUTPUT_DIR=$OPTARG
+        ;;
+    h)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+    esac
+done
+
+shift $((OPTIND - 1))
+
+has_gh
+
+gist_url=${1?Gist URL is required}
+config_file="$_WORKSPACE/config.json"
+
+for f in $(gh gist view "$gist_url" --files); do
+    if [ "${f##*.}" = "json" ]; then
+        config_file="$_WORKSPACE/$f"
+    fi
+    gh gist view "$gist_url" -f "$f" >"$_WORKSPACE/$f"
+done
+
+if [ ! -f "$config_file" ]; then
+    cat <<'EOF' > "$config_file"
+{
+  "theme": "default",
+  "logLevel": 3,
+  "deterministicIds": true,
+  "flowchart": {
+    "diagramPadding": 2,
+    "htmlLabels": false
+  }
+}
+EOF
+fi
+
+old=$(pwd)
+cd "$_WORKSPACE"
+
+find . -type f -not -name '*.json' -not -name '*.tmp' > files.tmp
+
+while IFS= read -r source_file
+do
+    name=${source_file%.*}
+    mmdc -c "$config_file" -i "$source_file" -o "$name.tmp.svg"
+    svg-text-to-path -o "$OUTPUT_DIR/$name.svg" < "$name.tmp.svg"
+done < files.tmp
+
+cd "$old"
