@@ -1,18 +1,28 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/spdx/tools-golang/builder"
 	"github.com/spdx/tools-golang/tvsaver"
 )
 
 const (
-	ORGANIZATION_SUSE = "SUSE"
-	DEFAULT_FORMAT    = "spdx"
+	ORGANIZATION_SUSE        = "SUSE"
+	DEFAULT_FORMAT           = "spdx"
+	SPDX_CREATOR_TYPE_ORG    = "Organization"
+	SPDX_CREATOR_TYPE_PERSON = "Person"
+	SPDX_CREATOR_TYPE_TOOL   = "Tool"
+	REGEX_LICENSE_IDENTIFIER = `SPDX-License-Identifier`
 )
 
 const usage = `version: %s
@@ -29,17 +39,33 @@ Examples:
 `
 
 var (
-	vers           bool
-	repo           string
-	upVersion      string
-	packageRootDir string
-	namespaces     map[string]string
+	vers             bool
+	repo             string
+	upVersion        string
+	packageRootDir   string
+	namespaces       map[string]string
+	cliDir           string
+	licensesListSPDX []license
+	sbomFileTool     string
 )
 
 func init() {
 	namespaces = make(map[string]string)
 	namespaces["rke2"] = "https://rke2.io/"
 	namespaces["k3s"] = "https://k3s.io/"
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+	}
+	cliDir = wd
+	fileBytes, err := os.ReadFile(filepath.Join(cliDir, "assets", "spdx-license-list.json"))
+	if err != nil {
+		fmt.Println("error: ", err.Error())
+		os.Exit(1)
+	}
+
+	json.Unmarshal(fileBytes, &licensesListSPDX)
+	sbomFileTool = "bom-go-mod.spdx"
 }
 
 func main() {
@@ -90,21 +116,36 @@ func main() {
 		return
 	}
 
+	// retrieve official library name and version for the Creator: Tool part in SPDX
 	docBuildImages.CreationInfo.DocumentName = fmt.Sprintf("SBOM_SPDX_%s-%s", repo, upVersion)
+	moduleVers, err := getModuleVersion("github.com/spdx/tools-golang")
+	if err != nil {
+		fmt.Printf("error: unable to find module version. %s\n", err.Error())
+		os.Exit(1)
+	} else {
+		for i, t := range docBuildImages.CreationInfo.CreatorTools {
+			if t == "github.com/spdx/tools-golang/builder" {
+				docBuildImages.CreationInfo.CreatorTools[i] = t + "-" + moduleVers
+				break
+			}
+		}
+		// docBuildImages.CreationInfo.CreatorTools = append(docBuildImages.CreationInfo.CreatorTools, "spdx/tools-golang-"+moduleVers)
+	}
 
 	fmt.Printf("Successfully created document for package %s\n", "images")
+
 	goFileOut := fmt.Sprintf("%s_%s.%s", fileOut, "buildimages", format)
 	w, err := os.Create(goFileOut)
 	if err != nil {
 		fmt.Printf("Error while opening %v for writing: %v\n", goFileOut, err)
-		return
+		os.Exit(1)
 	}
 	defer w.Close()
 
 	err = tvsaver.Save2_2(docBuildImages, w)
 	if err != nil {
 		fmt.Printf("Error while saving %v: %v", goFileOut, err)
-		return
+		os.Exit(1)
 	}
 
 	fmt.Printf("Successfully buildimages module saved %v\n", fileOut)
@@ -115,7 +156,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	// replace root package license
+	rootSpdxID, err := findSpdxIDInFile(packageRootDir)
+	if err != nil {
+		fmt.Println("error finding spdx ID in root Pkg License file: ", err.Error())
+		os.Exit(1)
+	}
+	replaceRootPackageLicenses(packageRootDir, rootSpdxID, "")
+
+	err = findLicensesInPackages(packageRootDir)
+	if err != nil {
+		fmt.Printf("Error finding LicensesInPackages: %+v", err)
+		os.Exit(1)
+	}
+
+	renameSpdxFile(sbomFileTool, fmt.Sprintf("%s_%s.%s", fileOut, "gomod", format))
 	os.Exit(0)
+}
+
+func renameSpdxFile(current, final string) {
+
+	args := []string{current, final}
+	cmd := exec.Command("mv", args...)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("error final spdx file: ", err.Error())
+		os.Exit(1)
+	}
+	fmt.Println("process completed\nOutput file: ", final)
 }
 
 func generateFileName() string {
@@ -204,4 +272,217 @@ func callSbomSpdxTool(path, outPath string) error {
 		return err
 	}
 	return nil
+}
+
+// returns the version for the given go module
+func getModuleVersion(module string) (string, error) {
+	args := []string{"list", "-u", "-m", "-versions", module}
+	cmd := exec.Command("go", args...)
+	out, _ := cmd.CombinedOutput()
+	outStr := string(out)
+	verArr := strings.Split(outStr, " ")
+	outVer := verArr[len(verArr)-1]
+
+	if !strings.ContainsAny(outVer, "v") {
+		return "", fmt.Errorf("no versions found for the module: %s", module)
+	}
+
+	return outVer, nil
+}
+
+type Module struct {
+	Path      string
+	Version   string
+	Indirect  bool
+	Dir       string
+	GoVersion string
+}
+type goPkg struct {
+	Dir        string
+	ImportPath string
+	Name       string
+	Doc        string
+	Root       string
+	Module     Module
+	SpdxID     string
+}
+
+type license struct {
+	Reference       string `json:"reference"`
+	IsDeprecated    bool   `json:"isDeprecatedLicenseId"`
+	DetailsURL      string `json:"detailsUrl"`
+	ReferenceNumber int    `json:"referenceNumber"`
+	Name            string `json:"name"`
+	LicenseID       string `json:"licenseId"`
+	IsOSIapproved   string `json:"isOsiApproved"`
+}
+
+func returnToCliDir() {
+	os.Chdir(cliDir)
+}
+
+func getGoPackages(dir string) ([]*goPkg, error) {
+	defer returnToCliDir()
+
+	os.Chdir(dir)
+
+	args := []string{"list", "-deps", "-json", "./..."}
+	cmd := exec.Command("go", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("error getting go deps: %v \n", err)
+		return nil, err
+	}
+
+	var modules []*goPkg
+
+	dec := json.NewDecoder(bytes.NewReader(out))
+	for {
+		var m goPkg
+		if err := dec.Decode(&m); err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("reading go list output: %v", err)
+		}
+		modules = append(modules, &m)
+	}
+
+	return modules, nil
+}
+
+func replaceRootPackageLicenses(filePath string, licConcluded, licDeclared string) {
+	noAssertions := map[string]string{
+		// Governing license for the package
+		"PackageLicenseConcluded: NOASSERTION": "PackageLicenseConcluded: " + licConcluded,
+
+		// TBD: Licenses used in files
+		// "PackageLicenseDeclared: NOASSERTION": licDeclared,
+
+		// TBD
+		// "PackageLicenseComments: NOASSERTION"
+	}
+
+	for old, new := range noAssertions {
+		args := []string{fmt.Sprintf("0,/%s/s//%s/", old, new), filepath.Join(filePath, sbomFileTool)}
+		_, err := exec.Command("sed", args...).Output()
+		if err != nil {
+			fmt.Println("error replacing root license file: ", err.Error())
+			continue
+		}
+	}
+}
+
+func findLicensesInPackages(dir string) error {
+	/*
+		1. Read packages from go.mod
+		2. Find Package in go $GOPATH/pkg/mod
+		3. Read Pckage LICENSE in $GOPATH/pkg/mod
+		4. If only one dir then enter the child dir and obtain the LICENSE if pissible
+			4.1. retrieve SPDX-License-Identifier or SPDX license
+		5. else find version in dir
+	*/
+	pkgs, err := getGoPackages(dir)
+	if err != nil {
+		return err
+	}
+
+	// lookup in pkgs files
+	// Note: validate this process as it will need a whole search
+	// for the PackageLicenseConcluded: NOASSERTION part for every package in the spdx file
+	for _, pkg := range pkgs {
+		if pkg.Module.Dir == "" {
+			continue
+		}
+		spdxID, err := findSpdxIDInFile(pkg.Module.Dir)
+		if err != nil {
+			fmt.Println("Error: ", err.Error())
+			continue
+		}
+		pkg.SpdxID = spdxID
+		// TODO: Validate if Pkg Spdx IDs are required
+		// TODO: if true then replace PackageLicenseConcluded: NOASSERTION in generated sbom file
+	}
+	return nil
+}
+
+func findSpdxIDInFile(fileAbsPath string) (string, error) {
+
+	// get the SPDX ID if there exists the identifier(SPDX-License-Identifier) in the License file
+	licenseFile := filepath.Join(fileAbsPath, "LICENSE")
+	args := []string{fmt.Sprintf("/%s/", REGEX_LICENSE_IDENTIFIER), licenseFile}
+
+	cmd := exec.Command("awk", args...)
+	resBytes, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("error awk: ", err.Error())
+		return "", err
+	}
+
+	spdxIdFound := string(resBytes)
+
+	// if no SPDX ientifier found then search for the ID in the Licenses File
+	if spdxIdFound == "" {
+		return findSpdxIDFromLicenseFile(licenseFile)
+	}
+
+	// valid SPDX identifiers
+	// // SPDX-License-Identifier: MIT
+	// /* SPDX-License-Identifier: MIT OR Apache-2.0 */
+	// # SPDX-License-Identifer: GPL-2.0-or-later
+	if bytes.Contains(resBytes, []byte("/*")) {
+		resBytes = bytes.Replace(resBytes, []byte("/*"), []byte(""), 1)
+		resBytes = bytes.Replace(resBytes, []byte("*/"), []byte(""), 1)
+	}
+
+	spdxID := bytes.Split(resBytes, []byte(":"))[1]
+	spdxID = bytes.TrimSpace(spdxID)
+
+	return string(spdxID), nil
+}
+
+// Read the given LICENSE file to retreieve the SPDX ID that matches
+// returns empty string if error or no match
+func findSpdxIDFromLicenseFile(licenseFile string) (string, error) {
+	args := []string{"-4", licenseFile}
+	resBytes, err := exec.Command("head", args...).Output()
+	if err != nil {
+		fmt.Println("error head license file: ", err.Error())
+		return "", err
+	}
+	if len(resBytes) == 0 {
+		return "", fmt.Errorf("error: no LICENSE text found in file")
+
+	}
+
+	outSplit := bytes.Split(resBytes, []byte("\n"))
+	for i, s := range outSplit {
+		outSplit[i] = bytes.TrimSpace(s)
+	}
+
+	resBytes = bytes.Join(outSplit, []byte(" "))
+	gotSpdxID := searchSpdxIDLicensesList(resBytes)
+	if gotSpdxID == "" {
+		return "", fmt.Errorf("error: could not find SPDX ID")
+	}
+
+	return gotSpdxID, nil
+}
+
+// searchSpdxIDLicensesList loops over the SPDX licenses list trying to find the ID from the given copyright text
+func searchSpdxIDLicensesList(textBytes []byte) string {
+
+	// Done this way as Apache Copyright text does not contains License name
+	if bytes.Contains(textBytes, []byte("1995-1999 The Apache Group")) {
+		return "Apache-1.0"
+	} else if bytes.Contains(textBytes, []byte("Apache License Version 2.0, January 2004")) {
+		return "Apache-2.0"
+	}
+
+	for _, li := range licensesListSPDX {
+		if bytes.Contains([]byte(li.Name), textBytes) {
+			return li.LicenseID
+		}
+	}
+	return ""
 }
