@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/types"
 	"golang.org/x/oauth2"
 )
 
@@ -111,10 +112,16 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	title := fmt.Sprintf(i.Title, strings.Title(branch), origIssue.GetTitle())
 	body := fmt.Sprintf(i.Body, origIssue.GetTitle(), *origIssue.Number)
 
+	var assignee *string
+	if origIssue.GetAssignee() != nil {
+		assignee = origIssue.GetAssignee().Login
+	} else {
+		assignee = types.StringPtr("")
+	}
 	issue, _, err := client.Issues.Create(ctx, org, repo, &github.IssueRequest{
 		Title:    github.String(title),
 		Body:     github.String(body),
-		Assignee: origIssue.GetAssignee().Login,
+		Assignee: assignee,
 	})
 	if err != nil {
 		return nil, err
