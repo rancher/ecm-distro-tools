@@ -1,16 +1,15 @@
 #!/bin/sh
 
-# This script is meant to create new releases for on
-# specific release branches. E.g. release-1.21. For 
-# releases that are needed to be tagged from master,
-# they will need to be done manually.
-
 set -e
 
 . libstd-ecm.sh
 
 usage() {
-    echo "usage: $0 [rdh]
+    echo "This script is meant to create new releases for on specific release
+    branches. E.g. release-1.21. For releases that are needed to be tagged from
+    master, they will need to be done manually.
+
+    usage: $0 [rdh]
     -r    releases to create
     -d    dry run
     -h    show help
@@ -44,7 +43,7 @@ if [ -z "${RELEASE_VERSIONS}" ]; then
     exit 1
 fi
 
-#has_gh
+has_gh
 
 for release in ${RELEASE_VERSIONS}; do
     BRANCH="$(echo "${release}" | awk -F '.' '{ gsub("v", ""); print "release-"$1"."$2 }')"
