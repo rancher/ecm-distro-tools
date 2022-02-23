@@ -13,7 +13,7 @@ make all
 To compile the container image locally, perform:
 
 ```sh
-docker build . -t rancher/ecm-distro-tools:local
+docker build . -t rancher/ecm-distro-tools
 ```
 
 ## Utility Index
