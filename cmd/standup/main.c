@@ -27,7 +27,7 @@ PRs:\n\
 
 #define DATE_BUF_SZ 11
 
-// DATE_FORMAT for getting the year, month, and day in yyyy-mm-dd format.
+// date_format for getting the year, month, and day in yyyy-mm-dd format.
 static const char* date_format = "%lu-%02lu-%02lu";
 
 int
