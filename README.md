@@ -68,13 +68,13 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_r
 Send template output to standard out.
 
 ```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools standup
+docker run --rm -it rancher/ecm-distro-tools standup
 ```
 
 Send template output to a file at `${PWD}`. File will be named `YYYY-MM-dd`
 
 ```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools standup -f
+docker run --rm -it rancher/ecm-distro-tools standup -f
 ```
 
 ## Contributing
