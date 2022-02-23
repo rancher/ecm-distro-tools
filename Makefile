@@ -1,5 +1,5 @@
 .PHONY: all
-all: gen-release-notes backport
+all: gen-release-notes backport standup
 
 .PHONY: gen-release-notes
 gen-release-notes:
@@ -7,4 +7,8 @@ gen-release-notes:
 
 .PHONY: backport
 backport:
+	cd cmd/$@ && $(MAKE)
+
+.PHONY: standup
+standup:
 	cd cmd/$@ && $(MAKE)

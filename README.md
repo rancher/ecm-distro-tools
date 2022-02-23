@@ -63,6 +63,20 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_r
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_report -r rke2
 ```
 
+### Daily Standup Template Generator
+
+Send template output to standard out.
+
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools standup
+```
+
+Send template output to a file at `${PWD}`. File will be named `YYYY-MM-dd`
+
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools standup -f
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.

@@ -29,6 +29,7 @@ _testmain.go
 
 cmd/gen-release-notes/bin/*
 cmd/backport/bin/*
+cmd/standup/bin/*
 
 data/*
 
