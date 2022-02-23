@@ -11,5 +11,5 @@ RUN apk --no-cache add \
 
 COPY cmd/gen-release-notes/bin/gen-release-notes /usr/local/bin
 COPY cmd/backport/bin/backport /usr/local/bin
-COPY cmd/backport/bin/standup /usr/local/bin
+COPY cmd/standup/bin/standup /usr/local/bin
 COPY bin/. /usr/local/bin
