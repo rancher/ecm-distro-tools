@@ -118,3 +118,22 @@ month_ago_unix() {
 year_ago_unix() {
     echo $(($(date +%s) - 31557600))
 }
+
+# colorized output
+
+__RED='\033[0;31m'
+__GREEN='\033[0;32m'
+__YELLOW='\033[1;33m'
+__NC='\033[0m'
+
+print_red() {
+    printf "${__RED}%s${__NC}" "$1"
+}
+
+print_green() {
+    printf "${__GREEN}%s${__NC}" "$1"
+}
+
+print_yellow() {
+    printf "${__YELLOW}%s${__NC}" "$1"
+}
