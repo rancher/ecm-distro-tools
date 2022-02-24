@@ -77,6 +77,12 @@ Send template output to a file at `${PWD}`. File will be named `YYYY-MM-dd`
 docker run --rm -it rancher/ecm-distro-tools standup -f
 ```
 
+### Retrieve Bootstrap Hash
+
+```sh
+docker run --rm -it rancher/ecm-distro-tools bootstrap_hash -p k3s
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.

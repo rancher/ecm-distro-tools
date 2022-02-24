@@ -12,3 +12,7 @@ backport:
 .PHONY: standup
 standup:
 	cd cmd/$@ && $(MAKE)
+
+.PHONY: build-image
+build-image:
+	docker build -t ecmdt-local .
