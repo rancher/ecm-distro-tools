@@ -49,6 +49,11 @@ has_gh() {
     __cmd_check "${GH}"
 }
 
+has_etcdctl() {
+    ETCDCTL="$(command -v etcdctl)"
+    __cmd_check "${ETCDCTL}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {
