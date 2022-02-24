@@ -89,9 +89,7 @@ setup_verify_arch() {
 # setup_tmp create temporary directory 
 # and cleanup when done.
 setup_tmp() {
-    TMP_DIR=$(mktemp -d -t k3s-install.XXXXXXXXXX)
-    TMP_HASH=${TMP_DIR}/k3s.hash
-    TMP_BIN=${TMP_DIR}/k3s.bin
+    TMP_DIR=$(mktemp -d -t ecm.XXXXXXXXXX)
     cleanup() {
         code=$?
         set +e
@@ -100,6 +98,8 @@ setup_tmp() {
         exit $code
     }
     trap cleanup INT EXIT
+
+    export TMP_DIR
 }
 
 # date functions
@@ -127,11 +127,11 @@ __YELLOW='\033[1;33m'
 __NC='\033[0m'
 
 print_red() {
-    printf "${__RED}%s${__NC}" "$1"
+    printf "${__RED}%b${__NC}" "$1"
 }
 
 print_green() {
-    printf "${__GREEN}%s${__NC}" "$1"
+    printf "${__GREEN}%b${__NC}" "$1"
 }
 
 print_yellow() {
