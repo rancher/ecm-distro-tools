@@ -135,5 +135,5 @@ print_green() {
 }
 
 print_yellow() {
-    printf "${__YELLOW}%s${__NC}" "$1"
+    printf "${__YELLOW}%b${__NC}" "$1"
 }
