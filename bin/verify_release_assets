@@ -124,3 +124,5 @@ if [ "${LIST_ASSETS}" = 'true' ]; then
     find "${TMP_DIR}" -type f -name '*-assets' -exec \
         sh -c '_file="$1"; echo "=== $(basename -s -assets $_file)"; cat $_file' shell {} \;
 fi
+
+exit 0
