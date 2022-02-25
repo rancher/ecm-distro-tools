@@ -2,10 +2,13 @@
 
 set -e
 
+. libstd-ecm.sh
+
 usage() {
-    echo "usage: $0 [rph]
+    echo "usage: $0 [rpdh]
     -r    releases to create
-    -p    path to clone repositories    
+    -p    path to clone repositories   
+    -d    dry run 
     -h    show help
 
 examples:
@@ -13,13 +16,16 @@ examples:
     $0 -r 'v1.20.15-rke2r1 v1.21.9-rke2r1 v1.22.6 v1.23.2-rke2r1'"
 }
 
-while getopts 'r:p:h' c; do
+while getopts 'r:p:dh' c; do
     case $c in
     r) 
         RELEASE_VERSIONS=$OPTARG
     ;;
     p)
         REPO_PATH=$OPTARG
+    ;;
+    d)
+        DRY_RUN=true
     ;;
     h)
         usage
@@ -46,6 +52,8 @@ if echo "${RELEASE_VERSIONS}" | grep -q '+'; then
     exit 1 
 fi
 
+has_gh
+
 if [ -z "${REPO_PATH}" ]; then
     REPO_PATH="${HOME}/go/src/github.com/rancher/image-build-kubernetes"
 fi
@@ -61,10 +69,14 @@ DATE=$(TZ=utc date '+%Y%m%d')
 for i in ${RELEASE_VERSIONS}; do
     TAG="${i}-build${DATE}"
 
-    gh release create "${TAG}" \
-        --title "${TAG}"       \
-        --target "master"      \
-        --notes ""
+    if [ ${DRY_RUN} ]; then
+        echo "gh release create ${TAG} --title ${TAG} --target master --notes ''"
+    else
+        gh release create "${TAG}" \
+            --title "${TAG}"       \
+            --target "master"      \
+            --notes ""
+    fi
 done
 
 exit 0
