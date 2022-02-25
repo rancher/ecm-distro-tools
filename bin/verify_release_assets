@@ -50,7 +50,7 @@ print_status() {
         expected="${ASSERT_AMOUNT}"
     fi
 
-    printf "release: %s expected: %s got: %s status: " "${release}" "${expected}" "${current_count}"
+    printf "release: %s status: " "${release}"
 
     if [ "${current_count}" = "${expected}" ]; then
         print_green 'OK\n'
