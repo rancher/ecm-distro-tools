@@ -1,0 +1,128 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+
+REPOSITORY='rancher/rke2'
+STRICT_MATCH='false'
+LIST_ASSETS='false'
+ASSERT_AMOUNT=''
+
+usage() {
+    echo "usage: $0 [adhlr] <repository>
+    -l    list assets file names
+    -r    set target repository. default: $REPOSITORY
+    -s    use strict release tag name match
+    -a    override expected assets amount
+    -h    show help
+
+examples:
+    $0 -s v1.23.4
+    $0 -s v1.23.4-rc2+rke2r1
+    $0 -l -r rancher/rke2 v1.23.4"
+}
+
+print_status() {
+    release="${1}"
+    current_count="${2}"
+    expected=''
+
+    case "${REPOSITORY}" in
+    *rke2)
+        expected='30'
+        ;;
+    *rke2-packaging)
+        expected='23'
+        ;;
+    *k3s)
+        expected='18'
+        ;;
+    *)
+        if [ -z "${ASSERT_AMOUNT}" ]; then
+            echo 'Unable to assert expected assets amount, please provide it through -a flag'
+            return 1
+        fi
+        ;;
+    esac
+
+    if [ -n "${ASSERT_AMOUNT}" ]; then
+        expected="${ASSERT_AMOUNT}"
+    fi
+
+    printf "release: %s status: " "${release}"
+
+    if [ "${current_count}" = "${expected}" ]; then
+        print_green 'OK\n'
+    else
+        print_red 'MISMATCH\n'
+    fi
+}
+
+while getopts 'a:dhlr:s' c; do
+    case "${c}" in
+    d)
+        set_debug
+        ;;
+    r)
+        REPOSITORY=$OPTARG
+        ;;
+    a)
+        ASSERT_AMOUNT=$OPTARG
+        ;;
+    s)
+        STRICT_MATCH='true'
+        ;;
+    l)
+        LIST_ASSETS='true'
+        ;;
+    h)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+    esac
+done
+
+shift $((OPTIND - 1))
+if [ -z "${1}" ]; then
+    echo "error: release tag required"
+    exit 1
+fi
+
+has_gh
+
+# gh environment variable overrides
+export GH_REPO="${REPOSITORY}"
+export PAGER='cat'
+
+setup_tmp
+
+RELEASE_TAG="${1}"
+PATTERN=".tag_name | startswith(\"${RELEASE_TAG}\")"
+if [ "${STRICT_MATCH}" = 'true' ]; then
+    PATTERN=".tag_name==\"${RELEASE_TAG}\""
+fi
+
+gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.id) \(.tag_name)\" " >"${TMP_DIR}/${RELEASE_TAG}-list"
+
+while IFS= read -r line; do
+    echo "${line}" | (
+        IFS=' ' read -r id name
+        gh api "repos/{owner}/{repo}/releases/${id}/assets" -q '.[] | .name' >"${TMP_DIR}/${name}-assets"
+
+        assets_count=$(wc -l <"${TMP_DIR}/${name}-assets")
+
+        print_status "${name}" "${assets_count}"
+    )
+done <"${TMP_DIR}/${RELEASE_TAG}-list"
+
+if [ "${LIST_ASSETS}" = 'true' ]; then
+    find "${TMP_DIR}" -type f -name '*-assets' -exec \
+        sh -c '_file="$1"; echo "=== $(basename -s -assets $_file)"; cat $_file' shell {} \;
+fi
+
+exit 0

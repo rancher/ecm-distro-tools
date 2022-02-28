@@ -83,6 +83,21 @@ docker run --rm -it rancher/ecm-distro-tools standup -f
 docker run --rm -it rancher/ecm-distro-tools bootstrap_hash -p k3s
 ```
 
+### Verify K3s and RKE2 release assets
+
+```sh
+# RKE2
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets v1.23.4
+release: v1.23.4+rke2r1 status: OK
+release: v1.23.4-rc2+rke2r1 status: OK
+release: v1.23.4-rc1+rke2r1 status: MISMATCH
+
+#K3s
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets -r k3s-io/k3s v1.23.4
+release: v1.23.4+k3s1 status: OK
+release: v1.23.4-rc1+k3s1 status: OK
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.
