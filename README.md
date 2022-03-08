@@ -98,6 +98,26 @@ release: v1.23.4+k3s1 status: OK
 release: v1.23.4-rc1+k3s1 status: OK
 ```
 
+### Verify RKE2 charts are up to date
+
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets  verify_rke2_charts -i 'rancher-vsphere-cpi rancher-vsphere-csi' -b 'master'
+
+Chart                     Status     Current         Latest
+rke2-cilium               OK
+rke2-canal                OK
+rke2-calico               OK
+rke2-calico-crd           OK
+rke2-coredns              OK
+rke2-ingress-nginx        OK
+rke2-metrics-server       OK
+rke2-multus               OK
+rancher-vsphere-cpi       IGNORED
+rancher-vsphere-csi       IGNORED
+harvester-cloud-provider  MISMATCH   0.1.900         0.1.1000
+harvester-csi-driver      OK
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.
