@@ -94,9 +94,9 @@ sed -n -e "${CHART_LOOKUP}" Dockerfile | while read -r CURRENT_V CHART; do
 
     # Calico related charts have 3 version that do not comply with semver
     if [ "${TARGET}" = 'rke2-calico-crd' ] || [ "${TARGET}" = 'rke2-calico' ]; then
-        LATEST_V=$( echo "$VERSIONS" | sort -brV | tail -n '+4' | head -1)
+        LATEST_V=$( echo "${VERSIONS}" | sort -brV | tail -n '+4' | head -1)
     else
-        LATEST_V=$( echo "$VERSIONS" | sort -brV | head -1)
+        LATEST_V=$( echo "${VERSIONS}" | sort -brV | head -1)
     fi
 
     if [ "${CURRENT_V}" = "${LATEST_V}" ]; then
