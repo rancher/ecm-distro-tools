@@ -17,7 +17,7 @@ rancher_list_local_repos() {
     done
 }
 
-# rancher_list_repos prints out all the base and rke2 docker images
+# rke2_list_docker_images prints out all the base and rke2 docker images
 rke2_list_docker_images() {
     curl -s 'https://raw.githubusercontent.com/rancher/rke2/master/developer-docs/image_sources.md' | \
         grep -E 'rancher/(hardened-build-base|rke2)' | awk -F '|' '{print $4}' | xargs -n1 echo | \
