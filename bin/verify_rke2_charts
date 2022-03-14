@@ -26,6 +26,8 @@ examples:
     ${0} -l ../rke2 -b release-1.22"
 }
 
+has_yq
+
 while getopts 'b:i:l:r:xh' c; do
     case "${c}" in
     b)
@@ -75,8 +77,6 @@ else
         git checkout -q "${BRANCH}"
     fi
 fi
-
-has_yq
 
 # Get rke2-charts index
 rke2_charts_get_index >"${TMP_DIR}/index.yaml"
