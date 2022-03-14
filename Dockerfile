@@ -7,7 +7,8 @@ RUN apk --no-cache add \
     gcc                \
     bsd-compat-headers \
     py-pip             \
-    pigz
+    pigz               \
+    yq
 
 ARG ETCD_VERSION=v3.5.2
 RUN mkdir -p /tmp/etcd-download-test                                                                                                                                  && \

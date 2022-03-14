@@ -11,35 +11,35 @@ BRANCH='master'
 IGNORE_LIST=''
 
 usage() {
-    echo "usage: $0 [hbilr]
-    -b    set branch. Default $BRANCH
-    -r    set Github repository name. Default $REPOSITORY
-    -i    add chart ignore list
+    echo "usage: ${0} [hbilr]
+    -b    set branch. Default: ${BRANCH}
+    -r    set Github repository name. Default: ${REPOSITORY}
+    -i    add white space separted chart ignore list. ie: 'rke2-metrics-server rancher-vsphere-cpi'
     -l    use local repository path. -r is ignored when this is set.
     -h    show help
 
 examples:
-    $0
-    $0 -i 'rke2-metrics-server rancher-vsphere-cpi' -r my-gh-user/rke2
-    $0 -l ../rke2 -b release-1.22"
+    ${0}
+    ${0} -i 'rke2-metrics-server rancher-vsphere-cpi' -r my-gh-user/rke2
+    ${0} -l ../rke2 -b release-1.22"
 }
 
 while getopts 'b:i:l:r:dh' c; do
     case "${c}" in
     b)
-        BRANCH=$OPTARG
+        BRANCH=${OPTARG}
         ;;
     d)
         set_debug
         ;;
     i)
-        IGNORE_LIST=$OPTARG
+        IGNORE_LIST=${OPTARG}
         ;;
     l)
-        LOCAL_RKE2=$OPTARG
+        LOCAL_RKE2=${OPTARG}
         ;;
     r)
-        REPOSITORY=$OPTARG
+        REPOSITORY=${OPTARG}
         ;;
     h)
         usage
