@@ -24,7 +24,7 @@ rke2_list_docker_images() {
         sort | uniq
 }
 
-# rke2_fecth_chart_index prints out rke2-chasrts index.yaml file
+# rke2_charts_get_index prints out rke2-chasrts index.yaml file
 rke2_charts_get_index() {
     curl -sL https://raw.githubusercontent.com/rancher/rke2-charts/main/index.yaml
 }

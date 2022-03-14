@@ -54,6 +54,11 @@ has_etcdctl() {
     __cmd_check "${ETCDCTL}"
 }
 
+has_yq() {
+    YQ="$(command -v yq)"
+    __cmd_check "${YQ}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {
