@@ -1,0 +1,114 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+. librancher-ecm.sh
+
+# Defaults
+REPOSITORY=rancher/rke2
+LOCAL_RKE2=''
+BRANCH='master'
+IGNORE_LIST=''
+
+usage() {
+    echo "usage: ${0} [hbilr]
+    -b    set branch. Default: ${BRANCH}
+    -r    set Github repository name. Default: ${REPOSITORY}
+    -i    add white space separted chart ignore list. ie: 'rke2-metrics-server rancher-vsphere-cpi'
+    -l    use local repository path. -r is ignored when this is set.
+    -x    print debug messages
+    -h    show help
+
+examples:
+    ${0}
+    ${0} -i 'rke2-metrics-server rancher-vsphere-cpi' -r my-gh-user/rke2
+    ${0} -l ../rke2 -b release-1.22"
+}
+
+has_yq
+
+while getopts 'b:i:l:r:xh' c; do
+    case "${c}" in
+    b)
+        BRANCH=${OPTARG}
+        ;;
+    x)
+        set_debug
+        ;;
+    i)
+        IGNORE_LIST=${OPTARG}
+        ;;
+    l)
+        LOCAL_RKE2=${OPTARG}
+        ;;
+    r)
+        REPOSITORY=${OPTARG}
+        ;;
+    h)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+    esac
+done
+
+setup_tmp
+
+# gh environment variable overrides
+export GH_REPO="${REPOSITORY}"
+export PAGER='cat'
+
+# Get required file either locally or remotely
+if [ -z "${LOCAL_RKE2}" ]; then
+    cd "${TMP_DIR}"
+
+    has_gh
+
+    gh api -XGET --field "ref=${BRANCH}" --header "Accept:application/vnd.github.VERSION.raw" \
+        '/repos/{owner}/{repo}/contents/Dockerfile' >Dockerfile
+else
+    cd "${LOCAL_RKE2}"
+
+    if [ "$(git rev-parse --is-shallow-repository)" = 'false' ]; then
+        git checkout -q "${BRANCH}"
+    fi
+fi
+
+# Get rke2-charts index
+rke2_charts_get_index >"${TMP_DIR}/index.yaml"
+
+# Look up each chart version
+printf '%-25s %-10s %-15s %s\n' 'Chart' 'Status' 'Current' 'Latest'
+
+CHART_LOOKUP='/CHART_/,/build-chart\.sh/s/.*CHART_VERSION="\([^"]*\)"\s*CHART_FILE=\([^ ]*\).*/\1 \2/p'
+sed -n -e "${CHART_LOOKUP}" Dockerfile | while read -r CURRENT_V CHART; do
+    TARGET=$(basename -s '.yaml' "${CHART}")
+
+    printf "%-25s " "${TARGET}"
+    if echo "${IGNORE_LIST}" | grep -w -q "${TARGET}"; then
+        print_green 'IGNORED\n'
+        continue
+    fi
+
+    VERSIONS=$(yq e ".entries.${TARGET}.[] | .version" "${TMP_DIR}/index.yaml")
+
+    # Calico related charts have 3 version that do not comply with semver
+    if [ "${TARGET}" = 'rke2-calico-crd' ] || [ "${TARGET}" = 'rke2-calico' ]; then
+        LATEST_V=$(echo "${VERSIONS}" | sort -brV | tail -n '+4' | head -1)
+    else
+        LATEST_V=$(echo "${VERSIONS}" | sort -brV | head -1)
+    fi
+
+    if [ "${CURRENT_V}" = "${LATEST_V}" ]; then
+        print_green 'OK\n'
+    else
+        print_red 'MISMATCH'
+        printf '   %-15s %s\n' "${CURRENT_V}" "${LATEST_V}"
+    fi
+done
+
+exit 0

@@ -15,6 +15,7 @@ usage() {
     -r    set target repository. default: $REPOSITORY
     -s    use strict release tag name match
     -a    override expected assets amount
+    -x    print debug messages
     -h    show help
 
 examples:
@@ -59,9 +60,9 @@ print_status() {
     fi
 }
 
-while getopts 'a:dhlr:s' c; do
+while getopts 'a:xhlr:s' c; do
     case "${c}" in
-    d)
+    x)
         set_debug
         ;;
     r)
