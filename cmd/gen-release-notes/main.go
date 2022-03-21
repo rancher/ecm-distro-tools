@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -43,45 +44,29 @@ var (
 	repo          string
 	milestone     string
 	prevMilestone string
+	debug         bool
 )
 
-func main() {
-	flag.Usage = func() {
-		w := os.Stderr
-		for _, arg := range os.Args {
-			if arg == "-h" {
-				w = os.Stdout
-				break
-			}
-		}
-		fmt.Fprintf(w, usage, version, name)
-	}
-
-	flag.BoolVar(&vers, "v", false, "")
-	flag.StringVar(&ghToken, "t", "", "")
-	flag.StringVar(&repo, "r", "", "")
-	flag.StringVar(&milestone, "m", "", "")
-	flag.StringVar(&prevMilestone, "p", "", "")
-	flag.Parse()
-
+func run() error {
 	if vers {
-		fmt.Fprintf(os.Stdout, "version: %s - git sha: %s\n", version, gitSHA)
-		return
+		logrus.Infof("version: %s - git sha: %s\n", version, gitSHA)
+		return nil
 	}
 
 	if ghToken == "" {
-		fmt.Println("error: please provide a token")
-		os.Exit(1)
+		return fmt.Errorf("error: please provide a token")
 	}
 
 	if !repository.IsValidRepo(repo) {
-		fmt.Println("error: please provide a valid repository")
-		os.Exit(1)
+		return fmt.Errorf("error: please provide a valid repository")
 	}
 
 	if milestone == "" || prevMilestone == "" {
-		fmt.Println("error: a valid milestone and prev milestone are required")
-		os.Exit(1)
+		return fmt.Errorf("error: a valid milestone and prev milestone are required")
+	}
+
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	var tmpl *template.Template
@@ -97,8 +82,7 @@ func main() {
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	// account for processing against an rc
@@ -147,11 +131,35 @@ func main() {
 		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
 		"LocalPathProvisionerVersion": getImageTagVersion("local-path-provisioner", repo, milestone),
 	}); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
-	os.Exit(0)
+	return nil
+}
+
+func main() {
+	flag.Usage = func() {
+		w := os.Stderr
+		for _, arg := range os.Args {
+			if arg == "-h" {
+				w = os.Stdout
+				break
+			}
+		}
+		fmt.Fprintf(w, usage, version, name)
+	}
+
+	flag.BoolVar(&vers, "v", false, "")
+	flag.BoolVar(&debug, "d", false, "")
+	flag.StringVar(&ghToken, "t", "", "")
+	flag.StringVar(&repo, "r", "", "")
+	flag.StringVar(&milestone, "m", "", "")
+	flag.StringVar(&prevMilestone, "p", "", "")
+	flag.Parse()
+
+	if err := run(); err != nil {
+		logrus.Fatal(err)
+	}
 }
 
 func getGoModVersion(libraryName, repo, branchVersion string) string {
@@ -162,22 +170,22 @@ func getGoModVersion(libraryName, repo, branchVersion string) string {
 	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
 	resp, err := http.Get(goModURL)
 	if err != nil {
-		fmt.Printf("failed to fetch go.mod file from %s: %v\n", goModURL, err)
-		os.Exit(1)
+		logrus.Debugf("failed to fetch go.mod file from %s: %v\n", goModURL, err)
+		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("status error: %v\n", resp.StatusCode)
-		os.Exit(1)
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, goModURL)
+		return ""
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("read body error: %v\n", err)
-		os.Exit(1)
+		logrus.Debugf("read body error: %v", err)
+		return ""
 	}
 	defer resp.Body.Close()
 
-	return findLibraryVersion(string(data), libraryName)
+	return findLibraryVersion(string(b), libraryName)
 }
 
 func findLibraryVersion(goModStr, libraryName string) string {
@@ -207,26 +215,26 @@ func getDockerfileVersion(chartName, repo, branchVersion string) string {
 	DockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
 	resp, err := http.Get(DockerfileURL)
 	if err != nil {
-		fmt.Printf("failed to fetch dockerfile from %s: %v\n", DockerfileURL, err)
-		os.Exit(1)
+		logrus.Debugf("failed to fetch dockerfile from %s: %v", DockerfileURL, err)
+		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("status error: %v\n", resp.StatusCode)
-		os.Exit(1)
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, DockerfileURL)
+		return ""
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("read body error: %v\n", err)
-		os.Exit(1)
+		logrus.Debugf("read body error: %v", err)
+		return ""
 	}
 	defer resp.Body.Close()
 
-	return findChartVersion(string(data), chartName)
+	return findChartVersion(string(b), chartName)
 }
 
-func findChartVersion(dockerfileStr, chartName string) string {
-	scanner := bufio.NewScanner(strings.NewReader(dockerfileStr))
+func findChartVersion(dockerfile, chartName string) string {
+	scanner := bufio.NewScanner(strings.NewReader(dockerfile))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, chartName) {
@@ -250,19 +258,22 @@ func getImageTagVersion(ImageName, repo, branchVersion string) string {
 	}
 	resp, err := http.Get(imageListURL)
 	if err != nil {
+		logrus.Debugf("failed to fetch imagelist from %s: %v", imageListURL, err)
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, imageListURL)
 		return ""
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		logrus.Debugf("read body error: %v", err)
 		return ""
 	}
 	defer resp.Body.Close()
 
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner := bufio.NewScanner(strings.NewReader(string(b)))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, ImageName) {
@@ -284,19 +295,22 @@ func getSqliteVersionBinding(sqliteVersion string) string {
 	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
 	resp, err := http.Get(sqliteBindingURL)
 	if err != nil {
+		logrus.Debugf("failed to fetch imagelist from %s: %v", sqliteBindingURL, err)
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, sqliteBindingURL)
 		return ""
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		logrus.Debugf("read body error: %v", err)
 		return ""
 	}
 	defer resp.Body.Close()
 
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner := bufio.NewScanner(strings.NewReader(string(b)))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "SQLITE_VERSION") {
