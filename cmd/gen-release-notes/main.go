@@ -168,40 +168,17 @@ func getGoModVersion(libraryName, repo, branchVersion string) string {
 		repoName = "rancher/rke2"
 	}
 	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
-	resp, err := http.Get(goModURL)
-	if err != nil {
-		logrus.Debugf("failed to fetch go.mod file from %s: %v\n", goModURL, err)
-		return ""
-	}
-	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, goModURL)
-		return ""
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Debugf("read body error: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	return findLibraryVersion(string(b), libraryName)
-}
-
-func findLibraryVersion(goModStr, libraryName string) string {
-	scanner := bufio.NewScanner(strings.NewReader(goModStr))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, libraryName) {
-			trimmedLine := strings.TrimSpace(line)
-			// use replace section if found
-			if strings.Contains(trimmedLine, "=>") {
-				libVersionLine := strings.Split(trimmedLine, " ")
-				return libVersionLine[3]
-			} else {
-				libVersionLine := strings.Split(trimmedLine, " ")
-				return libVersionLine[1]
-			}
+	submatch := findInURL(goModURL, "", libraryName)
+	logrus.Info(submatch)
+	for _, line := range submatch {
+		trimmedLine := strings.TrimSpace(line)
+		// use replace section if found
+		if strings.Contains(trimmedLine, "=>") {
+			libVersionLine := strings.Split(trimmedLine, " ")
+			return libVersionLine[3]
+		} else {
+			libVersionLine := strings.Split(trimmedLine, " ")
+			return libVersionLine[1]
 		}
 	}
 	return ""
@@ -213,38 +190,10 @@ func getDockerfileVersion(chartName, repo, branchVersion string) string {
 	}
 	repoName := "rancher/rke2"
 	DockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
-	resp, err := http.Get(DockerfileURL)
-	if err != nil {
-		logrus.Debugf("failed to fetch dockerfile from %s: %v", DockerfileURL, err)
-		return ""
-	}
-	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, DockerfileURL)
-		return ""
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Debugf("read body error: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	return findChartVersion(string(b), chartName)
-}
-
-func findChartVersion(dockerfile, chartName string) string {
-	scanner := bufio.NewScanner(strings.NewReader(dockerfile))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, chartName) {
-			re := regexp.MustCompile(`CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`)
-			chartVersion := re.FindStringSubmatch(line)
-			if len(chartVersion) > 1 {
-				return chartVersion[1]
-			}
-
-		}
+	regex := `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
+	submatch := findInURL(DockerfileURL, regex, chartName)
+	if len(submatch) > 1 {
+		return submatch[1]
 	}
 	return ""
 }
@@ -256,70 +205,64 @@ func getImageTagVersion(ImageName, repo, branchVersion string) string {
 		repoName = "rancher/rke2"
 		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
 	}
-	resp, err := http.Get(imageListURL)
-	if err != nil {
-		logrus.Debugf("failed to fetch imagelist from %s: %v", imageListURL, err)
-		return ""
-	}
-	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, imageListURL)
-		return ""
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Debugf("read body error: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	scanner := bufio.NewScanner(strings.NewReader(string(b)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, ImageName) {
-			re := regexp.MustCompile(`:(.*)(-build.*)?`)
-			chartVersion := re.FindStringSubmatch(line)
-			if len(chartVersion) > 1 {
-				if strings.Contains(chartVersion[1], "-build") {
-					versionSplit := strings.Split(chartVersion[1], "-")
-					return versionSplit[0]
-				}
-				return chartVersion[1]
-			}
+	regex := `:(.*)(-build.*)?`
+	submatch := findInURL(imageListURL, regex, ImageName)
+	if len(submatch) > 1 {
+		if strings.Contains(submatch[1], "-build") {
+			versionSplit := strings.Split(submatch[1], "-")
+			return versionSplit[0]
 		}
+		return submatch[1]
 	}
 	return ""
 }
 
 func getSqliteVersionBinding(sqliteVersion string) string {
 	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
-	resp, err := http.Get(sqliteBindingURL)
+	regex := `\"(.*)\"`
+	word := "SQLITE_VERSION"
+	submatch := findInURL(sqliteBindingURL, regex, word)
+	if len(submatch) > 1 {
+		return submatch[1]
+	}
+	return ""
+}
+
+// findInURL will get and scan a url to find a slice submatch for all the words that matches a regex
+// if the regex is empty then it will return the lines in a file that matches the str
+func findInURL(url, regex, str string) []string {
+	submatch := []string{}
+	resp, err := http.Get(url)
 	if err != nil {
-		logrus.Debugf("failed to fetch imagelist from %s: %v", sqliteBindingURL, err)
-		return ""
+		logrus.Debugf("failed to fetch imagelist from %s: %v", url, err)
+		return nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, sqliteBindingURL)
-		return ""
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, url)
+		return nil
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logrus.Debugf("read body error: %v", err)
-		return ""
+		return nil
 	}
 	defer resp.Body.Close()
 
 	scanner := bufio.NewScanner(strings.NewReader(string(b)))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "SQLITE_VERSION") {
-			re := regexp.MustCompile(`\"(.*)\"`)
-			chartVersion := re.FindStringSubmatch(line)
-			if len(chartVersion) > 1 {
-				return chartVersion[1]
+		if strings.Contains(line, str) {
+			if regex == "" {
+				submatch = append(submatch, line)
+			} else {
+				re := regexp.MustCompile(regex)
+				submatch = re.FindStringSubmatch(line)
+				if len(submatch) > 1 {
+					return submatch
+				}
 			}
 		}
 	}
-	return ""
+	return submatch
 }
