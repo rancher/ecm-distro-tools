@@ -221,22 +221,22 @@ cat /var/lib/rancher/rke2/server/token
 | Component       | Version                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
-| Etcd            | [v3.4.13-k3s1](https://github.com/k3s-io/etcd/releases/tag/v3.4.13-k3s1)                          |
-| Containerd      | [v1.4.9-k3s1](https://github.com/k3s-io/containerd/releases/tag/v1.4.9-k3s1)                      |
-| Runc            | [v1.0.0](https://github.com/opencontainers/runc/releases/tag/v1.0.0)                              |
-| CNI Plugins     | [v0.8.7](https://github.com/containernetworking/plugins/releases/tag/v0.8.7)                      |
-| Metrics-server  | [v0.3.6](https://github.com/kubernetes-sigs/metrics-server/releases/tag/v0.3.6)                   |
-| CoreDNS         | [v1.8.3](https://github.com/coredns/coredns/releases/tag/v1.8.3)                                  |
-| Ingress-Nginx   | [3.34.001](https://github.com/kubernetes/ingress-nginx/releases)                                  |
-| Helm-controller | [v0.10.6](https://github.com/k3s-io/helm-controller/releases/tag/v0.10.6)                         |
+| Etcd            | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}})                          |
+| Containerd      | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}})                      |
+| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
+| CNI Plugins     | [{{.CNIPluginsVersion}}](https://github.com/containernetworking/plugins/releases/tag/{{.CNIPluginsVersion}})                      |
+| Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
+| CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
+| Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
+| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}})                         |
 
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel v0.13.0-rancher1](https://github.com/k3s-io/flannel/releases/tag/v0.13.0-rancher1)<br/>[Calico v3.13.3](https://docs.projectcalico.org/archive/v3.13/release-notes/#v3133) | Yes            |
-| Calico          | [v3.19.2](https://docs.projectcalico.org/release-notes/#v3192)                                                                                                                      | No             |
-| Cilium          | [v1.9.8](https://github.com/cilium/cilium/releases/tag/v1.9.8)                                                                                                                      | No             |
-| Multus          | [v3.7.1](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/v3.7.1)                                                                                                    | No             |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://docs.projectcalico.org/archive/v3.13/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://docs.projectcalico.org/release-notes/#{{ .CalicoVersionTrimmed }})                                                                                                                      | No             |
+| Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
+| Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
 
 ## Known Issues
 
@@ -273,17 +273,17 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Component | Version |
 |---|---|
 | Kubernetes | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
-| Kine | [v0.6.2](https://github.com/k3s-io/kine/releases/tag/v0.6.2) |
-| SQLite | [3.33.0](https://sqlite.org/releaselog/3_33_0.html) |
-| Etcd | [v3.4.13-k3s1](https://github.com/k3s-io/etcd/releases/tag/v3.4.13-k3s1) |
-| Containerd | [v1.4.9-k3s1](https://github.com/k3s-io/containerd/releases/tag/v1.4.9-k3s1) |
-| Runc | [v1.0.2](https://github.com/opencontainers/runc/releases/tag/v1.0.2) |
-| Flannel | [v0.14.0](https://github.com/flannel-io/flannel/releases/tag/v0.14.0) | 
-| Metrics-server | [v0.3.6](https://github.com/kubernetes-sigs/metrics-server/releases/tag/v0.3.6) |
-| Traefik | [v2.4.8](https://github.com/traefik/traefik/releases/tag/v2.4.8) |
-| CoreDNS | [v1.8.3](https://github.com/coredns/coredns/releases/tag/v1.8.3) | 
-| Helm-controller | [v0.10.5](https://github.com/k3s-io/helm-controller/releases/tag/v0.10.1) |
-| Local-path-provisioner | [v0.0.19](https://github.com/rancher/local-path-provisioner/releases/tag/v0.0.19) |
+| Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
+| SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
+| Etcd | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}}) |
+| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+| Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
+| Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
+| Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
+| CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
+| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
+| Local-path-provisioner | [{{.LocalPathProvisionerVersion}}](https://github.com/rancher/local-path-provisioner/releases/tag/{{.LocalPathProvisionerVersion}}) |
 
 ## Helpful Links
 As always, we welcome and appreciate feedback from our community of users. Please feel free to:

@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -110,19 +114,198 @@ func main() {
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
+	calicoVersion := getImageTagVersion("calico-node", repo, milestone)
+	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
+	sqliteVersionK3S := getGoModVersion("go-sqlite3", repo, milestone)
+	sqliteVersionBinding := getSqliteVersionBinding(sqliteVersionK3S)
 
 	if err := tmpl.Execute(os.Stdout, map[string]interface{}{
-		"milestone":        milestone,
-		"prevMilestone":    prevMilestone,
-		"changeLogSince":   changeLogSince,
-		"content":          content,
-		"k8sVersion":       k8sVersion,
-		"changeLogVersion": markdownVersion,
-		"majorMinor":       majorMinor,
+		"milestone":                   milestone,
+		"prevMilestone":               prevMilestone,
+		"changeLogSince":              changeLogSince,
+		"content":                     content,
+		"k8sVersion":                  k8sVersion,
+		"changeLogVersion":            markdownVersion,
+		"majorMinor":                  majorMinor,
+		"EtcdVersion":                 getGoModVersion("etcd", repo, milestone),
+		"ContainerdVersion":           getGoModVersion("containerd", repo, milestone),
+		"RuncVersion":                 getGoModVersion("runc", repo, milestone),
+		"CNIPluginsVersion":           getImageTagVersion("cni-plugins", repo, milestone),
+		"MetricsServerVersion":        getImageTagVersion("metrics-server", repo, milestone),
+		"TraefikVersion":              getImageTagVersion("traefik", repo, milestone),
+		"CoreDNSVersion":              getImageTagVersion("coredns", repo, milestone),
+		"IngressNginxVersion":         getDockerfileVersion("rke2-ingress-nginx", repo, milestone),
+		"HelmControllerVersion":       getGoModVersion("helm-controller", repo, prevMilestone),
+		"FlannelVersionRKE2":          getImageTagVersion("flannel", repo, milestone),
+		"FlannelVersionK3S":           getGoModVersion("flannel", repo, milestone),
+		"CalicoVersion":               calicoVersion,
+		"CalicoVersionTrimmed":        calicoVersionTrimmed,
+		"CiliumVersion":               getImageTagVersion("cilium-cilium", repo, milestone),
+		"MultusVersion":               getImageTagVersion("multus-cni", repo, milestone),
+		"KineVersion":                 getGoModVersion("kine", repo, milestone),
+		"SQLiteVersion":               sqliteVersionBinding,
+		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
+		"LocalPathProvisionerVersion": getImageTagVersion("local-path-provisioner", repo, milestone),
 	}); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	os.Exit(0)
+}
+
+func getGoModVersion(libraryName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+	if repo == "rke2" {
+		repoName = "rancher/rke2"
+	}
+	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
+	resp, err := http.Get(goModURL)
+	if err != nil {
+		fmt.Printf("failed to fetch go.mod file from %s: %v\n", goModURL, err)
+		os.Exit(1)
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("status error: %v\n", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("read body error: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	return findLibraryVersion(string(data), libraryName)
+}
+
+func findLibraryVersion(goModStr, libraryName string) string {
+	scanner := bufio.NewScanner(strings.NewReader(goModStr))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, libraryName) {
+			trimmedLine := strings.TrimSpace(line)
+			// use replace section if found
+			if strings.Contains(trimmedLine, "=>") {
+				libVersionLine := strings.Split(trimmedLine, " ")
+				return libVersionLine[3]
+			} else {
+				libVersionLine := strings.Split(trimmedLine, " ")
+				return libVersionLine[1]
+			}
+		}
+	}
+	return ""
+}
+
+func getDockerfileVersion(chartName, repo, branchVersion string) string {
+	if strings.Contains(repo, "k3s") {
+		return ""
+	}
+	repoName := "rancher/rke2"
+	DockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
+	resp, err := http.Get(DockerfileURL)
+	if err != nil {
+		fmt.Printf("failed to fetch dockerfile from %s: %v\n", DockerfileURL, err)
+		os.Exit(1)
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("status error: %v\n", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("read body error: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	return findChartVersion(string(data), chartName)
+}
+
+func findChartVersion(dockerfileStr, chartName string) string {
+	scanner := bufio.NewScanner(strings.NewReader(dockerfileStr))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, chartName) {
+			re := regexp.MustCompile(`CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`)
+			chartVersion := re.FindStringSubmatch(line)
+			if len(chartVersion) > 1 {
+				return chartVersion[1]
+			}
+
+		}
+	}
+	return ""
+}
+
+func getImageTagVersion(ImageName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+	imageListURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/airgap/image-list.txt"
+	if repo == "rke2" {
+		repoName = "rancher/rke2"
+		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
+	}
+	resp, err := http.Get(imageListURL)
+	if err != nil {
+		return ""
+	}
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, ImageName) {
+			re := regexp.MustCompile(`:(.*)(-build.*)?`)
+			chartVersion := re.FindStringSubmatch(line)
+			if len(chartVersion) > 1 {
+				if strings.Contains(chartVersion[1], "-build") {
+					versionSplit := strings.Split(chartVersion[1], "-")
+					return versionSplit[0]
+				}
+				return chartVersion[1]
+			}
+		}
+	}
+	return ""
+}
+
+func getSqliteVersionBinding(sqliteVersion string) string {
+	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
+	resp, err := http.Get(sqliteBindingURL)
+	if err != nil {
+		return ""
+	}
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "SQLITE_VERSION") {
+			re := regexp.MustCompile(`\"(.*)\"`)
+			chartVersion := re.FindStringSubmatch(line)
+			if len(chartVersion) > 1 {
+				return chartVersion[1]
+			}
+		}
+	}
+	return ""
 }
