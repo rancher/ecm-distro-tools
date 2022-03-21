@@ -234,7 +234,7 @@ func findInURL(url, regex, str string) []string {
 	submatch := []string{}
 	resp, err := http.Get(url)
 	if err != nil {
-		logrus.Debugf("failed to fetch imagelist from %s: %v", url, err)
+		logrus.Debugf("failed to fetch url %s: %v", url, err)
 		return nil
 	}
 	if resp.StatusCode != http.StatusOK {
