@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/rogpeppe/go-internal/modfile"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -39,45 +45,29 @@ var (
 	repo          string
 	milestone     string
 	prevMilestone string
+	debug         bool
 )
 
-func main() {
-	flag.Usage = func() {
-		w := os.Stderr
-		for _, arg := range os.Args {
-			if arg == "-h" {
-				w = os.Stdout
-				break
-			}
-		}
-		fmt.Fprintf(w, usage, version, name)
-	}
-
-	flag.BoolVar(&vers, "v", false, "")
-	flag.StringVar(&ghToken, "t", "", "")
-	flag.StringVar(&repo, "r", "", "")
-	flag.StringVar(&milestone, "m", "", "")
-	flag.StringVar(&prevMilestone, "p", "", "")
-	flag.Parse()
-
+func run() error {
 	if vers {
-		fmt.Fprintf(os.Stdout, "version: %s - git sha: %s\n", version, gitSHA)
-		return
+		logrus.Infof("version: %s - git sha: %s\n", version, gitSHA)
+		return nil
 	}
 
 	if ghToken == "" {
-		fmt.Println("error: please provide a token")
-		os.Exit(1)
+		return fmt.Errorf("error: please provide a token")
 	}
 
 	if !repository.IsValidRepo(repo) {
-		fmt.Println("error: please provide a valid repository")
-		os.Exit(1)
+		return fmt.Errorf("error: please provide a valid repository")
 	}
 
 	if milestone == "" || prevMilestone == "" {
-		fmt.Println("error: a valid milestone and prev milestone are required")
-		os.Exit(1)
+		return fmt.Errorf("error: a valid milestone and prev milestone are required")
+	}
+
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	var tmpl *template.Template
@@ -93,8 +83,7 @@ func main() {
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	// account for processing against an rc
@@ -110,19 +99,191 @@ func main() {
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
+	calicoVersion := getImageTagVersion("calico-node", repo, milestone)
+	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
+	sqliteVersionK3S := getGoModLibVersion("go-sqlite3", repo, milestone)
+	sqliteVersionBinding := getSqliteVersionBinding(sqliteVersionK3S)
 
 	if err := tmpl.Execute(os.Stdout, map[string]interface{}{
-		"milestone":        milestone,
-		"prevMilestone":    prevMilestone,
-		"changeLogSince":   changeLogSince,
-		"content":          content,
-		"k8sVersion":       k8sVersion,
-		"changeLogVersion": markdownVersion,
-		"majorMinor":       majorMinor,
+		"milestone":                   milestone,
+		"prevMilestone":               prevMilestone,
+		"changeLogSince":              changeLogSince,
+		"content":                     content,
+		"k8sVersion":                  k8sVersion,
+		"changeLogVersion":            markdownVersion,
+		"majorMinor":                  majorMinor,
+		"EtcdVersion":                 getGoModLibVersion("etcd", repo, milestone),
+		"ContainerdVersion":           getGoModLibVersion("containerd", repo, milestone),
+		"RuncVersion":                 getGoModLibVersion("runc", repo, milestone),
+		"CNIPluginsVersion":           getImageTagVersion("cni-plugins", repo, milestone),
+		"MetricsServerVersion":        getImageTagVersion("metrics-server", repo, milestone),
+		"TraefikVersion":              getImageTagVersion("traefik", repo, milestone),
+		"CoreDNSVersion":              getImageTagVersion("coredns", repo, milestone),
+		"IngressNginxVersion":         getDockerfileVersion("rke2-ingress-nginx", repo, milestone),
+		"HelmControllerVersion":       getGoModLibVersion("helm-controller", repo, prevMilestone),
+		"FlannelVersionRKE2":          getImageTagVersion("flannel", repo, milestone),
+		"FlannelVersionK3S":           getGoModLibVersion("flannel", repo, milestone),
+		"CalicoVersion":               calicoVersion,
+		"CalicoVersionTrimmed":        calicoVersionTrimmed,
+		"CiliumVersion":               getImageTagVersion("cilium-cilium", repo, milestone),
+		"MultusVersion":               getImageTagVersion("multus-cni", repo, milestone),
+		"KineVersion":                 getGoModLibVersion("kine", repo, milestone),
+		"SQLiteVersion":               sqliteVersionBinding,
+		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
+		"LocalPathProvisionerVersion": getImageTagVersion("local-path-provisioner", repo, milestone),
 	}); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
-	os.Exit(0)
+	return nil
+}
+
+func main() {
+	flag.Usage = func() {
+		w := os.Stderr
+		for _, arg := range os.Args {
+			if arg == "-h" {
+				w = os.Stdout
+				break
+			}
+		}
+		fmt.Fprintf(w, usage, version, name)
+	}
+
+	flag.BoolVar(&vers, "v", false, "")
+	flag.BoolVar(&debug, "d", false, "")
+	flag.StringVar(&ghToken, "t", "", "")
+	flag.StringVar(&repo, "r", "", "")
+	flag.StringVar(&milestone, "m", "", "")
+	flag.StringVar(&prevMilestone, "p", "", "")
+	flag.Parse()
+
+	if err := run(); err != nil {
+		logrus.Fatal(err)
+	}
+}
+
+func getGoModLibVersion(libraryName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+	if repo == "rke2" {
+		repoName = "rancher/rke2"
+	}
+	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
+	resp, err := http.Get(goModURL)
+	if err != nil {
+		logrus.Debugf("failed to fetch url %s: %v", goModURL, err)
+		return ""
+	}
+	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, goModURL)
+		return ""
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Debugf("read body error: %v", err)
+		return ""
+	}
+	modFile, err := modfile.Parse("go.mod", b, nil)
+	if err != nil {
+		logrus.Debugf("failed to parse go.mod file: %v", err)
+		return ""
+	}
+	// use replace section if found
+	for _, replace := range modFile.Replace {
+		if strings.Contains(replace.Old.Path, libraryName) {
+			return replace.New.Version
+		}
+	}
+	// if replace not found search in require
+	for _, require := range modFile.Require {
+		if strings.Contains(require.Mod.Path, libraryName) {
+			return require.Mod.Version
+		}
+	}
+	logrus.Debugf("library %s not found", libraryName)
+	return ""
+}
+
+func getDockerfileVersion(chartName, repo, branchVersion string) string {
+	if strings.Contains(repo, "k3s") {
+		return ""
+	}
+	repoName := "rancher/rke2"
+	DockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
+	regex := `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
+	submatch := findInURL(DockerfileURL, regex, chartName)
+	if len(submatch) > 1 {
+		return submatch[1]
+	}
+	return ""
+}
+
+func getImageTagVersion(ImageName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+	imageListURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/airgap/image-list.txt"
+	if repo == "rke2" {
+		repoName = "rancher/rke2"
+		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
+	}
+	regex := `:(.*)(-build.*)?`
+	submatch := findInURL(imageListURL, regex, ImageName)
+	if len(submatch) > 1 {
+		if strings.Contains(submatch[1], "-build") {
+			versionSplit := strings.Split(submatch[1], "-")
+			return versionSplit[0]
+		}
+		return submatch[1]
+	}
+	return ""
+}
+
+func getSqliteVersionBinding(sqliteVersion string) string {
+	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
+	regex := `\"(.*)\"`
+	word := "SQLITE_VERSION"
+	submatch := findInURL(sqliteBindingURL, regex, word)
+	if len(submatch) > 1 {
+		return submatch[1]
+	}
+	return ""
+}
+
+// findInURL will get and scan a url to find a slice submatch for all the words that matches a regex
+// if the regex is empty then it will return the lines in a file that matches the str
+func findInURL(url, regex, str string) []string {
+	submatch := []string{}
+	resp, err := http.Get(url)
+	if err != nil {
+		logrus.Debugf("failed to fetch url %s: %v", url, err)
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, url)
+		return nil
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Debugf("read body error: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(strings.NewReader(string(b)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, str) {
+			if regex == "" {
+				submatch = append(submatch, line)
+			} else {
+				re := regexp.MustCompile(regex)
+				submatch = re.FindStringSubmatch(line)
+				if len(submatch) > 1 {
+					return submatch
+				}
+			}
+		}
+	}
+	return submatch
 }
