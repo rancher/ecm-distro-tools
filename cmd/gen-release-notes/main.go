@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/rogpeppe/go-internal/modfile"
 	"github.com/sirupsen/logrus"
 )
 
@@ -100,7 +101,7 @@ func run() error {
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	calicoVersion := getImageTagVersion("calico-node", repo, milestone)
 	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
-	sqliteVersionK3S := getGoModVersion("go-sqlite3", repo, milestone)
+	sqliteVersionK3S := getGoModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := getSqliteVersionBinding(sqliteVersionK3S)
 
 	if err := tmpl.Execute(os.Stdout, map[string]interface{}{
@@ -111,22 +112,22 @@ func run() error {
 		"k8sVersion":                  k8sVersion,
 		"changeLogVersion":            markdownVersion,
 		"majorMinor":                  majorMinor,
-		"EtcdVersion":                 getGoModVersion("etcd", repo, milestone),
-		"ContainerdVersion":           getGoModVersion("containerd", repo, milestone),
-		"RuncVersion":                 getGoModVersion("runc", repo, milestone),
+		"EtcdVersion":                 getGoModLibVersion("etcd", repo, milestone),
+		"ContainerdVersion":           getGoModLibVersion("containerd", repo, milestone),
+		"RuncVersion":                 getGoModLibVersion("runc", repo, milestone),
 		"CNIPluginsVersion":           getImageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        getImageTagVersion("metrics-server", repo, milestone),
 		"TraefikVersion":              getImageTagVersion("traefik", repo, milestone),
 		"CoreDNSVersion":              getImageTagVersion("coredns", repo, milestone),
 		"IngressNginxVersion":         getDockerfileVersion("rke2-ingress-nginx", repo, milestone),
-		"HelmControllerVersion":       getGoModVersion("helm-controller", repo, prevMilestone),
+		"HelmControllerVersion":       getGoModLibVersion("helm-controller", repo, prevMilestone),
 		"FlannelVersionRKE2":          getImageTagVersion("flannel", repo, milestone),
-		"FlannelVersionK3S":           getGoModVersion("flannel", repo, milestone),
+		"FlannelVersionK3S":           getGoModLibVersion("flannel", repo, milestone),
 		"CalicoVersion":               calicoVersion,
 		"CalicoVersionTrimmed":        calicoVersionTrimmed,
 		"CiliumVersion":               getImageTagVersion("cilium-cilium", repo, milestone),
 		"MultusVersion":               getImageTagVersion("multus-cni", repo, milestone),
-		"KineVersion":                 getGoModVersion("kine", repo, milestone),
+		"KineVersion":                 getGoModLibVersion("kine", repo, milestone),
 		"SQLiteVersion":               sqliteVersionBinding,
 		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
 		"LocalPathProvisionerVersion": getImageTagVersion("local-path-provisioner", repo, milestone),
@@ -162,25 +163,45 @@ func main() {
 	}
 }
 
-func getGoModVersion(libraryName, repo, branchVersion string) string {
+func getGoModLibVersion(libraryName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 	if repo == "rke2" {
 		repoName = "rancher/rke2"
 	}
 	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
-	submatch := findInURL(goModURL, "", libraryName)
-	logrus.Info(submatch)
-	for _, line := range submatch {
-		trimmedLine := strings.TrimSpace(line)
-		// use replace section if found
-		if strings.Contains(trimmedLine, "=>") {
-			libVersionLine := strings.Split(trimmedLine, " ")
-			return libVersionLine[3]
-		} else {
-			libVersionLine := strings.Split(trimmedLine, " ")
-			return libVersionLine[1]
+	resp, err := http.Get(goModURL)
+	if err != nil {
+		logrus.Debugf("failed to fetch url %s: %v", goModURL, err)
+		return ""
+	}
+	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, goModURL)
+		return ""
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Debugf("read body error: %v", err)
+		return ""
+	}
+	modFile, err := modfile.Parse("go.mod", b, nil)
+	if err != nil {
+		logrus.Debugf("failed to parse go.mod file: %v", err)
+		return ""
+	}
+	// use replace section if found
+	for _, replace := range modFile.Replace {
+		if strings.Contains(replace.Old.Path, libraryName) {
+			return replace.New.Version
 		}
 	}
+	// if replace not found search in require
+	for _, require := range modFile.Require {
+		if strings.Contains(require.Mod.Path, libraryName) {
+			return require.Mod.Version
+		}
+	}
+	logrus.Debugf("library %s not found", libraryName)
 	return ""
 }
 

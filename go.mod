@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/google/go-github/v39 v39.2.0
+	github.com/rogpeppe/go-internal v1.3.0
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )

@@ -233,8 +233,8 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://docs.projectcalico.org/archive/v3.13/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
-| Calico          | [{{.CalicoVersion}}](https://docs.projectcalico.org/release-notes/#{{ .CalicoVersionTrimmed }})                                                                                                                      | No             |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/v3.22/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/v3.22/release-notes/#{{ .CalicoVersionTrimmed }})                                                                                                                      | No             |
 | Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
 
