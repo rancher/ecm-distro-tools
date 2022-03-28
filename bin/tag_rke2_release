@@ -49,9 +49,10 @@ for release in ${RELEASE_VERSIONS}; do
     BRANCH="$(echo "${release}" | awk -F '.' '{ gsub("v", ""); print "release-"$1"."$2 }')"
 
     if [ ${DRY_RUN} ]; then
-        echo "gh release create ${release} --title ${release} --prerelease --target ${BRANCH} --notes ''"
+        echo "gh release create ${release} --repo rancher/rke2 --title ${release} --prerelease --target ${BRANCH} --notes ''"
     else
         gh release create "${release}" \
+            --repo "rancher/rke2"      \
             --title "${release}"       \
             --target "${BRANCH}"       \
             --prerelease               \

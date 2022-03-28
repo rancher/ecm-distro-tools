@@ -27,40 +27,28 @@ The following is a non-exausitve list of the utilities included in this reposito
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools update_go -o 1.16.3b7 -n 1.17.3b7 -r image-build--envtcd
 ```
 
-### Create a backport
+### Create a backport for k3s or rke2
 
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools backport -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
 ```
 
-### Generate release notes
+### Generate release notes for k3s or rke2
 
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools gen-release-notes -r k3s -m v1.21.5+k3s1 -p v1.21.4+k3s1 
 ```
 
-### Check for a single kubernetes release
-
-```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r v1.23.3
-```
-
-### Check for multiple kubernetes releases
+### Check for kubernetes releases
 
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools check_for_k8s_release -r 'v1.23.3 v1.22.6 v1.21.9 v1.20.15'
 ```
 
-### Create a weekly report for k3s
+### Create a weekly report for k3s or rke2
 
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_report -r k3s
-```
-
-### Create a weekly report for RKE2
-
-```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools weekly_report -r rke2
 ```
 
 ### Daily Standup Template Generator
@@ -83,7 +71,7 @@ docker run --rm -it rancher/ecm-distro-tools standup -f
 docker run --rm -it rancher/ecm-distro-tools bootstrap_hash -p k3s
 ```
 
-### Verify K3s and RKE2 release assets
+### Verify k3s and rke2 release assets
 
 ```sh
 # RKE2
@@ -93,7 +81,7 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_r
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets -r k3s-io/k3s v1.23.4
 ```
 
-### Verify RKE2 charts are up to date
+### Verify rke2 charts are up to date
 
 ```sh
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets  verify_rke2_charts -i 'rancher-vsphere-cpi rancher-vsphere-csi' -b 'release-1.22'
@@ -115,7 +103,7 @@ To contribute, please do the following:
 
 A set of patterns have been established with the Go and shell code that will need to be adhered to. Usage output and flags should be copied and pasted from other code files and adjusted to keep the UX as similar as possible to the rest of the utilities in the repo.
 
-Library code has been written for Go and shell which provide simpler access to Github, loggers, and means of validating common checks.
+Library code has been written for Go and shell which to simpler access to Github, loggers, and means of validating common checks.
 
 #### Go
 
