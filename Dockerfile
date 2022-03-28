@@ -1,4 +1,4 @@
-FROM rancher/hardened-build-base:v1.17.5b7 AS builder
+FROM rancher/hardened-build-base:v1.17.8b7 AS builder
 RUN apk --no-cache add \
     curl               \
     file               \

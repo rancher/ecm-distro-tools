@@ -19,7 +19,13 @@ docker build . -t rancher/ecm-distro-tools
 ## Utility Index
 
 The following is a non-exausitve list of the utilities included in this repository and their corresponding usage.
-(see bin/ and cmd/ for all utilities.)
+(see bin/ and cmd/ for all utility code)
+
+### List available utiities
+
+```sh
+docker run --rm -it rancher/ecm-distro-tools utility_index
+```
 
 ### Bump the GO_VERSION in rancher projects
 
