@@ -47,7 +47,8 @@ fi
 has_gh
 
 for release in ${RELEASE_VERSIONS}; do
-    gh issue create --repo "rancher/rke2" \
+    gh issue create                       \
+        --repo "rancher/rke2"             \
         --assignee "${CAPTAIN}"           \
         --title "Cut ${release}"          \
         --milestone "${release}"          \
