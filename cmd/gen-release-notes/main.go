@@ -34,9 +34,9 @@ Options:
     -r repo              repository that should be used
     -m milestone         milestone to be used
 	-p prev milestone    previous milestone
-Examples: 
+Examples:
 	# generate release notes for RKE2 for milestone v1.21.5
-    %[2]s -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1 
+    %[2]s -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1
 `
 
 var (
@@ -101,6 +101,7 @@ func run() error {
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	calicoVersion := imageTagVersion("calico-node", repo, milestone)
 	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
+	calicoVersionMajMin := calicoVersion[:strings.LastIndex(calicoVersion, ".")]
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
@@ -112,7 +113,7 @@ func run() error {
 		"k8sVersion":                  k8sVersion,
 		"changeLogVersion":            markdownVersion,
 		"majorMinor":                  majorMinor,
-		"EtcdVersion":                 goModLibVersion("etcd", repo, milestone),
+		"EtcdVersion":                 buildScriptVersion("ETCD_VERSION", repo, milestone),
 		"ContainerdVersion":           goModLibVersion("containerd", repo, milestone),
 		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
@@ -120,10 +121,11 @@ func run() error {
 		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
 		"CoreDNSVersion":              imageTagVersion("coredns", repo, milestone),
 		"IngressNginxVersion":         dockerfileVersion("rke2-ingress-nginx", repo, milestone),
-		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, prevMilestone),
+		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, milestone),
 		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
 		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
 		"CalicoVersion":               calicoVersion,
+		"CalicoVersionMajMin":         calicoVersionMajMin,
 		"CalicoVersionTrimmed":        calicoVersionTrimmed,
 		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
 		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
@@ -206,6 +208,25 @@ func goModLibVersion(libraryName, repo, branchVersion string) string {
 		}
 	}
 	logrus.Debugf("library %s not found", libraryName)
+
+	return ""
+}
+
+func buildScriptVersion(varName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+
+	if repo == "rke2" {
+		repoName = "rancher/rke2"
+	}
+
+	buildScriptURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/version.sh"
+
+	regex := `(?P<version>v[\d\.]+)(-k3s.\w*)?`
+	submatch := findInURL(buildScriptURL, regex, varName)
+
+	if len(submatch) > 1 {
+		return submatch[1]
+	}
 
 	return ""
 }
