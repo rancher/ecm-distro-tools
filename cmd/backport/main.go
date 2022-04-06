@@ -17,11 +17,10 @@ var (
 )
 
 const usage = `version: %s
-Usage: %[2]s [-t token] [-r repo] [-b branches] [-i issue]
+Usage: %[2]s [-r repo] [-b branches] [-i issue]
 Options:
     -h                   help
     -v                   show version and exit
-    -t                   github token (optional)
     -r repo              repository that should be used
     -i issue id          original issue id
     -c commit            commit id that is being backported
@@ -75,6 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	ghToken := os.Getenv("GITHUB_TOKEN")
 	if ghToken == "" {
 		fmt.Println("error: please provide a token")
 		os.Exit(1)
