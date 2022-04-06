@@ -37,7 +37,6 @@ const (
 
 var (
 	vers     bool
-	ghToken  string
 	repo     string
 	commitID string
 	issueID  uint
@@ -57,7 +56,6 @@ func main() {
 	}
 
 	flag.BoolVar(&vers, "v", false, "")
-	flag.StringVar(&ghToken, "t", "", "")
 	flag.StringVar(&repo, "r", "", "")
 	flag.StringVar(&commitID, "c", "", "")
 	flag.UintVar(&issueID, "i", 0, "")

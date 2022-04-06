@@ -41,7 +41,6 @@ Examples:
 
 var (
 	vers          bool
-	ghToken       string
 	repo          string
 	milestone     string
 	prevMilestone string
@@ -153,7 +152,6 @@ func main() {
 
 	flag.BoolVar(&vers, "v", false, "")
 	flag.BoolVar(&debug, "d", false, "")
-	flag.StringVar(&ghToken, "t", "", "")
 	flag.StringVar(&repo, "r", "", "")
 	flag.StringVar(&milestone, "m", "", "")
 	flag.StringVar(&prevMilestone, "p", "", "")
