@@ -2,7 +2,7 @@ VERSION          := v0.1.0
 BINDIR           := bin
 BINARY           := standup
 override LDFLAGS +=
-override CFLAGS  += -static -Dbin_name=$(BINARY) -Dstandup_version=$(VERSION) -Dgit_sha=$(shell git rev-parse HEAD) -O3
+override CFLAGS  += -Dbin_name=$(BINARY) -Dstandup_version=$(VERSION) -Dgit_sha=$(shell git rev-parse HEAD) -O3
 
 PREFIX = /usr/local
 
@@ -14,6 +14,8 @@ LINUX_MAPPAGE_LOC = $(PREFIX)/man/man8
 $(BINDIR)/$(BINARY): $(BINDIR) clean
 ifeq ($(UNAME_S),FreeBSD)
 	$(CC) main.c $(CFLAGS) -o $@ $(LDFLAGS) -I$(PREFIX)/include -L$(PREFIX)/lib
+else ifeq ($(UNAME_S),Linux)
+	$(CC) main.c -static $(CFLAGS) -o $@ $(LDFLAGS)
 else
 	$(CC) main.c $(CFLAGS) -o $@ $(LDFLAGS)
 endif
