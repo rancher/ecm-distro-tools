@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -30,7 +31,6 @@ Usage: %[2]s [-r repo] [-m milestone] [-p prev milestone]
 Options:
     -h                   help
     -v                   show version and exit
-    -t                   github token (optional)
     -r repo              repository that should be used
     -m milestone         milestone to be used
 	-p prev milestone    previous milestone
@@ -54,16 +54,17 @@ func run() error {
 		return nil
 	}
 
+	ghToken := os.Getenv("GITHUB_TOKEN")
 	if ghToken == "" {
-		return fmt.Errorf("error: please provide a token")
+		return errors.New("error: please provide a token")
 	}
 
 	if !repository.IsValidRepo(repo) {
-		return fmt.Errorf("error: please provide a valid repository")
+		return errors.New("error: please provide a valid repository")
 	}
 
 	if milestone == "" || prevMilestone == "" {
-		return fmt.Errorf("error: a valid milestone and prev milestone are required")
+		return errors.New("error: a valid milestone and prev milestone are required")
 	}
 
 	if debug {
@@ -99,10 +100,10 @@ func run() error {
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
-	calicoVersion := getImageTagVersion("calico-node", repo, milestone)
+	calicoVersion := imageTagVersion("calico-node", repo, milestone)
 	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
-	sqliteVersionK3S := getGoModLibVersion("go-sqlite3", repo, milestone)
-	sqliteVersionBinding := getSqliteVersionBinding(sqliteVersionK3S)
+	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
+	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
 	if err := tmpl.Execute(os.Stdout, map[string]interface{}{
 		"milestone":                   milestone,
@@ -112,25 +113,25 @@ func run() error {
 		"k8sVersion":                  k8sVersion,
 		"changeLogVersion":            markdownVersion,
 		"majorMinor":                  majorMinor,
-		"EtcdVersion":                 getGoModLibVersion("etcd", repo, milestone),
-		"ContainerdVersion":           getGoModLibVersion("containerd", repo, milestone),
-		"RuncVersion":                 getGoModLibVersion("runc", repo, milestone),
-		"CNIPluginsVersion":           getImageTagVersion("cni-plugins", repo, milestone),
-		"MetricsServerVersion":        getImageTagVersion("metrics-server", repo, milestone),
-		"TraefikVersion":              getImageTagVersion("traefik", repo, milestone),
-		"CoreDNSVersion":              getImageTagVersion("coredns", repo, milestone),
-		"IngressNginxVersion":         getDockerfileVersion("rke2-ingress-nginx", repo, milestone),
-		"HelmControllerVersion":       getGoModLibVersion("helm-controller", repo, prevMilestone),
-		"FlannelVersionRKE2":          getImageTagVersion("flannel", repo, milestone),
-		"FlannelVersionK3S":           getGoModLibVersion("flannel", repo, milestone),
+		"EtcdVersion":                 goModLibVersion("etcd", repo, milestone),
+		"ContainerdVersion":           goModLibVersion("containerd", repo, milestone),
+		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
+		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
+		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
+		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
+		"CoreDNSVersion":              imageTagVersion("coredns", repo, milestone),
+		"IngressNginxVersion":         dockerfileVersion("rke2-ingress-nginx", repo, milestone),
+		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, prevMilestone),
+		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
+		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
 		"CalicoVersion":               calicoVersion,
 		"CalicoVersionTrimmed":        calicoVersionTrimmed,
-		"CiliumVersion":               getImageTagVersion("cilium-cilium", repo, milestone),
-		"MultusVersion":               getImageTagVersion("multus-cni", repo, milestone),
-		"KineVersion":                 getGoModLibVersion("kine", repo, milestone),
+		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
+		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
+		"KineVersion":                 goModLibVersion("kine", repo, milestone),
 		"SQLiteVersion":               sqliteVersionBinding,
 		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
-		"LocalPathProvisionerVersion": getImageTagVersion("local-path-provisioner", repo, milestone),
+		"LocalPathProvisionerVersion": imageTagVersion("local-path-provisioner", repo, milestone),
 	}); err != nil {
 		return err
 	}
@@ -163,12 +164,14 @@ func main() {
 	}
 }
 
-func getGoModLibVersion(libraryName, repo, branchVersion string) string {
+func goModLibVersion(libraryName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 	if repo == "rke2" {
 		repoName = "rancher/rke2"
 	}
+
 	goModURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/go.mod"
+
 	resp, err := http.Get(goModURL)
 	if err != nil {
 		logrus.Debugf("failed to fetch url %s: %v", goModURL, err)
@@ -184,17 +187,20 @@ func getGoModLibVersion(libraryName, repo, branchVersion string) string {
 		logrus.Debugf("read body error: %v", err)
 		return ""
 	}
+
 	modFile, err := modfile.Parse("go.mod", b, nil)
 	if err != nil {
 		logrus.Debugf("failed to parse go.mod file: %v", err)
 		return ""
 	}
+
 	// use replace section if found
 	for _, replace := range modFile.Replace {
 		if strings.Contains(replace.Old.Path, libraryName) {
 			return replace.New.Version
 		}
 	}
+
 	// if replace not found search in require
 	for _, require := range modFile.Require {
 		if strings.Contains(require.Mod.Path, libraryName) {
@@ -202,32 +208,42 @@ func getGoModLibVersion(libraryName, repo, branchVersion string) string {
 		}
 	}
 	logrus.Debugf("library %s not found", libraryName)
+
 	return ""
 }
 
-func getDockerfileVersion(chartName, repo, branchVersion string) string {
+func dockerfileVersion(chartName, repo, branchVersion string) string {
 	if strings.Contains(repo, "k3s") {
 		return ""
 	}
-	repoName := "rancher/rke2"
-	DockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
-	regex := `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
-	submatch := findInURL(DockerfileURL, regex, chartName)
+
+	const (
+		repoName = "rancher/rke2"
+		regex    = `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
+	)
+
+	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
+
+	submatch := findInURL(dockerfileURL, regex, chartName)
 	if len(submatch) > 1 {
 		return submatch[1]
 	}
+
 	return ""
 }
 
-func getImageTagVersion(ImageName, repo, branchVersion string) string {
+func imageTagVersion(ImageName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
+
 	imageListURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/airgap/image-list.txt"
 	if repo == "rke2" {
 		repoName = "rancher/rke2"
 		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
 	}
-	regex := `:(.*)(-build.*)?`
+
+	const regex = `:(.*)(-build.*)?`
 	submatch := findInURL(imageListURL, regex, ImageName)
+
 	if len(submatch) > 1 {
 		if strings.Contains(submatch[1], "-build") {
 			versionSplit := strings.Split(submatch[1], "-")
@@ -235,24 +251,30 @@ func getImageTagVersion(ImageName, repo, branchVersion string) string {
 		}
 		return submatch[1]
 	}
+
 	return ""
 }
 
-func getSqliteVersionBinding(sqliteVersion string) string {
+func sqliteVersionBinding(sqliteVersion string) string {
 	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
-	regex := `\"(.*)\"`
-	word := "SQLITE_VERSION"
+	const (
+		regex = `\"(.*)\"`
+		word  = "SQLITE_VERSION"
+	)
+
 	submatch := findInURL(sqliteBindingURL, regex, word)
 	if len(submatch) > 1 {
 		return submatch[1]
 	}
+
 	return ""
 }
 
 // findInURL will get and scan a url to find a slice submatch for all the words that matches a regex
 // if the regex is empty then it will return the lines in a file that matches the str
 func findInURL(url, regex, str string) []string {
-	submatch := []string{}
+	var submatch []string
+
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Debugf("failed to fetch url %s: %v", url, err)
@@ -285,5 +307,6 @@ func findInURL(url, regex, str string) []string {
 			}
 		}
 	}
+
 	return submatch
 }
