@@ -45,6 +45,22 @@ steps:
       instance:
         - drone-publish.rancher.io
 
+  - name: failed-build-notification
+    image: plugins/slack
+    settings:
+      template: "Build {{build.link}} failed.\n"
+      channel: "TODO" # PR: Either create or choose the channel for these messages
+      webhook:
+        from_secret: slack_webhook # PR: This webhook is created upon request
+    when:
+      event:
+        exclude:
+          - pull_request
+      instance:
+        - drone-publish.rancher.io
+      status:
+        - failure
+
 volumes:
   - name: docker
     host:
