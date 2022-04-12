@@ -21,6 +21,9 @@ RUN mkdir -p /tmp/etcd-download-test                                            
     tar xzvf /tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1                                                             && \
     rm -f /tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz                                                                                                                && \
     cp /tmp/etcd-download-test/etcdctl /usr/local/bin
+RUN wget https://github.com/aquasecurity/trivy/releases/download/v0.25.3/trivy_0.25.3_Linux-64bit.tar.gz && \
+    tar -zxvf trivy_0.25.3_Linux-64bit.tar.gz                                                            && \
+    mv trivy /usr/local/bin
 
 FROM bci
 RUN zypper update -y && \
@@ -30,4 +33,5 @@ COPY --from=builder /ecm-distro-tools/cmd/gen-release-notes/bin/gen-release-note
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/standup/bin/standup /usr/local/bin
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
+COPY --from=builder /usr/local/bin/trivy /usr/local/bin
 COPY bin/. /usr/local/bin
