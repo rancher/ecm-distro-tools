@@ -57,7 +57,6 @@ steps:
       ref:
         include:
           - "refs/heads/master"
-          - "refs/heads/release-*"
           - "refs/tags/v*"
           - "refs/pull/*"
       event:
