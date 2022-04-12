@@ -93,6 +93,12 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_r
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets  verify_rke2_charts -i 'rancher-vsphere-cpi rancher-vsphere-csi' -b 'release-1.22'
 ```
 
+### Scan an image the same as Rancher
+
+```sh
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools rancher_image_scan <IMAGE_NAME>
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.

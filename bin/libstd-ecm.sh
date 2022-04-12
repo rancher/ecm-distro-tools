@@ -59,6 +59,11 @@ has_yq() {
     __cmd_check "${YQ}"
 }
 
+has_trivy() {
+    TRIVY="$(command -v trivy)"
+    __cmd_check "${TRIVY}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {
