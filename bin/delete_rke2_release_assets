@@ -9,12 +9,12 @@ usage() {
     echo "usage: $0 [t:f:adh]
     -t    release tag
     -f    files to delete
-    -a    delete all files
+    -a    delete all assets
     -d    dry run
     -h    show help
 
 examples:
-    $0 -t v1.22.8+rke2r1 -f dist/artifacts/*
+    $0 -t v1.22.8+rke2r1 -f \"dist/artifacts/*\"
     $0 -t v1.22.8+rke2r1 -a"
 }
 
