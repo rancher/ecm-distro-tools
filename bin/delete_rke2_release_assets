@@ -55,7 +55,7 @@ gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | 
 if [ ${DELETE_ALL} ]; then
     DELETIONS=$(cat "${TMP_DIR}/${RELEASE_TAG}-github-assets")
 else
-    ls $FILES | xargs -n1 basename | sort > "${TMP_DIR}/${RELEASE_TAG}-local-assets"
+    ls ${FILES} | xargs -n1 basename | sort > "${TMP_DIR}/${RELEASE_TAG}-local-assets"
     DELETIONS=$(comm -12 ${TMP_DIR}/${RELEASE_TAG}-github-assets ${TMP_DIR}/${RELEASE_TAG}-local-assets)
 fi
 
@@ -64,7 +64,7 @@ if [ -z "${DELETIONS}" ]; then
     exit 0
 fi
 
-for i in $DELETIONS; do
+for i in {$DELETIONS}; do
     if [ ${DRY_RUN} ]; then
         echo "gh release delete-asset ${RELEASE_TAG} ${i} --repo rancher/image-build-kubernetes -y"
     else
