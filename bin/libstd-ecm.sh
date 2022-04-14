@@ -64,6 +64,11 @@ has_trivy() {
     __cmd_check "${TRIVY}"
 }
 
+has_vagrant() {
+    TRIVY="$(command -v vagrant)"
+    __cmd_check "${TRIVY}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {

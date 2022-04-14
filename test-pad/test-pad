@@ -1,0 +1,151 @@
+#!/bin/bash
+
+. "../bin/libstd-ecm.sh"
+
+usage() {
+    echo "usage: $0 [rcdh]
+    -r    repository (k3s/rke2)
+    -c    cluster type
+    -s    skip Vagrantfile download
+    -h    show help
+
+cluster types:
+    - basic:        2 VMs, 1 server, 1 agent
+    - basic-lite:   1 VM,  1 server
+    - ha:           5 VMs, 3 servers, 2 agents
+    - ha-lite:      3 VMs, 3 servers
+    - split:        7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
+    - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
+    - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
+    - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
+examples:
+    $0 -r k3s -c basic
+    $0 -d"
+}
+
+while getopts 'r:c:v:dhs' c; do
+    case $c in
+    r) 
+        ORG_REPO=$OPTARG
+    ;;
+    c) 
+        CLUSTER=$OPTARG
+    ;;
+    v) 
+        VERSION=$OPTARG
+    ;;
+    d)
+        DESTROY=true
+    ;;
+    s)
+        SKIP_DOWNLOAD=true
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+has_vagrant
+has_curl
+
+if [ "$DESTROY" = "true" ]; then
+    vagrant destroy -f
+    rm -rf scripts Vagrantfile vagrantdefaults.rb
+    exit 0
+fi
+
+if [ -z "${ORG_REPO}" ]; then
+    echo "error: repo required"
+    exit 1
+fi
+
+if [ -z "${CLUSTER}" ]; then
+    echo "error: cluster type required"
+    exit 1
+fi
+
+if [ "$ORG_REPO" = "k3s" ]; then 
+    ORG_REPO="k3s-io/k3s"
+elif [ "$ORG_REPO" = "rke2" ]; then
+    ORG_REPO="rancher/rke2"
+else 
+   echo "error: unknown repo" 
+   exit 1
+fi
+
+if [ -z "$SKIP_DOWNLOAD" ] && [ -f "Vagrantfile" ]; then
+    echo "existing cluster found; delete it first"
+    exit 1
+fi
+
+# Download and setup appropiate vagrant files
+case $CLUSTER in
+
+basic | basic-lite | ha | ha-lite)
+    if [ -z "$SKIP_DOWNLOAD" ]; then
+        wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        vagrant plugin install --local
+    fi
+;;
+split | split-lite)
+    if [ -z "$SKIP_DOWNLOAD" ]; then
+        wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/splitserver/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        vagrant plugin install --local
+    fi
+;;
+rancher)
+    has_helm
+;;
+esac
+
+# We replace the default OS with alpine-3.15 for fast download and startup time
+OS="generic/alpine315"
+# We can also use ubuntu (the most common OS deployment for RKE2/K3s).
+# It is much larger (~1.8GB) and takes ~1.5 minutes more to deploy.
+# OS="generic/ubuntu2004"
+case $CLUSTER in
+
+basic)
+    NODE_ROLES="server-0 agent-0"
+    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant up
+;;
+basic-lite)
+    NODE_ROLES="server-0"
+    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS" vagrant up
+;;
+ha)
+    
+    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up
+;;
+ha-lite)
+    NODE_ROLES="server-0 server-1 server-2"
+    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant up
+;;
+split)
+    
+    NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
+    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS $OS $OS $OS $OS $OS" vagrant up
+;;
+split-lite)
+    
+    NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
+    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant up
+;;
+esac
+
+if [ $? -ne 0 ]; then
+    echo "VMs and cluster up, use 'vagrant ssh NODE'"
+fi
+
