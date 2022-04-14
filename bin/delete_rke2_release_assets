@@ -43,6 +43,11 @@ while getopts "t:f:adh" opt; do
     esac
 done
 
+if [ -z "${RELEASE_TAG}" ]; then
+    echo "error: release tag required"
+    exit 1
+fi
+
 setup_tmp
 
 gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | .name' | sort > "${TMP_DIR}/${RELEASE_TAG}-github-assets"
