@@ -67,6 +67,6 @@ for i in $DELETIONS; do
     fi
 done
 
-if [ ${DRY_RUN} ]; then
+if [ -z ${DRY_RUN} ]; then
     printf "Deleted %s assets\n" $(echo "${DELETIONS}" | wc -l)
 fi
