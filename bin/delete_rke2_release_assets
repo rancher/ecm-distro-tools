@@ -1,0 +1,74 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+
+usage() {
+    echo "This script will delete all assets for a rancher/rke2 release"
+    echo "usage: $0 [t:f:adh]
+    -t    release tag
+    -f    files to delete
+    -a    delete all files
+    -d    dry run
+    -h    show help
+
+examples:
+    $0 -t v1.22.8+rke2r1 -f dist/artifacts/*
+    $0 -t v1.22.8+rke2r1 -a"
+}
+
+while getopts "t:f:adh" opt; do
+    case "${opt}" in
+        t)
+            RELEASE_TAG="${OPTARG}"
+            ;;
+        f)
+            FILES="${OPTARG}"
+            ;;
+        a)
+            DELETE_ALL='true'
+            ;;
+        d)
+            DRY_RUN='true'
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+setup_tmp
+
+echo $TMP_DIR
+
+gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | .name' | sort > "${TMP_DIR}/${RELEASE_TAG}-github-assets"
+
+if [ ${DELETE_ALL} ]; then
+    DELETIONS=$(cat "${TMP_DIR}/${RELEASE_TAG}-github-assets")
+else
+    ls $FILES | xargs -n1 basename | sort > "${TMP_DIR}/${RELEASE_TAG}-local-assets"
+    DELETIONS=$(comm -12 ${TMP_DIR}/${RELEASE_TAG}-github-assets ${TMP_DIR}/${RELEASE_TAG}-local-assets)
+fi
+
+if [ -z "${DELETIONS}" ]; then
+    echo "No assets to delete"
+    exit 0
+fi
+
+for i in $DELETIONS; do
+    if [ ${DRY_RUN} ]; then
+        echo "gh release delete-asset ${RELEASE_TAG} ${i} --repo rancher/image-build-kubernetes -y"
+    else
+        gh release delete-asset ${TAG} ${i} --repo rancher/image-build-kubernetes -y
+    fi
+done
+
+if [ ${DRY_RUN} ]; then
+    printf "Deleted %s assets\n" $(echo "${DELETIONS}" | wc -l)
+fi
