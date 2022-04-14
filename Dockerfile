@@ -26,8 +26,20 @@ RUN wget https://github.com/aquasecurity/trivy/releases/download/v0.25.3/trivy_0
     mv trivy /usr/local/bin
 
 FROM bci
-RUN zypper update -y && \
-    zypper install -y ca-certificates strongswan net-tools && \
+RUN zypper addrepo https://cli.github.com/packages/rpm/gh-cli.repo && \
+    zypper update -y && \
+    zypper --kgpg-auto-import-keys refresh && \
+    zypper install -y   \
+        ca-certificates \
+        strongswan      \ 
+        git             \ 
+        gh              \
+        file            \ 
+        curl            \
+        yq              \ 
+        pigz            \
+        py-pip          \
+        net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/gen-release-notes/bin/gen-release-notes /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
