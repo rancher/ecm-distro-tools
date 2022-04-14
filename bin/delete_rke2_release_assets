@@ -45,8 +45,6 @@ done
 
 setup_tmp
 
-echo $TMP_DIR
-
 gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | .name' | sort > "${TMP_DIR}/${RELEASE_TAG}-github-assets"
 
 if [ ${DELETE_ALL} ]; then
