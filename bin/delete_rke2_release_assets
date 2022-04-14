@@ -64,7 +64,7 @@ if [ -z "${DELETIONS}" ]; then
     exit 0
 fi
 
-for i in {$DELETIONS}; do
+for i in ${DELETIONS}; do
     if [ ${DRY_RUN} ]; then
         echo "gh release delete-asset ${RELEASE_TAG} ${i} --repo rancher/image-build-kubernetes -y"
     else
