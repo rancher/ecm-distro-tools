@@ -91,12 +91,13 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		return nil, err
 	}
 
-	release, _, err := client.Repositories.CreateRelease(ctx, org, cro.Repo, &github.RepositoryRelease{
+	rr := github.RepositoryRelease{
 		Name:            &cro.Name,
 		TagName:         &cro.Name,
 		Prerelease:      &cro.Prerelease,
 		TargetCommitish: &cro.Branch,
-	})
+	}
+	release, _, err := client.Repositories.CreateRelease(ctx, org, cro.Repo, &rr)
 	if err != nil {
 		return nil, err
 	}
