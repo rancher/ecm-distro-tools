@@ -72,6 +72,38 @@ func IsValidRepo(repo string) bool {
 	return false
 }
 
+// CreateReleaseOpts
+type CreateReleaseOpts struct {
+	Repo       string
+	Name       string
+	Prerelease bool
+	Branch     string
+}
+
+// CreateRelease
+func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
+	if cro == nil {
+		return nil, errors.New("CreateReleaseOpts cannot be nil")
+	}
+
+	org, err := OrgFromRepo(cro.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	release, _, err := client.Repositories.CreateRelease(ctx, org, cro.Repo, &github.RepositoryRelease{
+		Name:            &cro.Name,
+		TagName:         &cro.Name,
+		Prerelease:      &cro.Prerelease,
+		TargetCommitish: &cro.Branch,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return release, nil
+}
+
 // RetrieveOriginalIssue
 func RetrieveOriginalIssue(ctx context.Context, client *github.Client, repo string, issueID uint) (*github.Issue, error) {
 	org, err := OrgFromRepo(repo)
