@@ -88,8 +88,8 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 	return nil
 }
 
-// CheckUpstreamRelease takes the given tags and checks
-// for their existence.
+// CheckUpstreamRelease takes the given org, repo, and tags and checks
+// for the tags' existence.
 func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo string, tags []string) ([]*github.RepositoryRelease, error) {
 	releases := make([]*github.RepositoryRelease, len(tags))
 
