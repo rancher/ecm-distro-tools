@@ -90,11 +90,11 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 
 // CheckUpstreamRelease takes the given tags and checks
 // for their existence.
-func CheckUpstreamRelease(ctx context.Context, client *github.Client, tags []string) ([]*github.RepositoryRelease, error) {
+func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo string, tags []string) ([]*github.RepositoryRelease, error) {
 	releases := make([]*github.RepositoryRelease, len(tags))
 
 	for _, tag := range tags {
-		release, _, err := client.Repositories.GetReleaseByTag(ctx, "kubernetes", "kubernetes", tag)
+		release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
 		if err != nil {
 			return nil, err
 		}
