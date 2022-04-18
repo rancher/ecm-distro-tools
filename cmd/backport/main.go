@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/rancher/ecm-distro-tools/repository"
 )
@@ -67,11 +66,6 @@ func main() {
 		return
 	}
 
-	if !repository.IsValidRepo(repo) {
-		fmt.Println("error: please provide a valid repository")
-		os.Exit(1)
-	}
-
 	ghToken := os.Getenv("GITHUB_TOKEN")
 	if ghToken == "" {
 		fmt.Println("error: please provide a token")
@@ -88,34 +82,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	backportBranches := strings.Split(branches, ",")
-	if len(backportBranches) < 1 || backportBranches[0] == "" {
-		fmt.Println("error: please provide at least one branch to perform the backport")
-		os.Exit(1)
-	}
-
 	ctx := context.Background()
 
 	client := repository.NewGithub(ctx, ghToken)
 
-	origIssue, err := repository.RetrieveOriginalIssue(ctx, client, repo, issueID)
+	pbo := repository.PerformBackportOpts{
+		Repo:     repo,
+		CommitID: commitID,
+		IssueID:  issueID,
+		Branches: branches,
+	}
+	issues, err := repository.PerformBackport(ctx, client, &pbo)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	issue := repository.Issue{
-		Title: issueTitle,
-		Body:  issueBody,
-	}
-
-	for _, branch := range backportBranches {
-		ni, err := repository.CreateBackportIssues(ctx, client, origIssue, repo, branch, &issue)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		fmt.Println("Backport issue created: " + ni.GetHTMLURL())
+	for _, issue := range issues {
+		fmt.Println("Backport issue created: " + issue.GetHTMLURL())
 	}
 
 	os.Exit(0)

@@ -193,6 +193,53 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	return issue, nil
 }
 
+// PerformBackportOpts
+type PerformBackportOpts struct {
+	Repo     string `json:"repo"`
+	CommitID string `json:"commit_id"`
+	IssueID  uint   `json:"issue_id"`
+	Branches string `json:"branches"`
+}
+
+// PerformBackport
+func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBackportOpts) ([]*github.Issue, error) {
+	if !IsValidRepo(pbo.Repo) {
+		return nil, fmt.Errorf("invalid repo: %s", pbo.Repo)
+	}
+
+	const (
+		issueTitle = "[%s] - %s"
+		issueBody  = "Backport fix for %s\n\n* #%d"
+	)
+
+	backportBranches := strings.Split(pbo.Branches, ",")
+	if len(backportBranches) < 1 || backportBranches[0] == "" {
+		return nil, errors.New("no branches specified")
+	}
+
+	origIssue, err := RetrieveOriginalIssue(ctx, client, pbo.Repo, pbo.IssueID)
+	if err != nil {
+		return nil, err
+	}
+
+	issue := Issue{
+		Title: issueTitle,
+		Body:  issueBody,
+	}
+
+	issues := make([]*github.Issue, len(backportBranches))
+	for _, branch := range backportBranches {
+		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Repo, branch, &issue)
+		if err != nil {
+			return nil, err
+		}
+		issues = append(issues, newIssue)
+		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
+	}
+
+	return issues, nil
+}
+
 // RetrieveChangeLogContents gets the relevant changes
 // for the given release, formats, and returns them.
 func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo, prevMilestone, milestone string) ([]ChangeLog, error) {
