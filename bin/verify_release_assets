@@ -5,7 +5,7 @@ set -e
 . libstd-ecm.sh
 
 REPOSITORY='rancher/rke2'
-STRICT_MATCH='false'
+STRICT_MATCH='true'
 LIST_ASSETS='false'
 ASSERT_AMOUNT=''
 
@@ -13,15 +13,14 @@ usage() {
     echo "usage: $0 [adhlr] <repository>
     -l    list assets file names
     -r    set target repository. default: $REPOSITORY
-    -s    use strict release tag name match
+    -p    use release tag prefix instead. ie: v1.23.5
     -a    override expected assets amount
     -x    print debug messages
     -h    show help
 
 examples:
-    $0 -s v1.23.4
-    $0 -s v1.23.4-rc2+rke2r1
-    $0 -l -r rancher/rke2 v1.23.4"
+    $0 v1.23.5+rke2r1
+    $0 -p -r rancher/rke2 v1.23.5"
 }
 
 print_status() {
@@ -60,7 +59,7 @@ print_status() {
     fi
 }
 
-while getopts 'a:xhlr:s' c; do
+while getopts 'a:xhlr:p' c; do
     case "${c}" in
     x)
         set_debug
@@ -71,8 +70,8 @@ while getopts 'a:xhlr:s' c; do
     a)
         ASSERT_AMOUNT=$OPTARG
         ;;
-    s)
-        STRICT_MATCH='true'
+    p)
+        STRICT_MATCH='false'
         ;;
     l)
         LIST_ASSETS='true'
@@ -103,22 +102,20 @@ export PAGER='cat'
 setup_tmp
 
 RELEASE_TAG="${1}"
-PATTERN=".tag_name | startswith(\"${RELEASE_TAG}\")"
+
 if [ "${STRICT_MATCH}" = 'true' ]; then
-    PATTERN=".tag_name==\"${RELEASE_TAG}\""
+    echo "${RELEASE_TAG}" >"${TMP_DIR}/${RELEASE_TAG}-list"
+else
+    PATTERN=".tag_name | startswith(\"${RELEASE_TAG}\")"
+    gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.tag_name)\" " >"${TMP_DIR}/${RELEASE_TAG}-list"
 fi
 
-gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.id) \(.tag_name)\" " >"${TMP_DIR}/${RELEASE_TAG}-list"
+while IFS= read -r tag_name; do
+    gh release view "${tag_name}" --json assets -q '.assets.[] | .name' >"${TMP_DIR}/${tag_name}-assets"
 
-while IFS= read -r line; do
-    echo "${line}" | (
-        IFS=' ' read -r id name
-        gh api --paginate "repos/{owner}/{repo}/releases/${id}/assets" -q '.[] | .name' >"${TMP_DIR}/${name}-assets"
+    assets_count=$(wc -l <"${TMP_DIR}/${tag_name}-assets")
 
-        assets_count=$(wc -l <"${TMP_DIR}/${name}-assets")
-
-        print_status "${name}" "${assets_count}"
-    )
+    print_status "${tag_name}" "${assets_count}"
 done <"${TMP_DIR}/${RELEASE_TAG}-list"
 
 if [ "${LIST_ASSETS}" = 'true' ]; then
