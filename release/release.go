@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
@@ -85,6 +86,22 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 	}
 
 	return nil
+}
+
+// CheckUpstreamRelease takes the given tags and checks
+// for their existence.
+func CheckUpstreamRelease(ctx context.Context, client *github.Client, tags []string) ([]*github.RepositoryRelease, error) {
+	releases := make([]*github.RepositoryRelease, len(tags))
+
+	for _, tag := range tags {
+		release, _, err := client.Repositories.GetReleaseByTag(ctx, "kubernetes", "kubernetes", tag)
+		if err != nil {
+			return nil, err
+		}
+		releases = append(releases, release)
+	}
+
+	return releases, nil
 }
 
 func goModLibVersion(libraryName, repo, branchVersion string) string {
