@@ -2,13 +2,13 @@ package release
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"html/template"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -16,22 +16,22 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToken string) error {
+func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToken string) (*bytes.Buffer, error) {
 	const templateName = "release-notes"
 
 	var tmpl *template.Template
 	switch repo {
 	case "rke2":
-		tmpl = template.Must(template.New(templateName).Parse(repository.RKE2ReleaseNoteTemplate))
+		tmpl = template.Must(template.New(templateName).Parse(rke2ReleaseNoteTemplate))
 	case "k3s":
-		tmpl = template.Must(template.New(templateName).Parse(repository.K3sReleaseNoteTemplate))
+		tmpl = template.Must(template.New(templateName).Parse(k3sReleaseNoteTemplate))
 	}
 
 	client := repository.NewGithub(ctx, ghToken)
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// account for processing against an rc
@@ -53,7 +53,9 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
-	if err := tmpl.Execute(os.Stdout, map[string]interface{}{
+	buf := bytes.NewBuffer(nil)
+
+	if err := tmpl.Execute(buf, map[string]interface{}{
 		"milestone":                   milestone,
 		"prevMilestone":               prevMilestone,
 		"changeLogSince":              changeLogSince,
@@ -82,10 +84,10 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
 		"LocalPathProvisionerVersion": imageTagVersion("local-path-provisioner", repo, milestone),
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return buf, nil
 }
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
@@ -269,3 +271,95 @@ func findInURL(url, regex, str string) []string {
 
 	return submatch
 }
+
+const rke2ReleaseNoteTemplate = `<!-- {{.milestone}} -->
+
+This release ... <FILL ME OUT!>
+
+**Important Note**
+
+If your server (control-plane) nodes were not started with the ` + "`--token`" + ` CLI flag or config file key, a randomized token was generated during initial cluster startup. This key is used both for joining new nodes to the cluster, and for encrypting cluster bootstrap data within the datastore. Ensure that you retain a copy of this token, as is required when restoring from backup.
+
+You may retrieve the token value from any server already joined to the cluster:
+` + "```bash" + `
+cat /var/lib/rancher/rke2/server/token
+` + "```" + `
+
+## Changes since {{.prevMilestone}}:
+{{range .content}}
+* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+
+## Packaged Component Versions
+| Component       | Version                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
+| Etcd            | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}})                          |
+| Containerd      | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}})                      |
+| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
+| Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
+| CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
+| Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
+| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}})                         |
+
+### Available CNIs
+| Component       | Version                                                                                                                                                                             | FIPS Compliant |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }})                                                                    | No             |
+| Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
+| Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
+
+## Known Issues
+
+- [#1447](https://github.com/rancher/rke2/issues/1447) - When restoring RKE2 from backup to a new node, you should ensure that all pods are stopped following the initial restore:
+
+` + "```" + `bash
+curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_VERSION={{.milestone}}
+rke2 server \
+  --cluster-reset \
+  --cluster-reset-restore-path=<PATH-TO-SNAPSHOT> --token <token used in the original cluster>
+rke2-killall.sh
+systemctl enable rke2-server
+systemctl start rke2-server
+` + "```" + `
+
+## Helpful Links
+
+As always, we welcome and appreciate feedback from our community of users. Please feel free to:
+- [Open issues here](https://github.com/rancher/rke2/issues/new)
+- [Join our Slack channel](https://slack.rancher.io/)
+- [Check out our documentation](https://docs.rke2.io) for guidance on how to get started.
+`
+
+const k3sReleaseNoteTemplate = `<!-- {{.milestone}} -->
+This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues.
+
+For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
+
+## Changes since {{.prevMilestone}}:
+{{range .content}}
+* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+
+## Embedded Component Versions
+| Component | Version |
+|---|---|
+| Kubernetes | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
+| Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
+| SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
+| Etcd | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}}) |
+| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+| Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
+| Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
+| Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
+| CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
+| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
+| Local-path-provisioner | [{{.LocalPathProvisionerVersion}}](https://github.com/rancher/local-path-provisioner/releases/tag/{{.LocalPathProvisionerVersion}}) |
+
+## Helpful Links
+As always, we welcome and appreciate feedback from our community of users. Please feel free to:
+- [Open issues here](https://github.com/rancher/k3s/issues/new/choose)
+- [Join our Slack channel](https://slack.rancher.io/)
+- [Check out our documentation](https://rancher.com/docs/k3s/latest/en/) for guidance on how to get started or to dive deep into K3s.
+- [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
+`
