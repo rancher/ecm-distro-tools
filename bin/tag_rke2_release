@@ -2,30 +2,34 @@
 
 set -e
 
-. libstd-ecm.sh
+. liblogger-ecm.sh
+
+DR_PREFIX=''
 
 usage() {
     echo "This script is meant to create new releases for on specific release
-    branches. E.g. release-1.21. For releases that are needed to be tagged from
-    master, they will need to be done manually.
-
+    branches. E.g. release-1.21.
     usage: $0 [rdh]
     -r    releases to create
+    -m    set RKE2 current main version. ei: 1.23
     -d    dry run
     -h    show help
 
 examples:
-    $0 -r 'v1.22.6-rke2r1'
-    $0 -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6 v1.23.2+rke2r1'"
+    $0 -m 1.23 -r 'v1.23.5+rke2r1'
+    $0 -m 1.23 -r 'v1.21.12+rke2r1 v1.22.9+rke2r1 v1.23.5+rke2r1'"
 }
 
-while getopts 'r:dh' c; do
+while getopts 'r:dhm:' c; do
     case $c in
     r) 
         RELEASE_VERSIONS=$OPTARG
     ;;
     d)
-        DRY_RUN=true
+        DR_PREFIX='echo'
+    ;;
+    m)
+        MAIN_MINOR=$OPTARG
     ;;
     h)
         usage
@@ -39,25 +43,27 @@ while getopts 'r:dh' c; do
 done
 
 if [ -z "${RELEASE_VERSIONS}" ]; then
-    echo "error: version(s) required"
-    exit 1
+    fatal "error: version(s) required"
 fi
+
+if [ -z "${MAIN_MINOR}" ]; then
+    fatal "error: main minor version required"
+fi
+
+MAIN_MINOR=$(echo "${MAIN_MINOR}" | cut -d. -f2)
 
 has_gh
 
 for release in ${RELEASE_VERSIONS}; do
-    BRANCH="$(echo "${release}" | awk -F '.' '{ gsub("v", ""); print "release-"$1"."$2 }')"
+    BRANCH="$(echo "${release}" | awk -F '.' -v "MAIN=$MAIN_MINOR" '{ gsub("v", ""); print (MAIN==$2 ? "master" : "release-"$1"."$2) }')"
 
-    if [ ${DRY_RUN} ]; then
-        echo "gh release create ${release} --repo rancher/rke2 --title ${release} --prerelease --target ${BRANCH} --notes ''"
-    else
-        gh release create "${release}" \
-            --repo "rancher/rke2"      \
-            --title "${release}"       \
-            --target "${BRANCH}"       \
-            --prerelease               \
-            --notes ""
-    fi
+    $DR_PREFIX gh release create "${release}"   \
+                --repo "rancher/rke2"           \
+                --title "${release}"            \
+                --target "${BRANCH}"            \
+                --prerelease                    \
+                --notes ""
+
 done
 
 exit 0
