@@ -4,6 +4,8 @@ set -e
 
 . libstd-ecm.sh
 
+DRY_RUN=''
+
 usage() {
     echo "usage: $0 [rtlsdh]
     -r    releases to create
@@ -33,7 +35,7 @@ while getopts 'r:tlsdh' c; do
         TAG="stable.0"
     ;;
     d)
-        DRY_RUN=true
+        DRY_RUN='echo'
     ;;
     h)
         usage
@@ -61,15 +63,11 @@ has_gh
 for i in ${RELEASE_VERSIONS}; do
     FULL_TAG="${i}.${TAG}"
 
-    if [ ${DRY_RUN} ]; then
-        echo "gh release create ${FULL_TAG} --repo rancher/rke2-packaging --title ${FULL_TAG} --target master --notes ''"
-    else
-        gh release create "${FULL_TAG}"     \
-            --repo "rancher/rke2-packaging" \
-            --title "${FULL_TAG}"           \
-            --target "master"               \
-            --notes ""
-    fi
+    ${DRY_RUN} gh release create "${FULL_TAG}"  \
+                --repo "rancher/rke2-packaging" \
+                --title "${FULL_TAG}"           \
+                --target "master"               \
+                --notes ""
 done
 
 exit 0

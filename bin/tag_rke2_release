@@ -4,7 +4,7 @@ set -e
 
 . liblogger-ecm.sh
 
-DR_PREFIX=''
+DRY_RUN=''
 
 usage() {
     echo "This script is meant to create new releases for on specific release
@@ -26,7 +26,7 @@ while getopts 'r:dhm:' c; do
         RELEASE_VERSIONS=$OPTARG
     ;;
     d)
-        DR_PREFIX='echo'
+        DRY_RUN='echo'
     ;;
     m)
         MAIN_MINOR=$OPTARG
@@ -57,7 +57,7 @@ has_gh
 for release in ${RELEASE_VERSIONS}; do
     BRANCH="$(echo "${release}" | awk -F '.' -v "MAIN=$MAIN_MINOR" '{ gsub("v", ""); print (MAIN==$2 ? "master" : "release-"$1"."$2) }')"
 
-    $DR_PREFIX gh release create "${release}"   \
+    ${DRY_RUN} gh release create "${release}"   \
                 --repo "rancher/rke2"           \
                 --title "${release}"            \
                 --target "${BRANCH}"            \
