@@ -83,8 +83,11 @@ func main() {
 	}
 
 	ctx := context.Background()
-	if err := release.GenReleaseNotes(ctx, repo, milestone, prevMilestone, ghToken); err != nil {
+	notes, err := release.GenReleaseNotes(ctx, repo, milestone, prevMilestone, ghToken)
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	fmt.Print(notes.String())
 }
