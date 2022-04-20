@@ -29,7 +29,7 @@ while getopts 'r:dhm:' c; do
         DRY_RUN='echo'
     ;;
     m)
-        MAIN_MINOR=$OPTARG
+        MAIN_VERSION=$OPTARG
     ;;
     h)
         usage
@@ -46,11 +46,11 @@ if [ -z "${RELEASE_VERSIONS}" ]; then
     fatal "error: version(s) required"
 fi
 
-if [ -z "${MAIN_MINOR}" ]; then
-    fatal "error: main minor version required"
+if [ -z "${MAIN_VERSION}" ]; then
+    fatal "error: main version required"
 fi
 
-MAIN_MINOR=$(echo "${MAIN_MINOR}" | cut -d. -f2)
+MAIN_MINOR=$(echo "${MAIN_VERSION}" | cut -d. -f2)
 
 has_gh
 

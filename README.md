@@ -103,12 +103,12 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools rancher_
 
 ```sh
 # RKE2 Kubernetes base image
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_image_build_k8s_release -r 'v1.23.2-rke2r1'
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_image_build_k8s_release -d -r 'v1.23.2-rke2r1'
 ```
 
 ```sh
 # RKE2
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_release -r 'v1.23.5-rc1+rke2r1'
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_release -d -m '1.23' -r 'v1.23.5-rc1+rke2r1'
 ```
 
 ```sh
