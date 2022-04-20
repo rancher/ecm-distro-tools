@@ -62,7 +62,7 @@ for release in ${RELEASE_VERSIONS}; do
                 --title "${release}"            \
                 --target "${BRANCH}"            \
                 --prerelease                    \
-                --notes ""
+                --notes-file /dev/null
 
 done
 

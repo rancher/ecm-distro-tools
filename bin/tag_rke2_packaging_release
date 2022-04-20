@@ -67,7 +67,7 @@ for i in ${RELEASE_VERSIONS}; do
                 --repo "rancher/rke2-packaging" \
                 --title "${FULL_TAG}"           \
                 --target "master"               \
-                --notes ""
+                --notes-file /dev/null
 done
 
 exit 0
