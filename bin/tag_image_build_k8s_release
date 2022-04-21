@@ -4,6 +4,8 @@ set -e
 
 . libstd-ecm.sh
 
+DRY_RUN=''
+
 usage() {
     echo "usage: $0 [rpdh]
     -r    releases to create  
@@ -21,7 +23,7 @@ while getopts 'r:dh' c; do
         RELEASE_VERSIONS=$OPTARG
     ;;
     d)
-        DRY_RUN=true
+        DRY_RUN='echo'
     ;;
     h)
         usage
@@ -55,15 +57,11 @@ DATE=$(TZ=utc date '+%Y%m%d')
 for i in ${RELEASE_VERSIONS}; do
     TAG="${i}-build${DATE}"
 
-    if [ ${DRY_RUN} ]; then
-        echo "gh release create ${TAG} --repo rancher/image-build-kubernetes --title ${TAG} --target master --notes ''"
-    else
-        gh release create "${TAG}"                  \
-            --repo "rancher/image-build-kubernetes" \
-            --title "${TAG}"                        \
-            --target "master"                       \
-            --notes ""
-    fi
+    ${DRY_RUN} gh release create "${TAG}"       \
+        --repo "rancher/image-build-kubernetes" \
+        --title "${TAG}"                        \
+        --target "master"                       \
+        --notes-file /dev/null
 done
 
 exit 0

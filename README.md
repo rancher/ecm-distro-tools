@@ -99,6 +99,23 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_r
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools rancher_image_scan <IMAGE_NAME>
 ```
 
+### Create tag for RKE2 component release
+
+```sh
+# RKE2 Kubernetes base image
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_image_build_k8s_release -d -r 'v1.23.2-rke2r1'
+```
+
+```sh
+# RKE2
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_release -d -m '1.23' -r 'v1.23.5-rc1+rke2r1'
+```
+
+```sh
+# RKE2 packaging (rpms)
+docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_packaging_release -d -t -r 'v1.22.6+rke2r1'
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.
