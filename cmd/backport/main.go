@@ -17,6 +17,8 @@ var (
 
 const usage = `version: %s
 Usage: %[2]s [-r repo] [-b branches] [-i issue]
+Env Variables:
+	GITHUB_TOKEN		 user token for posting issues
 Options:
     -h                   help
     -v                   show version and exit
@@ -26,7 +28,7 @@ Options:
     -b branch(es)        branches issue is being backported to
 Examples: 
 	# generate release notes for RKE2 for milestone v1.21.5
-    %[2]s -t <TOKEN> -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
+    %[2]s -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
 `
 
 const (
@@ -68,7 +70,7 @@ func main() {
 
 	ghToken := os.Getenv("GITHUB_TOKEN")
 	if ghToken == "" {
-		fmt.Println("error: please provide a token")
+		fmt.Println("error: please provide a GITHUB_TOKEN")
 		os.Exit(1)
 	}
 
