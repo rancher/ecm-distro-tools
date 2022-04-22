@@ -104,7 +104,9 @@ setup_tmp
 RELEASE_TAG="${1}"
 
 if [ "${STRICT_MATCH}" = 'true' ]; then
-    echo "${RELEASE_TAG}" >"${TMP_DIR}/${RELEASE_TAG}-list"
+    for tag in "$@"; do
+        echo "${tag}" >>"${TMP_DIR}/${RELEASE_TAG}-list"
+    done
 else
     PATTERN=".tag_name | startswith(\"${RELEASE_TAG}\")"
     gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.tag_name)\" " >"${TMP_DIR}/${RELEASE_TAG}-list"
