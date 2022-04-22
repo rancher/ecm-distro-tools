@@ -19,8 +19,8 @@ usage() {
     -h    show help
 
 examples:
-    $0 v1.23.5+rke2r1
-    $0 -p -r rancher/rke2 v1.23.5"
+    $0 v1.23.5+rke2r1 v1.22.8+rke2r1
+    $0 -r rancher/rke2-packaging -p v1.23.5"
 }
 
 print_status() {
@@ -90,6 +90,7 @@ done
 shift $((OPTIND - 1))
 if [ -z "${1}" ]; then
     echo "error: release tag required"
+    usage
     exit 1
 fi
 
@@ -101,15 +102,13 @@ export PAGER='cat'
 
 setup_tmp
 
-RELEASE_TAG="${1}"
-
 if [ "${STRICT_MATCH}" = 'true' ]; then
     for tag in "$@"; do
-        echo "${tag}" >>"${TMP_DIR}/${RELEASE_TAG}-list"
+        echo "${tag}" >>"${TMP_DIR}/release-list"
     done
 else
-    PATTERN=".tag_name | startswith(\"${RELEASE_TAG}\")"
-    gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.tag_name)\" " >"${TMP_DIR}/${RELEASE_TAG}-list"
+    PATTERN=".tag_name | startswith(\"${1}\")"
+    gh api 'repos/{owner}/{repo}/releases' -q ".[] | select(${PATTERN}) | \"\(.tag_name)\" " >"${TMP_DIR}/release-list"
 fi
 
 while IFS= read -r tag_name; do
@@ -118,7 +117,7 @@ while IFS= read -r tag_name; do
     assets_count=$(wc -l <"${TMP_DIR}/${tag_name}-assets")
 
     print_status "${tag_name}" "${assets_count}"
-done <"${TMP_DIR}/${RELEASE_TAG}-list"
+done <"${TMP_DIR}/release-list"
 
 if [ "${LIST_ASSETS}" = 'true' ]; then
     find "${TMP_DIR}" -type f -name '*-assets' -exec \
