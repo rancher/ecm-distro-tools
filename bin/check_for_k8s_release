@@ -33,7 +33,7 @@ if [ -z "${CHECK_RELEASES}" ]; then
     exit 1
 fi
 
-RELEASES=$(gh api repos/kubernetes/kubernetes/git/refs/tags -q ".[] | .ref" | grep -Ev 'alpha|beta|rc.|v0.' | sed 's/refs\/tags\///')
+RELEASES=$(gh api -XGET --field 'prerelease=false' --field 'draft=false' repos/kubernetes/kubernetes/releases -q '.[] | .tag_name' | grep -Ev 'alpha|beta|rc.|v0.')
 
 for i in ${CHECK_RELEASES}; do
     for r in ${RELEASES}; do
