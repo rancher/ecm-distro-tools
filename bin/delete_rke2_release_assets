@@ -12,8 +12,7 @@ usage() {
     -h    show help
 
 examples:
-    $0 -t v1.22.8+rke2r1 -f \"dist/artifacts/*\"
-    $0 -t v1.22.8+rke2r1 -a"
+    $0 -t v1.22.8+rke2r1"
 }
 
 while getopts "t:dh" opt; do
