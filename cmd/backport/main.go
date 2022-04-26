@@ -25,9 +25,9 @@ Options:
     -i issue id          original issue id
     -c commit            commit id that is being backported
     -b branch(es)        branches issue is being backported to
-    -d					 enable debug logs
+    -d                   enable debug logs
 Examples: 
-	# generate release notes for RKE2 for milestone v1.21.5
+    # generate release notes for RKE2 for milestone v1.21.5
     %[2]s -t <TOKEN> -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
 `
 
