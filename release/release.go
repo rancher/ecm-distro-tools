@@ -35,28 +35,32 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 	}
 
 	// account for processing against an rc
+	milestoneNoRC := milestone
 	idx := strings.Index(milestone, "-rc")
 	if idx != -1 {
 		tmpMilestone := []rune(milestone)
 		tmpMilestone = append(tmpMilestone[0:idx], tmpMilestone[idx+4:]...)
-		milestone = string(tmpMilestone)
+		milestoneNoRC = string(tmpMilestone)
 	}
 
-	k8sVersion := strings.Split(milestone, "+")[0]
+	k8sVersion := strings.Split(milestoneNoRC, "+")[0]
 	markdownVersion := strings.Replace(k8sVersion, ".", "", -1)
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	calicoVersion := imageTagVersion("calico-node", repo, milestone)
 	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
-	calicoVersionMajMin := calicoVersion[:strings.LastIndex(calicoVersion, ".")]
+	calicoVersionMajMin := ""
+	if calicoVersion != "" {
+		calicoVersionMajMin = calicoVersion[:strings.LastIndex(calicoVersion, ".")]
+	}
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
 	buf := bytes.NewBuffer(nil)
 
 	if err := tmpl.Execute(buf, map[string]interface{}{
-		"milestone":                   milestone,
+		"milestone":                   milestoneNoRC,
 		"prevMilestone":               prevMilestone,
 		"changeLogSince":              changeLogSince,
 		"content":                     content,
