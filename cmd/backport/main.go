@@ -26,6 +26,7 @@ Options:
     -i issue id          original issue id
     -c commit            commit id that is being backported
     -b branch(es)        branches issue is being backported to
+
 Examples: 
     # generate 2 backport issues for k3s issue 1234
     %[2]s -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
@@ -38,6 +39,7 @@ const (
 
 var (
 	vers     bool
+	debug    bool
 	repo     string
 	commitID string
 	issueID  uint

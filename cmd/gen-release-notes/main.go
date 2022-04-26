@@ -24,7 +24,8 @@ Options:
     -v                   show version and exit
     -r repo              repository that should be used
     -m milestone         milestone to be used
-	-p prev milestone    previous milestone
+    -p prev milestone    previous milestone
+    -d                   enable debug logs
 Examples:
     # generate release notes for RKE2 for milestone v1.21.5
     %[2]s -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1
