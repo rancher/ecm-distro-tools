@@ -26,7 +26,7 @@ Options:
     -m milestone         milestone to be used
 	-p prev milestone    previous milestone
 Examples:
-	# generate release notes for RKE2 for milestone v1.21.5
+    # generate release notes for RKE2 for milestone v1.21.5
     %[2]s -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1
 `
 
