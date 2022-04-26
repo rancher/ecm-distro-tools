@@ -1,11 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 
 . "../bin/libstd-ecm.sh"
 
 usage() {
-    echo "usage: $0 [rcdh]
+    echo "usage: $0 [-r repo] [-c cluster] [sbdh]
     -r    repository (k3s/rke2)
     -c    cluster type
+    
+    -v    k3s/rke2 version to use (if not provided, the latest commit build is used)
+    OR
+    -b    location of local k3s/rke2 binary to use
+
+    -d    cleanup files
     -s    skip Vagrantfile download
     -h    show help
 
@@ -20,10 +26,13 @@ cluster types:
     - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
 examples:
     $0 -r k3s -c basic
-    $0 -d"
+    $0 -d
+    $0 -r k3s -c ha -v v1.23.5+k3s1
+    $0 -r k3s -c ha -b ../../k3s/dist/artifacts/k3s
+    "
 }
 
-while getopts 'r:c:v:dhs' c; do
+while getopts 'r:c:v:b:dhs' c; do
     case $c in
     r) 
         ORG_REPO=$OPTARG
@@ -33,6 +42,9 @@ while getopts 'r:c:v:dhs' c; do
     ;;
     v) 
         VERSION=$OPTARG
+    ;;
+    b)
+        BINARY_LOCATION=$OPTARG
     ;;
     d)
         DESTROY=true
@@ -53,10 +65,9 @@ done
 
 has_vagrant
 has_curl
-
 if [ "$DESTROY" = "true" ]; then
     vagrant destroy -f
-    rm -rf scripts Vagrantfile vagrantdefaults.rb
+    rm -rf scripts .vagrant Vagrantfile vagrantdefaults.rb k3s rke2
     exit 0
 fi
 
@@ -70,10 +81,12 @@ if [ -z "${CLUSTER}" ]; then
     exit 1
 fi
 
+BINARY="k3s"
 if [ "$ORG_REPO" = "k3s" ]; then 
     ORG_REPO="k3s-io/k3s"
 elif [ "$ORG_REPO" = "rke2" ]; then
     ORG_REPO="rancher/rke2"
+    BINARY="rke2"
 else 
    echo "error: unknown repo" 
    exit 1
@@ -84,16 +97,48 @@ if [ -z "$SKIP_DOWNLOAD" ] && [ -f "Vagrantfile" ]; then
     exit 1
 fi
 
-# Download and setup appropiate vagrant files
+if [ $(ruby --version | grep -cP 'ruby 2\.\d') -eq 0 ]; then
+    echo "Ruby v2.X is needed for vagrant to work"
+    exit 1
+fi
+
+
+deploy_binary() {
+    NODE_ROLES=$1
+    for node in $NODE_ROLES; do
+        echo "scp $BINARY to $node"
+        vagrant scp ./k3s "$node":/tmp/
+        vagrant ssh "$node" -c "sudo mv /tmp/k3s /usr/local/bin/"
+    done
+}
+
+check_and_install_plugins() {
+    plugins=$(vagrant plugin list --local)
+    if [ $(echo "$plugins" | grep -c "vagrant-k3s") -eq 0 ]; then
+        vagrant plugin install vagrant-k3s
+    fi
+    if [ $(echo "$plugins" | grep -c "vagrant-rke2") -eq 0 ]; then
+        vagrant plugin install vagrant-rke2
+    fi
+    if [ $( echo "$plugins" | grep -c "vagrant-reload") -eq 0 ]; then
+        vagrant plugin install vagrant-reload
+    fi
+}
+
+
+# Download and setup appropiate vagrant files and binary
 case $CLUSTER in
 
-basic | basic-lite | ha | ha-lite)
-    if [ -z "$SKIP_DOWNLOAD" ]; then
-        wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
+basic | basic-lite | ha | ha-lite )
+   if [ -z "$SKIP_DOWNLOAD" ]; then
+        # wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
+        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/validatecluster/Vagrantfile
         curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
         # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
         wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
-        vagrant plugin install --local
+        # Remove the top line of the vagrantfile to enable parallel execution.
+        tail -n +2 Vagrantfile > Vagrantfile.tmp && mv Vagrantfile.tmp Vagrantfile
+        check_and_install_plugins
     fi
 ;;
 split | split-lite)
@@ -102,50 +147,90 @@ split | split-lite)
         curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
         # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
         wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
-        vagrant plugin install --local
+        check_and_install_plugins
     fi
 ;;
 rancher)
-    has_helm
+    if [ -z "$SKIP_DOWNLOAD" ]; then
+        wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+        # curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
+        curl --create-dirs -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
+        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        check_and_install_plugins
+    fi
 ;;
 esac
+
+# Get the binary for distrubution
+if [ "$BINARY_LOCATION" ]; then
+    cp "$BINARY_LOCATION" ./
+elif [ ! -f ./"$BINARY" ]; then 
+    wget https://github.com/"$ORG_REPO"/releases/download/"$VERSION"/"$BINARY"
+    chmod +x ./"$BINARY"
+fi
+
+
 
 # We replace the default OS with alpine-3.15 for fast download and startup time
 OS="generic/alpine315"
 # We can also use ubuntu (the most common OS deployment for RKE2/K3s).
-# It is much larger (~1.8GB) and takes ~1.5 minutes more to deploy.
+# It is much larger (~1.8GB) and takes longer to deploy.
 # OS="generic/ubuntu2004"
 case $CLUSTER in
 
 basic)
     NODE_ROLES="server-0 agent-0"
-    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant up
+    E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
+    deploy_binary "$NODE_ROLES"
+
+    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant provision
 ;;
 basic-lite)
     NODE_ROLES="server-0"
     E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS" vagrant up
 ;;
 ha)
+    NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
+    E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up --no-provision
+    deploy_binary "$NODE_ROLES"
     
-    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up
+    echo "bringing up first node"
+    E2E_NODE_BOXES="$OS $OS $OS $OS $OS" E2E_NODE_ROLES=$NODE_ROLES E2E_RELEASE_VERSION=skip vagrant provision server-0
+    
+    for node in $NODE_ROLES; do
+        if [ "$node" = "server-0" ]; then continue; fi
+        E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
+    done
+    wait   
 ;;
 ha-lite)
     NODE_ROLES="server-0 server-1 server-2"
-    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant up
+    E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
+    deploy_binary "$NODE_ROLES"
+    
+    echo "bringing up first node"
+    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-0
+    for node in $NODE_ROLES; do
+        if [ "$node" = "server-0" ]; then continue; fi
+        E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
+    done
+    wait  
 ;;
 split)
-    
     NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
     E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS $OS $OS $OS $OS $OS" vagrant up
 ;;
 split-lite)
-    
     NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
     E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant up
 ;;
+rancher) 
+    E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_EXTERNAL_DB=none E2E_NODE_BOXES="$OS $OS" vagrant up server-0
+    vagrant provision server-0 --provision-with "Install Rancher"
+    E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
+;;
 esac
 
-if [ $? -ne 0 ]; then
-    echo "VMs and cluster up, use 'vagrant ssh NODE'"
-fi
-
+echo "VMs and cluster up, use: vagrant ssh NODE"
