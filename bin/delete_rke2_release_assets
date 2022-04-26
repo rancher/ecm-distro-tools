@@ -6,10 +6,8 @@ set -e
 
 usage() {
     echo "This script will delete all assets for a rancher/rke2 release"
-    echo "usage: $0 [t:f:adh]
+    echo "usage: $0 [t:dh]
     -t    release tag
-    -f    files to delete
-    -a    delete all assets
     -d    dry run
     -h    show help
 
@@ -18,16 +16,10 @@ examples:
     $0 -t v1.22.8+rke2r1 -a"
 }
 
-while getopts "t:f:adh" opt; do
+while getopts "t:dh" opt; do
     case "${opt}" in
         t)
             RELEASE_TAG="${OPTARG}"
-            ;;
-        f)
-            FILES="${OPTARG}"
-            ;;
-        a)
-            DELETE_ALL='true'
             ;;
         d)
             DRY_RUN='true'
@@ -52,14 +44,7 @@ has_gh
 
 setup_tmp
 
-gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | .name' | sort > "${TMP_DIR}/${RELEASE_TAG}-github-assets"
-
-if [ ${DELETE_ALL} ]; then
-    DELETIONS=$(cat "${TMP_DIR}/${RELEASE_TAG}-github-assets")
-else
-    ls ${FILES} | xargs -n1 basename | sort > "${TMP_DIR}/${RELEASE_TAG}-local-assets"
-    DELETIONS=$(comm -12 ${TMP_DIR}/${RELEASE_TAG}-github-assets ${TMP_DIR}/${RELEASE_TAG}-local-assets)
-fi
+DELETIONS=$(gh release view "${RELEASE_TAG}" -R rancher/rke2 --json assets -q '.assets.[] | .name')
 
 if [ -z "${DELETIONS}" ]; then
     echo "No assets to delete"
