@@ -1,0 +1,73 @@
+#!/bin/sh
+
+set -e
+
+. libstd-ecm.sh
+
+usage() {
+    echo "This script will delete all assets for a rancher/rke2 release"
+    echo "usage: $0 [t:r:dh]
+    -t    release tag
+    -r    repository
+    -d    dry run
+    -h    show help
+
+examples:
+    $0 -t v1.22.8+rke2r1 -r rancher/rke2"
+}
+
+while getopts "t:r:dh" opt; do
+    case "${opt}" in
+        t)
+            RELEASE_TAG="${OPTARG}"
+            ;;
+        r)
+            REPOSITORY="${OPTARG}"
+            ;;
+        d)
+            DRY_RUN='true'
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "${RELEASE_TAG}" ]; then
+    echo "error: release tag required"
+    exit 1
+fi
+
+if [ -z "${REPOSITORY}" ]; then
+    echo "error: repository required"
+    exit 1
+fi
+
+has_gh
+
+setup_tmp
+
+DELETIONS=$(gh release view "${RELEASE_TAG}" -R "${REPOSITORY}" --json assets -q '.assets.[] | .name')
+
+if [ -z "${DELETIONS}" ]; then
+    echo "No assets to delete"
+    exit 0
+fi
+
+for i in ${DELETIONS}; do
+    if [ ${DRY_RUN} ]; then
+        echo "gh release delete-asset ${RELEASE_TAG} ${i} --repo ${REPOSITORY} -y"
+    else
+        gh release delete-asset "${RELEASE_TAG}" "${i}" --repo "${REPOSITORY}" -y
+    fi
+done
+
+if [ -z ${DRY_RUN} ]; then
+    DELETIONS_COUNT=$(echo "${DELETIONS}" | wc -l)
+    printf "Deleted %d assets\n" "${DELETIONS_COUNT}"
+fi
