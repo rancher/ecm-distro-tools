@@ -61,12 +61,13 @@ fi
 
 for i in ${DELETIONS}; do
     if [ ${DRY_RUN} ]; then
-        echo "gh release delete-asset "${RELEASE_TAG}" "${i}" --repo "${REPOSITORY}" -y"
+        echo "gh release delete-asset ${RELEASE_TAG} ${i} --repo ${REPOSITORY} -y"
     else
         gh release delete-asset "${RELEASE_TAG}" "${i}" --repo "${REPOSITORY}" -y
     fi
 done
 
 if [ -z ${DRY_RUN} ]; then
-    printf "Deleted %s assets\n" $(echo "${DELETIONS}" | wc -l)
+    DELETIONS_COUNT=$(echo "${DELETIONS}" | wc -l)
+    printf "Deleted %d assets\n" "${DELETIONS_COUNT}"
 fi
