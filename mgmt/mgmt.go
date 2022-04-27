@@ -4,13 +4,63 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/google/go-github/v39/github"
 )
+
+// isRancherMember
+func isRancherMember(members []*github.User, login string) bool {
+	for _, member := range members {
+		if member.GetLogin() == login {
+			fmt.Println("Member found for rancher", login)
+			return true
+		}
+	}
+	fmt.Println("Member NOT found for rancher", login)
+	return false
+}
+
+// allMembers retrieves all members from the Rancher and the
+// Harvester organziations.
+func allMembers(ctx context.Context, client *github.Client) ([]*github.User, error) {
+	var rke2K3sMembers []*github.User
+	var harvesterMembers []*github.User
+
+	lmo := github.ListMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		users, resp, err := client.Organizations.ListMembers(ctx, "rancher", &lmo)
+		if err != nil {
+			return nil, err
+		}
+		rke2K3sMembers = append(rke2K3sMembers, users...)
+		if resp.NextPage == 0 {
+			break
+		}
+		lmo.Page = resp.NextPage
+	}
+
+	for {
+		users, resp, err := client.Organizations.ListMembers(ctx, "harvester", &lmo)
+		if err != nil {
+			return nil, err
+		}
+		harvesterMembers = append(harvesterMembers, users...)
+		if resp.NextPage == 0 {
+			break
+		}
+		lmo.Page = resp.NextPage
+	}
+
+	return append(rke2K3sMembers, harvesterMembers...), nil
+}
 
 // WeeklyReport
 func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*bytes.Buffer, error) {
@@ -28,18 +78,20 @@ func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*byt
 	forks := repository.GetForksCount()
 
 	ilro := github.IssueListByRepoOptions{
-		Since: weekAgo,
+		State: "all",
 	}
 	issues, _, err := client.Issues.ListByRepo(ctx, org, repo, &ilro)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	var openIssues []*github.Issue
-	var closedIssues []*github.Issue
+	var openIssues, closedIssues []*github.Issue
 
 	for _, issue := range issues {
+		if issue.GetClosedAt().Before(weekAgo) && issue.GetCreatedAt().Before(weekAgo) {
+			continue
+		}
+
 		switch issue.GetState() {
 		case "open":
 			openIssues = append(openIssues, issue)
@@ -48,39 +100,68 @@ func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*byt
 		}
 	}
 
-	prlo := github.PullRequestListOptions{}
+	prlo := github.PullRequestListOptions{
+		State: "all",
+	}
 	prs, _, err := client.PullRequests.List(ctx, org, repo, &prlo)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	var openPRs []*github.PullRequest
-	var closedPRs []*github.PullRequest
+	members, err := allMembers(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	var openCommunityPRs,
+		closedCommunityPRs,
+		openMemberPRs,
+		closedMemberPRs []*github.PullRequest
 
 	for _, pr := range prs {
+		if pr.GetClosedAt().Before(weekAgo) && pr.GetCreatedAt().Before(weekAgo) {
+			continue
+		}
+
 		switch pr.GetState() {
 		case "open":
-			openPRs = append(openPRs, pr)
-			if pr.CreatedAt.After(weekAgo) {
-				fmt.Printf("%#v", pr)
+			if isRancherMember(members, pr.GetUser().GetLogin()) {
+				openMemberPRs = append(openMemberPRs, pr)
+			} else {
+				openCommunityPRs = append(openCommunityPRs, pr)
 			}
 		case "closed":
-			closedPRs = append(closedPRs, pr)
+			if isRancherMember(members, pr.GetUser().GetLogin()) {
+				closedMemberPRs = append(closedMemberPRs, pr)
+				continue
+			} else {
+				closedCommunityPRs = append(closedCommunityPRs, pr)
+			}
 		}
 	}
 
 	tmpl := template.Must(template.New(templateName).Parse(weeklyReportTemplate))
 
+	now := time.Now()
+	year, week := now.ISOWeek()
+
 	buf := bytes.NewBuffer(nil)
 
 	if err := tmpl.Execute(buf, map[string]interface{}{
-		"issuesOpened": len(openIssues),
-		"issuesClosed": len(closedIssues),
-		"prsOpened":    len(openPRs),
-		"prsClosed":    len(closedPRs),
-		"stars":        stars,
-		"forks":        forks,
+		"year":               year,
+		"week":               week,
+		"prsOpenedCount":     len(openCommunityPRs) + len(openMemberPRs),
+		"prsClosedCount":     len(closedCommunityPRs) + len(closedMemberPRs),
+		"openCommunityPRs":   openCommunityPRs,
+		"openMemberPRs":      openMemberPRs,
+		"openPRs":            append(openCommunityPRs, openMemberPRs...),
+		"closedCommunityPRs": closedCommunityPRs,
+		"closedMemberPRs":    closedMemberPRs,
+		"closedPRs":          append(closedCommunityPRs, closedMemberPRs...),
+		"stars":              stars,
+		"forks":              forks,
+		"openIssues":         openIssues,
+		"closedIssues":       closedIssues,
 	}); err != nil {
 		return nil, err
 	}
@@ -89,28 +170,70 @@ func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*byt
 }
 
 const weeklyReportTemplate = `# Weekly Report
-Weekly status report for %s Week #%s
+Weekly status report for {{.year}} Week #{{.week}}
 ## Here's what the team has focused on this week:
 * 
+
 ## Weekly Stats
 | | Opened this week| Closed this week|
 |--|---|-----|
-|Issues| {{.issuesOpened}} | {{.issuesClosed}} |
-|PR's| {{.prsOpened}} | {{.prsClosed}} |
+|Issues| {{len .openIssues}} | {{len .closedIssues}} |
+|PR's| {{.prsOpenedCount}} | {{.prsClosedCount}} |
 |  |  |
 |--|--|
 | Stars | {{.stars}} |
 | Forks | {{.forks}} |
+
 ## PR's Closed
-%s
+{{$length := len .closedPRs}}{{if ne $length 0}}
+{{- range $pr := .closedPRs}}
+#[{{$pr.GetNumber}}]({{$pr.GetHTMLURL}}) {{$pr.GetTitle}}
+{{- end}}
+{{else}}
+None
+{{- end}}
 ## PR's Opened
-%s
+{{$length := len .openPRs}}{{if ne $length 0}}
+{{- range $pr := .openPRs}}
+#[{{$pr.GetNumber}}]({{$pr.GetHTMLURL}}) {{$pr.GetTitle}}
+{{- end}}
+{{else}}
+None
+{{- end}}
+
 ## Issues Opened
-%s
+{{$length := len .openIssues}}{{if ne $length 0}}
+{{- range $issue := .openIssues}}
+#[{{$issue.GetNumber}}]({{$issue.GetHTMLURL}}) {{$issue.GetTitle}}
+{{- end}}
+{{else}}
+None
+{{- end}}
+
 ## Issues Closed
-%s
+{{$length := len .closedIssues}}{{if ne $length 0}}
+{{- range $issue := .closedIssues}}
+#[{{$issue.GetNumber}}]({{$issue.GetHTMLURL}}) {{$issue.GetTitle}}
+{{- end}}
+{{else}}
+None
+{{- end}}
+
 ## Community PRs Closed
-%s
+{{$length := len .closedCommunityPRs}}{{if ne $length 0}}
+{{- range $pr := .closedCommunityPRs}}
+#[{{$pr.GetNumber}}]({{$pr.GetHTMLURL}}) {{$pr.GetTitle}}
+{{- end}}
+{{- else}}
+None
+{{- end}}
+
 ## Community PRs Opened
-%s
+{{$length := len .openCommunityPRs}}{{if ne $length 0}}
+{{- range $pr := .openCommunityPRs}}
+#[{{$pr.GetNumber}}]({{$pr.GetHTMLURL}}) {{$pr.GetTitle}}
+{{- end}}
+{{- else}}
+None
+{{- end}}
 `
