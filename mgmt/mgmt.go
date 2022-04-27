@@ -11,7 +11,8 @@ import (
 	"github.com/google/go-github/v39/github"
 )
 
-// isRancherMember
+// isRancherMember determines if the given user is
+// part of one of the Rancher organizations.
 func isRancherMember(members []*github.User, login string) bool {
 	for _, member := range members {
 		if member.GetLogin() == login {
@@ -62,7 +63,7 @@ func allMembers(ctx context.Context, client *github.Client) ([]*github.User, err
 	return append(rke2K3sMembers, harvesterMembers...), nil
 }
 
-// WeeklyReport
+// WeeklyReport generates the weekly report for RKE2 or K3s.
 func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*bytes.Buffer, error) {
 	const templateName = "weekly-report"
 	weekAgo := time.Now().AddDate(0, 0, -7)
