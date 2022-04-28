@@ -5,13 +5,15 @@ set -e
 . libstd-ecm.sh
 
 DRY_RUN=''
+ITERATION="0"
 
 usage() {
-    echo "usage: $0 [rtlsdh]
+    echo "usage: $0 [ritlsdh]
     -r    releases to create
     -t    create testing release
     -l    create latest release
     -s    create stable release
+    -i    set iteration number. Default: ${ITERATION}
     -d    dry run
     -h    show help
 
@@ -20,19 +22,22 @@ examples:
     $0 -s -r 'v1.20.15+rke2r1 v1.21.9+rke2r1 v1.22.6 v1.23.2+rke2r1'"
 }
 
-while getopts 'r:tlsdh' c; do
+while getopts 'r:i:tlsdh' c; do
     case $c in
     r) 
-        RELEASE_VERSIONS=$OPTARG
+        RELEASE_VERSIONS="${OPTARG}"
+    ;;
+    i)
+        ITERATION="${OPTARG}"
     ;;
     t)
-        TAG="testing.0"
+        CHANNEL="testing"
     ;;
     l)
-        TAG="latest.0"
+        CHANNEL="latest"
     ;;
     s)
-        TAG="stable.0"
+        CHANNEL="stable"
     ;;
     d)
         DRY_RUN='echo'
@@ -48,11 +53,6 @@ while getopts 'r:tlsdh' c; do
     esac
 done
 
-if [ $# -ne 3 ]; then
-   usage
-   exit 1
-fi
-
 if [ -z "${RELEASE_VERSIONS}" ]; then
     echo "error: version(s) required"
     exit 1
@@ -61,7 +61,7 @@ fi
 has_gh
 
 for i in ${RELEASE_VERSIONS}; do
-    FULL_TAG="${i}.${TAG}"
+    FULL_TAG="${i}.${CHANNEL}.${ITERATION}"
 
     ${DRY_RUN} gh release create "${FULL_TAG}"  \
                 --repo "rancher/rke2-packaging" \
