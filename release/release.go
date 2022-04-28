@@ -16,6 +16,8 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+// GenReleaseNotes genereates release notes based on the given milestone,
+// previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToken string) (*bytes.Buffer, error) {
 	const templateName = "release-notes"
 
