@@ -46,7 +46,7 @@ fi
 # however we use a hyphen in the version in place of the
 # "+" when building the Kubernetes hardened images.
 if echo "${RELEASE_VERSIONS}" | grep -q '+'; then
-    echo "error: version(s) required"
+    echo "error: version(s) must not include +"
     exit 1 
 fi
 
