@@ -15,6 +15,7 @@ import (
 const (
 	releaseNoteSection = "```release-note"
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
+	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
 )
 
@@ -274,7 +275,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 
 			var releaseNote string
 			var inNote bool
-			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) {
+			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) && !strings.Contains(body, noneReleaseNote) {
 				lines := strings.Split(body, "\n")
 				for _, line := range lines {
 					if strings.Contains(line, releaseNoteSection) {
