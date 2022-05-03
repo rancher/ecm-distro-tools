@@ -40,7 +40,7 @@ az_login() {
     if [ ! -z "${password}" ]; then 
         az login --service-principal -u "${username}" -p="${password}" -t "${tenant}" >/dev/null
     else
-        read -p "Azure password: " AZ_PASS && echo && az login --service-principal -u "${username}" -t "${tenant}" -p=$AZ_PASS
+        read -rsp "Azure password: " AZ_PASS && echo && az login --service-principal -u "${username}" -t "${tenant}" -p="$AZ_PASS"
     fi
     az account set --subscription "${subscription}"
     az acr login -n "${registry}"
