@@ -278,12 +278,12 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 	for i := 0; i < weeks; i++ {
 		week := time.Now().AddDate(0, 0, -7*i)
 		var (
-			openedIssues       int = 0
-			closedIssues       int = 0
-			openedMemberPRs    int = 0
-			closedMemberPRs    int = 0
-			openedCommunityPRs int = 0
-			closedCommunityPRs int = 0
+			openedIssues,
+			closedIssues,
+			openedMemberPRs,
+			closedMemberPRs,
+			openedCommunityPRs,
+			closedCommunityPRs int
 		)
 		for _, issue := range issues {
 			if issue.GetClosedAt().Before(week) &&
@@ -295,9 +295,9 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 
 			switch issue.GetState() {
 			case "open":
-				openedIssues += 1
+				openedIssues++
 			case "closed":
-				closedIssues += 1
+				closedIssues++
 			}
 		}
 		report.OpenedIssues[week] = openedIssues
@@ -319,16 +319,16 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 			switch pr.GetState() {
 			case "open":
 				if isRancherMember(members, pr.GetUser().GetLogin()) {
-					openedMemberPRs += 1
+					openedMemberPRs++
 				} else {
-					openedCommunityPRs += 1
+					openedCommunityPRs++
 				}
 			case "closed":
 				if isRancherMember(members, pr.GetUser().GetLogin()) {
-					closedMemberPRs += 1
+					closedMemberPRs++
 					continue
 				} else {
-					closedCommunityPRs += 1
+					closedCommunityPRs++
 				}
 			}
 			report.OpenedMemberPRs[week] = openedMemberPRs
