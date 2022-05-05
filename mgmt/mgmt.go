@@ -3,7 +3,6 @@ package mgmt
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"text/template"
 	"time"
@@ -16,11 +15,9 @@ import (
 func isRancherMember(members []*github.User, login string) bool {
 	for _, member := range members {
 		if member.GetLogin() == login {
-			fmt.Println("Member found for rancher", login)
 			return true
 		}
 	}
-	fmt.Println("Member NOT found for rancher", login)
 	return false
 }
 
@@ -255,6 +252,9 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 
 	ilro := github.IssueListByRepoOptions{
 		State: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
 	}
 	issues, _, err := client.Issues.ListByRepo(ctx, org, repo, &ilro)
 	if err != nil {
@@ -262,6 +262,9 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 	}
 	prlo := github.PullRequestListOptions{
 		State: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
 	}
 	prs, _, err := client.PullRequests.List(ctx, org, repo, &prlo)
 	if err != nil {
@@ -275,7 +278,7 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 		OpenedCommunityPRs: make(map[time.Time]int),
 		ClosedCommunityPRs: make(map[time.Time]int),
 	}
-	for i := 0; i < weeks; i++ {
+	for i := 1; i <= weeks; i++ {
 		week := time.Now().AddDate(0, 0, -7*i)
 		var (
 			openedIssues,
@@ -286,13 +289,12 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 			closedCommunityPRs int
 		)
 		for _, issue := range issues {
-			if issue.GetClosedAt().Before(week) &&
-				issue.GetCreatedAt().Before(week) &&
-				issue.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
-				issue.GetClosedAt().After(week.AddDate(0, 0, 7)) {
+			if (issue.GetClosedAt().Before(week) &&
+				issue.GetCreatedAt().Before(week)) ||
+				(issue.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
+					issue.GetClosedAt().After(week.AddDate(0, 0, 7))) {
 				continue
 			}
-
 			switch issue.GetState() {
 			case "open":
 				openedIssues++
@@ -309,10 +311,10 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 		}
 
 		for _, pr := range prs {
-			if pr.GetClosedAt().Before(week) &&
-				pr.GetCreatedAt().Before(week) &&
-				pr.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
-				pr.GetClosedAt().After(week.AddDate(0, 0, 7)) {
+			if (pr.GetClosedAt().Before(week) &&
+				pr.GetCreatedAt().Before(week)) ||
+				(pr.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
+					pr.GetClosedAt().After(week.AddDate(0, 0, 7))) {
 				continue
 			}
 
