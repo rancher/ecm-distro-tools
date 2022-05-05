@@ -3,7 +3,6 @@ package mgmt
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strings"
 	"text/template"
 	"time"
@@ -16,11 +15,9 @@ import (
 func isRancherMember(members []*github.User, login string) bool {
 	for _, member := range members {
 		if member.GetLogin() == login {
-			fmt.Println("Member found for rancher", login)
 			return true
 		}
 	}
-	fmt.Println("Member NOT found for rancher", login)
 	return false
 }
 
@@ -238,3 +235,109 @@ None
 None
 {{- end}}
 `
+
+type ReportStats struct {
+	OpenedIssues       map[time.Time]int
+	ClosedIssues       map[time.Time]int
+	OpenedMemberPRs    map[time.Time]int
+	ClosedMemberPRs    map[time.Time]int
+	OpenedCommunityPRs map[time.Time]int
+	ClosedCommunityPRs map[time.Time]int
+}
+
+// RepoReportStats returns back weekly issues closed and opened and pr closed and opened
+func RepoReportStats(ctx context.Context, client *github.Client, repo string, weeks int) (*ReportStats, error) {
+	orgRepo := strings.Split(repo, "/")
+	org, repo := orgRepo[0], orgRepo[1]
+
+	ilro := github.IssueListByRepoOptions{
+		State: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+	issues, _, err := client.Issues.ListByRepo(ctx, org, repo, &ilro)
+	if err != nil {
+		return nil, err
+	}
+	prlo := github.PullRequestListOptions{
+		State: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+	prs, _, err := client.PullRequests.List(ctx, org, repo, &prlo)
+	if err != nil {
+		return nil, err
+	}
+	report := ReportStats{
+		OpenedIssues:       make(map[time.Time]int),
+		ClosedIssues:       make(map[time.Time]int),
+		OpenedMemberPRs:    make(map[time.Time]int),
+		ClosedMemberPRs:    make(map[time.Time]int),
+		OpenedCommunityPRs: make(map[time.Time]int),
+		ClosedCommunityPRs: make(map[time.Time]int),
+	}
+	for i := 1; i <= weeks; i++ {
+		week := time.Now().AddDate(0, 0, -7*i)
+		var (
+			openedIssues,
+			closedIssues,
+			openedMemberPRs,
+			closedMemberPRs,
+			openedCommunityPRs,
+			closedCommunityPRs int
+		)
+		for _, issue := range issues {
+			if (issue.GetClosedAt().Before(week) &&
+				issue.GetCreatedAt().Before(week)) ||
+				(issue.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
+					issue.GetClosedAt().After(week.AddDate(0, 0, 7))) {
+				continue
+			}
+			switch issue.GetState() {
+			case "open":
+				openedIssues++
+			case "closed":
+				closedIssues++
+			}
+		}
+		report.OpenedIssues[week] = openedIssues
+		report.ClosedIssues[week] = closedIssues
+
+		members, err := allMembers(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pr := range prs {
+			if (pr.GetClosedAt().Before(week) &&
+				pr.GetCreatedAt().Before(week)) ||
+				(pr.GetCreatedAt().After(week.AddDate(0, 0, 7)) &&
+					pr.GetClosedAt().After(week.AddDate(0, 0, 7))) {
+				continue
+			}
+
+			switch pr.GetState() {
+			case "open":
+				if isRancherMember(members, pr.GetUser().GetLogin()) {
+					openedMemberPRs++
+				} else {
+					openedCommunityPRs++
+				}
+			case "closed":
+				if isRancherMember(members, pr.GetUser().GetLogin()) {
+					closedMemberPRs++
+					continue
+				} else {
+					closedCommunityPRs++
+				}
+			}
+			report.OpenedMemberPRs[week] = openedMemberPRs
+			report.ClosedMemberPRs[week] = closedMemberPRs
+			report.OpenedCommunityPRs[week] = openedCommunityPRs
+			report.ClosedCommunityPRs[week] = closedCommunityPRs
+		}
+	}
+	return &report, nil
+}
