@@ -18,7 +18,7 @@ import (
 
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
-func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToken string) (*bytes.Buffer, error) {
+func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
 	const templateName = "release-notes"
 
 	var tmpl *template.Template
@@ -28,8 +28,6 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone, ghToke
 	case "k3s":
 		tmpl = template.Must(template.New(templateName).Parse(k3sReleaseNoteTemplate))
 	}
-
-	client := repository.NewGithub(ctx, ghToken)
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {

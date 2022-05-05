@@ -84,7 +84,9 @@ func main() {
 	}
 
 	ctx := context.Background()
-	notes, err := release.GenReleaseNotes(ctx, repo, milestone, prevMilestone, ghToken)
+	client := repository.NewGithub(ctx, ghToken)
+
+	notes, err := release.GenReleaseNotes(ctx, repo, milestone, prevMilestone, client)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
