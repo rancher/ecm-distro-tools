@@ -3,11 +3,17 @@ package mgmt
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // isRancherMember determines if the given user is
@@ -340,4 +346,34 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 		}
 	}
 	return &report, nil
+}
+
+func ParseBootstrapData(ctx context.Context, token, dataEncoded string) (string, error) {
+	parts := strings.SplitN(dataEncoded, ":", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid cipher text, not : delimited")
+	}
+
+	clearKey := pbkdf2.Key([]byte(token), []byte(parts[0]), 4096, 32, sha1.New)
+	key, err := aes.NewCipher(clearKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(key)
+	if err != nil {
+		return "", err
+	}
+
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", err
+	}
+
+	decryptedBootstrap, err := gcm.Open(nil, data[:gcm.NonceSize()], data[gcm.NonceSize():], nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(decryptedBootstrap), nil
 }
