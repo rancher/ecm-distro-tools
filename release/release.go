@@ -97,15 +97,25 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
 // for the tags' existence.
-func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo string, tags []string) ([]*github.RepositoryRelease, error) {
-	releases := make([]*github.RepositoryRelease, len(tags))
+func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo string, tags []string) (map[string]bool, error) {
+	releases := make(map[string]bool, len(tags))
 
 	for _, tag := range tags {
-		release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+		_, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
 		if err != nil {
-			return nil, err
+			switch err := err.(type) {
+			case *github.ErrorResponse:
+				if err.Response.StatusCode != 404 {
+					return nil, err
+				}
+				releases[tag] = false
+				continue
+			default:
+				return nil, err
+			}
 		}
-		releases = append(releases, release)
+
+		releases[tag] = true
 	}
 
 	return releases, nil
