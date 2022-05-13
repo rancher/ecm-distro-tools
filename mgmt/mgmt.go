@@ -175,8 +175,6 @@ func WeeklyReport(ctx context.Context, client *github.Client, repo string) (*byt
 
 const weeklyReportTemplate = `# Weekly Report
 Weekly status report for {{.year}} Week #{{.week}}
-## Here's what the team has focused on this week:
-* 
 
 ## Weekly Stats
 | | Opened this week| Closed this week|
