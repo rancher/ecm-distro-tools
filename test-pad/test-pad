@@ -152,11 +152,13 @@ split | split-lite)
 ;;
 rancher)
     if [ -z "$SKIP_DOWNLOAD" ]; then
-        wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
-        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+        # wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
         # curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
-        curl --create-dirs -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
         # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
+
+        wget https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/validatecluster/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+        curl --create-dirs -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
         wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
         check_and_install_plugins
     fi
@@ -201,12 +203,13 @@ ha)
     
     for node in $NODE_ROLES; do
         if [ "$node" = "server-0" ]; then continue; fi
-        E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
     done
     wait   
 ;;
 ha-lite)
     NODE_ROLES="server-0 server-1 server-2"
+    echo E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
     E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
     deploy_binary "$NODE_ROLES"
     
@@ -214,7 +217,7 @@ ha-lite)
     E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-0
     for node in $NODE_ROLES; do
         if [ "$node" = "server-0" ]; then continue; fi
-        E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
     done
     wait  
 ;;
@@ -227,8 +230,8 @@ split-lite)
     E2E_RELEASE_VERSION="$VERSION" E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant up
 ;;
 rancher) 
-    E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_EXTERNAL_DB=none E2E_NODE_BOXES="$OS $OS" vagrant up server-0
-    vagrant provision server-0 --provision-with "Install Rancher"
+    E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_EXTERNAL_DB=none E2E_NODE_BOXES="$OS" vagrant up server-0
+    E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
     E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
 ;;
 esac
