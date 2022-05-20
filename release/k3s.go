@@ -1,7 +1,9 @@
 package release
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,13 +16,25 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
+	"gopkg.in/yaml.v2"
 )
 
 const (
 	k8sUpstreamURL = "https://github.com/kubernetes/kubernetes"
-	rancherRemote  = "rancher"
+	rancherRemote  = "k3s-io"
 	k8sRancherURL  = "git@github.com:rancher/kubernetes.git"
 	k8sUserURL     = "git@github.com:user/kubernetes.git"
+	gitconfig      = `
+	[safe]
+	directory = /home/go/src/kubernetes
+	[user]
+	email = %email%
+	name = %user%
+	`
+	dockerDevImage = `
+	FROM %goimage%
+	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk
+	`
 )
 
 type K8STagsOptions struct {
@@ -112,10 +126,39 @@ func SetupK8sRemotes(ctx context.Context, ghClient *github.Client, ghUser, works
 	return nil
 }
 
-func RebaseAndTag(ctx context.Context, ghClient *github.Client, ghUser, workspace string, options K8STagsOptions) ([]string, error) {
+func RebaseAndTag(ctx context.Context, ghClient *github.Client, ghUser, ghEmail, workspace string, options K8STagsOptions) ([]string, error) {
 	if err := gitRebaseOnto(filepath.Join(workspace, "kubernetes"), options); err != nil {
 		return nil, err
 	}
+	goVersion, err := golangVersion(workspace)
+	if err != nil {
+		return nil, err
+	}
+	// setup gitconfig
+	gitconfigFile := filepath.Join(workspace, ".gitconfig")
+	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", ghEmail)
+	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", ghUser)
+	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(workspace, "kubernetes")
+	goImageVersion := fmt.Sprintf("golang:%s-alpine3.15", goVersion)
+	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
+	if err := os.WriteFile(filepath.Join(workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
+		return nil, err
+	}
+	out, err := runCommand(workspace, "docker", "build", "-t", goImageVersion+"-dev", ".")
+	if err != nil {
+		return nil, err
+	}
+	goWrapper := fmt.Sprintf("run --rm -v %s:/home/go/src/kubernetes -v %s:/home/go/.gitconfig -e HOME=/home/go -w /home/go/src/kubernetes %s", filepath.Join(workspace, "kubernetes"), gitconfigFile, goImageVersion+"-dev")
+	args := append(strings.Split(goWrapper, " "), "sh ./tag.sh "+options.NewK8SVersion+"-k3s1")
+	logrus.Info(args)
+	out, err = runCommand(dir, "docker", args...)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Infof(out)
 	return nil, nil
 }
 
@@ -133,17 +176,56 @@ func getAuth(privateKey string) (ssh.AuthMethod, error) {
 }
 
 func gitRebaseOnto(dir string, options K8STagsOptions) error {
-	commandArgs := fmt.Sprintf("git rebase --onto %s %s %s-k3s1~1",
+	commandArgs := strings.Split(fmt.Sprintf("rebase --onto %s %s %s-k3s1~1",
 		options.NewK8SVersion,
 		options.OldK8SVersion,
-		options.OldK8SVersion)
-	cmd := exec.Command("git", commandArgs)
+		options.OldK8SVersion), " ")
+	cmd := exec.Command("git", commandArgs...)
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
 	cmd.Dir = dir
-	out, err := cmd.Output()
+	err := cmd.Run()
 	if err != nil {
-		logrus.Error(out)
-		return err
+		return errors.New(err.Error() + ": " + errb.String())
 	}
-	logrus.Printf("%s", out)
+	logrus.Infof("%s", outb.String())
 	return nil
+}
+
+func golangVersion(workspace string) (string, error) {
+	var dep map[string]interface{}
+	depFile := filepath.Join(workspace, "kubernetes", "build", "dependencies.yaml")
+	dat, err := os.ReadFile(depFile)
+	if err != nil {
+		return "", err
+	}
+
+	err = yaml.Unmarshal(dat, &dep)
+	if err != nil {
+		return "", err
+	}
+	depList := dep["dependencies"].([]interface{})
+	for _, v := range depList {
+		item := v.(map[interface{}]interface{})
+		itemName := item["name"]
+		if itemName == "golang: upstream version" {
+			version := item["version"]
+			return version.(string), nil
+		}
+	}
+	return "", errors.New("can not find golang dependency")
+}
+
+func runCommand(dir, cmd string, args ...string) (string, error) {
+	command := exec.Command(cmd, args...)
+	var outb, errb bytes.Buffer
+	command.Stdout = &outb
+	command.Stderr = &errb
+	command.Dir = dir
+	err := command.Run()
+	if err != nil {
+		return "", errors.New(errb.String())
+	}
+	return outb.String(), nil
 }

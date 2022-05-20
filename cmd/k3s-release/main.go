@@ -78,15 +78,15 @@ func main() {
 		os.Exit(1)
 	}
 	options := release.K8STagsOptions{
-		NewK8SVersion:  "v1.22.9",
-		OldK8SVersion:  "v1.22.8",
-		NewK8SClient:   "0.22.9",
-		OldK8SClient:   "0.22.8",
+		NewK8SVersion:  "v1.22.10-rc.0",
+		OldK8SVersion:  "v1.22.9",
+		NewK8SClient:   "0.22.10",
+		OldK8SClient:   "0.22.9",
 		NewK3SVersion:  "k3s1",
 		OldK3SVersion:  "k3s1",
 		ReleaseBranche: "release-1.22",
 	}
-	_, err = release.RebaseAndTag(ctx, client, "galal-hussein", workspace, options)
+	_, err = release.RebaseAndTag(ctx, client, "galal-hussein", "hussein.galal.ahmed.11@gmail.com", workspace, options)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
