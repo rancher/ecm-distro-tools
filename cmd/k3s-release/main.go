@@ -86,9 +86,15 @@ func main() {
 		OldK3SVersion:  "k3s1",
 		ReleaseBranche: "release-1.22",
 	}
-	_, err = release.RebaseAndTag(ctx, client, "galal-hussein", "hussein.galal.ahmed.11@gmail.com", workspace, options)
+	tags, err := release.RebaseAndTag(ctx, client, "galal-hussein", "hussein.galal.ahmed.11@gmail.com", workspace, options)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	if err := release.PushTags(ctx, tags, client, workspace, "hussein.galal.ahmed.11@gmail.com", "galal-hussein", "galal-hussein"); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 }

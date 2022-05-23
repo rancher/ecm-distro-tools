@@ -22,7 +22,7 @@ import (
 const (
 	k8sUpstreamURL = "https://github.com/kubernetes/kubernetes"
 	rancherRemote  = "k3s-io"
-	k8sRancherURL  = "git@github.com:rancher/kubernetes.git"
+	k8sRancherURL  = "git@github.com:k3s-io/kubernetes.git"
 	k8sUserURL     = "git@github.com:user/kubernetes.git"
 	gitconfig      = `
 	[safe]
@@ -130,36 +130,29 @@ func RebaseAndTag(ctx context.Context, ghClient *github.Client, ghUser, ghEmail,
 	if err := gitRebaseOnto(filepath.Join(workspace, "kubernetes"), options); err != nil {
 		return nil, err
 	}
-	goVersion, err := golangVersion(workspace)
+	wrapperImageTag, err := buildGoWrapper(workspace)
 	if err != nil {
 		return nil, err
 	}
+
 	// setup gitconfig
-	gitconfigFile := filepath.Join(workspace, ".gitconfig")
-	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", ghEmail)
-	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", ghUser)
-	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(workspace, "kubernetes")
-	goImageVersion := fmt.Sprintf("golang:%s-alpine3.15", goVersion)
-	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
-	if err := os.WriteFile(filepath.Join(workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
-		return nil, err
-	}
-	out, err := runCommand(workspace, "docker", "build", "-t", goImageVersion+"-dev", ".")
+	gitconfigFile, err := setupGitArtifacts(workspace, ghEmail, ghUser)
 	if err != nil {
 		return nil, err
 	}
-	goWrapper := fmt.Sprintf("run --rm -v %s:/home/go/src/kubernetes -v %s:/home/go/.gitconfig -e HOME=/home/go -w /home/go/src/kubernetes %s", filepath.Join(workspace, "kubernetes"), gitconfigFile, goImageVersion+"-dev")
-	args := append(strings.Split(goWrapper, " "), "sh ./tag.sh "+options.NewK8SVersion+"-k3s1")
-	logrus.Info(args)
-	out, err = runCommand(dir, "docker", args...)
+
+	out, err := runTagScript(workspace, gitconfigFile, wrapperImageTag, options.NewK8SVersion)
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof(out)
-	return nil, nil
+	logrus.Infof("Running Tag Script: %s", out)
+
+	tags := tagPushLines(out)
+	if len(tags) != 28 {
+		return nil, errors.New("failed to extract tag push lines")
+	}
+
+	return tags, nil
 }
 
 func getAuth(privateKey string) (ssh.AuthMethod, error) {
@@ -228,4 +221,117 @@ func runCommand(dir, cmd string, args ...string) (string, error) {
 		return "", errors.New(errb.String())
 	}
 	return outb.String(), nil
+}
+
+func buildGoWrapper(workspace string) (string, error) {
+	goVersion, err := golangVersion(workspace)
+	if err != nil {
+		return "", err
+	}
+	goImageVersion := fmt.Sprintf("golang:%s-alpine3.15", goVersion)
+	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
+	if err := os.WriteFile(filepath.Join(workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
+		return "", err
+	}
+	wrapperImageTag := goImageVersion + "-dev"
+	out, err := runCommand(workspace, "docker", "build", "-t", wrapperImageTag, ".")
+	if err != nil {
+		return "", err
+	}
+	logrus.Infof("Building Wrapper image: %s", out)
+	return wrapperImageTag, nil
+}
+
+func setupGitArtifacts(workspace, email, handler string) (string, error) {
+	gitconfigFile := filepath.Join(workspace, ".gitconfig")
+
+	// setting up username and email for tagging purposes
+	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", email)
+	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", handler)
+
+	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
+		return "", err
+	}
+	return gitconfigFile, nil
+}
+
+func runTagScript(workspace, gitConfigFile, wrapperImageTag, newK8SVersion string) (string, error) {
+	// uid := strconv.Itoa(os.Getuid())
+	// gid := strconv.Itoa(os.Getgid())
+	gopath, err := runCommand(workspace, "go", "env", "GOPATH")
+	if err != nil {
+		return "", err
+	}
+	logrus.Infof(gopath)
+	k8sDir := filepath.Join(workspace, "kubernetes")
+	// prep the docker run command
+	goWrapper := []string{
+		"run",
+		// "-u",
+		// uid + ":" + gid,
+		"-v",
+		k8sDir + ":/home/go/src/kubernetes",
+		// "-v",
+		// gopath + "/.cache:/home/go/.cache",
+		"-v",
+		gitConfigFile + ":/home/go/.gitconfig",
+		"-e",
+		"HOME=/home/go",
+		"-w",
+		"/home/go/src/kubernetes",
+		wrapperImageTag,
+	}
+	args := append(goWrapper, "./tag.sh", newK8SVersion+"-k3s1")
+	return runCommand(k8sDir, "docker", args...)
+}
+
+func tagPushLines(out string) []string {
+	tagCmds := []string{}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "git push $REMOTE") {
+			tagCmds = append(tagCmds, line)
+		}
+	}
+	return tagCmds
+}
+
+func PushTags(ctx context.Context, tagsCmds []string, ghClient *github.Client, workspace, email, handler, remote string) error {
+	logrus.Infof("pushing tags to github")
+	// here we can use go-git library or runCommand function
+	// I am using go-git library to enhance code quality
+	gitConfigFile, err := setupGitArtifacts(workspace, email, handler)
+	if err != nil {
+		return err
+	}
+	file, err := os.Open(gitConfigFile)
+	if err != nil {
+		return err
+	}
+	cfg, err := config.ReadConfig(file)
+	if err != nil {
+		return err
+	}
+	repo, err := git.PlainOpen(filepath.Join(workspace, "kubernetes"))
+	if err != nil {
+		return err
+	}
+	if err := repo.SetConfig(cfg); err != nil {
+		return err
+	}
+	gitAuth, err := getAuth("")
+	if err != nil {
+		return err
+	}
+	for _, tagCmd := range tagsCmds {
+		tag := strings.Split(tagCmd, " ")[3]
+		repo.Push(&git.PushOptions{
+			RemoteName: remote,
+			Auth:       gitAuth,
+			Progress:   os.Stdout,
+			RefSpecs: []config.RefSpec{
+				config.RefSpec(tag + ":master"),
+			},
+		})
+	}
+	return nil
 }
