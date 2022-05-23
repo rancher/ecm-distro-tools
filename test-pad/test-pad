@@ -29,8 +29,6 @@ examples:
     $0 -r k3s -v v1.22.9+k3s1 -c basic 
     $0 -r k3s -v v1.23.5+k3s1 -c ha
     $0 -r k3s -c ha-lite -b ../../k3s/dist/artifacts/k3s
-    
-    $0 -d -c ha
     "
 }
 
@@ -129,6 +127,7 @@ done
 
 has_vagrant
 has_curl
+has_wget
 
 if [ -z "${CLUSTER}" ]; then
     if [ -f "cluster" ]; then
