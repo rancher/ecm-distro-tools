@@ -10,6 +10,7 @@ usage() {
     -v    k3s/rke2 version or commit id to use
     OR
     -b    location of local k3s/rke2 binary to use
+    -i    location of local rke2 images
 
     -k    kill cluster
     -d    kill cluster and delete files
@@ -36,32 +37,80 @@ examples:
 # TODO - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
 
 install_binary() {
-    if [ "$BINARY_LOCATION" ]; then
-        cp "$BINARY_LOCATION" ./
-    elif [ ! -f ./"$BINARY" ]; then
-        # Check for semantic version, otherwise assume its a COMMIT ID
-        if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
-            echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY"
-            wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY"
-        else
-            echo "$STORAGE_URL/$BINARY-$VERSION"
-            wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION"
-            mv "$BINARY-$VERSION" "$BINARY"
+
+    case $REPO in 
+    rke2)
+        if [ "$BINARY_LOCATION" ]; then
+            cp "$BINARY_LOCATION" ./
+            sha256sum ./"$BINARY".tar.gz > sha256sum-amd64.txt
+            if [ -z "${IMAGE_LOCATION}" ]; then
+                echo "error: images directory (-i) must be provided for rke2 local binary"
+                exit 1
+            fi
+            # Only local installs require the images, commit id and version will just download them
+            cp -r "$IMAGE_LOCATION" ./
+        elif [ ! -f ./"$BINARY" ]; then
+            # Check for semantic version, otherwise assume its a COMMIT ID
+            if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+                echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY.tar.gz"
+                wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY".tar.gz
+                wget -q https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/sha256sum-amd64.txt
+            else
+                echo "$STORAGE_URL/$BINARY-$VERSION"
+                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION".tar.gz
+                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION".tar.gz.sha256sum
+                mv "$BINARY-$VERSION".tar.gz.sha256sum  sha256sum-amd64.txt
+            fi
+            if [ $? -ne 0 ]; then 
+                echo "error: unable to find $BINARY version $VERSION"
+                exit 1
+            fi 
+            chmod +x ./"$BINARY"
         fi
-        if [ $? -ne 0 ]; then 
-            echo "error: unable to find $BINARY version $VERSION"
-            exit 1
-        fi 
-        chmod +x ./"$BINARY"
-    fi
+    ;;
+    k3s)
+        if [ "$BINARY_LOCATION" ]; then
+            cp "$BINARY_LOCATION" ./
+        elif [ ! -f ./"$BINARY" ]; then
+            # Check for semantic version, otherwise assume its a COMMIT ID
+            if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+                echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY"
+                wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY"
+            else
+                echo "$STORAGE_URL/$BINARY-$VERSION"
+                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION"
+                mv "$BINARY-$VERSION" "$BINARY"
+            fi
+            if [ $? -ne 0 ]; then 
+                echo "error: unable to find $BINARY version $VERSION"
+                exit 1
+            fi 
+            chmod +x ./"$BINARY"
+        fi
+    ;;
+    esac
 }
 
 deploy_binary() {
     NODE_ROLES=$1
     for node in $NODE_ROLES; do
         echo "scp $BINARY to $node"
-        vagrant scp ./"$BINARY" "$node":/tmp/
-        vagrant ssh "$node" -c "sudo mv /tmp/$BINARY /usr/local/bin/" 2> /dev/null
+        case $REPO in
+        rke2)
+            vagrant scp ./"$BINARY".tar.gz "$node":/tmp/
+            vagrant scp ./sha256sum-amd64.txt "$node":/tmp/
+            if [ $IMAGE_LOCATION ]; then
+                vagrant scp ./images "$node":/tmp/
+                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; sudo cp -r /tmp/images /var/lib/rancher/rke2/agent/images"
+                vagrant ssh "$node" -c "$cmd"
+            fi
+        ;;
+        k3s)
+            vagrant scp ./"$BINARY" "$node":/tmp/
+            vagrant ssh "$node" -c "sudo mv /tmp/$BINARY /usr/local/bin/" 2> /dev/null
+        ;;
+        esac
+        
     done
 }
 
@@ -100,7 +149,7 @@ node_list() {
     done
 }
 
-while getopts 'r:c:v:b:kdohs' c; do
+while getopts 'r:c:v:b:i:kdohs' c; do
     case $c in
     r) 
         REPO=$OPTARG
@@ -113,6 +162,9 @@ while getopts 'r:c:v:b:kdohs' c; do
     ;;
     b)
         BINARY_LOCATION=$OPTARG
+    ;;
+    i)
+        IMAGE_LOCATION=$OPTARG
     ;;
     k)
         KILL=true
@@ -160,29 +212,35 @@ fi
 if [ "$DESTROY" = "true" ]; then
     get_possible_node_roles
     E2E_NODE_ROLES="$NODE_ROLES" vagrant destroy -f
-    rm -rf scripts .vagrant Vagrantfile vagrantdefaults.rb k3s rke2 cluster
+    rm -rf scripts images .vagrant Vagrantfile vagrantdefaults.rb k3s rke2* sha256sum-amd64.txt cluster
     exit 0
 fi
 
-BINARY="k3s"
 if [ -z "${REPO}" ]; then
     echo "error: repo (-r) required"
     exit 1
 elif  [ "$REPO" = "k3s" ]; then 
-    ORG=k3s-io
+    ORG="k3s-io"
     # ORG_REPO_BRANCH="$ORG/$REPO/master"
     ORG_REPO_BRANCH="dereknola/k3s/rancher_split"
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
+    BINARY="k3s"
+    # We replace the default OS with alpine-3.15 for fast download and startup time
+    OS="generic/alpine315"
 elif [ "$REPO" = "rke2" ]; then
-    ORG=rancher
+    ORG="rancher"
     # ORG_REPO_BRANCH="$ORG/$REPO/master"
-    ORG_REPO_BRANCH="dereknola/rke2/rancher_split"
-    BINARY="rke2"
+    ORG_REPO_BRANCH="dereknola/rke2/e2e_test_pad"
+    BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
+    # For RKE2 we use ubuntu, note it is much larger (~1.8GB) and takes longer to deploy.
+    OS="generic/ubuntu2004"
 else 
    echo "error: unknown repo (-r) $REPO"
    exit 1
 fi
+
+
 
 if [ -z "${VERSION}" ] && [ -z "${BINARY_LOCATION}" ]; then
     echo "error: version (-v) or binary (-b) required"
@@ -230,11 +288,6 @@ if [ -z "$SKIP_DOWNLOAD" ]; then
 fi
 
 
-# We replace the default OS with alpine-3.15 for fast download and startup time
-OS="generic/alpine315"
-# We can also use ubuntu (the most common OS deployment for RKE2/K3s).
-# It is much larger (~1.8GB) and takes longer to deploy.
-# OS="generic/ubuntu2004"
 case $CLUSTER in
 
 basic)
@@ -242,7 +295,7 @@ basic)
     E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
     deploy_binary "$NODE_ROLES"
     
-    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant provision
+    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant provision
 ;;
 basic-lite)
     NODE_ROLES="server-0"
