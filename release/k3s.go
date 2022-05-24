@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -20,11 +22,13 @@ import (
 )
 
 const (
-	k8sUpstreamURL = "https://github.com/kubernetes/kubernetes"
-	rancherRemote  = "k3s-io"
-	k8sRancherURL  = "git@github.com:k3s-io/kubernetes.git"
-	k8sUserURL     = "git@github.com:user/kubernetes.git"
-	gitconfig      = `
+	k8sUpstreamURL     = "https://github.com/kubernetes/kubernetes"
+	rancherRemote      = "k3s-io"
+	k8sRancherURL      = "git@github.com:k3s-io/kubernetes.git"
+	k8sUserURL         = "git@github.com:user/kubernetes.git"
+	k3sRepoURL         = "git@github.com:user/k3s.git"
+	k3sUpstreamRepoURL = "https://github.com/k3s-io/k3s"
+	gitconfig          = `
 	[safe]
 	directory = /home/go/src/kubernetes
 	[user]
@@ -38,13 +42,13 @@ const (
 )
 
 type K8STagsOptions struct {
-	OldK8SVersion  string
-	NewK8SVersion  string
-	OldK8SClient   string
-	NewK8SClient   string
-	OldK3SVersion  string
-	NewK3SVersion  string
-	ReleaseBranche string
+	OldK8SVersion string
+	NewK8SVersion string
+	OldK8SClient  string
+	NewK8SClient  string
+	OldK3SVersion string
+	NewK3SVersion string
+	ReleaseBranch string
 }
 
 // SetupK8sRemotes will clone the kubernetes upstream repo and proceed with setting up remotes
@@ -143,15 +147,20 @@ func RebaseAndTag(ctx context.Context, ghClient *github.Client, ghUser, ghEmail,
 
 	out, err := runTagScript(workspace, gitconfigFile, wrapperImageTag, options.NewK8SVersion)
 	if err != nil {
-		return nil, err
+		if "" != err.Error() {
+			return nil, err
+		}
 	}
-	logrus.Infof("Running Tag Script: %s", out)
-
-	tags := tagPushLines(out)
+	logrus.Infof("Running Tag Script: %s %v", out, err)
+	tagFile := filepath.Join(workspace, "tags-"+options.NewK8SVersion)
+	tags := tagPushLines(out, tagFile)
 	if len(tags) != 28 {
 		return nil, errors.New("failed to extract tag push lines")
 	}
-
+	err = os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644)
+	if err != nil {
+		return nil, err
+	}
 	return tags, nil
 }
 
@@ -256,37 +265,54 @@ func setupGitArtifacts(workspace, email, handler string) (string, error) {
 }
 
 func runTagScript(workspace, gitConfigFile, wrapperImageTag, newK8SVersion string) (string, error) {
-	// uid := strconv.Itoa(os.Getuid())
-	// gid := strconv.Itoa(os.Getgid())
+	uid := strconv.Itoa(os.Getuid())
+	gid := strconv.Itoa(os.Getgid())
 	gopath, err := runCommand(workspace, "go", "env", "GOPATH")
 	if err != nil {
 		return "", err
 	}
-	logrus.Infof(gopath)
 	k8sDir := filepath.Join(workspace, "kubernetes")
 	// prep the docker run command
 	goWrapper := []string{
 		"run",
-		// "-u",
-		// uid + ":" + gid,
+		"-u",
+		uid + ":" + gid,
 		"-v",
-		k8sDir + ":/home/go/src/kubernetes",
-		// "-v",
-		// gopath + "/.cache:/home/go/.cache",
+		gopath + ":/home/go",
 		"-v",
 		gitConfigFile + ":/home/go/.gitconfig",
+		"-v",
+		k8sDir + ":/home/go/src/kubernetes",
+		"-v",
+		gopath + "/.cache:/home/go/.cache",
 		"-e",
 		"HOME=/home/go",
+		"-e",
+		"GOCACHE=/home/go/src/kubernetes/.cache",
 		"-w",
 		"/home/go/src/kubernetes",
 		wrapperImageTag,
 	}
+
 	args := append(goWrapper, "./tag.sh", newK8SVersion+"-k3s1")
 	return runCommand(k8sDir, "docker", args...)
 }
 
-func tagPushLines(out string) []string {
+func tagPushLines(out string, tagFile string) []string {
 	tagCmds := []string{}
+	_, err := os.Stat(tagFile)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil
+		}
+	} else {
+		dat, err := os.ReadFile(tagFile)
+		if err != nil {
+			return nil
+		}
+		out = string(dat)
+	}
+
 	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "git push $REMOTE") {
 			tagCmds = append(tagCmds, line)
@@ -311,10 +337,22 @@ func PushTags(ctx context.Context, tagsCmds []string, ghClient *github.Client, w
 	if err != nil {
 		return err
 	}
+
 	repo, err := git.PlainOpen(filepath.Join(workspace, "kubernetes"))
 	if err != nil {
 		return err
 	}
+	userRemote, err := repo.Remote(handler)
+	if err != nil {
+		return err
+	}
+	k3sRemote, err := repo.Remote("k3s-io")
+	if err != nil {
+		return err
+	}
+	cfg.Remotes[handler] = userRemote.Config()
+	cfg.Remotes["k3s-io"] = k3sRemote.Config()
+
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
 	}
@@ -322,16 +360,108 @@ func PushTags(ctx context.Context, tagsCmds []string, ghClient *github.Client, w
 	if err != nil {
 		return err
 	}
+	logrus.Info(tagsCmds)
 	for _, tagCmd := range tagsCmds {
 		tag := strings.Split(tagCmd, " ")[3]
-		repo.Push(&git.PushOptions{
+		logrus.Infof(tag)
+		if err := repo.Push(&git.PushOptions{
 			RemoteName: remote,
 			Auth:       gitAuth,
 			Progress:   os.Stdout,
 			RefSpecs: []config.RefSpec{
-				config.RefSpec(tag + ":master"),
+				config.RefSpec("+refs/tags/" + tag + ":refs/tags/" + tag),
 			},
-		})
+		}); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func ModifyAndPush(ctx context.Context, options K8STagsOptions, workspace, handle, email string) error {
+	_, err := os.Stat(workspace)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(workspace, 0755); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	k3sFork := strings.ReplaceAll(k3sRepoURL, "user", handle)
+	modifyScript = strings.Replace(modifyScript, "%Workspace%", workspace, -1)
+	modifyScript = strings.Replace(modifyScript, "%K3SFork%", k3sFork, -1)
+	modifyScript = strings.Replace(modifyScript, "%Handler%", handle, -1)
+
+	f, err := os.Create(filepath.Join(workspace, "modify_script.sh"))
+	if err != nil {
+		return err
+	}
+
+	if err := os.Chmod(filepath.Join(workspace, "modify_script.sh"), 0755); err != nil {
+		return err
+	}
+
+	tmpl, err := template.New("modify_script.sh").Parse(modifyScript)
+	if err != nil {
+		return err
+	}
+
+	if err := tmpl.Execute(f, options); err != nil {
+		return err
+	}
+
+	out, err := runCommand(workspace, "bash", "./modify_script.sh")
+	if err != nil {
+		return err
+	}
+	logrus.Info(out)
+	return nil
+}
+
+func CreatePRFromK3S(ctx context.Context, ghClient *github.Client, workspace, org string, options K8STagsOptions) error {
+	repo := "k3s"
+	pull := &github.NewPullRequest{
+		Title:               github.String(fmt.Sprintf("Update to %s-%s", options.NewK8SVersion, options.NewK3SVersion)),
+		Base:                github.String(options.ReleaseBranch),
+		Head:                github.String(options.NewK8SVersion + "-" + options.NewK3SVersion),
+		MaintainerCanModify: github.Bool(true),
+	}
+
+	_, resp, err := ghClient.PullRequests.Create(ctx, org, repo, pull)
+	logrus.Info(*resp)
+	return err
+}
+
+func UpdateAndPush(ctx context.Context, options K8STagsOptions, workspace, handle, email string) error {
+	updateScript = strings.Replace(updateScript, "%Workspace%", workspace, -1)
+	updateScript = strings.Replace(updateScript, "%Handler%", handle, -1)
+
+	f, err := os.Create(filepath.Join(workspace, "update_script.sh"))
+	if err != nil {
+		return err
+	}
+
+	if err := os.Chmod(filepath.Join(workspace, "update_script.sh"), 0755); err != nil {
+		return err
+	}
+
+	tmpl, err := template.New("update_script.sh").Parse(updateScript)
+	if err != nil {
+		return err
+	}
+
+	if err := tmpl.Execute(f, options); err != nil {
+		return err
+	}
+
+	out, err := runCommand(workspace, "bash", "./update_script.sh")
+	if err != nil {
+		return err
+	}
+	logrus.Info(out)
+
 	return nil
 }
