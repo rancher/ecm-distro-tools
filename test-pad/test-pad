@@ -3,7 +3,7 @@
 . "../bin/libstd-ecm.sh"
 
 usage() {
-    echo "usage: $0 [-r repo] [-c cluster] [-v version | -b location ] [sbdh]
+    echo "usage: $0 [rcvbikdsoh]
     -r    repository (k3s/rke2)
     -c    cluster type
     
@@ -31,6 +31,7 @@ examples:
     $0 -r k3s -v v1.23.5+k3s1 -c ha
     $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
     $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
+    $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
     "
 }
 
@@ -38,54 +39,54 @@ examples:
 
 install_binary() {
 
-    case $REPO in 
+    case ${REPO} in 
     rke2)
-        if [ "$BINARY_LOCATION" ]; then
-            cp "$BINARY_LOCATION" ./
-            sha256sum ./"$BINARY".tar.gz > sha256sum-amd64.txt
+        if [ "${BINARY_LOCATION}" ]; then
+            cp ${BINARY_LOCATION} ./
+            sha256sum ./${BINARY}.tar.gz > sha256sum-amd64.txt
             if [ -z "${IMAGE_LOCATION}" ]; then
                 echo "error: images directory (-i) must be provided for rke2 local binary"
                 exit 1
             fi
             # Only local installs require the images, commit id and version will just download them
-            cp -r "$IMAGE_LOCATION" ./
-        elif [ ! -f ./"$BINARY" ]; then
+            cp -r ${IMAGE_LOCATION} ./
+        elif [ ! -f ./${BINARY} ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
-            if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
-                echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY.tar.gz"
-                wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY".tar.gz
-                wget -q https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/sha256sum-amd64.txt
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+                echo "https://github.com/${ORG}/${REPO}/releases/download/${VERSION}/${BINARY}.tar.gz"
+                wget -q --show-progress https://github.com/"${ORG}"/"${REPO}"/releases/download/"${VERSION}"/"${BINARY}".tar.gz
+                wget -q https://github.com/"${ORG}"/"${REPO}"/releases/download/"${VERSION}"/sha256sum-amd64.txt
             else
-                echo "$STORAGE_URL/$BINARY-$VERSION"
-                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION".tar.gz
-                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION".tar.gz.sha256sum
-                mv "$BINARY-$VERSION".tar.gz.sha256sum  sha256sum-amd64.txt
+                echo "${STORAGE_URL}/${BINARY}-${VERSION}"
+                wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}".tar.gz
+                wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}".tar.gz.sha256sum
+                mv "${BINARY}-${VERSION}".tar.gz.sha256sum  sha256sum-amd64.txt
             fi
             if [ $? -ne 0 ]; then 
-                echo "error: unable to find $BINARY version $VERSION"
+                echo "error: unable to find ${BINARY} version ${VERSION}"
                 exit 1
             fi 
-            chmod +x ./"$BINARY"
+            chmod +x ./"${BINARY}"
         fi
     ;;
     k3s)
-        if [ "$BINARY_LOCATION" ]; then
-            cp "$BINARY_LOCATION" ./
-        elif [ ! -f ./"$BINARY" ]; then
+        if [ "${BINARY_LOCATION}" ]; then
+            cp "${BINARY}_LOCATION" ./
+        elif [ ! -f ./"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
-            if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
-                echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY"
-                wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY"
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+                echo "https://github.com/${ORG}/${REPO}/releases/download/${VERSION}/${BINARY}"
+                wget -q --show-progress https://github.com/"${ORG}"/"${REPO}"/releases/download/"${VERSION}"/"${BINARY}"
             else
-                echo "$STORAGE_URL/$BINARY-$VERSION"
-                wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION"
-                mv "$BINARY-$VERSION" "$BINARY"
+                echo "${STORAGE_URL}/${BINARY}-${VERSION}"
+                wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}"
+                mv "${BINARY}-${VERSION}" "${BINARY}"
             fi
             if [ $? -ne 0 ]; then 
-                echo "error: unable to find $BINARY version $VERSION"
+                echo "error: unable to find ${BINARY} version ${VERSION}"
                 exit 1
             fi 
-            chmod +x ./"$BINARY"
+            chmod +x ./${BINARY}
         fi
     ;;
     esac
@@ -94,20 +95,20 @@ install_binary() {
 deploy_binary() {
     NODE_ROLES=$1
     for node in $NODE_ROLES; do
-        echo "scp $BINARY to $node"
+        echo "scp ${BINARY} to $node"
         case $REPO in
         rke2)
-            vagrant scp ./"$BINARY".tar.gz "$node":/tmp/
+            vagrant scp ./"${BINARY}".tar.gz "$node":/tmp/
             vagrant scp ./sha256sum-amd64.txt "$node":/tmp/
-            if [ $IMAGE_LOCATION ]; then
+            if [ ${IMAGE_LOCATION} ]; then
                 vagrant scp ./images "$node":/tmp/
                 cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; sudo cp -r /tmp/images /var/lib/rancher/rke2/agent/images"
                 vagrant ssh "$node" -c "$cmd"
             fi
         ;;
         k3s)
-            vagrant scp ./"$BINARY" "$node":/tmp/
-            vagrant ssh "$node" -c "sudo mv /tmp/$BINARY /usr/local/bin/" 2> /dev/null
+            vagrant scp ./"${BINARY}" "$node":/tmp/
+            vagrant ssh "$node" -c "sudo mv /tmp/${BINARY} /usr/local/bin/" 2> /dev/null
         ;;
         esac
         
@@ -116,22 +117,22 @@ deploy_binary() {
 
 check_and_install_plugins() {
     plugins=$(vagrant plugin list --local)
-    if [ $(echo "$plugins" | grep -c "vagrant-libvirt") -eq 0 ]; then
+    if [ $(echo ${plugins} | grep -c "vagrant-libvirt") -eq 0 ]; then
         vagrant plugin install vagrant-libvirt --plugin-verison 0.8.2
     fi
-    if [ $(echo "$plugins" | grep -c "vagrant-k3s") -eq 0 ]; then
+    if [ $(echo ${plugins} | grep -c "vagrant-k3s") -eq 0 ]; then
         vagrant plugin install vagrant-k3s
     fi
-    if [ $(echo "$plugins" | grep -c "vagrant-rke2") -eq 0 ]; then
+    if [ $(echo ${plugins} | grep -c "vagrant-rke2") -eq 0 ]; then
         vagrant plugin install vagrant-rke2
     fi
-    if [ $( echo "$plugins" | grep -c "vagrant-reload") -eq 0 ]; then
+    if [ $( echo ${plugins} | grep -c "vagrant-reload") -eq 0 ]; then
         vagrant plugin install vagrant-reload
     fi
 }
 
 get_possible_node_roles() {
-    case $CLUSTER in
+    case ${CLUSTER} in
     split|split-lite)
         NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
     ;;
@@ -204,12 +205,12 @@ else
     echo "$CLUSTER" > cluster
 fi
 
-if [ "$KILL" = "true" ]; then
+if [ "${KILL}" = "true" ]; then
     get_possible_node_roles
     E2E_NODE_ROLES="$NODE_ROLES" vagrant destroy -f
     exit 0
 fi
-if [ "$DESTROY" = "true" ]; then
+if [ "${DESTROY}" = "true" ]; then
     get_possible_node_roles
     E2E_NODE_ROLES="$NODE_ROLES" vagrant destroy -f
     rm -rf scripts images .vagrant Vagrantfile vagrantdefaults.rb k3s rke2* sha256sum-amd64.txt cluster
@@ -219,7 +220,7 @@ fi
 if [ -z "${REPO}" ]; then
     echo "error: repo (-r) required"
     exit 1
-elif  [ "$REPO" = "k3s" ]; then 
+elif  [ "${REPO}" = "k3s" ]; then 
     ORG="k3s-io"
     # ORG_REPO_BRANCH="$ORG/$REPO/master"
     ORG_REPO_BRANCH="dereknola/k3s/rancher_split"
@@ -227,7 +228,7 @@ elif  [ "$REPO" = "k3s" ]; then
     BINARY="k3s"
     # We replace the default OS with alpine-3.15 for fast download and startup time
     OS="generic/alpine315"
-elif [ "$REPO" = "rke2" ]; then
+elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     # ORG_REPO_BRANCH="$ORG/$REPO/master"
     ORG_REPO_BRANCH="dereknola/rke2/e2e_test_pad"
@@ -247,33 +248,33 @@ if [ -z "${VERSION}" ] && [ -z "${BINARY_LOCATION}" ]; then
     exit 1
 fi
 
-if [ -z "$SKIP_DOWNLOAD" ] && [ -f "Vagrantfile" ]; then
+if [ -z "${SKIP_DOWNLOAD}" ] && [ -f "Vagrantfile" ]; then
     echo "existing cluster found; delete it first"
     exit 1
 fi
 
 
 # Download and setup appropiate vagrant files and binary
-if [ -z "$SKIP_DOWNLOAD" ]; then
+if [ -z "${SKIP_DOWNLOAD}" ]; then
     install_binary
 
     case $CLUSTER in
     basic | basic-lite | ha | ha-lite )
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/validatecluster/Vagrantfile
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/validatecluster/Vagrantfile
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/vagrantdefaults.rb
     ;;
     split | split-lite)
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/splitserver/Vagrantfile
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/splitserver/Vagrantfile
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/vagrantdefaults.rb
         check_and_install_plugins
     ;;
     rancher)
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/validatecluster/Vagrantfile
-        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
-        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/validatecluster/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
+        wget -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/vagrantdefaults.rb
     ;;
     esac
-    curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+    curl --create-dirs -q https://raw.githubusercontent.com/"${ORG_REPO_BRANCH}"/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
     
     # Replace default roles
     get_possible_node_roles
@@ -282,7 +283,7 @@ if [ -z "$SKIP_DOWNLOAD" ]; then
     tail -n +2 Vagrantfile > Vagrantfile.tmp && mv Vagrantfile.tmp Vagrantfile
     
     check_and_install_plugins
-    if [ "$ONLY_DOWNLOAD" = "true" ]; then
+    if [ "${ONLY_DOWNLOAD}" = "true" ]; then
         exit 0
     fi
 fi
@@ -292,74 +293,74 @@ case $CLUSTER in
 
 basic)
     NODE_ROLES="server-0 agent-0"
-    E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
-    deploy_binary "$NODE_ROLES"
+    E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
+    deploy_binary ${NODE_ROLES}
     
-    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant provision
+    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="$OS $OS" vagrant provision
 ;;
 basic-lite)
     NODE_ROLES="server-0"
-    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS" vagrant up
+    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="$OS" vagrant up
 ;;
 ha)
     NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
-    E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up --no-provision
-    deploy_binary "$NODE_ROLES"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up --no-provision
+    deploy_binary "${NODE_ROLES}"
 
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS $OS $OS $OS $OS" E2E_NODE_ROLES=$NODE_ROLES vagrant provision server-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS $OS $OS $OS $OS" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision server-0
     
-    for node in $NODE_ROLES; do
-        if [ "$node" = "server-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "$node" &
+    for node in ${NODE_ROLES}; do
+        if [ "${node}" = "server-0" ]; then continue; fi
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant provision "${node}" &
     done
     wait   
 ;;
 ha-lite)
     NODE_ROLES="server-0 server-1 server-2"
-    E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
-    deploy_binary "$NODE_ROLES"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
+    deploy_binary "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-0
 
-    for node in $NODE_ROLES; do
-        if [ "$node" = "server-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS" vagrant provision "$node" &
+    for node in ${NODE_ROLES}; do
+        if [ "${node}" = "server-0" ]; then continue; fi
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS" vagrant provision "${node}" &
     done
     wait  
 ;;
 split)
     NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
     OS_NUM="$OS $OS $OS $OS $OS $OS $OS $OS"
-    E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES=$OS_NUM vagrant up --no-provision
-    deploy_binary "$NODE_ROLES"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES=$OS_NUM vagrant up --no-provision
+    deploy_binary "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES=$OS_NUM vagrant provision server-etcd-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES=$OS_NUM vagrant provision server-etcd-0
     
-    for node in $NODE_ROLES; do
-        if [ "$node" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES=$OS_NUM vagrant provision "$node" &
+    for node in ${NODE_ROLES}; do
+        if [ "${node}" = "server-etcd-0" ]; then continue; fi
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES=$OS_NUM vagrant provision "${node}" &
     done
     wait
 ;;
 split-lite)
     NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
-    E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
-    deploy_binary "$NODE_ROLES"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
+    deploy_binary "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-etcd-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="$OS $OS $OS" vagrant provision server-etcd-0
     
-    for node in $NODE_ROLES; do
-        if [ "$node" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS" vagrant provision "$node" &
+    for node in ${NODE_ROLES}; do
+        if [ "${node}" = "server-etcd-0" ]; then continue; fi
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="$OS $OS $OS" vagrant provision "${node}" &
     done
     wait
 ;;
 rancher)
-    if [ $BINARY = "rke2" ]; then
+    if [ ${BINARY} = "rke2" ]; then
         echo "error: rancher cluster is only avaliable with k3s"
         exit 1
     fi
