@@ -7,7 +7,7 @@ usage() {
     -r    repository (k3s/rke2)
     -c    cluster type
     
-    -v    k3s/rke2 version to use
+    -v    k3s/rke2 version or commit id to use
     OR
     -b    location of local k3s/rke2 binary to use
 
@@ -28,7 +28,8 @@ cluster types:
 examples:
     $0 -r k3s -v v1.22.9+k3s1 -c basic 
     $0 -r k3s -v v1.23.5+k3s1 -c ha
-    $0 -r k3s -c ha-lite -b ../../k3s/dist/artifacts/k3s
+    $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
+    $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
     "
 }
 
@@ -37,19 +38,30 @@ examples:
 install_binary() {
     if [ "$BINARY_LOCATION" ]; then
         cp "$BINARY_LOCATION" ./
-    elif [ ! -f ./"$BINARY" ]; then 
-        wget https://github.com/"$ORG_REPO"/releases/download/"$VERSION"/"$BINARY"
+    elif [ ! -f ./"$BINARY" ]; then
+        # Check for semantic version, otherwise assume its a COMMIT ID
+        if [ $(echo "$VERSION" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+            echo "https://github.com/$ORG/$REPO/releases/download/$VERSION/$BINARY"
+            wget -q --show-progress https://github.com/"$ORG"/"$REPO"/releases/download/"$VERSION"/"$BINARY"
+        else
+            echo "$STORAGE_URL/$BINARY-$VERSION"
+            wget -q --show-progress "$STORAGE_URL/$BINARY-$VERSION"
+            mv "$BINARY-$VERSION" "$BINARY"
+        fi
+        if [ $? -ne 0 ]; then 
+            echo "error: unable to find $BINARY version $VERSION"
+            exit 1
+        fi 
         chmod +x ./"$BINARY"
     fi
 }
 
 deploy_binary() {
-    install_binary
     NODE_ROLES=$1
     for node in $NODE_ROLES; do
         echo "scp $BINARY to $node"
-        vagrant scp ./k3s "$node":/tmp/
-        vagrant ssh "$node" -c "sudo mv /tmp/k3s /usr/local/bin/" 2> /dev/null
+        vagrant scp ./"$BINARY" "$node":/tmp/
+        vagrant ssh "$node" -c "sudo mv /tmp/$BINARY /usr/local/bin/" 2> /dev/null
     done
 }
 
@@ -91,7 +103,7 @@ node_list() {
 while getopts 'r:c:v:b:kdohs' c; do
     case $c in
     r) 
-        ORG_REPO=$OPTARG
+        REPO=$OPTARG
     ;;
     c) 
         CLUSTER=$OPTARG
@@ -152,25 +164,29 @@ if [ "$DESTROY" = "true" ]; then
     exit 0
 fi
 
-if [ -z "${ORG_REPO}" ]; then
+BINARY="k3s"
+if [ -z "${REPO}" ]; then
     echo "error: repo (-r) required"
     exit 1
+elif  [ "$REPO" = "k3s" ]; then 
+    ORG=k3s-io
+    # ORG_REPO_BRANCH="$ORG/$REPO/master"
+    ORG_REPO_BRANCH="dereknola/k3s/rancher_split"
+    STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
+elif [ "$REPO" = "rke2" ]; then
+    ORG=rancher
+    # ORG_REPO_BRANCH="$ORG/$REPO/master"
+    ORG_REPO_BRANCH="dereknola/rke2/rancher_split"
+    BINARY="rke2"
+    STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
+else 
+   echo "error: unknown repo (-r) $REPO"
+   exit 1
 fi
 
 if [ -z "${VERSION}" ] && [ -z "${BINARY_LOCATION}" ]; then
     echo "error: version (-v) or binary (-b) required"
     exit 1
-fi
-
-BINARY="k3s"
-if [ "$ORG_REPO" = "k3s" ]; then 
-    ORG_REPO="k3s-io/k3s"
-elif [ "$ORG_REPO" = "rke2" ]; then
-    ORG_REPO="rancher/rke2"
-    BINARY="rke2"
-else 
-   echo "error: unknown repo" 
-   exit 1
 fi
 
 if [ -z "$SKIP_DOWNLOAD" ] && [ -f "Vagrantfile" ]; then
@@ -181,33 +197,25 @@ fi
 
 # Download and setup appropiate vagrant files and binary
 if [ -z "$SKIP_DOWNLOAD" ]; then
+    install_binary
+
     case $CLUSTER in
     basic | basic-lite | ha | ha-lite )
-        # wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
-        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/validatecluster/Vagrantfile
-        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
-        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
-        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/validatecluster/Vagrantfile
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
     ;;
     split | split-lite)
-        # wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/splitserver/Vagrantfile
-        # curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
-        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
-        wget https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/splitserver/Vagrantfile
-        curl --create-dirs -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
-        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/splitserver/Vagrantfile
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
         check_and_install_plugins
     ;;
     rancher)
-        # wget https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/validatecluster/Vagrantfile
-        # curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
-        # wget -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/vagrantdefaults.rb
-        wget https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/validatecluster/Vagrantfile
-        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO"/master/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
-        curl --create-dirs -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
-        wget -q https://raw.githubusercontent.com/dereknola/k3s/rancher_split/tests/e2e/vagrantdefaults.rb
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/validatecluster/Vagrantfile
+        curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/scripts/rancher.sh -o ./scripts/rancher.sh
+        wget -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/vagrantdefaults.rb
     ;;
     esac
+    curl --create-dirs -q https://raw.githubusercontent.com/"$ORG_REPO_BRANCH"/tests/e2e/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
     
     # Replace default roles
     get_possible_node_roles
@@ -216,9 +224,7 @@ if [ -z "$SKIP_DOWNLOAD" ]; then
     tail -n +2 Vagrantfile > Vagrantfile.tmp && mv Vagrantfile.tmp Vagrantfile
     
     check_and_install_plugins
-
     if [ "$ONLY_DOWNLOAD" = "true" ]; then
-        install_binary
         exit 0
     fi
 fi
@@ -233,9 +239,9 @@ case $CLUSTER in
 
 basic)
     NODE_ROLES="server-0 agent-0"
-    E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
+    E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant up --no-provision
     deploy_binary "$NODE_ROLES"
-
+    
     E2E_EXTERNAL_DB=none E2E_NODE_ROLES=$NODE_ROLES E2E_NODE_BOXES="$OS $OS" vagrant provision
 ;;
 basic-lite)
@@ -246,7 +252,7 @@ ha)
     NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
     E2E_NODE_ROLES="$NODE_ROLES" E2E_NODE_BOXES="$OS $OS $OS $OS $OS" vagrant up --no-provision
     deploy_binary "$NODE_ROLES"
-    
+
     echo "bringing up first node"
     E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS $OS $OS $OS $OS" E2E_NODE_ROLES=$NODE_ROLES vagrant provision server-0
     
@@ -299,9 +305,15 @@ split-lite)
     done
     wait
 ;;
-rancher) 
+rancher)
+    if [ $BINARY = "rke2" ]; then
+        echo "error: rancher cluster is only avaliable with k3s"
+        exit 1
+    fi
     NODE_ROLES="server-0 agent-0 agent-1 agent-2"
-    E2E_RELEASE_VERSION="$VERSION" E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_EXTERNAL_DB=none E2E_NODE_BOXES="$OS" vagrant up server-0
+    E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_NODE_BOXES="$OS" vagrant up server-0 --no-provision
+    deploy_binary server-0
+    E2E_EXTERNAL_DB=none E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="$OS" vagrant provision server-0
     E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
     E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_BOXES="$OS $OS $OS" vagrant up --no-provision
     CMD="echo -n Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=;kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'; echo "
