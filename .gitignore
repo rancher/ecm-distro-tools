@@ -30,6 +30,7 @@ _testmain.go
 cmd/gen-release-notes/bin/*
 cmd/backport/bin/*
 cmd/standup/bin/*
+cmd/k3s-release/bin/*
 
 data/*
 
