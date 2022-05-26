@@ -36,14 +36,13 @@ examples:
 }
 
 # TODO - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
-
 download_artifacts() {
 
     case ${REPO} in 
     rke2)
         if [ "${BINARY_LOCATION}" ]; then
-            cp "${BINARY_LOCATION}" ./
-            sha256sum ./"${BINARY}".tar.gz > sha256sum-amd64.txt
+            cp "${BINARY_LOCATION}" ./artifacts
+            sha256sum ./artifacts/"${BINARY}".tar.gz > ./artifacts/sha256sum-amd64.txt
             if [ -z "${IMAGE_LOCATION}" ]; then
                 echo "error: images directory (-i) must be provided for rke2 local binary"
                 exit 1
@@ -54,8 +53,8 @@ download_artifacts() {
         elif [ ! -f ./"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
             if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
-                echo "https://github.com/${ORG}/${REPO}/releases/download/${VERSION}/${BINARY}.tar.gz"
                 GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
+                echo "${GITHUB_URL}/${BINARY}.tar.gz"
                 wget -q --show-progress "${GITHUB_URL}"/"${BINARY}".tar.gz -O artifacts/"${BINARY}".tar.gz
                 wget -q --show-progress "${GITHUB_URL}"/sha256sum-amd64.txt -O artifacts/sha256sum-amd64.txt
             else
@@ -74,12 +73,13 @@ download_artifacts() {
     ;;
     k3s)
         if [ "${BINARY_LOCATION}" ]; then
-            cp "${BINARY}_LOCATION" artifacts/
-        elif [ ! -f ./"${BINARY}" ]; then
+            cp "${BINARY_LOCATION}" ./artifacts/
+        elif [ ! -f ./artifacts/"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
             if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
-                echo "https://github.com/${ORG}/${REPO}/releases/download/${VERSION}/${BINARY}"
-                wget -q --show-progress https://github.com/"${ORG}"/"${REPO}"/releases/download/"${VERSION}"/"${BINARY}" -O ./artifacts/"${BINARY}"
+                GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
+                echo "${GITHUB_URL}/${BINARY}"
+                wget -q --show-progress "${GITHUB_URL}/${BINARY}" -O ./artifacts/"${BINARY}"
             else
                 echo "${STORAGE_URL}/${BINARY}-${VERSION}"
                 wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}" -O ./artifacts/"${BINARY}"
@@ -104,12 +104,14 @@ deploy_artifacts() {
             vagrant scp artifacts/sha256sum-amd64.txt "$node":/tmp/
             if [ -d artifacts/images ]; then
                 vagrant scp artifacts/images "$node":/tmp/
-                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; sudo cp -r /tmp/images /var/lib/rancher/rke2/agent/images"
-                vagrant ssh "$node" -c "$cmd"
+                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent; \
+                    sudo cp -r /tmp/images /var/lib/rancher/rke2/agent/images"
+                vagrant ssh "$node" -c "${cmd}"
             elif [ -f artifacts/rke2-images.linux-amd64.tar.zst ]; then
                 vagrant scp artifacts/rke2-images.linux-amd64.tar.zst "$node":/tmp/
-                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; sudo cp /tmp/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images"
-                vagrant ssh "$node" -c "$cmd"
+                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; \
+                    sudo cp /tmp/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images"
+                vagrant ssh "$node" -c "${cmd}"
             fi
         ;;
         k3s)
@@ -124,7 +126,7 @@ deploy_artifacts() {
 check_and_install_plugins() {
     plugins=$(vagrant plugin list --local)
     if [ $(echo ${plugins} | grep -c "vagrant-libvirt") -eq 0 ]; then
-        vagrant plugin install vagrant-libvirt --plugin-verison 0.8.2
+        vagrant plugin install vagrant-libvirt --plugin-verison 0.9.0
     fi
     if [ $(echo ${plugins} | grep -c "vagrant-k3s") -eq 0 ]; then
         vagrant plugin install vagrant-k3s
@@ -230,17 +232,14 @@ if [ -z "${REPO}" ]; then
 
 elif  [ "${REPO}" = "k3s" ]; then 
     ORG="k3s-io"
-    # ORG_REPO_BRANCH="$ORG/$REPO/master"
-    ORG_REPO_BRANCH="dereknola/k3s/rancher_split"
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
     # We replace the default OS with alpine-3.15 for fast download and startup time
-    OS="generic/alpine315"
+    # OS="generic/alpine315"
+    OS="generic/ubuntu2004"
 
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
-    # ORG_REPO_BRANCH="$ORG/$REPO/master"
-    ORG_REPO_BRANCH="dereknola/rke2/e2e_test_pad"
     BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
     # RKE2 requires systemd, so we use ubuntu,
@@ -270,7 +269,7 @@ if [ -z "${SKIP_DOWNLOAD}" ]; then
     
     download_artifacts
     
-    GITHUB_URL="https://raw.githubusercontent.com/${ORG_REPO_BRANCH}/tests/e2e"
+    GITHUB_URL="https://raw.githubusercontent.com/$ORG/$REPO/master/tests/e2e"
     case $CLUSTER in
     basic | basic-lite | ha | ha-lite )
         wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
@@ -313,71 +312,77 @@ basic)
 ;;
 basic-lite)
     NODE_ROLES="server-0"
-    E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant up
+    E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant up --no-provision
+    deploy_artifacts "${NODE_ROLES}"
+    
+    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant provision
 ;;
 ha)
     NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS} ${OS} ${OS}" vagrant up --no-provision
+    OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
     deploy_artifacts "${NODE_ROLES}"
 
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS} ${OS} ${OS} ${OS} ${OS}" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision server-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS_REPEAT}" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision server-0
     
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "server-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS} ${OS} ${OS}" vagrant provision "${node}" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
         rke2_delay "${node}" "agent-1"
     done
     wait   
 ;;
 ha-lite)
     NODE_ROLES="server-0 server-1 server-2"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
+    OS_REPEAT="${OS} ${OS} ${OS}"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
     deploy_artifacts "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant provision server-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-0
 
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "server-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant provision "${node}" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
         rke2_delay "${node}" "server-2"
     done
     wait  
 ;;
 split)
     NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
-    OS_NUM="${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS}"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES=${OS_NUM} vagrant up --no-provision
+    OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS}"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
     deploy_artifacts "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES=${OS_NUM} vagrant provision server-etcd-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-etcd-0
     
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES=${OS_NUM} vagrant provision "${node}" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
         rke2_delay "${node}" "agent-1"
     done
     wait
 ;;
 split-lite)
     NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
+    OS_REPEAT="${OS} ${OS} ${OS}"
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
     deploy_artifacts "${NODE_ROLES}"
     
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant provision server-etcd-0
+    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-etcd-0
     
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant provision "${node}" &
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
         rke2_delay "${node}" "agent-0"
     done
     wait
 ;;
 rancher)
-    if [ ${BINARY} = "rke2" ]; then
+    if [ ${REPO} = "rke2" ]; then
         echo "error: rancher cluster is only avaliable with k3s"
         exit 1
     fi
@@ -386,9 +391,13 @@ rancher)
     deploy_artifacts server-0
     E2E_EXTERNAL_DB=none E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS}" vagrant provision server-0
     E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
-    E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
-    CMD="echo -n Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=;kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'; echo "
-    vagrant ssh server-0 -c "$CMD" 2> /dev/null
+    # We use ubuntu to support k3s and rke2 provisioning 
+    OS="generic/ubuntu2004"
+    E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_MEMORY=2048 E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
+    CMD="kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'"
+    SECRET=$(vagrant ssh server-0 -c "${CMD}" 2> /dev/null)
+    echo "Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=${SECRET}"
+
 ;;
 esac
 

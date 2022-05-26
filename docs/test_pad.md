@@ -1,1 +1,46 @@
-# TODO Fill out how to use test-pad
+# Test-Pad
+The test-pad tool is designed to enable QA and developers to quickly deploy RKE2 and K3s clusters **locally**.  
+This tool is built upon:
+- vagrant
+- libvirt (and the vagrant-libvirt plugin)
+- RKE2/K3s E2E tests
+
+**Note:** A similar tool, [Corral](https://github.com/rancherlabs/corral) enables consistent RKE2 and K3s deployments to Digital Ocean or AWS. If you want to deploy K3s or RKE2 on cloud resources, Corral may prove more useful. Currently only single node, and 3 node HA deployments are supported.
+
+## Setup 
+1) Download the latest version (currently 2.2.19) of Vagrant *from the website*. Do not use built-in packages, they often old or do not include the required ruby library extensions necessary to get certain plugins working.
+2) Install libvirt/qemu on your host:  
+    - [openSUSE](https://documentation.suse.com/sles/15-SP1/html/SLES-all/cha-vt-installation.html)
+    - [ubuntu](https://ubuntu.com/server/docs/virtualization-libvirt)
+    - [debian](https://wiki.debian.org/KVM#Installation)
+    - [fedora](https://developer.fedoraproject.org/tools/virtualization/installing-libvirt-and-virt-install-on-fedora-linux.html)
+
+The first time you use the tool, it will check and attempt to install the proper vagrant plugins.  
+**Note:** The `vagrant-libvirt` plugin should be > v0.9.0. This solves several issues around networking and preventing VMs from being destroy if provisioning fails.
+
+## Cluster Configuration
+There are 7 cluster configurations supported:
+- basic:        2 VMs, 1 server, 1 agent
+- basic-lite:   1 VM,  1 server
+- ha:           5 VMs, 3 servers, 2 agents
+- ha-lite:      3 VMs, 3 servers
+- split:        7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
+- split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
+- rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
+
+## Executable Version
+There are 3 types of K3s or RKE2 that a user can deploy:
+- A specific released version, such as `v1.22.9+k3s1` or `v1.24.1+rke2r2`.
+- A COMMIT ID install, such as `763a8bc8fe376e3376faceed48c8c889d396b88c`.
+- A local executable path, which enabled local dev/PR testing.
+
+For K3s, each VM consumes 2 vcpus and 1GB of memory. For RKE2, each VM consumes 2 vcpus and 2GB of memory.  
+Thus for a `split` cluster of RKE2, it is recommened to have a 8 core / 16 thread cpu and 16GB+ of memory.
+
+## Examples:
+test-pad -r k3s -v v1.22.9+k3s1 -c basic 
+test-pad -r k3s -v v1.23.5+k3s1 -c ha
+test-pad -r k3s -v v1.21.12+k3s1 -c rancher 
+test-pad -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c split-lite
+test-pad -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
+test-pad -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
