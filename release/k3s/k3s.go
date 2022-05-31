@@ -534,15 +534,13 @@ func (r *Release) isTagExists() (bool, error) {
 		return false, err
 	}
 	tag := r.NewK8SVersion + "-" + r.NewK3SVersion
-	_, err = repo.Tag(tag)
-	switch err {
-	case nil:
-		return true, nil
-	case git.ErrTagNotFound:
-		return false, nil
-	default:
+	if _, err := repo.Tag(tag); err != nil {
+		if err == git.ErrTagNotFound {
+			return false, nil
+		}
 		return false, errors.New("invalid tag " + tag + " object")
 	}
+	return true, nil
 }
 
 func (r *Release) removeExistingTags() error {
