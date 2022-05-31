@@ -11,19 +11,19 @@ import (
 	"github.com/urfave/cli"
 )
 
-func CreateTagsCommand() cli.Command {
+func createTagsCommand() cli.Command {
 	return cli.Command{
 		Name:   "create-tags",
 		Usage:  "Create tags from kubernetes repo",
 		Flags:  rootFlags,
-		Action: CreateTags,
+		Action: createTags,
 	}
 }
 
-func CreateTags(c *cli.Context) error {
+func createTags(c *cli.Context) error {
 	ctx := context.Background()
-	// pushing tags to k3s-io kubernetes fork
-	release, err := k3s.NewReleaseFromConfig(c)
+	configPath := c.String("config")
+	release, err := k3s.NewReleaseFromConfig(configPath)
 	if err != nil {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
@@ -32,8 +32,7 @@ func CreateTags(c *cli.Context) error {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}
 
-	err = release.SetupK8sRemotes(ctx, client)
-	if err != nil {
+	if err := release.SetupK8sRemotes(ctx, client); err != nil {
 		logrus.Fatalf("failed to clone and setup remotes for k8s repo: %v", err)
 	}
 	// all business logic should exists in the package
@@ -50,8 +49,7 @@ func CreateTags(c *cli.Context) error {
 		logrus.Fatalf("failed to rebase and create tags: %v", err)
 	}
 	tagFile := filepath.Join(release.Workspace, "tags-"+release.NewK8SVersion)
-	err = os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644)
-	if err != nil {
+	if err := os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644); err != nil {
 		logrus.Fatalf("failed to write tags file: %v", err)
 	}
 	return nil

@@ -12,19 +12,20 @@ const (
 	k3sRemote = "k3s-io"
 )
 
-func PushTagsCommand() cli.Command {
+func pushTagsCommand() cli.Command {
 	return cli.Command{
 		Name:   "push-tags",
 		Usage:  "Push tags to speicifc remote",
 		Flags:  rootFlags,
-		Action: PushTags,
+		Action: pushTags,
 	}
 }
 
-func PushTags(c *cli.Context) error {
+func pushTags(c *cli.Context) error {
 	ctx := context.Background()
 	// pushing tags to k3s-io kubernetes fork
-	release, err := k3s.NewReleaseFromConfig(c)
+	configPath := c.String("config")
+	release, err := k3s.NewReleaseFromConfig(configPath)
 	if err != nil {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
@@ -37,6 +38,7 @@ func PushTags(c *cli.Context) error {
 	if err != nil {
 		logrus.Fatalf("failed to extract tags from file: %v", err)
 	}
+	logrus.Infof("pushing tags to github")
 	if err := release.PushTags(ctx, tags, client, k3sRemote); err != nil {
 		logrus.Fatalf("failed to push tags: %v", err)
 	}

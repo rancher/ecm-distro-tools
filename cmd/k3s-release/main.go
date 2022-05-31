@@ -26,9 +26,9 @@ func main() {
 	app.Name = "k3s-release"
 	app.Usage = "Start a k3s release"
 	app.Commands = []cli.Command{
-		CreateTagsCommand(),
-		PushTagsCommand(),
-		ModifyK3SCommand(),
+		createTagsCommand(),
+		pushTagsCommand(),
+		modifyK3SCommand(),
 	}
 	app.Flags = rootFlags
 	err := app.Run(os.Args)

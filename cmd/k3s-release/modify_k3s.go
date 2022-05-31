@@ -8,18 +8,19 @@ import (
 	"github.com/urfave/cli"
 )
 
-func ModifyK3SCommand() cli.Command {
+func modifyK3SCommand() cli.Command {
 	return cli.Command{
 		Name:   "modify-k3s",
 		Usage:  "Modify k3s go.mod with the updated tags and create a new PR",
 		Flags:  rootFlags,
-		Action: ModifyK3S,
+		Action: modifyK3S,
 	}
 }
 
-func ModifyK3S(c *cli.Context) error {
+func modifyK3S(c *cli.Context) error {
 	ctx := context.Background()
-	release, err := k3s.NewReleaseFromConfig(c)
+	configPath := c.String("config")
+	release, err := k3s.NewReleaseFromConfig(configPath)
 	if err != nil {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}

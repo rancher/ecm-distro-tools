@@ -20,7 +20,6 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -42,6 +41,30 @@ const (
 	FROM %goimage%
 	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk
 	`
+
+	modifyScript = `
+		#!/bin/bash
+		cd {{ .Workspace }}
+		git clone "git@github.com:{{ .Handler }}/k3s.git"
+		cd {{ .Workspace }}/k3s
+		git remote add upstream https://github.com/k3s-io/k3s.git
+		git fetch upstream
+		git branch delete {{ .NewK8SVersion }}-{{ .NewK3SVersion }}
+		git checkout -B {{ .NewK8SVersion }}-{{ .NewK3SVersion }} upstream/{{.ReleaseBranch}}
+		git clean -xfd
+		
+		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ .OldK8SVersion }}-{{ .OldK3SVersion }}|{{ .NewK8SVersion }}-{{ .NewK3SVersion }}|" go.mod
+		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ .NewK8SVersion }}/" go.mod
+		sed -Ei "s/{{ .OldK8SClient }}/{{ .NewK8SClient }}/g" go.mod # This should only change ~6 lines in go.mod
+		
+		go mod tidy
+		# There is no need for running make since the changes will be only for go.mod
+		# mkdir -p build/data && DRONE_TAG={{ .NewK8SVersion }}-{{ .NewK3SVersion }} make download && make generate
+	
+		git add go.mod go.sum
+		git commit --all --signoff -m "Update to {{ .NewK8SVersion }}"
+		git push --set-upstream origin {{ .NewK8SVersion }}-{{ .NewK3SVersion }} # run git remote -v for your origin
+		`
 )
 
 type Release struct {
@@ -58,8 +81,8 @@ type Release struct {
 	Token         string `json:"token"`
 }
 
-func NewReleaseFromConfig(c *cli.Context) (*Release, error) {
-	configPath := c.String("config")
+func NewReleaseFromConfig(configPath string) (*Release, error) {
+
 	var release *Release
 	if configPath == "" {
 		return nil, errors.New("error: config file required")
@@ -96,7 +119,6 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 		Progress:        os.Stdout,
 		InsecureSkipTLS: true,
 	})
-
 	if err != nil {
 		if err == git.ErrRepositoryAlreadyExists {
 			logrus.Warnf("Repository already exists")
@@ -123,16 +145,14 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 		}
 	}
 
-	_, err = repo.CreateRemote(&config.RemoteConfig{
+	if _, err := repo.CreateRemote(&config.RemoteConfig{
 		Name: rancherRemote,
 		URLs: []string{k8sRancherURL},
-	})
-	if err != nil {
+	}); err != nil {
 		if err != git.ErrRemoteExists {
 			return err
 		}
 	}
-	logrus.Infof("Remote %s created for url %s, fetching tags", rancherRemote, k8sRancherURL)
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: rancherRemote,
 		Progress:   os.Stdout,
@@ -144,16 +164,14 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 		}
 	}
 	userRemoteURL := strings.Replace(k8sUserURL, "user", r.Handler, -1)
-	_, err = repo.CreateRemote(&config.RemoteConfig{
+	if _, err := repo.CreateRemote(&config.RemoteConfig{
 		Name: r.Handler,
 		URLs: []string{userRemoteURL},
-	})
-	if err != nil {
+	}); err != nil {
 		if err != git.ErrRemoteExists {
 			return err
 		}
 	}
-	logrus.Infof("Remote %s created for url %s, fetching tags", r.Handler, userRemoteURL)
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: r.Handler,
 		Progress:   os.Stdout,
@@ -246,7 +264,7 @@ func (r *Release) gitRebaseOnto() error {
 	return nil
 }
 
-func (r *Release) golangVersion() (string, error) {
+func (r *Release) goVersion() (string, error) {
 	var dep map[string]interface{}
 	depFile := filepath.Join(r.Workspace, "kubernetes", "build", "dependencies.yaml")
 	dat, err := os.ReadFile(depFile)
@@ -267,7 +285,7 @@ func (r *Release) golangVersion() (string, error) {
 			return version.(string), nil
 		}
 	}
-	return "", errors.New("can not find golang dependency")
+	return "", errors.New("can not find go dependency")
 }
 
 func runCommand(dir, cmd string, args ...string) (string, error) {
@@ -284,7 +302,7 @@ func runCommand(dir, cmd string, args ...string) (string, error) {
 }
 
 func (r *Release) buildGoWrapper() (string, error) {
-	goVersion, err := r.golangVersion()
+	goVersion, err := r.goVersion()
 	if err != nil {
 		return "", err
 	}
@@ -350,7 +368,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 }
 
 func tagPushLines(out string) []string {
-	tagCmds := []string{}
+	var tagCmds []string
 	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "git push $REMOTE") {
 			tagCmds = append(tagCmds, line)
@@ -380,7 +398,6 @@ func (r *Release) TagsFromFile(ctx context.Context) ([]string, error) {
 }
 
 func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
-	logrus.Infof("pushing tags to github")
 	// here we can use go-git library or runCommand function
 	// I am using go-git library to enhance code quality
 	gitConfigFile, err := r.setupGitArtifacts()
@@ -391,6 +408,7 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	cfg, err := config.ReadConfig(file)
 	if err != nil {
 		return err
@@ -418,7 +436,6 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err != nil {
 		return err
 	}
-	logrus.Info(tagsCmds)
 	for _, tagCmd := range tagsCmds {
 		tag := strings.Split(tagCmd, " ")[3]
 		logrus.Infof(tag)
@@ -470,11 +487,9 @@ func (r *Release) ModifyAndPush(ctx context.Context) error {
 		return err
 	}
 
-	out, err := runCommand(r.Workspace, "bash", "./modify_script.sh")
-	if err != nil {
+	if _, err := runCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
 		return err
 	}
-	logrus.Info(out)
 	return nil
 }
 
