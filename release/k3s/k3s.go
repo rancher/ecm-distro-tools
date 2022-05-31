@@ -538,7 +538,7 @@ func (r *Release) isTagExists() (bool, error) {
 		if err == git.ErrTagNotFound {
 			return false, nil
 		}
-		return false, errors.New("invalid tag " + tag + " object")
+		return false, errors.New("invalid tag " + tag + " object: " + err.Error())
 	}
 	return true, nil
 }
