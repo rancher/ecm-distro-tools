@@ -122,10 +122,10 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 	return releases, nil
 }
 
-// VerifyReleaseAssets checks the number of assets for the
+// VerifyAssets checks the number of assets for the
 // given release and indicates if the expected number has
 // been met.
-func VerifyReleaseAssets(ctx context.Context, client *github.Client, repo string, tags []string) (map[string]bool, error) {
+func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags []string) (map[string]bool, error) {
 	if len(tags) == 0 {
 		return nil, errors.New("no tags provided")
 	}
@@ -144,6 +144,10 @@ func VerifyReleaseAssets(ctx context.Context, client *github.Client, repo string
 	)
 
 	for _, tag := range tags {
+		if tag == "" {
+			continue
+		}
+
 		release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
 		if err != nil {
 			switch err := err.(type) {
@@ -172,6 +176,32 @@ func VerifyReleaseAssets(ctx context.Context, client *github.Client, repo string
 	}
 
 	return releases, nil
+}
+
+// ListAssets gets all assets associated with the given release.
+func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([]*github.ReleaseAsset, error) {
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if tag == "" {
+		return nil, errors.New("invalid tag provided")
+	}
+
+	release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+	if err != nil {
+		switch err := err.(type) {
+		case *github.ErrorResponse:
+			if err.Response.StatusCode != http.StatusNotFound {
+				return nil, err
+			}
+		default:
+			return nil, err
+		}
+	}
+
+	return release.Assets, nil
 }
 
 func goModLibVersion(libraryName, repo, branchVersion string) string {
