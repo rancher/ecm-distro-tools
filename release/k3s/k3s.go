@@ -19,7 +19,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -121,7 +120,6 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 	})
 	if err != nil {
 		if err == git.ErrRepositoryAlreadyExists {
-			logrus.Warnf("Repository already exists")
 			repo, err = git.PlainOpen(k3sDir)
 			if err != nil {
 				return err
@@ -205,7 +203,6 @@ func (r *Release) RebaseAndTag(ctx context.Context, ghClient *github.Client) ([]
 		return nil, err
 	}
 	if tagExists {
-		logrus.Infof("tags already exists, removing them locally and running the script")
 		if err := r.removeExistingTags(); err != nil {
 			return nil, err
 		}
@@ -214,7 +211,6 @@ func (r *Release) RebaseAndTag(ctx context.Context, ghClient *github.Client) ([]
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("Running Tag Script: %s", out)
 
 	tags := tagPushLines(out)
 	if len(tags) == 0 {
@@ -256,11 +252,10 @@ func (r *Release) gitRebaseOnto() error {
 	cmd.Stdout = &outb
 	cmd.Stderr = &errb
 	cmd.Dir = dir
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return errors.New(err.Error() + ": " + errb.String())
 	}
-	logrus.Infof("%s", outb.String())
+
 	return nil
 }
 
@@ -312,11 +307,10 @@ func (r *Release) buildGoWrapper() (string, error) {
 		return "", err
 	}
 	wrapperImageTag := goImageVersion + "-dev"
-	out, err := runCommand(r.Workspace, "docker", "build", "-t", wrapperImageTag, ".")
-	if err != nil {
+	if _, err := runCommand(r.Workspace, "docker", "build", "-t", wrapperImageTag, "."); err != nil {
 		return "", err
 	}
-	logrus.Infof("Building Wrapper image: %s", out)
+
 	return wrapperImageTag, nil
 }
 
@@ -438,7 +432,7 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	}
 	for _, tagCmd := range tagsCmds {
 		tag := strings.Split(tagCmd, " ")[3]
-		logrus.Infof(tag)
+
 		if err := repo.Push(&git.PushOptions{
 			RemoteName: remote,
 			Auth:       gitAuth,
@@ -453,6 +447,7 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 			return err
 		}
 	}
+
 	return nil
 }
 
