@@ -386,8 +386,7 @@ const (
 
 var client *http.Client
 
-// RKE2ImageRepos
-func RKE2ImageRepos(ctx context.Context, client *http.Client) ([]string, error) {
+func imageSourcesProc(ctx context.Context, client *http.Client, columnIndex int) ([]string, error) {
 	if client == nil {
 		client = &http.Client{
 			Timeout: time.Second * 30,
@@ -404,8 +403,6 @@ func RKE2ImageRepos(ctx context.Context, client *http.Client) ([]string, error) 
 		return nil, err
 	}
 	defer res.Body.Close()
-
-	const columnIndex = 3
 
 	var images []string
 
@@ -426,44 +423,14 @@ func RKE2ImageRepos(ctx context.Context, client *http.Client) ([]string, error) 
 	return images, nil
 }
 
+// RKE2ImageRepos
+func RKE2ImageRepos(ctx context.Context, client *http.Client) ([]string, error) {
+	return imageSourcesProc(ctx, client, 3)
+}
+
 // RKE2Images
 func RKE2Images(ctx context.Context, client *http.Client) ([]string, error) {
-	if client == nil {
-		client = &http.Client{
-			Timeout: time.Second * 30,
-		}
-	}
-
-	req, err := http.NewRequest(http.MethodGet, imageSourcesURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	const columnIndex = 2
-
-	var images []string
-
-	scanner := bufio.NewScanner(res.Body)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), "rancher/hardened-build-base") || strings.Contains(scanner.Text(), "rancher/rke2") {
-			line := strings.Split(scanner.Text(), "|")
-			if len(line) >= columnIndex {
-				images = append(images, line[columnIndex])
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return images, nil
+	return imageSourcesProc(ctx, client, 2)
 }
 
 // RKE2ChartsIndex
