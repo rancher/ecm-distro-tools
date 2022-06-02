@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -105,7 +106,7 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 		if err != nil {
 			switch err := err.(type) {
 			case *github.ErrorResponse:
-				if err.Response.StatusCode != 404 {
+				if err.Response.StatusCode != http.StatusNotFound {
 					return nil, err
 				}
 				releases[tag] = false
@@ -119,6 +120,88 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 	}
 
 	return releases, nil
+}
+
+// VerifyAssets checks the number of assets for the
+// given release and indicates if the expected number has
+// been met.
+func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags []string) (map[string]bool, error) {
+	if len(tags) == 0 {
+		return nil, errors.New("no tags provided")
+	}
+
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	releases := make(map[string]bool, len(tags))
+
+	const (
+		rke2Assets    = 50
+		k3sAssets     = 18
+		rke2Packaging = 23
+	)
+
+	for _, tag := range tags {
+		if tag == "" {
+			continue
+		}
+
+		release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+		if err != nil {
+			switch err := err.(type) {
+			case *github.ErrorResponse:
+				if err.Response.StatusCode != http.StatusNotFound {
+					return nil, err
+				}
+				releases[tag] = false
+				continue
+			default:
+				return nil, err
+			}
+		}
+
+		if repo == "rke2" && len(release.Assets) == rke2Assets {
+			releases[tag] = true
+		}
+
+		if repo == "k3s" && len(release.Assets) == k3sAssets {
+			releases[tag] = true
+		}
+
+		if repo == "rke2-packing" && len(release.Assets) == rke2Packaging {
+			releases[tag] = true
+		}
+	}
+
+	return releases, nil
+}
+
+// ListAssets gets all assets associated with the given release.
+func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([]*github.ReleaseAsset, error) {
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if tag == "" {
+		return nil, errors.New("invalid tag provided")
+	}
+
+	release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+	if err != nil {
+		switch err := err.(type) {
+		case *github.ErrorResponse:
+			if err.Response.StatusCode != http.StatusNotFound {
+				return nil, err
+			}
+		default:
+			return nil, err
+		}
+	}
+
+	return release.Assets, nil
 }
 
 func goModLibVersion(libraryName, repo, branchVersion string) string {
