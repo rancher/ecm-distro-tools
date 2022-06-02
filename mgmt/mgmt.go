@@ -1,6 +1,7 @@
 package mgmt
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/aes"
@@ -8,6 +9,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"text/template"
 	"time"
@@ -24,6 +26,7 @@ func isRancherMember(members []*github.User, login string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -375,3 +378,93 @@ func ParseBootstrapData(ctx context.Context, token, dataEncoded string) (string,
 
 	return string(decryptedBootstrap), nil
 }
+
+const (
+	imageSourcesURL = "https://raw.githubusercontent.com/rancher/rke2/master/developer-docs/image_sources.md"
+	chartIndecURL   = "https://raw.githubusercontent.com/rancher/rke2-charts/main/index.yaml"
+)
+
+var client *http.Client
+
+// RKE2ImageRepos
+func RKE2ImageRepos(ctx context.Context, client *http.Client) ([]string, error) {
+	if client == nil {
+		client = &http.Client{
+			Timeout: time.Second * 30,
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, imageSourcesURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	const columnIndex = 3
+
+	var images []string
+
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "rancher/hardened-build-base") || strings.Contains(scanner.Text(), "rancher/rke2") {
+			line := strings.Split(scanner.Text(), "|")
+			if len(line) >= columnIndex {
+				images = append(images, line[columnIndex])
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
+// RKE2Images
+func RKE2Images(ctx context.Context, client *http.Client) ([]string, error) {
+	if client == nil {
+		client = &http.Client{
+			Timeout: time.Second * 30,
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, imageSourcesURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	const columnIndex = 2
+
+	var images []string
+
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "rancher/hardened-build-base") || strings.Contains(scanner.Text(), "rancher/rke2") {
+			line := strings.Split(scanner.Text(), "|")
+			if len(line) >= columnIndex {
+				images = append(images, line[columnIndex])
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
+// RKE2ChartsIndex
+func RKE2ChartsIndex() {}
