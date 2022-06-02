@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"text/template"
@@ -434,4 +435,26 @@ func RKE2Images(ctx context.Context, client *http.Client) ([]string, error) {
 }
 
 // RKE2ChartsIndex
-func RKE2ChartsIndex() {}
+func RKE2ChartsIndex(ctx context.Context, client *http.Client) (string, error) {
+	if client == nil {
+		client = &http.Client{
+			Timeout: time.Second * 30,
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, chartIndecURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	b := bytes.NewBuffer(nil)
+	io.Copy(b, res.Body)
+
+	return b.String(), nil
+}
