@@ -204,6 +204,56 @@ func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([
 	return release.Assets, nil
 }
 
+// DeleteAssetsByRelease
+func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag string) error {
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return err
+	}
+
+	if tag == "" {
+		return errors.New("invalid tag provided")
+	}
+
+	release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+	if err != nil {
+		switch err := err.(type) {
+		case *github.ErrorResponse:
+			if err.Response.StatusCode != http.StatusNotFound {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+
+	for _, asset := range release.Assets {
+		if _, err := client.Repositories.DeleteReleaseAsset(ctx, org, repo, asset.GetID()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteAssetByID
+func DeleteAssetByID(ctx context.Context, client *github.Client, repo, tag string, id int64) error {
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return err
+	}
+
+	if tag == "" {
+		return errors.New("invalid tag provided")
+	}
+
+	if _, err := client.Repositories.DeleteReleaseAsset(ctx, org, repo, id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func goModLibVersion(libraryName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 	if repo == "rke2" {
