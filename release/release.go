@@ -204,7 +204,7 @@ func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([
 	return release.Assets, nil
 }
 
-// DeleteAssetsByRelease
+// DeleteAssetsByRelease deletes all release assets for the given release tag.
 func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag string) error {
 	org, err := repository.OrgFromRepo(repo)
 	if err != nil {
@@ -236,7 +236,7 @@ func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag
 	return nil
 }
 
-// DeleteAssetByID
+// DeleteAssetByID deletes the release asset associated with the given ID.
 func DeleteAssetByID(ctx context.Context, client *github.Client, repo, tag string, id int64) error {
 	org, err := repository.OrgFromRepo(repo)
 	if err != nil {
