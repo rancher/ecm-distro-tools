@@ -16,6 +16,7 @@ usage() {
     -d    kill cluster and delete files
     -s    skip Vagrantfile download
     -o    only download Vagrantfile, don't create cluster
+    -p    override OS [alpine|ubuntu]
     -h    show help
 
 cluster types:
@@ -158,7 +159,7 @@ rke2_delay() {
     fi
 }
 
-while getopts 'r:c:v:b:i:kdohs' c; do
+while getopts 'r:c:v:b:i:p:kdohs' c; do
     case $c in
     r) 
         REPO=$OPTARG
@@ -186,6 +187,9 @@ while getopts 'r:c:v:b:i:kdohs' c; do
     ;;
     o)
         ONLY_DOWNLOAD=true
+    ;;
+    p)
+        OS=$OPTARG
     ;;
     h)
         usage
@@ -226,6 +230,8 @@ if [ "${DESTROY}" = "true" ]; then
     exit 0
 fi
 
+
+
 if [ -z "${REPO}" ]; then
     echo "error: repo (-r) required"
     exit 1
@@ -234,23 +240,27 @@ elif  [ "${REPO}" = "k3s" ]; then
     ORG="k3s-io"
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
-    # We replace the default OS with alpine-3.15 for fast download and startup time
-    # OS="generic/alpine315"
-    OS="generic/ubuntu2004"
-
+    # If not assigned, use alpine-3.15 for fast download and startup time
+    OS=${OS:-generic/alpine315}
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
     # RKE2 requires systemd, so we use ubuntu,
     # note that it is much larger (~1.5GB) and takes longer to startup.
-    OS="generic/ubuntu2004"
-
+    OS=${OS:-generic/ubuntu2004}
 else 
    echo "error: unknown repo (-r) $REPO"
    exit 1
 fi
 
+if [ "${OS}" = "alpine" ]; then 
+    OS=generic/alpine315; 
+elif [ "${OS}" = "ubuntu" ]; then 
+    OS=generic/ubuntu2004; 
+elif [ "${OS}" != "generic/alpine315" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
+    echo "error: unsupported OS (-p) $OS"
+fi
 
 
 if [ -z "${VERSION}" ] && [ -z "${BINARY_LOCATION}" ]; then
@@ -391,8 +401,6 @@ rancher)
     deploy_artifacts server-0
     E2E_EXTERNAL_DB=none E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS}" vagrant provision server-0
     E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
-    # We use ubuntu to support k3s and rke2 provisioning 
-    OS="generic/ubuntu2004"
     E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_MEMORY=2048 E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
     CMD="kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'"
     SECRET=$(vagrant ssh server-0 -c "${CMD}" 2> /dev/null)

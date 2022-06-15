@@ -34,8 +34,16 @@ There are 3 types of K3s or RKE2 that a user can deploy:
 - A COMMIT ID install, such as `763a8bc8fe376e3376faceed48c8c889d396b88c`.
 - A local executable path, which enabled local dev/PR testing.
 
+**Note:** For RKE2, regardless of Executable version, an airgap installation of RKE2 is conducted. Thus this 
+tool can and should be used to test airgap specific issues. 
+
+## VM Resources 
 For K3s, each VM consumes 2 vcpus and 1GB of memory. For RKE2, each VM consumes 2 vcpus and 2GB of memory.  
 Thus for a `split` cluster of RKE2, it is recommened to have a 8 core / 16 thread cpu and 16GB+ of memory.
+
+By default, K3s VMs use Alpine, while RKE2 VMs use Ubuntu. Apline is a much smaller VM (500MB vs 1.5GB) and 
+has a faster startup time. RKE2 must use Ubuntu because it only supports systemd. The default OS can be overriden
+with the `-p [alpine|ubuntu]` flag.
 
 ## Examples:
 test-pad -r k3s -v v1.22.9+k3s1 -c basic 
