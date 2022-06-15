@@ -1,7 +1,7 @@
 GO = go
 
 BINDIR := bin
-BINARY := gen-release-notes
+BINARY := gen_release_notes
 
 VERSION = v0.4.0
 GIT_SHA = $(shell git rev-parse HEAD)
