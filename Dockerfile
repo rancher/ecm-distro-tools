@@ -47,6 +47,7 @@ RUN zypper update -y && \
         curl            \
         wget            \
         pigz            \
+        awk             \
         net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/gen-release-notes/bin/gen-release-notes /usr/local/bin
