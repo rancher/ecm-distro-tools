@@ -24,7 +24,8 @@ cluster types:
     - basic-lite:   1 VM,  1 server
     - ha:           5 VMs, 3 servers, 2 agents
     - ha-lite:      3 VMs, 3 servers
-    - split:        7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
+    - split:        5 VMs, 3 etcd-only server, 2 cp-only servers. Taints on etcd and control-plane
+    - split-heavy:  7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
     - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
     - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
 examples:
@@ -280,12 +281,12 @@ if [ -z "${SKIP_DOWNLOAD}" ]; then
     download_artifacts
     
     GITHUB_URL="https://raw.githubusercontent.com/$ORG/$REPO/master/tests/e2e"
-    case $CLUSTER in
+    case ${CLUSTER} in
     basic | basic-lite | ha | ha-lite )
         wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
         wget -q "${GITHUB_URL}"/vagrantdefaults.rb
     ;;
-    split | split-lite)
+    split | split-heavy | split-lite)
         wget -q "${GITHUB_URL}"/splitserver/Vagrantfile
         wget -q "${GITHUB_URL}"/vagrantdefaults.rb
         check_and_install_plugins
@@ -311,7 +312,7 @@ if [ -z "${SKIP_DOWNLOAD}" ]; then
 fi
 
 
-case $CLUSTER in
+case ${CLUSTER} in
 
 basic)
     NODE_ROLES="server-0 agent-0"
@@ -327,69 +328,37 @@ basic-lite)
     
     E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant provision
 ;;
-ha)
-    NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
-    OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+ha | ha-lite |  split | split-heavy | split-lite)
+    if [ "${CLUSTER}" = "ha" ]; then
+        NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "ha-lite" ]; then
+        NODE_ROLES="server-0 server-1 server-2"
+        OS_REPEAT="${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split" ]; then
+        NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split-heavy" ]; then
+        NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split-lite" ]; then
+        NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
+        OS_REPEAT="${OS} ${OS} ${OS}"
+    fi
+
+    LAST_NODE=$(echo "$NODE_ROLES" | awk '{print $NF}')
+    FIRST_NODE=$(echo "$NODE_ROLES" | awk '{print $1}')
     E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
     deploy_artifacts "${NODE_ROLES}"
 
     echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS_REPEAT}" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision server-0
-    
+    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS_REPEAT}" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision "${FIRST_NODE}"
     for node in ${NODE_ROLES}; do
-        if [ "${node}" = "server-0" ]; then continue; fi
+        if [ "${node}" = "${FIRST_NODE}" ]; then continue; fi
         E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "agent-1"
+        rke2_delay "${node}" "${LAST_NODE}"
     done
     wait   
-;;
-ha-lite)
-    NODE_ROLES="server-0 server-1 server-2"
-    OS_REPEAT="${OS} ${OS} ${OS}"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
-    deploy_artifacts "${NODE_ROLES}"
-    
-    echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-0
-
-    for node in ${NODE_ROLES}; do
-        if [ "${node}" = "server-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "server-2"
-    done
-    wait  
-;;
-split)
-    NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
-    OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS}"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
-    deploy_artifacts "${NODE_ROLES}"
-    
-    echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-etcd-0
-    
-    for node in ${NODE_ROLES}; do
-        if [ "${node}" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "agent-1"
-    done
-    wait
-;;
-split-lite)
-    NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
-    OS_REPEAT="${OS} ${OS} ${OS}"
-    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
-    deploy_artifacts "${NODE_ROLES}"
-    
-    echo "bringing up first node"
-    E2E_RELEASE_VERSION=skip E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision server-etcd-0
-    
-    for node in ${NODE_ROLES}; do
-        if [ "${node}" = "server-etcd-0" ]; then continue; fi
-        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "agent-0"
-    done
-    wait
 ;;
 rancher)
     if [ ${REPO} = "rke2" ]; then

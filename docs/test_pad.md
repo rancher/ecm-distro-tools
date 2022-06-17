@@ -19,12 +19,13 @@ The first time you use the tool, it will check and attempt to install the proper
 **Note:** The `vagrant-libvirt` plugin should be > v0.9.0. This solves several issues around networking and preventing VMs from being destroy if provisioning fails.
 
 ## Cluster Configuration
-There are 7 cluster configurations supported:
+The followuing cluster configurations are supported:
 - basic:        2 VMs, 1 server, 1 agent
 - basic-lite:   1 VM,  1 server
 - ha:           5 VMs, 3 servers, 2 agents
 - ha-lite:      3 VMs, 3 servers
 - split:        7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
+- split-heavy:  7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
 - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
 - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
 
