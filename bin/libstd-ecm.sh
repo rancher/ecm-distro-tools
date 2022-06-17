@@ -74,6 +74,11 @@ has_vagrant() {
     __cmd_check "${VAGRANT}"
 }
 
+has_awk() {
+    AWK="$(command -v awk)"
+    __cmd_check "${AWK}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {

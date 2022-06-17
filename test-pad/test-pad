@@ -206,6 +206,7 @@ done
 has_vagrant
 has_curl
 has_wget
+has_awk
 
 if [ -z "${CLUSTER}" ]; then
     if [ -f "artifacts/cluster" ]; then
