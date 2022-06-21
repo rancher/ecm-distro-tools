@@ -116,6 +116,10 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_packaging_release -d -t -r 'v1.22.6+rke2r1'
 ```
 
+### Test-Pad Tool
+
+See seperate [documentation](./docs/test_pad.md) for test-pad tool.
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.
