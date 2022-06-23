@@ -38,6 +38,9 @@ print_status() {
     *k3s)
         expected='18'
         ;;
+    *rancher)
+        expected='23'
+        ;;
     *)
         if [ -z "${ASSERT_AMOUNT}" ]; then
             echo 'Unable to assert expected assets amount, please provide it through -a flag'
