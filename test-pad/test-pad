@@ -54,7 +54,7 @@ download_artifacts() {
             cp -r "${IMAGE_LOCATION}" ./artifacts/
         elif [ ! -f ./"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
-            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*[\+\-]") -eq 1 ]; then 
                 GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
                 echo "${GITHUB_URL}/${BINARY}.tar.gz"
                 wget -q --show-progress "${GITHUB_URL}"/"${BINARY}".tar.gz -O artifacts/"${BINARY}".tar.gz
@@ -78,7 +78,7 @@ download_artifacts() {
             cp "${BINARY_LOCATION}" ./artifacts/
         elif [ ! -f ./artifacts/"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
-            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*\+") -eq 1 ]; then 
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*[\+\-]") -eq 1 ]; then 
                 GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
                 echo "${GITHUB_URL}/${BINARY}"
                 wget -q --show-progress "${GITHUB_URL}/${BINARY}" -O ./artifacts/"${BINARY}"
@@ -129,6 +129,9 @@ check_and_install_plugins() {
     plugins=$(vagrant plugin list --local)
     if [ $(echo ${plugins} | grep -c "vagrant-libvirt") -eq 0 ]; then
         vagrant plugin install vagrant-libvirt --plugin-verison 0.9.0
+    fi
+    if [ $(echo ${plugins} | grep -c "vagrant-scp") -eq 0 ]; then
+        vagrant plugin install vagrant-scp
     fi
     if [ $(echo ${plugins} | grep -c "vagrant-k3s") -eq 0 ]; then
         vagrant plugin install vagrant-k3s
