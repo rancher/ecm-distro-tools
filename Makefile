@@ -1,22 +1,30 @@
-.PHONY: all
-all: gen-release-notes backport standup k3s-release
+.PHONY: clearscr fresh clean build-image all
 
-.PHONY: gen-release-notes
-gen-release-notes:
-	cd cmd/$@ && $(MAKE)
+# We are on windows
+ifdef OS
+   EXT = .exe
+endif
 
-.PHONY: k3s-release
-k3s-release:
-	cd cmd/$@ && $(MAKE)
+COMMANDS := \
+	cmd/gen-release-notes/bin/gen-release-notes$(EXT) \
+	cmd/backport/bin/backport$(EXT) \
+	cmd/standup/bin/standup$(EXT) \
+	cmd/k3s-release/bin/k3s-release$(EXT)
 
-.PHONY: backport
-backport:
-	cd cmd/$@ && $(MAKE)
+all: $(COMMANDS)
+	@true
 
-.PHONY: standup
-standup:
-	cd cmd/$@ && $(MAKE)
+%:
+	mkdir -p $(@D)
+	cd $(@D)/.. && $(MAKE)
 
-.PHONY: build-image
 build-image:
 	docker build -t ecmdt-local .
+
+clean:
+	rm -f $(COMMANDS)
+
+fresh : | clean clearscr all
+
+clearscr:
+	clear
