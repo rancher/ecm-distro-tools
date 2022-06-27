@@ -78,7 +78,7 @@ download_artifacts() {
             cp "${BINARY_LOCATION}" ./artifacts/
         elif [ ! -f ./artifacts/"${BINARY}" ]; then
             # Check for semantic version, otherwise assume its a COMMIT ID
-            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*[\+\-]") -eq 1 ]; then 
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[0-9]*\.[0-9]*[\+\-]") -eq 1 ]; then 
                 GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
                 echo "${GITHUB_URL}/${BINARY}"
                 wget -q --show-progress "${GITHUB_URL}/${BINARY}" -O ./artifacts/"${BINARY}"
@@ -141,6 +141,13 @@ check_and_install_plugins() {
     fi
     if [ $( echo ${plugins} | grep -c "vagrant-reload") -eq 0 ]; then
         vagrant plugin install vagrant-reload
+    fi
+}
+
+check_and_update_boxes() {
+    vagrant box list | grep -q "$OS.*libvirt"
+    if [ $? -eq 0 ]; then
+        vagrant box update  --box "${OS}" --provider libvirt
     fi
 }
 
@@ -245,8 +252,8 @@ elif  [ "${REPO}" = "k3s" ]; then
     ORG="k3s-io"
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
-    # If not assigned, use alpine-3.15 for fast download and startup time
-    OS=${OS:-generic/alpine315}
+    # If not assigned, use alpine-3.16 for fast download and startup time
+    OS=${OS:-generic/alpine316}
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     BINARY="rke2.linux-amd64"
@@ -260,10 +267,10 @@ else
 fi
 
 if [ "${OS}" = "alpine" ]; then 
-    OS=generic/alpine315; 
+    OS=generic/alpine316; 
 elif [ "${OS}" = "ubuntu" ]; then 
     OS=generic/ubuntu2004; 
-elif [ "${OS}" != "generic/alpine315" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
+elif [ "${OS}" != "generic/alpine316" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
     echo "error: unsupported OS (-p) $OS"
 fi
 
@@ -310,6 +317,7 @@ if [ -z "${SKIP_DOWNLOAD}" ]; then
     tail -n +2 Vagrantfile > Vagrantfile.tmp && mv Vagrantfile.tmp Vagrantfile
     
     check_and_install_plugins
+    check_and_update_boxes
     if [ "${ONLY_DOWNLOAD}" = "true" ]; then
         exit 0
     fi
