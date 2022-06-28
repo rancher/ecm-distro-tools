@@ -29,6 +29,11 @@ has_curl() {
     __cmd_check "${CURL}"
 }
 
+has_wget() {
+    WGET="$(command -v wget)"
+    __cmd_check "${WGET}"
+}
+
 has_docker() {
     DOCKER="$(command -v docker)"
     __cmd_check "${DOCKER}"
@@ -62,6 +67,16 @@ has_yq() {
 has_trivy() {
     TRIVY="$(command -v trivy)"
     __cmd_check "${TRIVY}"
+}
+
+has_vagrant() {
+    VAGRANT="$(command -v vagrant)"
+    __cmd_check "${VAGRANT}"
+}
+
+has_awk() {
+    AWK="$(command -v awk)"
+    __cmd_check "${AWK}"
 }
 
 # setup_verify_arch set arch and suffix,

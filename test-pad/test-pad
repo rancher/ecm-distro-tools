@@ -1,0 +1,394 @@
+#!/bin/sh
+
+. "../bin/libstd-ecm.sh"
+
+usage() {
+    echo "usage: $0 [rcvbikdsoh]
+    -r    repository (k3s/rke2)
+    -c    cluster type
+    
+    -v    k3s/rke2 version or commit id to use
+    OR
+    -b    location of local k3s/rke2 binary to use
+    -i    location of local rke2 images
+
+    -k    kill cluster
+    -d    kill cluster and delete files
+    -s    skip Vagrantfile download
+    -o    only download Vagrantfile, don't create cluster
+    -p    override OS [alpine|ubuntu]
+    -h    show help
+
+cluster types:
+    - basic:        2 VMs, 1 server, 1 agent
+    - basic-lite:   1 VM,  1 server
+    - ha:           5 VMs, 3 servers, 2 agents
+    - ha-lite:      3 VMs, 3 servers
+    - split:        5 VMs, 3 etcd-only server, 2 cp-only servers. Taints on etcd and control-plane
+    - split-heavy:  7 VMs, 3 etcd-only server, 2 cp-only servers, 2 agents. Taints on etcd and control-plane
+    - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
+    - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
+examples:
+    $0 -r k3s -v v1.22.9+k3s1 -c basic 
+    $0 -r k3s -v v1.23.5+k3s1 -c ha
+    $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
+    $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
+    $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
+    "
+}
+
+# TODO - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
+download_artifacts() {
+
+    case ${REPO} in 
+    rke2)
+        if [ "${BINARY_LOCATION}" ]; then
+            cp "${BINARY_LOCATION}" ./artifacts
+            sha256sum ./artifacts/"${BINARY}".tar.gz > ./artifacts/sha256sum-amd64.txt
+            if [ -z "${IMAGE_LOCATION}" ]; then
+                echo "error: images directory (-i) must be provided for rke2 local binary"
+                exit 1
+            fi
+            # Only local installs require the raw images
+            # commit id and version will just download them
+            cp -r "${IMAGE_LOCATION}" ./artifacts/
+        elif [ ! -f ./"${BINARY}" ]; then
+            # Check for semantic version, otherwise assume its a COMMIT ID
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[1-9]*\.[1-9]*[\+\-]") -eq 1 ]; then 
+                GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
+                echo "${GITHUB_URL}/${BINARY}.tar.gz"
+                wget -q --show-progress "${GITHUB_URL}"/"${BINARY}".tar.gz -O artifacts/"${BINARY}".tar.gz
+                wget -q --show-progress "${GITHUB_URL}"/sha256sum-amd64.txt -O artifacts/sha256sum-amd64.txt
+            else
+                echo "${STORAGE_URL}/${BINARY}-${VERSION}"
+                COMMIT_BINARY="${BINARY}-${VERSION}.tar.gz"
+                wget -q --show-progress "${STORAGE_URL}/${COMMIT_BINARY}" -O artifacts/"${BINARY}".tar.gz
+                wget -q --show-progress "${STORAGE_URL}/${COMMIT_BINARY}".sha256sum -O artifacts/sha256sum-amd64.txt
+                wget -q --show-progress "${STORAGE_URL}/rke2-images.linux-amd64-${VERSION}".tar.zst \
+                    -O artifacts/rke2-images.linux-amd64.tar.zst
+            fi
+            if [ $? -ne 0 ]; then 
+                echo "error: unable to find ${BINARY} version ${VERSION}"
+                exit 1
+            fi 
+        fi
+    ;;
+    k3s)
+        if [ "${BINARY_LOCATION}" ]; then
+            cp "${BINARY_LOCATION}" ./artifacts/
+        elif [ ! -f ./artifacts/"${BINARY}" ]; then
+            # Check for semantic version, otherwise assume its a COMMIT ID
+            if [ $(echo "${VERSION}" | grep -Ec "^v[1-9]*\.[0-9]*\.[0-9]*[\+\-]") -eq 1 ]; then 
+                GITHUB_URL="https://github.com/${ORG}/${REPO}/releases/download/${VERSION}"
+                echo "${GITHUB_URL}/${BINARY}"
+                wget -q --show-progress "${GITHUB_URL}/${BINARY}" -O ./artifacts/"${BINARY}"
+            else
+                echo "${STORAGE_URL}/${BINARY}-${VERSION}"
+                wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}" -O ./artifacts/"${BINARY}"
+            fi
+            if [ $? -ne 0 ]; then 
+                echo "error: unable to find ${BINARY} version ${VERSION}"
+                exit 1
+            fi 
+            chmod +x ./artifacts/"${BINARY}"
+        fi
+    ;;
+    esac
+}
+
+deploy_artifacts() {
+    NODE_ROLES=$1
+    for node in $NODE_ROLES; do
+        echo "scp ${BINARY} to $node"
+        case $REPO in
+        rke2)
+            vagrant scp artifacts/"${BINARY}".tar.gz "$node":/tmp/
+            vagrant scp artifacts/sha256sum-amd64.txt "$node":/tmp/
+            if [ -d artifacts/images ]; then
+                vagrant scp artifacts/images "$node":/tmp/
+                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent; \
+                    sudo cp -r /tmp/images /var/lib/rancher/rke2/agent/images"
+                vagrant ssh "$node" -c "${cmd}"
+            elif [ -f artifacts/rke2-images.linux-amd64.tar.zst ]; then
+                vagrant scp artifacts/rke2-images.linux-amd64.tar.zst "$node":/tmp/
+                cmd="sudo mkdir -p /var/lib/rancher/rke2/agent/images; \
+                    sudo cp /tmp/rke2-images.linux-amd64.tar.zst /var/lib/rancher/rke2/agent/images"
+                vagrant ssh "$node" -c "${cmd}"
+            fi
+        ;;
+        k3s)
+            vagrant scp artifacts/"${BINARY}" "$node":/tmp/
+            vagrant ssh "$node" -c "sudo mv /tmp/${BINARY} /usr/local/bin/" 2> /dev/null
+        ;;
+        esac
+        
+    done
+}
+
+check_and_install_plugins() {
+    plugins=$(vagrant plugin list --local)
+    if [ $(echo ${plugins} | grep -c "vagrant-libvirt") -eq 0 ]; then
+        vagrant plugin install vagrant-libvirt --plugin-verison 0.9.0
+    fi
+    if [ $(echo ${plugins} | grep -c "vagrant-scp") -eq 0 ]; then
+        vagrant plugin install vagrant-scp
+    fi
+    if [ $(echo ${plugins} | grep -c "vagrant-k3s") -eq 0 ]; then
+        vagrant plugin install vagrant-k3s
+    fi
+    if [ $(echo ${plugins} | grep -c "vagrant-rke2") -eq 0 ]; then
+        vagrant plugin install vagrant-rke2
+    fi
+    if [ $( echo ${plugins} | grep -c "vagrant-reload") -eq 0 ]; then
+        vagrant plugin install vagrant-reload
+    fi
+}
+
+check_and_update_boxes() {
+    vagrant box list | grep -q "$OS.*libvirt"
+    if [ $? -eq 0 ]; then
+        vagrant box update  --box "${OS}" --provider libvirt
+    fi
+}
+
+get_possible_node_roles() {
+    case ${CLUSTER} in
+    split|split-lite)
+        NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
+    ;;
+    *)
+        NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1 agent-2"
+    ;;
+    esac
+}
+
+# RKE2 needs a delay between node startup
+# else the service crashes from too many learners
+rke2_delay() {
+    if [ "${REPO}" = "rke2" ] && [ "$1" != "$2" ]; then
+        sleep 30
+    fi
+}
+
+while getopts 'r:c:v:b:i:p:kdohs' c; do
+    case $c in
+    r) 
+        REPO=$OPTARG
+    ;;
+    c) 
+        CLUSTER=$OPTARG
+    ;;
+    v) 
+        VERSION=$OPTARG
+    ;;
+    b)
+        BINARY_LOCATION=$OPTARG
+    ;;
+    i)
+        IMAGE_LOCATION=$OPTARG
+    ;;
+    k)
+        KILL=true
+    ;;
+    d)
+        DESTROY=true
+    ;;
+    s)
+        SKIP_DOWNLOAD=true
+    ;;
+    o)
+        ONLY_DOWNLOAD=true
+    ;;
+    p)
+        OS=$OPTARG
+    ;;
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+has_vagrant
+has_curl
+has_wget
+has_awk
+
+if [ -z "${CLUSTER}" ]; then
+    if [ -f "artifacts/cluster" ]; then
+        CLUSTER=$(cat artifacts/cluster)
+    else
+        echo "error: cluster type (-c) required"
+        exit 1
+    fi
+else
+    mkdir -p artifacts
+    echo "${CLUSTER}" > artifacts/cluster
+fi
+
+if [ "${KILL}" = "true" ]; then
+    get_possible_node_roles
+    E2E_NODE_ROLES="$NODE_ROLES" vagrant destroy -f
+    exit 0
+fi
+if [ "${DESTROY}" = "true" ]; then
+    get_possible_node_roles
+    E2E_NODE_ROLES="$NODE_ROLES" vagrant destroy -f
+    rm -rf scripts .vagrant Vagrantfile vagrantdefaults.rb artifacts
+    exit 0
+fi
+
+
+
+if [ -z "${REPO}" ]; then
+    echo "error: repo (-r) required"
+    exit 1
+
+elif  [ "${REPO}" = "k3s" ]; then 
+    ORG="k3s-io"
+    STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
+    BINARY="k3s"
+    # If not assigned, use alpine-3.16 for fast download and startup time
+    OS=${OS:-generic/alpine316}
+elif [ "${REPO}" = "rke2" ]; then
+    ORG="rancher"
+    BINARY="rke2.linux-amd64"
+    STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
+    # RKE2 requires systemd, so we use ubuntu,
+    # note that it is much larger (~1.5GB) and takes longer to startup.
+    OS=${OS:-generic/ubuntu2004}
+else 
+   echo "error: unknown repo (-r) $REPO"
+   exit 1
+fi
+
+if [ "${OS}" = "alpine" ]; then 
+    OS=generic/alpine316; 
+elif [ "${OS}" = "ubuntu" ]; then 
+    OS=generic/ubuntu2004; 
+elif [ "${OS}" != "generic/alpine316" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
+    echo "error: unsupported OS (-p) $OS"
+fi
+
+
+if [ -z "${VERSION}" ] && [ -z "${BINARY_LOCATION}" ]; then
+    echo "error: version (-v) or binary (-b) required"
+    exit 1
+fi
+
+if [ -z "${SKIP_DOWNLOAD}" ] && [ -f "Vagrantfile" ]; then
+    echo "existing cluster found; delete it first"
+    exit 1
+fi
+
+
+# Download and setup appropiate vagrant files and binary
+if [ -z "${SKIP_DOWNLOAD}" ]; then
+    
+    download_artifacts
+    
+    GITHUB_URL="https://raw.githubusercontent.com/$ORG/$REPO/master/tests/e2e"
+    case ${CLUSTER} in
+    basic | basic-lite | ha | ha-lite )
+        wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
+        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+    ;;
+    split | split-heavy | split-lite)
+        wget -q "${GITHUB_URL}"/splitserver/Vagrantfile
+        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+        check_and_install_plugins
+    ;;
+    rancher)
+        wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
+        curl --create-dirs -q "${GITHUB_URL}"/scripts/rancher.sh -o ./scripts/rancher.sh
+        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+    ;;
+    esac
+    curl --create-dirs -q "${GITHUB_URL}"/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
+    
+    # Replace default roles
+    get_possible_node_roles
+    sed -i "3s/.*/  %w[$NODE_ROLES])/" Vagrantfile
+    # Remove the top line of the vagrantfile to enable parallel execution.
+    tail -n +2 Vagrantfile > Vagrantfile.tmp && mv Vagrantfile.tmp Vagrantfile
+    
+    check_and_install_plugins
+    check_and_update_boxes
+    if [ "${ONLY_DOWNLOAD}" = "true" ]; then
+        exit 0
+    fi
+fi
+
+
+case ${CLUSTER} in
+
+basic)
+    NODE_ROLES="server-0 agent-0"
+    E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS} ${OS}" vagrant up --no-provision
+    deploy_artifacts "${NODE_ROLES}"
+    
+    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS} ${OS}" vagrant provision
+;;
+basic-lite)
+    NODE_ROLES="server-0"
+    E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant up --no-provision
+    deploy_artifacts "${NODE_ROLES}"
+    
+    E2E_RELEASE_VERSION=skip E2E_EXTERNAL_DB=none E2E_NODE_ROLES=${NODE_ROLES} E2E_NODE_BOXES="${OS}" vagrant provision
+;;
+ha | ha-lite |  split | split-heavy | split-lite)
+    if [ "${CLUSTER}" = "ha" ]; then
+        NODE_ROLES="server-0 server-1 server-2 agent-0 agent-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "ha-lite" ]; then
+        NODE_ROLES="server-0 server-1 server-2"
+        OS_REPEAT="${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split" ]; then
+        NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split-heavy" ]; then
+        NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
+        OS_REPEAT="${OS} ${OS} ${OS} ${OS} ${OS} ${OS} ${OS}"
+    elif [ "${CLUSTER}" = "split-lite" ]; then
+        NODE_ROLES="server-etcd-0 server-cp-0 agent-0"
+        OS_REPEAT="${OS} ${OS} ${OS}"
+    fi
+
+    LAST_NODE=$(echo "$NODE_ROLES" | awk '{print $NF}')
+    FIRST_NODE=$(echo "$NODE_ROLES" | awk '{print $1}')
+    E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant up --no-provision
+    deploy_artifacts "${NODE_ROLES}"
+
+    echo "bringing up first node"
+    E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS_REPEAT}" E2E_NODE_ROLES=${NODE_ROLES} vagrant provision "${FIRST_NODE}"
+    for node in ${NODE_ROLES}; do
+        if [ "${node}" = "${FIRST_NODE}" ]; then continue; fi
+        E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
+        rke2_delay "${node}" "${LAST_NODE}"
+    done
+    wait   
+;;
+rancher)
+    if [ ${REPO} = "rke2" ]; then
+        echo "error: rancher cluster is only avaliable with k3s"
+        exit 1
+    fi
+    NODE_ROLES="server-0 agent-0 agent-1 agent-2"
+    E2E_NODE_CPUS=3 E2E_NODE_MEMORY=3072 E2E_NODE_BOXES="${OS}" vagrant up server-0 --no-provision
+    deploy_artifacts server-0
+    E2E_EXTERNAL_DB=none E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS}" vagrant provision server-0
+    E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
+    E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_MEMORY=2048 E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
+    CMD="kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'"
+    SECRET=$(vagrant ssh server-0 -c "${CMD}" 2> /dev/null)
+    echo "Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=${SECRET}"
+
+;;
+esac
+
+echo "VMs and cluster up, active nodes:"
+printf "  %s\n" "${NODE_ROLES}"

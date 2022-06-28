@@ -4,7 +4,7 @@ ECM Distro Tools (codename: dirt-weasel) is a collection of programs, scripts, a
 
 ## Building
 
-There's a mix of Go and shell scripts in this repository. The shell scripts reside in the `bin` directory and are ready to use. The Go programs are rooted in the `cmd` directory and need to be compiled. To compile the Go programs run the following in the root of the project:
+There's a mix of C, Go and shell scripts in this repository. The shell scripts reside in the `bin` directory and are ready to use. The Go programs are rooted in the `cmd` directory and need to be compiled. To compile the Go programs run the following in the root of the project:
 
 ```sh
 make all
@@ -115,6 +115,10 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2
 # RKE2 packaging (rpms)
 docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2_packaging_release -d -t -r 'v1.22.6+rke2r1'
 ```
+
+### Test-Pad Tool
+
+See seperate [documentation](./docs/test_pad.md) for test-pad tool.
 
 ## Contributing
 
