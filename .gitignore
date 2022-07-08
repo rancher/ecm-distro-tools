@@ -28,10 +28,10 @@ _testmain.go
 .idea
 *.iml
 
-cmd/gen-release-notes/bin/*
+cmd/gen_release_notes/bin/*
 cmd/backport/bin/*
 cmd/standup/bin/*
-cmd/k3s-release/bin/*
+cmd/k3s_release/bin/*
 
 data/*
 
