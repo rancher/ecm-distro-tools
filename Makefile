@@ -1,12 +1,12 @@
 .PHONY: all
-all: gen_release_notes backport standup k3s-release
+all: gen_release_notes backport standup k3s_release
 
 .PHONY: gen_release_notes
 gen_release_notes:
 	cd cmd/$@ && $(MAKE)
 
-.PHONY: k3s-release
-k3s-release:
+.PHONY: k3s_release
+k3s_release:
 	cd cmd/$@ && $(MAKE)
 
 .PHONY: backport

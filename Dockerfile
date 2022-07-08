@@ -51,6 +51,7 @@ RUN zypper update -y && \
         net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_notes /usr/local/bin
+COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/standup/bin/standup /usr/local/bin
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
