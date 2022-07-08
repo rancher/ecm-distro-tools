@@ -5,7 +5,7 @@ BINARY := gen_release_notes
 
 VERSION = v0.4.0
 GIT_SHA = $(shell git rev-parse HEAD)
-LDFLAGS = -ldflags "-X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main.name=$(BINARY)"
+LDFLAGS = -ldflags "-X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main.name=$(BINARY) -linkmode external -extldflags '-static -Wl,--fatal-warnings'"
 TAGS    = "netgo osusergo no_stage static_build"
 $(BINDIR)/$(BINARY): clean
 	CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v $(LDFLAGS) -o $@
