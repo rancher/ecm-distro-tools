@@ -15,6 +15,32 @@ Much of the context for this document assumes that we are in a code freeze and t
 **Note:**
 [How to use tools](#tools)
 
+## Setup Communication Channels
+
+It is good to prep a release by creating the communication channels necessary to keep everyone on the same page.
+We generally communicate with three tools: Slack, Confluence, and GitHub.
+
+### Slack
+
+We generate a Slack thread in the #discuss-rancher-k3s-rke2-release channel, and pin it to the channel.
+The title is usually something like "RKE2 Release :thread:" where the ':thread:' will be replaced by an emoji.
+[Example](https://suse.slack.com/archives/C02DNASKFQB/p1657646877944789)
+
+### Confluence
+
+We post information (links and such) to a confluence doc, so that everyone is able to quickly find information regarding the release.
+This also serves as a place where we can review and audit release information.
+There is no official place to put these reports, so it is fine to place them in your personal space in Confluence, please make sure they are viewable by the team.
+The title is generally "RKE2 <month> Release", [example](https://confluence.suse.com/display/~mtrachier/RKE2+July+Release).
+Copy the previous month, update the title, remove all the links, then post the link to the doc in the release thread, and you are ready to go.
+
+### GitHub
+
+In general we (the release captains) communicate about git operations in GitHub; code reviews, pull requests, and issues/tasks.
+These are all public communication sources, so please be aware of the larger audience.
+There should be GH milestones generated for each release version, make sure to add them to the Confluence page.
+If they do not exist, please ask about them in the #discuss-rancher-k3s-rke2-release channel.
+
 ## Verify Upstream Kubernetes is Released
 
 Before we start a release we need to make sure that upstream Kubernetes is published.
