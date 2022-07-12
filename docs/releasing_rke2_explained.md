@@ -23,7 +23,7 @@ We generally communicate with three tools: Slack, Confluence, and GitHub.
 ### Slack
 
 We generate a Slack thread in the #discuss-rancher-k3s-rke2-release channel, and pin it to the channel.
-The title is usually something like "RKE2 Release :thread:" where the ':thread:' will be replaced by an emoji.
+The title is usually something like "RKE2 Release :thread:".
 [Example](https://suse.slack.com/archives/C02DNASKFQB/p1657646877944789)
 
 ### Confluence
@@ -274,7 +274,8 @@ Before making any pull requests, please make sure you understand:
    1. Compare the versions
       * this assumes you have already merged in an RKE2 PR, [please do that first](#update-rke2)
       * open the [RKE2 repo's GitHub Compare UI](https://github.com/rancher/rke2/compare),
-        you could also read the [compare tool info](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/viewing-and-comparing-commits/comparing-commits) if you would like more information
+        you could also read the [compare tool info](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/viewing-and-comparing-commits/comparing-commits)
+        if you would like more information
       * change the base version to the 'tag' that matches the previous version (the one where your YAML alias point)
       * change the compare version to the 'tag' that matches the new version you are adding (it will match your new YAML anchors)
       * you will see a diff of the two versions, the Dockerfile is the important file to inspect
@@ -307,7 +308,7 @@ Before making any pull requests, please make sure you understand:
         [for example](https://github.com/rancher/rke2/compare/v1.23.7+rke2r2...v1.23.8-rc1+rke2r1#diff-227294a471aa37485c65a92dded07953a1e93417274e4c889fa4a2c721bc17c4)
       * ignore "drop" and "hidden" changes
       * check with the Rancher team before exposing new args,
-        since this can sometimes be used to dark commit new features 
+        since this can sometimes be used to dark commit new features
         and KDM can work like a feature flag system to expose those features to users
       * another way to check for differences in the args is by downloading the two binaries and comparing the help output
         1. download previous binary from its release artifacts,
@@ -353,7 +354,7 @@ If you are asked to review a KDM PR please be aware of how to validate the file 
 1. For every chart line, parse the KDM yaml for that version of the chart
    * this can be somewhat difficult with the [KDM inheritance model](#kdm-yaml-inheritance-model)
    * validate that the chart version exists for the RKE2 minor version you are updating
-   * some charts may inherit from the previous RKE2 minor version 
+   * some charts may inherit from the previous RKE2 minor version
      if they have not been updated since the current minor version came out
 </details>
 
@@ -363,7 +364,7 @@ RPMs are how we install RKE2 on RedHat style operating systems (such as OpenSUSE
 When we cut a new release or release candidate we need to then publish the RPM specs,
 which allow users to install the RPMs from our GitHub release.
 The RPM spec files are templates of the actual specs which are published to the Rancher RPM repo.
-[You can see the information about that repo in the user docs](https://rancher.com/docs/rancher/v2.5/en/security/selinux/#1-set-up-the-yum-repo). 
+[You can see the information about that repo in the user docs](https://rancher.com/docs/rancher/v2.5/en/security/selinux/#1-set-up-the-yum-repo).
 Essentially, the RPM specs instruct the operating system to download binaries from the RKE2 release artifacts.
 For example, you can see the [source template in the centos-7 spec](https://github.com/rancher/rke2-packaging/blob/master/rpm/centos7/common/rke2-common.spec#L12).
 This is why it is best to wait for the RKE2 release automation to complete before releasing RPMs.
@@ -486,7 +487,7 @@ Before making any pull requests, please make sure you understand:
 1. Validate and update the release notes as necessary
    * the generation script often does not collect the proper data,
      we need to validate the output and update it as necessary
-   * The 2 primary sections of the release notes are the "Changes since ..." and the "Package Component Versions", 
+   * The 2 primary sections of the release notes are the "Changes since ..." and the "Package Component Versions",
      but the other sections need to be reviewed as well
    1. Validate and update "Changes since" section
       * update lines to look like sentences, update the first letter of each line, end each line in a period, etc.
@@ -504,7 +505,7 @@ Before making any pull requests, please make sure you understand:
             * release branch is `release-1.23`
             * [example](https://github.com/rancher/rke2/issues?q=base%3Arelease-1.23+merged%3A%3E2022-06-13+sort%3Aupdated-asc+)
    1. Validate and update "Packaged Components" section
-      * It can be confusing to track where each number for a component is getting pulled from, 
+      * It can be confusing to track where each number for a component is getting pulled from,
         see [packaged components subsection](#packaged-components)
    1. Validate and update "Available CNIs" section
       * All CNIs are validated in the same file `scripts/build-images`
@@ -697,7 +698,7 @@ systemctl reboot
 After the reboot your podman will be able to handle multiple architectures.
 This should allow you to use Docker commands and amd64 images, but your default platform is still arm64.
 This means that if an image is only able to run on amd64 architecture, and does not specify the platform, it will fail.
-In this limited circumstance, I have only found one reliable way to fix, 
+In this limited circumstance, I have only found one reliable way to fix,
 your docker files need to specify the platform on the "FROM" line, rather than assuming the default.
 Below is an example diff converting a few lines in a Dockerfile.
 This sets the required platform specifically, and in our case tells Podman to emulate amd64.
