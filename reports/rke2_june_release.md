@@ -1,5 +1,16 @@
 # RKE2 June Release Report 2022
 
+Primary: [Matt Trachier](@matttrach)  
+Backup: [Brian Downs](@briandowns) /  [Werner Garcia](@wgsuse)
+
+| **Kubernetes** | **K8s Release Date** | **Code Freeze** | **Planned Release Date** | **Actual Release Date** |
+| --- | --- | --- | --- | --- |
+| [v1.24.2](https://github.com/kubernetes/kubernetes/releases/tag/v1.24.2)   | June 15th | June 16th | June 16th | July 6th |
+| [v1.23.8](https://github.com/kubernetes/kubernetes/releases/tag/v1.23.8)   | June 15th | June 16th | June 16th | July 6th |
+| [v1.22.11](https://github.com/kubernetes/kubernetes/releases/tag/v1.22.11) | June 15th | June 16th | June 16th | July 6th |
+| [v1.21.14](https://github.com/kubernetes/kubernetes/releases/tag/v1.21.14) | June 15th | June 16th | June 16th | July 6th |
+
+
 This report is meant to give historical access to information about the June RKE2 release.
 The release started Jun 17th, and completed July 6th
 

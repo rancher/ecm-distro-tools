@@ -5,8 +5,10 @@ This document serves as an in-depth walkthrough for releasing RKE2.
 This process is used any time we release a new version of RKE2.
 In many cases this is to incorporate a new patch from upstream Kubernetes.
 We like to synchronize changes to RKE2 with Kubernetes patches, which happen on a regular basis.
+This means that any changes to RKE2 are held onto until the upstream Kubernetes patch version comes out.
+We implement a code freeze just before the Kubernetes release to facilitate a stable test version.
 Much of the context for this document assumes that we are in a code freeze and that we are upgrading Kubernetes,
-closely following a release from the [Kubernetes](https://github.com/kubernetes/kubernetes) repo.
+ closely following a release from the [Kubernetes](https://github.com/kubernetes/kubernetes) repo.
 
 **Note:**
 [GitHub Automatically Generates a Table of Contents for Markdown](https://github.blog/changelog/2021-04-13-table-of-contents-support-in-markdown-files/)  
@@ -15,7 +17,7 @@ closely following a release from the [Kubernetes](https://github.com/kubernetes/
 
 ## Verify Upstream Kubernetes is Released
 
-Before we start a release we need to make sure that Kubernetes is published.
+Before we start a release we need to make sure that upstream Kubernetes is published.
 
 <details><summary>Tool</summary>
 
@@ -42,10 +44,12 @@ for instance: ["Kubernetes v1.24.1"](https://github.com/kubernetes/kubernetes/re
 </details>
 
 ## Prep Release
-### Generate Hardened Images
+### Generate Hardened Kubernetes Images
 
 We compile Kubernetes and a selection of container images to have a higher level of security.
-These images are published to [Dockerhub](https://hub.docker.com/r/rancher/hardened-kubernetes).
+The Kubernetes images are published to [Dockerhub](https://hub.docker.com/r/rancher/hardened-kubernetes).
+As individual third party images are published
+ we [publish secure versions of their software as well](https://hub.docker.com/search?q=rancher%2Fhardened).
 The first stage to releasing RKE2 is generating a release for the hardened images and making sure they publish properly.
 The median build time for the [CI](https://drone-publish.rancher.io/rancher/image-build-kubernetes) is about 14 min,
 but it has taken up to an hour historically.
@@ -80,62 +84,55 @@ edt tag_image_build_k8s_release -r "$IMAGE_BUILD_RKE2_RELEASES"
 1. no release details or release notes
 </details>
 
-
 ### Update RKE2
 
 We must update RKE2 to point to the new hardened images, this is a manual process.
 Before this PR is merged the [hardened images must be published](https://hub.docker.com/r/rancher/hardened-kubernetes).
 
-Before making any pull requests, please make sure you understand the 
-[common open source forking workflow](https://github.com/firstcontributions/first-contributions)
-and [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/).
-We use this workflow and signed commits for all contributions.
+Before making any pull requests, please make sure you understand:
+- [Common open source forking workflow](https://github.com/firstcontributions/first-contributions)
+- [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/)
+- [Our open source forking workflow](#our-forking-workflow)
 
 <details><summary>Manual</summary>
 
 1. Setup your local branch
-   ```shell
-   git checkout release-1.23
-   git pull upstream release-1.23
-   git checkout -b "june-release-v1.23-r1"
-   ```
-  * the `master` branch always relates to the latest k8s version, currently 1.24
-  * the upstream branch will be `master` for the latest k8s version, currently 1.24
-  * your fork will have a different branch name than where you want the PR to go,
-    this gives an clear reference to prevent accidentally merging the wrong branches together
-  * I have found that it helps to specify the rke2 release version in the branch, `-r1`, `-r2`, etc.,
-    please see the [Rke2 versioning section](#rke2-versioning) for more information.
+   * it is easier to tell your fork from the upstream if you name your branch something unique and meaningful
+     I have found this to be a good template: `june-release-v1.23-r1`
+   * the `master` branch always relates to the latest k8s version, currently 1.24
+   * the upstream branch will be `master` for the latest k8s version, currently 1.24
+   * your fork will have a different branch name than where you want the PR to go,
+     this gives an clear reference to prevent accidentally merging the wrong branches together
+   * I have found that it helps to specify the rke2 release version in the branch, `-r1`, `-r2`, etc.,
+     please see the [RKE2 versioning section](#rke2-versioning) for more information.
 1. Update the following files
-  1. `./Dockerfile`
-     1. `FROM rancher/hardened-kubernetes:v1.23.5-rke2r1-build20220217 AS kubernetes`
-     1. `RUN CHART_VERSION="v1.21.10-build2021041301" CHART_FILE=/charts/rke2-kube-proxy.yaml`
-        * v1.21 only since it is the last version to use kube-proxy
-        * these specifically reference the hardened build image for kubernetes,
-          make sure it matches what is in the [Dockerhub repo](https://hub.docker.com/r/rancher/hardened-kubernetes).
-  1. `./scripts/version.sh`
-     1. `KUBERNETES_VERSION=${KUBERNETES_VERSION:-v1.23.5}`
-     * this references the upstream kubernetes version, [make sure it matches the tag](https://github.com/kubernetes/kubernetes/tags)
-  1. `./go.mod`
-     * this file can only be updated _after_ k3s releases
-     * ignore this file if your change is being made before k3s has released
-  1. `./go.sum`
-     * use the `go mod tidy` go tool to update this file after updating go.mod
-     * this file can only be updated _after_ k3s releases
-     * ignore this file if your change is being made before k3s has released
-* We ignore any qualifiers, don't use 'rc', 'beta', or anything other than the intended release name.
-* Example: for `v1.23.9+rke2r1`
-  * don't use `v1.23.9-rc1+rke2r1` for an `rc`
-  * do use `v1.23.9+rke2r2` if releasing an `r2`
-  * be aware when you are referencing the version of the hardened build image,
-    and make sure that version matches what is in the [Dockerhub repo](https://hub.docker.com/r/rancher/hardened-kubernetes)
+   1. `./Dockerfile`
+      1. `FROM rancher/hardened-kubernetes:v1.23.5-rke2r1-build20220217 AS kubernetes`
+         * this is [the hardened image](https://hub.docker.com/r/rancher/hardened-kubernetes)
+           that we generated in the previous step, make sure it matches
+      1. `RUN CHART_VERSION="v1.21.10-build2021041301" CHART_FILE=/charts/rke2-kube-proxy.yaml`
+         * v1.21 only since it is the last version to use kube-proxy
+         * these specifically reference our hardened build image for
+           [kube-proxy](https://hub.docker.com/r/rancher/hardened-kube-proxy/tags), make sure it matches
+   1. `./scripts/version.sh`
+      1. `KUBERNETES_VERSION=${KUBERNETES_VERSION:-v1.23.5}`
+      * this references the upstream kubernetes version,
+        [make sure it matches the tag](https://github.com/kubernetes/kubernetes/tags)
+   1. `./go.mod`
+      * this file can only be updated _after_ k3s releases
+      * ignore this file if your change is being made before k3s has released
+   1. `./go.sum`
+      * use the `go mod tidy` go tool to update this file after updating go.mod
+      * this file can only be updated _after_ k3s releases
+      * ignore this file if your change is being made before k3s has released
+   * We ignore any qualifiers, don't use 'rc', 'beta', or anything other than the intended release name.
+     * Example: for `v1.23.9+rke2r1`
+     * GOOD: `v1.23.9+rke2r2` if releasing an `r2`
+     * BAD: `v1.23.9-rc1+rke2r1` for an `rc1`
 1. add, commit, and push
-   ```shell
-   git add -A
-   git commit -s -m "update k8s to v1.23.9"
-   git push origin june-release-v1.23-r1
-   ```
-1. Create a pull request against the upstream rancher/rke2 repo for the branch you checked out from
-   * set reviewers to "k3s" group
+   * example commit message: `update k8s to v1.23.9`
+1. Create a pull request
+   * set reviewers to `k3s` group
    * assign to yourself
    * example: https://github.com/rancher/rke2/pull/2994
 1. PR triggers [Drone-pr CI](https://drone-pr.rancher.io/rancher/rke2)
@@ -147,8 +144,10 @@ We use this workflow and signed commits for all contributions.
 
 ## Create RKE2 Release Candidate (RC)
 ### Cut RKE2 Release
+
 After updating RKE2, we generate a release candidate for internal testing.
 A release candidate is a release with the "-rc" in [the prerelease section of the version number](https://semver.org/#spec-item-9).
+Please see [RKE2 versioning section](#rke2-versioning).
 
 <details><summary>Tool</summary>
 
@@ -196,39 +195,40 @@ to release [RKE2-Upgrade Images](https://hub.docker.com/r/rancher/rke2-upgrade/t
 
 ### Create or Update KDM PR
 
-[Kontainer Driver Metadata](https://github.com/rancher/kontainer-driver-metadata)(KDM) is a project designed to decouple, as much as possible,
-the release aspect of Kubernetes distributions from Rancher.
-The idea is for distros (like RKE2) to update the release information for itself and any dependencies, 
-and Rancher to subscribe to the changes.
-This allows Rancher versions to have a single point of reference for a particular version of a distro,
-allowing it to support multiple distro versions.
-KDM manages the versions of cooperating software which contribute to a cohesive user experience for a single version of a distro.
-There is more to the user experience of `v1.21.14+rke2r1` than just RKE2,
+[Kontainer Driver Metadata](https://github.com/rancher/kontainer-driver-metadata) (KDM) is a project designed to decouple,
+ as much as possible, the release aspect of Kubernetes distributions from Rancher.
+RKE2 is modeled as a distro of Kubernetes, similar to how SLES is a distro of Linux.
+The goal in this project is for RKE2 to update the release information for itself and any dependencies,
+ and for Rancher to subscribe to the changes.
+KDM has the largest impact on user engagement because it is what enables features from RKE2 in Rancher.
+KDM allows Rancher versions to have a single point of reference for a particular version of RKE2,
+allowing it to support multiple versions (eg. Rancher `v2.6` can manage RKE2 `v1.22.8+rke2r1`, `v1.23.8+rke2r1`, and `v1.24.2+rke2r1`).
+
+KDM manages the versions of cooperating software which contribute to a cohesive user experience for a single version of a distro;
+there is more to the user experience of `v1.21.14+rke2r1` than just RKE2,
 so we need to reference all of the different softwares which relate to the `v1.21.14+rke2r1` user experience.
 A single version of KDM gives that reference.
 
 The KDM PR will make use of somewhat complex YAML features,
 please make sure you understand [our use of the merge key](#kdm-yaml-inheritance-model) before continuing.
 
-Before making any pull requests, please make sure you understand the
-[common open source forking workflow](https://github.com/firstcontributions/first-contributions)
-and [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/).
-We use this workflow and signed commits for all contributions.
+Before making any pull requests, please make sure you understand:
+- [Common open source forking workflow](https://github.com/firstcontributions/first-contributions)
+- [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/)
+- [Our open source forking workflow](#our-forking-workflow)
 
 <details><summary>Manual</summary>
 
-1. update `./channels-rke2.yaml`
+1. Update `./channels-rke2.yaml`
    * Please note if this is a new minor release of Kubernetes,
      then a new entry will need to be created in `channels-rke2.yaml`.
      Ensure to set the min/max versions accordingly.
      If you are not certain what they should be,
      reach out to the team for input on this as it will depend on what Rancher will be supporting.
+   * It is not uncommon for KDM not to include the latest version of RKE2 when a new minor version is released,
+     make sure to ask before merge.
    1. Setup your local branch
-      ```shell
-      git checkout dev-v2.6
-      git pull upstream dev-v2.6
-      git checkout -b "june-rke2-release"
-      ```
+      * example name `june-rke2-release`
    1. Copy the previous version and paste it after itself
       * the sorting and grouping of yaml nodes and items is very fragile, please make sure things are in the proper order
       * the yaml nodes are sorted in descending order, with the newest rke2 version on bottom
@@ -246,10 +246,9 @@ We use this workflow and signed commits for all contributions.
         * in this limited case the latest patch of the previous version will match the new minor version
         * it is always good to have a second pair of eyes in this case
    1. Compare the versions
-      * this assumes you have already merged in an RKE2 PR, [please do that first](#create-rke2-release-candidate)
+      * this assumes you have already merged in an RKE2 PR, [please do that first](#update-rke2)
       * open the [RKE2 repo's GitHub Compare UI](https://github.com/rancher/rke2/compare),
-        you could also read the [compare tool info](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/viewing-and-comparing-commits/comparing-commits) if you would like more information,
-        [example comparison]()
+        you could also read the [compare tool info](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/viewing-and-comparing-commits/comparing-commits) if you would like more information
       * change the base version to the 'tag' that matches the previous version (the one where your YAML alias point)
       * change the compare version to the 'tag' that matches the new version you are adding (it will match your new YAML anchors)
       * you will see a diff of the two versions, the Dockerfile is the important file to inspect
@@ -296,7 +295,7 @@ We use this workflow and signed commits for all contributions.
         1. diff the files
            `diff -y --suppress-common-lines old_help.txt new_help.txt`
 1. commit change
-  `git commit -s -m "june rke2 release"`
+   * example commit message `june rke2 release`
 1. generate json file
    * this assumes you have a recent version of Go installed locally
    1. make sure you are in the base directory of the repo
@@ -304,9 +303,8 @@ We use this workflow and signed commits for all contributions.
       * `go generate`
    * this will generate a json file in `data/data.json`
    * this file is what Rancher will use, the yaml is for convenience in generating this file
-1. commit change with "go generate" message
+1. commit change with `go generate` message
    * make sure that your commit message is exactly "go generate"
-   * `git commit -s -m "go generate"`
 1. create pull request
    * push the commits to your fork, then generate a pull request to the upstream branch
    * in many cases you will want the PR wil be interpreted as a "work in progress"
@@ -314,6 +312,7 @@ We use this workflow and signed commits for all contributions.
    * this title has special significance in the GitHub ecosystem
    * example: `[WIP]: June rke2 release`
 </details>
+
 <details><summary>Validating the Charts File</summary>
 
 If you are asked to review a KDM PR please be aware of how to validate the file and why.
@@ -405,7 +404,8 @@ The highlights are:
 
 ## Prep R2
 
-This section needs more details
+1. Follow [the release prep steps](#prep-release), using `r2` instead of `r1`
+   **Note:** Do not merge the R2 prep PR, it hopefully will not be necessary.
 
 ## Create GA Release
 
@@ -413,36 +413,33 @@ Once the RC is approved for release, it's time to cut the general admission (GA)
 This release is meant to be used by the general public, while release candidates (RC) are for internal use only.  
 There may be more than one GA release, and GA does not imply stable.  
 
-1. Create a new RKE2 release just like [the RC release](#create-rke2-release-candidate)
-   * the only change is that you don't use the '-rc' portion of the version
+1. Create a new RKE2 release just like [the RC release](#cut-rke2-release)
+   * the only change is that you don't use the `-rc` portion of the version
    * example: if the rc version was `v1.24.2-rc1+rke2r1` then the release version will be `v1.24.2+rke2r1`
-1. Create a new RKE2-Packaging release just like [the RC release](#create-rke2-packaging-release-for-rc) 
-   * the only change is that you don't use the '-rc' portion of the version
+1. Create a new RKE2-Packaging release just like [the RC release](#cut-rke2-packaging-release)
+   * the only change is that you don't use the `-rc` portion of the version
    * example: if the rc version was `v1.24.2-rc1+rke2r1` then the release version will be `v1.24.2+rke2r1`
 
 ## Finalize Release
 ### Merge KDM PR
 
-This section needs more detail
+In most cases the release captain is not responsible for merging the KDM PR.
+Ask the release channel if KDM is ready for merge after the GA release is cut, that way QA can test on the merged data.
 
 ### Create Release Notes
 
-Release notes should be drafted before the release is complete.  
 This happens in the [Rancher Labs - Release Notes](https://github.com/rancherlabs/release-notes) repository.
 
-Before making any pull requests, please make sure you understand the 
-[common open source forking workflow](https://github.com/firstcontributions/first-contributions)
-and [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/).
-We use this workflow and signed commits for all contributions.
+
+Before making any pull requests, please make sure you understand:
+- [Common open source forking workflow](https://github.com/firstcontributions/first-contributions)
+- [Developer Certificate of Origin](https://www.secondstate.io/articles/dco/)
+- [Our open source forking workflow](#our-forking-workflow)
 
 <details><summary>Manual</summary>
 
 1. Setup your local branch
-   ```shell
-   git checkout main
-   git pull upstream main
-   git checkout -b "june-rke2-release"
-   ```
+   * example branch name: `june-rke2-release`
 1. Run the update script
    ```shell
    export GHT='<your github token>'
@@ -481,7 +478,8 @@ We use this workflow and signed commits for all contributions.
             * release branch is `release-1.23`
             * [example](https://github.com/rancher/rke2/issues?q=base%3Arelease-1.23+merged%3A%3E2022-06-13+sort%3Aupdated-asc+)
    1. Validate and update "Packaged Components" section
-      * It can be confusing to track where each number for a component is getting pulled from, see [packaged components subsection](#packaged-components)
+      * It can be confusing to track where each number for a component is getting pulled from, 
+        see [packaged components subsection](#packaged-components)
    1. Validate and update "Available CNIs" section
       * All CNIs are validated in the same file `scripts/build-images`
       1. Canal
@@ -499,8 +497,8 @@ We use this workflow and signed commits for all contributions.
          * search for `build/images-cilium` then `mirrored-cilium-cilium`
          * example: `${REGISTRY}/rancher/mirrored-cilium-cilium:v1.11.5`
       1. Multus
-        * search for `build/images-multus` then `hardened-multus-cni`
-        * example: `${REGISTRY}/rancher/hardened-multus-cni:v3.8-build20211104`
+         * search for `build/images-multus` then `hardened-multus-cni`
+         * example: `${REGISTRY}/rancher/hardened-multus-cni:v3.8-build20211104`
 </details>
 
 Once the release notes PR is approved and merged through the normal review and approval process,
@@ -685,6 +683,56 @@ This sets the required platform specifically, and in our case tells Podman to em
 +FROM --platform=linux/amd64 ${GO_IMAGE} as builder
 ```
 </details>
+
+### Our Forking Workflow
+
+This describes the forking workflow we follow, it is not all the information you need,
+ please also read the [common open source forking workflow](https://github.com/firstcontributions/first-contributions).
+1. go to main repo
+1. click the "fork" link to generate a personal fork of the repo
+1. clone the fork to your workstation
+   ```
+   git clone <ssh clone link>
+   ```
+1. add the upstream "main" repo
+   ```
+   git remote add upstream <ssh clone link to upstream>
+   ```
+1. check the remotes to make sure you have the set up properly
+   ```
+   git remote -v
+   # example output:
+   #  origin  git@github.com:matttrach/kontainer-driver-metadata.git (fetch)
+   #  origin  git@github.com:matttrach/kontainer-driver-metadata.git (push)
+   #  upstream        git@github.com:rancher/kontainer-driver-metadata.git (fetch)
+   #  upstream        git@github.com:rancher/kontainer-driver-metadata.git (push)
+   ```
+1. fetch the remote branches
+   ```
+   git fetch --all
+   ```
+1. fetch the remote tags
+   ```
+   git fetch --all --tags
+   ```
+1. pull from the branch you want to fork (this may result in an unattached head, that is fine)
+   ```
+   git pull upstream release-1.21
+   ```
+1. checkout a new local branch based on the upstream you just pulled
+   ```
+   git checkout -b june-release-1.21-r1
+   ```
+1. make changes, and commit them signed
+   ```
+   git commit -s -m "this is a signed message, the '-s' is important"
+   ```
+1. push your changes to your fork, not the upstream
+   ```
+   git push origin june-release-1.21-r1
+   ```
+1. the output from a push may give you a link to generate a pull request,
+   or you can go to your fork and generate a PR from there
 
 ### Flowchart
 
