@@ -114,6 +114,8 @@ edt tag_image_build_k8s_release -r "$IMAGE_BUILD_RKE2_RELEASES"
 
 We must update RKE2 to point to the new hardened images, this is a manual process.
 Before this PR is merged the [hardened images must be published](https://hub.docker.com/r/rancher/hardened-kubernetes).
+Validate that the general use hardened images are ready, not just the architecture specific ones
+These are processed one at a time and can take up to 15min to complete.
 
 Before making any pull requests, please make sure you understand:
 - [Common open source forking workflow](https://github.com/firstcontributions/first-contributions)
@@ -174,6 +176,8 @@ Before making any pull requests, please make sure you understand:
 After updating RKE2, we generate a release candidate for internal testing.
 A release candidate is a release with the "-rc" in [the prerelease section of the version number](https://semver.org/#spec-item-9).
 Please see [RKE2 versioning section](#rke2-versioning).
+Don't notify the release thread until the entire RC process is complete to avoid unnecessary confusion,
+that means the Release CI completes, KDM PR is ready, and testing RPMs are published
 
 <details><summary>Tool</summary>
 
@@ -405,7 +409,8 @@ This operation triggers [Drone-publish](https://drone-publish.rancher.io/rancher
 
 ### Verify Downstream Components Build Successfully
 
-Every RKE2 release, from RC to primary, triggers the release process of the downstream components listed in the `scripts/dispatch` script. It is worth ensuring each of them successfully finishes.
+Every RKE2 release, from RC to primary, triggers the release process of the downstream components listed in the `scripts/dispatch` script.
+It is worth ensuring each of them successfully finishes.
 
 - system-agent-installer-rke2
   - [Repository](https://github.com/rancher/system-agent-installer-rke2)
