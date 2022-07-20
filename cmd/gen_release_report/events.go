@@ -24,9 +24,6 @@ type RKE2Release struct {
 	rcs     []*github.RepositoryRelease
 	prs     []*Pull
 	builds  []*Build
-	// k8sBuilds     []*drone.Build
-	// rke2Builds    []*drone.Build
-	// rke2PkgBuilds []*drone.Build
 }
 
 type buildLister interface {

@@ -53,12 +53,9 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 			trace.WithAttributes(attribute.String("event", "release")),
 			trace.WithAttributes(attribute.String("repo", "rancher/rke2")),
 			trace.WithAttributes(attribute.String("tag", *rc.TagName)),
-			// trace.WithTimestamp(rc.CreatedAt.Time),
 			trace.WithTimestamp(rc.PublishedAt.Time),
 		}
-		// releaseCtx, releaseSpan := otel.Tracer("Release").Start(k8sCtx, *rc.TagName, traceOpts...)
 		releaseCtx, releaseSpan := otel.Tracer("github").Start(k8sCtx, *rc.TagName, traceOpts...)
-		// releaseSpan.AddEvent("published", trace.WithTimestamp(rc.PublishedAt.Time))
 
 		builds := rke2BuildsByRelease(r.builds, rc)
 		for _, build := range builds {
@@ -81,7 +78,6 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 			trace.WithAttributes(attribute.String("link", *pr.pull.HTMLURL)),
 			trace.WithTimestamp(*pr.pull.CreatedAt),
 		}
-		// pullCtx, pullSpan := otel.Tracer("Pull Request").Start(k8sCtx, fmt.Sprintf("#%d", *pr.pull.Number), traceOpts...)
 		tracer := otel.Tracer("github")
 		name := fmt.Sprintf("#%d", *pr.pull.Number)
 		pullCtx, pullSpan := tracer.Start(k8sCtx, name, traceOpts...)
