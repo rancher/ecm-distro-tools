@@ -35,7 +35,6 @@ type traceSpan struct {
 }
 
 type traceInstrumentationLibrarySpan struct {
-	// InstrumentationLibrary interface{} `json:"instrumentationLibrary"`
 	Spans []traceSpan `json:"spans"`
 }
 
@@ -82,14 +81,10 @@ func (exp *GrafanaJsonTraceExporter) ExportSpans(ctx context.Context, roSpans []
 
 		// set the service name for the batch
 		service := "ecm-distro-tools"
-		// event := span.Name()
 		for _, a := range ts.Attributes {
 			if a.Key == "service" {
 				service = a.Value.StringValue
 			}
-			// if a.Key == "event" {
-			// 	event = a.Value.StringValue
-			// }
 		}
 		batch := traceBatch{
 			Resource: traceResource{Attributes: []traceAttribute{
