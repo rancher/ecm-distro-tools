@@ -543,13 +543,16 @@ Before adding the release notes to a release, make sure to review all steps agai
 | Component | File | String | Example |
 | --- | --- | --- | --- |
 | Kubernetes      | `Dockerfile`           | `FROM rancher/hardened-kubernetes`           | `rancher/hardened-kubernetes:v1.24.2-rke2r1-build20220617` |
-| Etcd            | `scripts/version.sh`   | `ETCD_VERSION`                               | `ETCD_VERSION=${ETCD_VERSION:-v3.5.4-k3s1}` |
+| Ingress-Nginx   | `Dockerfile`           | `CHART_FILE=/charts/rke2-ingress-nginx.yaml` | `RUN CHART_VERSION="4.1.003" CHART_FILE=/charts/rke2-ingress-nginx.yaml` |
 | Containerd      | `Dockerfile`           | `FROM rancher/hardened-containerd`           | `rancher/hardened-containerd:v1.6.6-k3s1-build20220606` |
 | Runc            | `Dockerfile`           | `FROM rancher/hardened-runc`                 | `rancher/hardened-runc:v1.1.2-build20220606` |
 | Metrics-Server  | `scripts/build-images` | `rancher/hardened-k8s-metrics-server`        | `${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.5.0-build20211119` |
 | CoreDNS         | `scripts/build-images` | `rancher/hardened-coredns`                   | `${REGISTRY}/rancher/hardened-coredns:v1.9.3-build20220613` |
-| Ingress-Nginx   | `Dockerfile`           | `CHART_FILE=/charts/rke2-ingress-nginx.yaml` | `RUN CHART_VERSION="4.1.003" CHART_FILE=/charts/rke2-ingress-nginx.yaml` |
+| Etcd            | `scripts/version.sh`   | `ETCD_VERSION`                               | `ETCD_VERSION=${ETCD_VERSION:-v3.5.4-k3s1}` |
 | Helm-controller | `go.mod`               | `helm-controller`                            | `github.com/k3s-io/helm-controller v0.12.3` |
+
+- Ignore the etcd "prerelease" version info (`v3.5.4` is what we want for `v3.5.4-k3s1`)
+- Ignore the trivial version of nginx, `v4.1.0` = `v4.1.003`
 
 ### Cut RKE2-Packaging Latest RPMs
 
@@ -568,12 +571,21 @@ This involves the same steps for [RPM releases](#cut-rke2-packaging-release) but
 After promoting the release to stable, we need to update the channel server. This is done by editing the `channels.yaml` file in the [repo](https://github.com/rancher/rke2/blob/master/channels.yaml).
 
 * Update the line: `latest: <release>` to be the recent release. e.g. `v1.21.5+rke2r1`.
+* Only update the master branch
+* We are updating the "stable" channel to indicate the latest published rpm
 * Verify updated in the JSON output from a call [here](https://update.rke2.io/v1-release/channels).
+   * Example first object from output:
+     ```
+       "id": "stable",
+       "type": "channel",
+       "links": { "self": "…/v1-release/channels/stable" },
+       "name": "stable",
+       "latest": "v1.23.9+rke2r1"
+     ```
 
 ## Uncheck the Prerelease Checkbox
 
-This is the final step
-this section needs more details
+This is the final step, update this after the channel server merge CI has completed
 
 ## Info
 ### KDM Yaml Inheritance Model
