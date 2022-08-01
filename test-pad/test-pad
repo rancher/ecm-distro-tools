@@ -218,6 +218,11 @@ has_curl
 has_wget
 has_awk
 
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 1
+fi
+
 if [ -z "${CLUSTER}" ]; then
     if [ -f "artifacts/cluster" ]; then
         CLUSTER=$(cat artifacts/cluster)
