@@ -29,8 +29,8 @@ cluster types:
     - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
     - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
 examples:
-    $0 -r k3s -v v1.22.9+k3s1 -c basic 
-    $0 -r k3s -v v1.23.5+k3s1 -c ha
+    $0 -r k3s -v v1.22.12+k3s1 -c basic 
+    $0 -r k3s -v v1.23.9+k3s1 -c ha
     $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
     $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
     $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
@@ -162,11 +162,13 @@ get_possible_node_roles() {
     esac
 }
 
-# RKE2 needs a delay between node startup
-# else the service crashes from too many learners
-rke2_delay() {
+# Both K3s and RKE2 need a needs a delay between node startup
+# else the service crashes from too many etcd learners
+node_delay() {
     if [ "${REPO}" = "rke2" ] && [ "$1" != "$2" ]; then
         sleep 30
+    elif [ "${REPO}" = "k3s" ] && [ "$1" != "$2" ]; then
+        sleep 10
     fi
 }
 
@@ -373,7 +375,7 @@ ha | ha-lite |  split | split-heavy | split-lite)
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "${FIRST_NODE}" ]; then continue; fi
         E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "${LAST_NODE}"
+        node_delay "${node}" "${LAST_NODE}"
     done
     wait   
 ;;
