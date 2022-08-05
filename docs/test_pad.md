@@ -81,10 +81,10 @@ You have a local code change/PR you want to test. The code change only affects H
 ### QA
 You have an K3s issue than is `To Test`, but validation requires a split role cluster.  
 - Download the latest commit and test files:  
-  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split -o`
+  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split --download`
 - Modify the contents of `Vagrantfile` and add any additional configuration to the YAML section of the nodes as required.  
 - Spin up the cluster:  
-  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split -s`
+  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split --skip`
 - SSH into the individual nodes and verify the issue as required:  
   `vagrant ssh server-cp-0`
 - Destroy the cluster:  
@@ -95,4 +95,4 @@ If you need to modify the configuration again with different values:
   `test-pad -k`
 - Modify the contents of the `Vagrantfile` again.
 - Spin up the cluster:  
-  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split -s`
+  `test-pad -r k3s -v <LATEST_COMMIT_FROM_MASTER> -c split --skip`

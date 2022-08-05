@@ -3,21 +3,21 @@
 . "../bin/libstd-ecm.sh"
 
 usage() {
-    echo "usage: $0 [rcvbikdsoh]
-    -r    repository (k3s/rke2)
-    -c    cluster type
+    echo "usage: $0 [rcvbikdh]
+    -r              repository (k3s/rke2)
+    -c              cluster type
     
-    -v    k3s/rke2 version or commit id to use
+    -v, --version   k3s/rke2 version or commit id to use
     OR
-    -b    location of local k3s/rke2 binary to use
-    -i    location of local rke2 images
+    -b              location of local k3s/rke2 binary to use
+    -i              location of local rke2 images
 
-    -k    kill cluster
-    -d    kill cluster and delete files
-    -s    skip Vagrantfile download
-    -o    only download Vagrantfile, don't create cluster
-    -p    override OS [alpine|ubuntu]
-    -h    show help
+    -k, --kill      kill cluster
+    -d              kill cluster and delete files
+    --download      only download artifacts, don't create cluster
+    --skip          skip Vagrantfile download
+    --os            override OS [alpine|ubuntu]
+    -h, --help      show help
 
 cluster types:
     - basic:        2 VMs, 1 server, 1 agent
@@ -172,46 +172,49 @@ node_delay() {
     fi
 }
 
-while getopts 'r:c:v:b:i:p:kdohs' c; do
-    case $c in
-    r) 
-        REPO=$OPTARG
-    ;;
-    c) 
-        CLUSTER=$OPTARG
-    ;;
-    v) 
-        VERSION=$OPTARG
-    ;;
-    b)
-        BINARY_LOCATION=$OPTARG
-    ;;
-    i)
-        IMAGE_LOCATION=$OPTARG
-    ;;
-    k)
-        KILL=true
-    ;;
-    d)
-        DESTROY=true
-    ;;
-    s)
-        SKIP_DOWNLOAD=true
-    ;;
-    o)
-        ONLY_DOWNLOAD=true
-    ;;
-    p)
-        OS=$OPTARG
-    ;;
-    h)
-        usage
-        exit 0
-    ;;
-    *)
-        usage
+has_getopt() {
+    if [ -z "$(command -v getopt)" ]; then
+        printf "error: getopt is not installed\nif on MacOS: brew install gnu-getopt\n"
         exit 1
-    ;;
+    fi
+}
+
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 0
+fi
+
+PARSED_ARGUMENTS=$(getopt -o r:v:c:b:i:kdh --long os:,version:,skip,download,help -- "$@")
+
+eval set -- "$PARSED_ARGUMENTS"
+
+while true; do
+    case "$1" in
+    -r)
+        REPO=$2; shift 2;;
+    -c)
+        CLUSTER=$2; shift 2;;
+    -v|--version)
+        VERSION=$2; shift 2;;
+    -b)
+        BINARY_LOCATION=$2; shift 2;;
+    -i) 
+        IMAGE_LOCATION=$2; shift 2;;
+    -k|--kill)
+        KILL=true; shift 1;;
+    -d)
+        DESTROY=true; shift 1;;
+    --skip)
+        SKIP_DOWNLOAD=true; shift 1;;
+    --download)
+        ONLY_DOWNLOAD=true; shift 1;;
+    --os)
+        OS=$2; shift 2;;
+    -h|--help)
+        usage; exit 0;;
+    --) shift; break ;;
+    *) echo "Unexpected flag: $1"
+        usage; exit 1;;
     esac
 done
 
@@ -219,11 +222,8 @@ has_vagrant
 has_curl
 has_wget
 has_awk
+has_getopt
 
-if [ "$#" -eq 0 ]; then
-    usage
-    exit 1
-fi
 
 if [ -z "${CLUSTER}" ]; then
     if [ -f "artifacts/cluster" ]; then
