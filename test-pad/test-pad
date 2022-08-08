@@ -16,9 +16,10 @@ usage() {
     -d              kill cluster and delete files
     --download      only download artifacts, don't create cluster
     --skip          skip Vagrantfile download
-    --os            override OS [alpine|ubuntu]
+    --os            override default OS [alpine|ubuntu]
     -h, --help      show help
 
+docs: https://github.com/rancher/ecm-distro-tools/blob/master/docs/test_pad.md
 cluster types:
     - basic:        2 VMs, 1 server, 1 agent
     - basic-lite:   1 VM,  1 server
@@ -34,7 +35,7 @@ examples:
     $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
     $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
     $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
-    "
+"
 }
 
 # TODO - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
@@ -86,7 +87,7 @@ download_artifacts() {
                 echo "${STORAGE_URL}/${BINARY}-${VERSION}"
                 wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}" -O ./artifacts/"${BINARY}"
             fi
-            if [ $? -ne 0 ]; then 
+            if [ "$?" -ne 0 ]; then 
                 echo "error: unable to find ${BINARY} version ${VERSION}"
                 exit 1
             fi 
