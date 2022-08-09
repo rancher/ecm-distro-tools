@@ -11,7 +11,11 @@ require (
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )
 
-require gopkg.in/yaml.v2 v2.3.0
+require (
+	github.com/urfave/cli v1.22.9
+	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
@@ -21,7 +25,6 @@ require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-git/go-git v4.7.0+incompatible // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -31,7 +34,6 @@ require (
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
-	github.com/urfave/cli v1.22.9 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20210326060303-6b1517762897 // indirect
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
