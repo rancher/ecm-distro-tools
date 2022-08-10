@@ -128,10 +128,6 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
-	gitAuth, err := getAuth("")
-	if err != nil {
-		return err
-	}
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName:      "origin",
 		Progress:        os.Stdout,
