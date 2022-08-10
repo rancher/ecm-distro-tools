@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
+	"github.com/MetalBlueberry/go-plotly/offline"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/urfave/cli"
@@ -156,6 +158,8 @@ func extractTestArgs(testFile string) (TestCov, error) {
 		args := reQuotes.FindAllString(match[1], -1)
 		// Double for loop to deal with nested arguments
 		for _, arg := range args {
+			arg = strings.Trim(arg, `"`)
+			arg = strings.TrimPrefix(arg, "--")
 			for _, a := range strings.Split(arg, " ") {
 				if a != "" {
 					intCoverage.serverArguments[a] = true
@@ -167,10 +171,10 @@ func extractTestArgs(testFile string) (TestCov, error) {
 	return intCoverage, nil
 }
 
-func totalTrue(m map[string]bool) int {
+func totalUsed(m map[string]int) int {
 	count := 0
 	for _, v := range m {
-		if v {
+		if v > 0 {
 			count++
 		}
 	}
@@ -208,19 +212,19 @@ func buildBinary(programName string) error {
 	return nil
 }
 
-func extractHelp(programName, role string) (map[string]bool, error) {
+func extractHelp(programName, role string) (map[string]int, error) {
 	var re = regexp.MustCompile(`(?m)--(.*?) `)
 	artifactFolder := filepath.Join(programName, "dist", "artifacts", programName)
 	out, err := runCommand("", []string{}, artifactFolder, role, "--help")
 	if err != nil {
 		return nil, err
 	}
-	serverFlags := make(map[string]bool)
+	roleFlags := make(map[string]int)
 	matches := re.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
-		serverFlags[strings.TrimSpace(match[1])] = false
+		roleFlags[strings.TrimSpace(match[1])] = 0
 	}
-	return serverFlags, nil
+	return roleFlags, nil
 }
 
 func coverage(c *cli.Context) error {
@@ -264,19 +268,23 @@ func coverage(c *cli.Context) error {
 		return err
 	}
 
-	for _, v := range vagrantCoverage {
-		for k := range v.serverArguments {
-			serverFlagSet[k] = true
+	// Record covered flags and filter out invalid entries
+	for flag := range serverFlagSet {
+		for _, vC := range vagrantCoverage {
+			if vC.serverArguments[flag] {
+				serverFlagSet[flag] += 1
+			}
 		}
-	}
-	for _, v := range intCoverage {
-		for k := range v.serverArguments {
-			serverFlagSet[k] = true
+		for _, intC := range intCoverage {
+			if intC.serverArguments[flag] {
+				serverFlagSet[flag] += 1
+			}
 		}
 	}
 
-	percentageCover := float32(totalTrue(serverFlagSet)) / float32(len(serverFlagSet)) * 100
-	fmt.Printf("Covering %.2f%% of server flags\n", percentageCover)
+	totalUsedFlags := totalUsed(serverFlagSet)
+	percentageCover := float32(totalUsedFlags) / float32(len(serverFlagSet)) * 100
+	fmt.Printf("Covering %d out of %d (%.2f%%) of server flags\n", totalUsedFlags, len(serverFlagSet), percentageCover)
 
 	// integration tests don't have agent flags
 	agentFlagSet, err := extractHelp(programName, "agent")
@@ -284,11 +292,57 @@ func coverage(c *cli.Context) error {
 		return err
 	}
 	for _, v := range vagrantCoverage {
-		for k := range v.serverArguments {
-			agentFlagSet[k] = true
+		for k := range v.agentArguments {
+			if _, ok := agentFlagSet[k]; ok {
+				agentFlagSet[k] += 1
+			}
 		}
 	}
-	percentageCover = float32(totalTrue(agentFlagSet)) / float32(len(agentFlagSet)) * 100
-	fmt.Printf("Covering %.2f%% of agent flags\n", percentageCover)
+	totalUsedFlags = totalUsed(agentFlagSet)
+	percentageCover = float32(totalUsedFlags) / float32(len(agentFlagSet)) * 100
+	fmt.Printf("Covering %d out of %d (%.2f%%) of agent flags\n", totalUsedFlags, len(agentFlagSet), percentageCover)
+
+	if c.Bool("graph") {
+
+		data := grob.Traces{}
+		xFlagNames := []string{}
+
+		for k := range serverFlagSet {
+			xFlagNames = append(xFlagNames, k)
+		}
+		for _, test := range append(vagrantCoverage, intCoverage...) {
+			condensedName := strings.TrimPrefix(test.path, programName+"/tests/")
+			flagHits := make([]int, len(xFlagNames))
+			for i, flag := range xFlagNames {
+				if test.serverArguments[flag] {
+					flagHits[i] = 1
+				}
+			}
+			data = append(data, &grob.Bar{
+				Name: condensedName,
+				X:    xFlagNames,
+				Y:    flagHits,
+				Type: grob.TraceTypeBar,
+			})
+		}
+
+		fig := &grob.Fig{
+			Data: data,
+			Layout: &grob.Layout{
+				Title: &grob.LayoutTitle{
+					Text: "Server Argument Coverage",
+				},
+				Yaxis: &grob.LayoutYaxis{
+					Title: &grob.LayoutYaxisTitle{
+						Text: "# of Tests Using Flag",
+					},
+				},
+				Barmode: "stack",
+			},
+		}
+		fmt.Println("Serving graph at: http://localhost:8080/graph.html")
+		offline.Serve(fig, offline.Options{})
+	}
+
 	return nil
 }
