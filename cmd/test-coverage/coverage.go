@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,8 +11,6 @@ import (
 
 	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
 	"github.com/MetalBlueberry/go-plotly/offline"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
@@ -22,57 +19,6 @@ type TestCov struct {
 	path            string
 	serverArguments map[string]bool
 	agentArguments  map[string]bool
-}
-
-var k3sRepoUrl = "https://github.com/k3s-io/k3s.git"
-
-func downloadSource(program string) (*git.Repository, error) {
-	programDir := filepath.Join(".", program)
-	_, err := os.Stat(program)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(program, 0755); err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-	// clone the repo
-	repo, err := git.PlainClone(programDir, false, &git.CloneOptions{
-		URL:             k3sRepoUrl,
-		Progress:        os.Stdout,
-		InsecureSkipTLS: true,
-	})
-	if err != nil {
-		if err == git.ErrRepositoryAlreadyExists {
-			return repo, nil
-		}
-		return nil, err
-	}
-	if err := repo.Fetch(&git.FetchOptions{
-		RemoteName:      "origin",
-		Progress:        os.Stdout,
-		Tags:            git.AllTags,
-		InsecureSkipTLS: true,
-	}); err != nil {
-		if err != git.NoErrAlreadyUpToDate {
-			return nil, err
-		}
-	}
-	return repo, nil
-}
-
-func checkoutCommit(repo *git.Repository, commit string) error {
-	if commit != "" {
-		wt, err := repo.Worktree()
-		if err != nil {
-			return err
-		}
-		commitRef := plumbing.NewHash(commit)
-		return wt.Checkout(&git.CheckoutOptions{Hash: commitRef})
-	}
-	return nil
 }
 
 // discoverTestFiles returns a list of all the e2e files in the program directory
@@ -181,46 +127,16 @@ func totalUsed(m map[string]int) int {
 	return count
 }
 
-func runCommand(dir string, env []string, cmd string, args ...string) (string, error) {
-	command := exec.Command(cmd, args...)
-	var outb, errb bytes.Buffer
-	command.Stdout = &outb
-	command.Stderr = &errb
-	command.Dir = dir
-	command.Env = env
-	err := command.Run()
-	if err != nil {
-		return outb.String(), fmt.Errorf("%v: %w", errb.String(), err)
-	}
-	return outb.String(), nil
-}
-
-func buildBinary(programName string) error {
-	binary := filepath.Join(programName, "dist", "artifacts", programName)
-	if _, err := os.Stat(binary); err != nil {
-		fmt.Println("Building binary")
-		if os.IsNotExist(err) {
-			out, err2 := runCommand(programName, []string{"SKIP_VALIDATE=true", "SKIP_AIRGAP=true"}, "pwd")
-			if err2 != nil {
-				fmt.Println(out, err2)
-				return err2
-			}
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
-func extractHelp(programName, role string) (map[string]int, error) {
+func extractHelp(program, role string) (map[string]int, error) {
 	var re = regexp.MustCompile(`(?m)--(.*?) `)
-	artifactFolder := filepath.Join(programName, "dist", "artifacts", programName)
-	out, err := runCommand("", []string{}, artifactFolder, role, "--help")
+	command := exec.Command(program, role, "--help")
+	out, err := command.CombinedOutput()
+
 	if err != nil {
 		return nil, err
 	}
 	roleFlags := make(map[string]int)
-	matches := re.FindAllStringSubmatch(out, -1)
+	matches := re.FindAllStringSubmatch(string(out), -1)
 	for _, match := range matches {
 		roleFlags[strings.TrimSpace(match[1])] = 0
 	}
@@ -229,16 +145,20 @@ func extractHelp(programName, role string) (map[string]int, error) {
 
 func coverage(c *cli.Context) error {
 
-	programName := c.String("program")
-	repo, err := downloadSource(programName)
-	if err != nil {
-		return err
-	}
-	if err := checkoutCommit(repo, c.String("commit")); err != nil {
-		return err
+	programPath := strings.ToLower(c.String("path"))
+	programPath = filepath.Clean(programPath)
+	fmt.Println(programPath)
+	var program string
+	if strings.Contains(programPath, "k3s") {
+		program = filepath.Join(programPath, "bin", "k3s")
+	} else if strings.Contains(programPath, "rke2") {
+		program = filepath.Join(programPath, "bin", "rke2")
 	}
 
-	e2eFiles, intTestFiles, err := discoverTestFiles(programName)
+	if _, err := os.Stat(program); err != nil {
+		return fmt.Errorf("unable to find binary at %s", program)
+	}
+	e2eFiles, intTestFiles, err := discoverTestFiles(programPath)
 	if err != nil {
 		return err
 	}
@@ -260,10 +180,7 @@ func coverage(c *cli.Context) error {
 		intCoverage = append(intCoverage, iC)
 	}
 
-	if err := buildBinary(programName); err != nil {
-		return err
-	}
-	serverFlagSet, err := extractHelp(programName, "server")
+	serverFlagSet, err := extractHelp(program, "server")
 	if err != nil {
 		return err
 	}
@@ -287,7 +204,7 @@ func coverage(c *cli.Context) error {
 	fmt.Printf("Covering %d out of %d (%.2f%%) of server flags\n", totalUsedFlags, len(serverFlagSet), percentageCover)
 
 	// integration tests don't have agent flags
-	agentFlagSet, err := extractHelp(programName, "agent")
+	agentFlagSet, err := extractHelp(program, "agent")
 	if err != nil {
 		return err
 	}
@@ -311,7 +228,16 @@ func coverage(c *cli.Context) error {
 			xFlagNames = append(xFlagNames, k)
 		}
 		for _, test := range append(vagrantCoverage, intCoverage...) {
-			condensedName := strings.TrimPrefix(test.path, programName+"/tests/")
+			condensedName := strings.TrimPrefix(test.path, programPath+"/tests/")
+			var testGroup string
+			if group := "integration"; strings.Contains(condensedName, group) {
+				testGroup = group
+			} else if group := "install"; strings.Contains(condensedName, group) {
+				testGroup = group
+			} else if group := "e2e"; strings.Contains(condensedName, group) {
+				testGroup = group
+			}
+
 			flagHits := make([]int, len(xFlagNames))
 			for i, flag := range xFlagNames {
 				if test.serverArguments[flag] {
@@ -319,10 +245,11 @@ func coverage(c *cli.Context) error {
 				}
 			}
 			data = append(data, &grob.Bar{
-				Name: condensedName,
-				X:    xFlagNames,
-				Y:    flagHits,
-				Type: grob.TraceTypeBar,
+				Name:        condensedName,
+				X:           xFlagNames,
+				Y:           flagHits,
+				Type:        grob.TraceTypeBar,
+				Legendgroup: testGroup,
 			})
 		}
 

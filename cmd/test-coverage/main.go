@@ -13,17 +13,13 @@ var (
 			Name:  "debug,d ",
 			Usage: "debug mode",
 		},
-		&cli.StringFlag{
-			Name:  "commit, c",
-			Usage: "commit hash to generate coverage report for",
-		},
 		&cli.BoolFlag{
 			Name:  "graph,g ",
-			Usage: "generate html graphs",
+			Usage: "display results as a graph",
 		},
 		&cli.StringFlag{
-			Name:     "program, p",
-			Usage:    "program name [k3s|rke2]",
+			Name:     "path, p",
+			Usage:    "path to K3s/RKE2 repository",
 			Required: true,
 		},
 	}
