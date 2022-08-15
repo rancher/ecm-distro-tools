@@ -259,6 +259,9 @@ func coverage(c *cli.Context) error {
 				Title: &grob.LayoutTitle{
 					Text: "Server Argument Coverage",
 				},
+				Xaxis: &grob.LayoutXaxis{
+					Tickangle: 60,
+				},
 				Yaxis: &grob.LayoutYaxis{
 					Title: &grob.LayoutYaxisTitle{
 						Text: "# of Tests Using Flag",
@@ -267,8 +270,10 @@ func coverage(c *cli.Context) error {
 				Barmode: "stack",
 			},
 		}
-		fmt.Println("Serving graph at: http://localhost:8080/graph.html")
-		offline.Serve(fig, offline.Options{})
+		offline.ToHtml(fig, "graph.html")
+		cd, _ := os.Getwd()
+		fmt.Printf("Graph written to: file://%s\n", filepath.Join(cd, "graph.html"))
+
 	}
 
 	return nil
