@@ -120,7 +120,7 @@ setup_tmp() {
         set +e
         trap - EXIT
         rm -rf "${TMP_DIR}"
-        exit $code
+        exit "$code"
     }
     trap cleanup INT EXIT
 

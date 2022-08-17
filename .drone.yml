@@ -11,7 +11,7 @@ steps:
   - name: shellcheck
     image: koalaman/shellcheck-alpine:latest
     commands:
-      - shellcheck --shell sh --check-sourced --severity=info --exclude SC1091 --exclude SC2034 bin/*
+      - shellcheck --shell sh --check-sourced --severity=info --exclude SC1091 --exclude SC2034 --exclude SC2317 bin/*
     when:
       event:
         - pull_request
