@@ -133,7 +133,7 @@ func extractHelp(program, role string) (map[string]int, error) {
 	out, err := command.CombinedOutput()
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exec output: %s: %v", out, err)
 	}
 	roleFlags := make(map[string]int)
 	matches := re.FindAllStringSubmatch(string(out), -1)
