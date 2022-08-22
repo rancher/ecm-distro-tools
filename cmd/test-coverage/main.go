@@ -10,8 +10,8 @@ import (
 var (
 	rootFlags = []cli.Flag{
 		&cli.BoolFlag{
-			Name:  "debug,d ",
-			Usage: "debug mode",
+			Name:  "verbose,v ",
+			Usage: "verbose output",
 		},
 		&cli.BoolFlag{
 			Name:  "graph,g ",

@@ -16,7 +16,7 @@ import (
 )
 
 type TestCov struct {
-	path            string
+	shortPath       string
 	serverArguments map[string]bool
 	agentArguments  map[string]bool
 }
@@ -41,21 +41,23 @@ func discoverTestFiles(programName string) ([]string, []string, error) {
 	return vagrantFiles, integrationFiles, err
 }
 
-func extractConfigYaml(e2eFile string) (TestCov, error) {
+func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
 
 	b, err := ioutil.ReadFile(e2eFile)
 	if err != nil {
 		return TestCov{}, err
 	}
 	reType := regexp.MustCompile(`k3s.args =(?:\s[\"]|\s[\%][w,W][\[])(.*)`)
+	reLongArgs := regexp.MustCompile(`--\S*?=`)
 	reYaml := regexp.MustCompile(`(?m)YAML([\S\s]*?)YAML`)
 	typeMatches := reType.FindAllStringSubmatch(string(b), -1)
 	yamlMatches := reYaml.FindAllStringSubmatch(string(b), -1)
 	vagrantCoverage := TestCov{
-		path:            e2eFile,
+		shortPath:       strings.TrimPrefix(e2eFile, programPath+"/tests/"),
 		serverArguments: make(map[string]bool),
 		agentArguments:  make(map[string]bool),
 	}
+
 	for i, match := range typeMatches {
 		yamlConfig := make(map[string]interface{})
 		if len(yamlMatches) > i {
@@ -65,10 +67,14 @@ func extractConfigYaml(e2eFile string) (TestCov, error) {
 		}
 		m := strings.Trim(match[1], `"]`)
 		nodeArgs := strings.Split(m, " ")
-
 		if nodeArgs[0] == "server" {
 			for _, arg := range nodeArgs[1:] {
+				// strip the "-- and =" from long arguments like --server-arg=value
+				if reLongArgs.MatchString(arg) {
+					arg = strings.Split(arg, "=")[0]
+				}
 				if arg != " " && arg != "" {
+					arg := strings.TrimPrefix(arg, "--")
 					vagrantCoverage.serverArguments[arg] = true
 				}
 			}
@@ -95,7 +101,7 @@ func extractTestArgs(testFile string) (TestCov, error) {
 		return TestCov{}, err
 	}
 	intCoverage := TestCov{
-		path:            testFile,
+		shortPath:       testFile,
 		serverArguments: make(map[string]bool),
 	}
 	matches := reArgs.FindAllStringSubmatch(string(b), -1)
@@ -147,8 +153,8 @@ func coverage(c *cli.Context) error {
 
 	programPath := strings.ToLower(c.String("path"))
 	programPath = filepath.Clean(programPath)
-	fmt.Println(programPath)
-	var program string
+
+	program := ""
 	if strings.Contains(programPath, "k3s") {
 		program = filepath.Join(programPath, "bin", "k3s")
 	} else if strings.Contains(programPath, "rke2") {
@@ -164,10 +170,27 @@ func coverage(c *cli.Context) error {
 	}
 	vagrantCoverage := []TestCov{}
 	for _, e2eFile := range e2eFiles {
-		vC, err := extractConfigYaml(e2eFile)
+		vC, err := extractConfigYaml(e2eFile, programPath)
 		if err != nil {
 			return err
 		}
+		if c.Bool("verbose") {
+			fmt.Println(vC.shortPath, " contains:")
+			serverKeys := make([]string, 0, len(vC.serverArguments))
+			for k := range vC.serverArguments {
+				serverKeys = append(serverKeys, k)
+			}
+			fmt.Println("server args: ", serverKeys)
+			agentKeys := make([]string, 0, len(vC.agentArguments))
+			for k := range vC.serverArguments {
+				agentKeys = append(agentKeys, k)
+			}
+			if len(agentKeys) > 0 {
+				fmt.Printf("agent args: %s\n", agentKeys)
+			}
+			fmt.Println()
+		}
+
 		vagrantCoverage = append(vagrantCoverage, vC)
 	}
 
@@ -228,13 +251,12 @@ func coverage(c *cli.Context) error {
 			xFlagNames = append(xFlagNames, k)
 		}
 		for _, test := range append(vagrantCoverage, intCoverage...) {
-			condensedName := strings.TrimPrefix(test.path, programPath+"/tests/")
 			var testGroup string
-			if group := "integration"; strings.Contains(condensedName, group) {
+			if group := "integration"; strings.Contains(test.shortPath, group) {
 				testGroup = group
-			} else if group := "install"; strings.Contains(condensedName, group) {
+			} else if group := "install"; strings.Contains(test.shortPath, group) {
 				testGroup = group
-			} else if group := "e2e"; strings.Contains(condensedName, group) {
+			} else if group := "e2e"; strings.Contains(test.shortPath, group) {
 				testGroup = group
 			}
 
@@ -245,7 +267,7 @@ func coverage(c *cli.Context) error {
 				}
 			}
 			data = append(data, &grob.Bar{
-				Name:        condensedName,
+				Name:        test.shortPath,
 				X:           xFlagNames,
 				Y:           flagHits,
 				Type:        grob.TraceTypeBar,
