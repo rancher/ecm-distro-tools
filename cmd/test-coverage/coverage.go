@@ -47,7 +47,12 @@ func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
 	if err != nil {
 		return TestCov{}, err
 	}
-	reType := regexp.MustCompile(`k3s.args =(?:\s[\"]|\s[\%][w,W][\[])(.*)`)
+	var reType *regexp.Regexp
+	if strings.Contains(programPath, "k3s") {
+		reType = regexp.MustCompile(`k3s.args =(?:\s[\"]|\s[\%][w,W][\[])(.*)`)
+	} else {
+		reType = regexp.MustCompile(`INSTALL_RKE2_TYPE=(.+?)[ |\]]`)
+	}
 	reLongArgs := regexp.MustCompile(`--\S*?=`)
 	reYaml := regexp.MustCompile(`(?m)YAML([\S\s]*?)YAML`)
 	typeMatches := reType.FindAllStringSubmatch(string(b), -1)
@@ -94,14 +99,14 @@ func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
 	return vagrantCoverage, nil
 }
 
-func extractTestArgs(testFile string) (TestCov, error) {
+func extractTestArgs(testFile, programPath string) (TestCov, error) {
 	reArgs := regexp.MustCompile(`(?m)(?i)serverargs =.*(?s){(.*?)}`)
 	b, err := ioutil.ReadFile(testFile)
 	if err != nil {
 		return TestCov{}, err
 	}
 	intCoverage := TestCov{
-		shortPath:       testFile,
+		shortPath:       strings.TrimPrefix(testFile, programPath+"/tests/"),
 		serverArguments: make(map[string]bool),
 	}
 	matches := reArgs.FindAllStringSubmatch(string(b), -1)
@@ -196,10 +201,27 @@ func coverage(c *cli.Context) error {
 
 	intCoverage := []TestCov{}
 	for _, integrationFile := range intTestFiles {
-		iC, err := extractTestArgs(integrationFile)
+		iC, err := extractTestArgs(integrationFile, programPath)
 		if err != nil {
 			return err
 		}
+		if c.Bool("verbose") {
+			fmt.Println(iC.shortPath, " contains:")
+			serverKeys := make([]string, 0, len(iC.serverArguments))
+			for k := range iC.serverArguments {
+				serverKeys = append(serverKeys, k)
+			}
+			fmt.Println("server args: ", serverKeys)
+			agentKeys := make([]string, 0, len(iC.agentArguments))
+			for k := range iC.serverArguments {
+				agentKeys = append(agentKeys, k)
+			}
+			if len(agentKeys) > 0 {
+				fmt.Printf("agent args: %s\n", agentKeys)
+			}
+			fmt.Println()
+		}
+
 		intCoverage = append(intCoverage, iC)
 	}
 
