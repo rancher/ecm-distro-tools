@@ -72,6 +72,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
 		"ContainerdVersion":           goModLibVersion("containerd/containerd", repo, milestone),
 		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
+		"RuncVersionBuildScript":      buildScriptVersion("VERSION_RUNC", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
 		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
@@ -496,7 +497,11 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
 | Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+{{- if eq .majorMinor "1.23" }}
+| Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
+{{- else }}
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+{{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
 | Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
