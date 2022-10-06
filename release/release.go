@@ -311,7 +311,7 @@ func buildScriptVersion(varName, repo, branchVersion string) string {
 
 	buildScriptURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/version.sh"
 
-	const regex = `(?P<version>v[\d\.]+)(-k3s.\w*)?`
+	const regex = `(?P<version>v[\d\.]+(-k3s.\w*)?)`
 	submatch := findInURL(buildScriptURL, regex, varName)
 
 	if len(submatch) > 1 {
