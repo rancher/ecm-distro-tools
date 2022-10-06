@@ -70,7 +70,8 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"majorMinor":                  majorMinor,
 		"EtcdVersionRKE2":             buildScriptVersion("ETCD_VERSION", repo, milestone),
 		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
-		"ContainerdVersion":           goModLibVersion("containerd/containerd", repo, milestone),
+		"ContainerdVersion":           buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
+		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
 		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
@@ -495,7 +496,11 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
+{{- if eq .ContainerdVersion "v0.0.0"}}
+| Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
+{{- else }}
 | Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+{{- end }}
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
