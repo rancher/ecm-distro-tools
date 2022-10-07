@@ -70,8 +70,9 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"majorMinor":                  majorMinor,
 		"EtcdVersionRKE2":             buildScriptVersion("ETCD_VERSION", repo, milestone),
 		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
-		"ContainerdVersion":           buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
+		"ContainerdVersionK3S":        buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
 		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
+		"ContainerdVersionRKE2":       dockerfileVersion("hardened-containerd", repo, milestone),
 		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
@@ -329,7 +330,7 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 
 	const (
 		repoName = "rancher/rke2"
-		regex    = `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
+		regex    = `(?:FROM|RUN)\s(?:CHART_VERSION=\"|[\w-]+/[\w-]+:)(?P<version>.*?)([0-9][0-9])?(-build.*)?\"?\s`
 	)
 
 	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
@@ -443,7 +444,11 @@ cat /var/lib/rancher/rke2/server/token
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
 | Etcd            | [{{.EtcdVersionRKE2}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionRKE2}})                       |
+{{- if eq .majorMinor "1.23"}}
 | Containerd      | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}})                      |
+{{- else }}
+| Containerd      | [{{.ContainerdVersionRKE2}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionRKE2}})                      |
+{{- end }}
 | Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
 | Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
 | CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
@@ -496,10 +501,10 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-{{- if eq .ContainerdVersion "v0.0.0"}}
+{{- if eq .majorMinor "1.23"}}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
 {{- else }}
-| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 {{- end }}
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
