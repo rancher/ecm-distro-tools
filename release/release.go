@@ -15,19 +15,37 @@ import (
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 )
+
+func majMin(v string) (string, error) {
+	majMin := semver.MajorMinor(v)
+	if majMin == "" {
+		return "", errors.New("version is not valid")
+	}
+	return majMin, nil
+}
+
+func trimPeriods(v string) string {
+	return strings.Replace(v, ".", "", -1)
+}
 
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
 	const templateName = "release-notes"
 
+	funcMap := template.FuncMap{
+		"majMin":      majMin,
+		"trimPeriods": trimPeriods,
+	}
+
 	var tmpl *template.Template
 	switch repo {
 	case "rke2":
-		tmpl = template.Must(template.New(templateName).Parse(rke2ReleaseNoteTemplate))
+		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(rke2ReleaseNoteTemplate))
 	case "k3s":
-		tmpl = template.Must(template.New(templateName).Parse(k3sReleaseNoteTemplate))
+		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(k3sReleaseNoteTemplate))
 	}
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
@@ -49,12 +67,6 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
-	calicoVersion := imageTagVersion("calico-node", repo, milestone)
-	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
-	calicoVersionMajMin := ""
-	if calicoVersion != "" {
-		calicoVersionMajMin = calicoVersion[:strings.LastIndex(calicoVersion, ".")]
-	}
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
@@ -80,9 +92,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, milestone),
 		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
 		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
-		"CalicoVersion":               calicoVersion,
-		"CalicoVersionMajMin":         calicoVersionMajMin,
-		"CalicoVersionTrimmed":        calicoVersionTrimmed,
+		"CalicoVersion":               imageTagVersion("calico-node", repo, milestone),
 		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
 		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
 		"KineVersion":                 goModLibVersion("kine", repo, milestone),
@@ -452,8 +462,8 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
-| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }})                                                                    | No             |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }}) | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
 | Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
 
