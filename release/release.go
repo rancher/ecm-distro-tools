@@ -93,6 +93,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
 		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
 		"CalicoVersion":               imageTagVersion("calico-node", repo, milestone),
+		"CanalCalicoVersion":          imageTagVersion("hardened-calico", repo, milestone),
 		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
 		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
 		"KineVersion":                 goModLibVersion("kine", repo, milestone),
@@ -462,7 +463,7 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }}) | Yes            |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
 | Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
 | Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
