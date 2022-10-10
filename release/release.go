@@ -504,12 +504,9 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
 {{- if eq .majorMinor "1.23"}}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
-{{- else }}
-| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
-{{- end }}
-{{- if eq .majorMinor "1.23" }}
 | Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
 {{- else }}
+| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
 {{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
