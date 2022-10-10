@@ -73,8 +73,9 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"ContainerdVersionK3S":        buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
 		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
 		"ContainerdVersionRKE2":       dockerfileVersion("hardened-containerd", repo, milestone),
-		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
+		"RuncVersionGoMod":            goModLibVersion("runc", repo, milestone),
 		"RuncVersionBuildScript":      buildScriptVersion("VERSION_RUNC", repo, milestone),
+		"RuncVersionRKE2":             dockerfileVersion("hardened-runc", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
 		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
@@ -450,7 +451,7 @@ cat /var/lib/rancher/rke2/server/token
 {{- else }}
 | Containerd      | [{{.ContainerdVersionRKE2}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionRKE2}})                      |
 {{- end }}
-| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
+| Runc            | [{{.RuncVersionRKE2}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionRKE2}})                              |
 | Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
 | CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
 | Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
@@ -507,7 +508,7 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
 {{- else }}
 | Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
-| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+| Runc | [{{.RuncVersionGoMod}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionGoMod}}) |
 {{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
