@@ -74,6 +74,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
 		"ContainerdVersionRKE2":       dockerfileVersion("hardened-containerd", repo, milestone),
 		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
+		"RuncVersionBuildScript":      buildScriptVersion("VERSION_RUNC", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
 		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
@@ -506,7 +507,11 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 {{- else }}
 | Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 {{- end }}
+{{- if eq .majorMinor "1.23" }}
+| Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
+{{- else }}
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+{{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
 | Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
