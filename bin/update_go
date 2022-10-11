@@ -135,7 +135,7 @@ if [ ! -d "${CLONE_PATH}" ]; then
     fatal "path does not exist: ${CLONE_PATH}"
 fi
 
-if [ ${SHOW} ]; then
+if [ "${SHOW}" ]; then
     if [ -n "${REPOSITORY}" ]; then
         get_repo "${REPOSITORY}" "${CLONE_PATH}"
         get_version "${REPOSITORY}" "${CLONE_PATH}"

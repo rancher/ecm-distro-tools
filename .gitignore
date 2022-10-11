@@ -32,6 +32,7 @@ cmd/gen_release_notes/bin/*
 cmd/backport/bin/*
 cmd/standup/bin/*
 cmd/k3s_release/bin/*
+cmd/test-coverage/bin/*
 
 data/*
 

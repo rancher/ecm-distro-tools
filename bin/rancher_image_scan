@@ -40,7 +40,7 @@ fi
 
 has_trivy
 
-if [ ${DRY_RUN} ]; then
+if [ "${DRY_RUN}" ]; then
     echo "trivy image -s HIGH,CRITICAL -t 3m0s ${IMAGE_NAME}"
 else
     trivy image -s HIGH,CRITICAL -t 3m0s "${IMAGE_NAME}"
