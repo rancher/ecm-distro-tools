@@ -1,6 +1,6 @@
-ARG UBI_IMAGE=registry.suse.com/bci/bci-base:15.3.17.11.11
+ARG BCI_IMAGE=registry.suse.com/bci/bci-base:15.3.17.11.11
 ARG GO_IMAGE=rancher/hardened-build-base:v1.17.8b7
-FROM ${UBI_IMAGE} as bci
+FROM ${BCI_IMAGE} as bci
 FROM ${GO_IMAGE} as builder
 RUN apk --no-cache add \
     curl               \
@@ -16,7 +16,19 @@ RUN apk --no-cache add \
     yq
 COPY . /ecm-distro-tools
 WORKDIR /ecm-distro-tools
-RUN make all
+RUN cd ./cmd/backport && make LDFLAGS="-linkmode=external"
+RUN cd ./cmd/gen_release_notes && make LDFLAGS="-linkmode=external"
+RUN cd ./cmd/k3s_release && make LDFLAGS="-linkmode=external"
+RUN cd ./cmd/standup && make
+RUN go-assert-static.sh \
+        ./cmd/backport/bin//backport \
+        ./cmd/gen_release_notes/bin//gen_release_notes \
+        ./cmd/k3s_release/bin/k3s_release \
+        ./cmd/standup/bin/standup
+RUN go-assert-boring.sh \
+        ./cmd/backport/bin//backport \
+        ./cmd/gen_release_notes/bin//gen_release_notes \
+        ./cmd/k3s_release/bin/k3s_release
 ARG ETCD_VERSION=v3.5.2
 ARG GH_VERSION=2.8.0
 ARG YQ_VERSION=v4.24.4
@@ -50,7 +62,8 @@ RUN zypper update -y && \
         awk             \
         net-tools    && \
     zypper clean --all
-COPY --from=builder /ecm-distro-tools/cmd/gen-release-notes/bin/gen-release-notes /usr/local/bin
+COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_notes /usr/local/bin
+COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/standup/bin/standup /usr/local/bin
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
