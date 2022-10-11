@@ -20,6 +20,15 @@ RUN cd ./cmd/backport && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_notes && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/k3s_release && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/standup && make
+RUN go-assert-static.sh \
+        ./cmd/backport/bin//backport \
+        ./cmd/gen_release_notes/bin//gen_release_notes \
+        ./cmd/k3s_release/bin/k3s_release \
+        ./cmd/standup/bin/standup
+RUN go-assert-boring.sh \
+        ./cmd/backport/bin//backport \
+        ./cmd/gen_release_notes/bin//gen_release_notes \
+        ./cmd/k3s_release/bin/k3s_release
 ARG ETCD_VERSION=v3.5.2
 ARG GH_VERSION=2.8.0
 ARG YQ_VERSION=v4.24.4
