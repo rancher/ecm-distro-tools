@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/go-git/go-git/v5"
@@ -416,10 +417,15 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err != nil {
 		return err
 	}
+	originRemote, err := repo.Remote("origin")
+	if err != nil {
+		return err
+	}
 	k3sRemote, err := repo.Remote("k3s-io")
 	if err != nil {
 		return err
 	}
+	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[r.Handler] = userRemote.Config()
 	cfg.Remotes["k3s-io"] = k3sRemote.Config()
 
@@ -430,24 +436,28 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
 	for _, tagCmd := range tagsCmds {
-		tag := strings.Split(tagCmd, " ")[3]
-
-		if err := repo.Push(&git.PushOptions{
-			RemoteName: remote,
-			Auth:       gitAuth,
-			Progress:   os.Stdout,
-			RefSpecs: []config.RefSpec{
-				config.RefSpec("+refs/tags/" + tag + ":refs/tags/" + tag),
-			},
-		}); err != nil {
-			if err == git.NoErrAlreadyUpToDate {
-				continue
+		wg.Add(1)
+		tagCmdStr := tagCmd
+		tag := strings.Split(tagCmdStr, " ")[3]
+		go func() {
+			defer wg.Done()
+			if err := repo.Push(&git.PushOptions{
+				RemoteName: remote,
+				Auth:       gitAuth,
+				Progress:   os.Stdout,
+				RefSpecs: []config.RefSpec{
+					config.RefSpec("+refs/tags/" + tag + ":refs/tags/" + tag),
+				},
+			}); err != nil {
+				if err != git.NoErrAlreadyUpToDate {
+					os.Exit(1)
+				}
 			}
-			return err
-		}
+		}()
 	}
-
+	wg.Wait()
 	return nil
 }
 
