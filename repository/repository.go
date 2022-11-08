@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,6 +25,8 @@ var repoToOrg = map[string]string{
 	"rke2": "rancher",
 	"k3s":  "k3s-io",
 }
+
+var backportRegExp = regexp.MustCompile(`^\s*\[[Rr]elease-?\s*[\w\d\.]*\]\s*(.*)$`)
 
 // TokenSource
 type TokenSource struct {
@@ -292,11 +295,14 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				releaseNote = strings.TrimSpace(releaseNote)
 
 				if strings.Contains(releaseNote, "\r") {
-					releaseNote = prs[0].GetTitle() + "\n * " + releaseNote
+					title := backportRegExp.ReplaceAllString(prs[0].GetTitle(), "$1")
+					releaseNote = title + "\n  * " + releaseNote
 					releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n * ")
 				}
 			} else {
 				releaseNote = prs[0].GetTitle()
+				releaseNote = strings.TrimSpace(releaseNote)
+				releaseNote = backportRegExp.ReplaceAllString(releaseNote, "$1")
 			}
 
 			found = append(found, ChangeLog{
