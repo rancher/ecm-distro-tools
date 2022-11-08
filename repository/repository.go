@@ -28,6 +28,11 @@ var repoToOrg = map[string]string{
 
 var backportRegExp = regexp.MustCompile(`^\s*\[[Rr]elease-?\s*[\w\d\.]*\]\s*(.*)$`)
 
+// stripBackportTag returns a string with a prefix backport tag removed
+func stripBackportTag(s string) string {
+	return backportRegExp.ReplaceAllString(s, "$1")
+}
+
 // TokenSource
 type TokenSource struct {
 	AccessToken string
@@ -295,14 +300,14 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				releaseNote = strings.TrimSpace(releaseNote)
 
 				if strings.Contains(releaseNote, "\r") {
-					title := backportRegExp.ReplaceAllString(prs[0].GetTitle(), "$1")
+					title := stripBackportTag(prs[0].GetTitle())
 					releaseNote = title + "\n  * " + releaseNote
 					releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n * ")
 				}
 			} else {
 				releaseNote = prs[0].GetTitle()
 				releaseNote = strings.TrimSpace(releaseNote)
-				releaseNote = backportRegExp.ReplaceAllString(releaseNote, "$1")
+				releaseNote = stripBackportTag(releaseNote)
 			}
 
 			found = append(found, ChangeLog{
