@@ -205,7 +205,7 @@ while true; do
         KILL=true; shift 1;;
     -d)
         DESTROY=true; shift 1;;
-    --skip)
+    -s|--skip)
         SKIP_DOWNLOAD=true; shift 1;;
     --download)
         ONLY_DOWNLOAD=true; shift 1;;
