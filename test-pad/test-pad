@@ -16,7 +16,7 @@ usage() {
     -d              kill cluster and delete files
     --download      only download artifacts, don't create cluster
     --skip          skip Vagrantfile download
-    --os            override default OS [alpine|ubuntu]
+    --os            override default OS [alpine|ubuntu|debian]
     -h, --help      show help
 
 docs: https://github.com/rancher/ecm-distro-tools/blob/master/docs/test_pad.md
@@ -210,7 +210,7 @@ while true; do
     --download)
         ONLY_DOWNLOAD=true; shift 1;;
     --os)
-        OS=$2; shift 2;;
+        OSFLAG=$2; shift 2;;
     -h|--help)
         usage; exit 0;;
     --) shift; break ;;
@@ -261,25 +261,28 @@ elif  [ "${REPO}" = "k3s" ]; then
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
     # If not assigned, use alpine-3.16 for fast download and startup time
-    OS=${OS:-generic/alpine316}
+    OS=generic/alpine316
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
     # RKE2 requires systemd, so we use ubuntu,
     # note that it is much larger (~1.5GB) and takes longer to startup.
-    OS=${OS:-generic/ubuntu2004}
+    OS=generic/ubuntu2004
 else 
    echo "error: unknown repo (-r) $REPO"
    exit 1
 fi
 
-if [ "${OS}" = "alpine" ]; then 
-    OS=generic/alpine316; 
-elif [ "${OS}" = "ubuntu" ]; then 
+if [ "${OSFLAG}" = "alpine" ]; then 
+    OS=generic/alpine317; 
+elif [ "${OSFLAG}" = "ubuntu" ]; then 
     OS=generic/ubuntu2004; 
-elif [ "${OS}" != "generic/alpine316" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
-    echo "error: unsupported OS (-p) $OS"
+elif [ "${OSFLAG}" = "debian" ]; then 
+    OS=generic/debian11; 
+elif [ -n "${OSFLAG}" ]; then
+    echo "error: unsupported OS (--os) $OSFLAG"
+    exit 1
 fi
 
 
