@@ -40,13 +40,9 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"trimPeriods": trimPeriods,
 	}
 
-	var tmpl *template.Template
-	switch repo {
-	case "rke2":
-		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(rke2ReleaseNoteTemplate))
-	case "k3s":
-		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(k3sReleaseNoteTemplate))
-	}
+	tmpl := template.New(templateName).Funcs(funcMap)
+	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
+	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
@@ -72,7 +68,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 
 	buf := bytes.NewBuffer(nil)
 
-	if err := tmpl.Execute(buf, map[string]interface{}{
+	if err := tmpl.ExecuteTemplate(buf, repo, map[string]interface{}{
 		"milestone":                   milestoneNoRC,
 		"prevMilestone":               prevMilestone,
 		"changeLogSince":              changeLogSince,
@@ -435,7 +431,9 @@ func findInURL(url, regex, str string) []string {
 	return submatch
 }
 
-const rke2ReleaseNoteTemplate = `<!-- {{.milestone}} -->
+const rke2ReleaseNoteTemplate = `
+{{- define "rke2" -}}
+<!-- {{.milestone}} -->
 
 This release ... <FILL ME OUT!>
 
@@ -496,9 +494,11 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Open issues here](https://github.com/rancher/rke2/issues/new)
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://docs.rke2.io) for guidance on how to get started.
-`
+{{ end }}`
 
-const k3sReleaseNoteTemplate = `<!-- {{.milestone}} -->
+const k3sReleaseNoteTemplate = `
+{{- define "k3s" -}}
+<!-- {{.milestone}} -->
 This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues.
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
@@ -534,4 +534,4 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://rancher.com/docs/k3s/latest/en/) for guidance on how to get started or to dive deep into K3s.
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
-`
+{{ end }}`
