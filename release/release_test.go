@@ -51,3 +51,34 @@ func TestTrimPeriods(t *testing.T) {
 		})
 	}
 }
+
+func TestCapitalize(t *testing.T) {
+	tests := []struct {
+		version string
+		want    string
+	}{
+		{
+			version: "HELLO WORLD",
+			want:    "HELLO WORLD",
+		},
+		{
+			version: "hello world",
+			want:    "Hello world",
+		},
+		{
+			version: " hello world",
+			want:    " Hello world",
+		},
+		{
+			version: " [hello] world",
+			want:    " [Hello] world",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			if got := capitalize(tt.version); got != tt.want {
+				t.Errorf("capitalize() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

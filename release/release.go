@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -30,6 +31,20 @@ func trimPeriods(v string) string {
 	return strings.Replace(v, ".", "", -1)
 }
 
+// capitalize returns a new string whose first letter is capitalized.
+func capitalize(s string) string {
+	if runes := []rune(s); len(runes) > 0 {
+		for i, r := range runes {
+			if unicode.IsLetter(r) {
+				runes[i] = unicode.ToUpper(r)
+				s = string(runes)
+				break
+			}
+		}
+	}
+	return s
+}
+
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
@@ -39,6 +54,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
 		"split":       strings.Split,
+		"capitalize":  capitalize,
 	}
 
 	tmpl := template.New(templateName).Funcs(funcMap)
@@ -437,11 +453,11 @@ var changelogTemplate = `
 {{- define "changelog" -}}
 ## Changes since {{.prevMilestone}}:
 {{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}})
+* {{ capitalize .Title }} [(#{{.Number}})]({{.URL}})
 {{- $lines := split .Note "\n"}}
 {{- range $i, $line := $lines}}
 {{- if ne $line "" }}
-  * {{$line}}
+  * {{ capitalize $line }}
 {{- end}}
 {{- end}}
 {{- end}}
