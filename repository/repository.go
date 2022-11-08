@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -26,11 +25,13 @@ var repoToOrg = map[string]string{
 	"k3s":  "k3s-io",
 }
 
-var backportRegExp = regexp.MustCompile(`^\s*\[[Rr]elease-?\s*[\w\d\.]*\]\s*(.*)$`)
-
 // stripBackportTag returns a string with a prefix backport tag removed
 func stripBackportTag(s string) string {
-	return backportRegExp.ReplaceAllString(s, "$1")
+	if strings.Contains(s, "elease") {
+		s = strings.Split(s, "]")[1]
+	}
+	s = strings.Trim(s, " ")
+	return s
 }
 
 // TokenSource
