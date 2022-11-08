@@ -38,9 +38,11 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	funcMap := template.FuncMap{
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
+		"split":       strings.Split,
 	}
 
 	tmpl := template.New(templateName).Funcs(funcMap)
+	tmpl = template.Must(tmpl.Parse(changelogTemplate))
 	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
 	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 
@@ -431,6 +433,20 @@ func findInURL(url, regex, str string) []string {
 	return submatch
 }
 
+var changelogTemplate = `
+{{- define "changelog" -}}
+## Changes since {{.prevMilestone}}:
+{{range .content}}
+* {{.Title}} [(#{{.Number}})]({{.URL}})
+{{- $lines := split .Note "\n"}}
+{{- range $i, $line := $lines}}
+{{- if ne $line "" }}
+  * {{$line}}
+{{- end}}
+{{- end}}
+{{- end}}
+{{- end}}`
+
 const rke2ReleaseNoteTemplate = `
 {{- define "rke2" -}}
 <!-- {{.milestone}} -->
@@ -446,9 +462,7 @@ You may retrieve the token value from any server already joined to the cluster:
 cat /var/lib/rancher/rke2/server/token
 ` + "```" + `
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Packaged Component Versions
 | Component       | Version                                                                                           |
@@ -503,9 +517,7 @@ This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Embedded Component Versions
 | Component | Version |
