@@ -185,6 +185,12 @@ if [ "$#" -eq 0 ]; then
     exit 0
 fi
 
+has_vagrant
+has_curl
+has_wget
+has_awk
+has_getopt
+
 PARSED_ARGUMENTS=$(getopt -o r:v:c:b:i:kdh --long os:,version:,skip,download,help -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
@@ -218,12 +224,6 @@ while true; do
         usage; exit 1;;
     esac
 done
-
-has_vagrant
-has_curl
-has_wget
-has_awk
-has_getopt
 
 
 if [ -z "${CLUSTER}" ]; then
