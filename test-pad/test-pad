@@ -3,22 +3,23 @@
 . "../bin/libstd-ecm.sh"
 
 usage() {
-    echo "usage: $0 [rcvbikdsoh]
-    -r    repository (k3s/rke2)
-    -c    cluster type
+    echo "usage: $0 [rcvbikdh]
+    -r              repository (k3s/rke2)
+    -c              cluster type
     
-    -v    k3s/rke2 version or commit id to use
+    -v, --version   k3s/rke2 version or commit id to use
     OR
-    -b    location of local k3s/rke2 binary to use
-    -i    location of local rke2 images
+    -b              location of local k3s/rke2 binary to use
+    -i              location of local rke2 images
 
-    -k    kill cluster
-    -d    kill cluster and delete files
-    -s    skip Vagrantfile download
-    -o    only download Vagrantfile, don't create cluster
-    -p    override OS [alpine|ubuntu]
-    -h    show help
+    -k, --kill      kill cluster
+    -d              kill cluster and delete files
+    --download      only download artifacts, don't create cluster
+    --skip          skip Vagrantfile download
+    --os            override default OS [alpine|ubuntu|debian]
+    -h, --help      show help
 
+docs: https://github.com/rancher/ecm-distro-tools/blob/master/docs/test_pad.md
 cluster types:
     - basic:        2 VMs, 1 server, 1 agent
     - basic-lite:   1 VM,  1 server
@@ -29,12 +30,12 @@ cluster types:
     - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
     - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
 examples:
-    $0 -r k3s -v v1.22.9+k3s1 -c basic 
-    $0 -r k3s -v v1.23.5+k3s1 -c ha
+    $0 -r k3s -v v1.22.12+k3s1 -c basic 
+    $0 -r k3s -v v1.23.9+k3s1 -c ha
     $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
     $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
     $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
-    "
+"
 }
 
 # TODO - dual-stack:   3 VMs, 3 servers with IPv4 and IPv6
@@ -86,7 +87,7 @@ download_artifacts() {
                 echo "${STORAGE_URL}/${BINARY}-${VERSION}"
                 wget -q --show-progress "${STORAGE_URL}/${BINARY}-${VERSION}" -O ./artifacts/"${BINARY}"
             fi
-            if [ $? -ne 0 ]; then 
+            if [ "$?" -ne 0 ]; then 
                 echo "error: unable to find ${BINARY} version ${VERSION}"
                 exit 1
             fi 
@@ -162,61 +163,68 @@ get_possible_node_roles() {
     esac
 }
 
-# RKE2 needs a delay between node startup
-# else the service crashes from too many learners
-rke2_delay() {
+# Both K3s and RKE2 need a needs a delay between node startup
+# else the service crashes from too many etcd learners
+node_delay() {
     if [ "${REPO}" = "rke2" ] && [ "$1" != "$2" ]; then
         sleep 30
+    elif [ "${REPO}" = "k3s" ] && [ "$1" != "$2" ]; then
+        sleep 10
     fi
 }
 
-while getopts 'r:c:v:b:i:p:kdohs' c; do
-    case $c in
-    r) 
-        REPO=$OPTARG
-    ;;
-    c) 
-        CLUSTER=$OPTARG
-    ;;
-    v) 
-        VERSION=$OPTARG
-    ;;
-    b)
-        BINARY_LOCATION=$OPTARG
-    ;;
-    i)
-        IMAGE_LOCATION=$OPTARG
-    ;;
-    k)
-        KILL=true
-    ;;
-    d)
-        DESTROY=true
-    ;;
-    s)
-        SKIP_DOWNLOAD=true
-    ;;
-    o)
-        ONLY_DOWNLOAD=true
-    ;;
-    p)
-        OS=$OPTARG
-    ;;
-    h)
-        usage
-        exit 0
-    ;;
-    *)
-        usage
+has_getopt() {
+    if [ -z "$(command -v getopt)" ]; then
+        printf "error: getopt is not installed\nif on MacOS: brew install gnu-getopt\n"
         exit 1
-    ;;
-    esac
-done
+    fi
+}
+
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 0
+fi
 
 has_vagrant
 has_curl
 has_wget
 has_awk
+has_getopt
+
+PARSED_ARGUMENTS=$(getopt -o r:v:c:b:i:kdh --long os:,version:,skip,download,help -- "$@")
+
+eval set -- "$PARSED_ARGUMENTS"
+
+while true; do
+    case "$1" in
+    -r)
+        REPO=$2; shift 2;;
+    -c)
+        CLUSTER=$2; shift 2;;
+    -v|--version)
+        VERSION=$2; shift 2;;
+    -b)
+        BINARY_LOCATION=$2; shift 2;;
+    -i) 
+        IMAGE_LOCATION=$2; shift 2;;
+    -k|--kill)
+        KILL=true; shift 1;;
+    -d)
+        DESTROY=true; shift 1;;
+    -s|--skip)
+        SKIP_DOWNLOAD=true; shift 1;;
+    --download)
+        ONLY_DOWNLOAD=true; shift 1;;
+    --os)
+        OSFLAG=$2; shift 2;;
+    -h|--help)
+        usage; exit 0;;
+    --) shift; break ;;
+    *) echo "Unexpected flag: $1"
+        usage; exit 1;;
+    esac
+done
+
 
 if [ -z "${CLUSTER}" ]; then
     if [ -f "artifacts/cluster" ]; then
@@ -253,25 +261,28 @@ elif  [ "${REPO}" = "k3s" ]; then
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
     # If not assigned, use alpine-3.16 for fast download and startup time
-    OS=${OS:-generic/alpine316}
+    OS=generic/alpine316
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
     # RKE2 requires systemd, so we use ubuntu,
     # note that it is much larger (~1.5GB) and takes longer to startup.
-    OS=${OS:-generic/ubuntu2004}
+    OS=generic/ubuntu2004
 else 
    echo "error: unknown repo (-r) $REPO"
    exit 1
 fi
 
-if [ "${OS}" = "alpine" ]; then 
-    OS=generic/alpine316; 
-elif [ "${OS}" = "ubuntu" ]; then 
+if [ "${OSFLAG}" = "alpine" ]; then 
+    OS=generic/alpine317; 
+elif [ "${OSFLAG}" = "ubuntu" ]; then 
     OS=generic/ubuntu2004; 
-elif [ "${OS}" != "generic/alpine316" ] && [ "${OS}" != "generic/ubuntu2004" ]; then
-    echo "error: unsupported OS (-p) $OS"
+elif [ "${OSFLAG}" = "debian" ]; then 
+    OS=generic/debian11; 
+elif [ -n "${OSFLAG}" ]; then
+    echo "error: unsupported OS (--os) $OSFLAG"
+    exit 1
 fi
 
 
@@ -368,7 +379,7 @@ ha | ha-lite |  split | split-heavy | split-lite)
     for node in ${NODE_ROLES}; do
         if [ "${node}" = "${FIRST_NODE}" ]; then continue; fi
         E2E_RELEASE_VERSION=skip E2E_NODE_ROLES="${NODE_ROLES}" E2E_NODE_BOXES="${OS_REPEAT}" vagrant provision "${node}" &
-        rke2_delay "${node}" "${LAST_NODE}"
+        node_delay "${node}" "${LAST_NODE}"
     done
     wait   
 ;;
