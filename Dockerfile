@@ -18,6 +18,7 @@ COPY . /ecm-distro-tools
 WORKDIR /ecm-distro-tools
 RUN cd ./cmd/backport && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_notes && make LDFLAGS="-linkmode=external"
+RUN cd ./cmd/gen_release_report && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/k3s_release && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/standup && make
 RUN go-assert-static.sh \
@@ -63,6 +64,7 @@ RUN zypper update -y && \
         net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_notes /usr/local/bin
+COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/standup/bin/standup /usr/local/bin
