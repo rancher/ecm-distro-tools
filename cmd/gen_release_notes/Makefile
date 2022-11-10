@@ -1,9 +1,9 @@
 GO = go
 
 BINDIR := bin
-BINARY := backport
+BINARY := gen_release_notes
 
-VERSION           = v0.1.0
+VERSION           = v0.4.0
 GIT_SHA           = $(shell git rev-parse HEAD)
 override LDFLAGS += -X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main.name=$(BINARY) -extldflags '-static -Wl,--fatal-warnings'
 TAGS              = "netgo osusergo no_stage static_build"

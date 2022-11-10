@@ -10,25 +10,57 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 )
+
+func majMin(v string) (string, error) {
+	majMin := semver.MajorMinor(v)
+	if majMin == "" {
+		return "", errors.New("version is not valid")
+	}
+	return majMin, nil
+}
+
+func trimPeriods(v string) string {
+	return strings.Replace(v, ".", "", -1)
+}
+
+// capitalize returns a new string whose first letter is capitalized.
+func capitalize(s string) string {
+	if runes := []rune(s); len(runes) > 0 {
+		for i, r := range runes {
+			if unicode.IsLetter(r) {
+				runes[i] = unicode.ToUpper(r)
+				s = string(runes)
+				break
+			}
+		}
+	}
+	return s
+}
 
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
 	const templateName = "release-notes"
 
-	var tmpl *template.Template
-	switch repo {
-	case "rke2":
-		tmpl = template.Must(template.New(templateName).Parse(rke2ReleaseNoteTemplate))
-	case "k3s":
-		tmpl = template.Must(template.New(templateName).Parse(k3sReleaseNoteTemplate))
+	funcMap := template.FuncMap{
+		"majMin":      majMin,
+		"trimPeriods": trimPeriods,
+		"split":       strings.Split,
+		"capitalize":  capitalize,
 	}
+
+	tmpl := template.New(templateName).Funcs(funcMap)
+	tmpl = template.Must(tmpl.Parse(changelogTemplate))
+	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
+	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
@@ -49,18 +81,12 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
-	calicoVersion := imageTagVersion("calico-node", repo, milestone)
-	calicoVersionTrimmed := strings.Replace(calicoVersion, ".", "", -1)
-	calicoVersionMajMin := ""
-	if calicoVersion != "" {
-		calicoVersionMajMin = calicoVersion[:strings.LastIndex(calicoVersion, ".")]
-	}
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 
 	buf := bytes.NewBuffer(nil)
 
-	if err := tmpl.Execute(buf, map[string]interface{}{
+	if err := tmpl.ExecuteTemplate(buf, repo, map[string]interface{}{
 		"milestone":                   milestoneNoRC,
 		"prevMilestone":               prevMilestone,
 		"changeLogSince":              changeLogSince,
@@ -70,8 +96,12 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"majorMinor":                  majorMinor,
 		"EtcdVersionRKE2":             buildScriptVersion("ETCD_VERSION", repo, milestone),
 		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
-		"ContainerdVersion":           goModLibVersion("containerd/containerd", repo, milestone),
-		"RuncVersion":                 goModLibVersion("runc", repo, milestone),
+		"ContainerdVersionK3S":        buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
+		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
+		"ContainerdVersionRKE2":       dockerfileVersion("hardened-containerd", repo, milestone),
+		"RuncVersionGoMod":            goModLibVersion("runc", repo, milestone),
+		"RuncVersionBuildScript":      buildScriptVersion("VERSION_RUNC", repo, milestone),
+		"RuncVersionRKE2":             dockerfileVersion("hardened-runc", repo, milestone),
 		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
 		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
 		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
@@ -80,9 +110,8 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, milestone),
 		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
 		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
-		"CalicoVersion":               calicoVersion,
-		"CalicoVersionMajMin":         calicoVersionMajMin,
-		"CalicoVersionTrimmed":        calicoVersionTrimmed,
+		"CalicoVersion":               imageTagVersion("calico-node", repo, milestone),
+		"CanalCalicoVersion":          imageTagVersion("hardened-calico", repo, milestone),
 		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
 		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
 		"KineVersion":                 goModLibVersion("kine", repo, milestone),
@@ -311,7 +340,7 @@ func buildScriptVersion(varName, repo, branchVersion string) string {
 
 	buildScriptURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/version.sh"
 
-	const regex = `(?P<version>v[\d\.]+)(-k3s.\w*)?`
+	const regex = `(?P<version>v[\d\.]+(-k3s.\w*)?)`
 	submatch := findInURL(buildScriptURL, regex, varName)
 
 	if len(submatch) > 1 {
@@ -328,7 +357,7 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 
 	const (
 		repoName = "rancher/rke2"
-		regex    = `CHART_VERSION=\"(?P<version>.*?)([0-9][0-9])?(-build.*)?\"`
+		regex    = `(?:FROM|RUN)\s(?:CHART_VERSION=\"|[\w-]+/[\w-]+:)(?P<version>.*?)([0-9][0-9])?(-build.*)?\"?\s`
 	)
 
 	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
@@ -420,7 +449,23 @@ func findInURL(url, regex, str string) []string {
 	return submatch
 }
 
-const rke2ReleaseNoteTemplate = `<!-- {{.milestone}} -->
+var changelogTemplate = `
+{{- define "changelog" -}}
+## Changes since {{.prevMilestone}}:
+{{range .content}}
+* {{ capitalize .Title }} [(#{{.Number}})]({{.URL}})
+{{- $lines := split .Note "\n"}}
+{{- range $i, $line := $lines}}
+{{- if ne $line "" }}
+  * {{ capitalize $line }}
+{{- end}}
+{{- end}}
+{{- end}}
+{{- end}}`
+
+const rke2ReleaseNoteTemplate = `
+{{- define "rke2" -}}
+<!-- {{.milestone}} -->
 
 This release ... <FILL ME OUT!>
 
@@ -433,17 +478,19 @@ You may retrieve the token value from any server already joined to the cluster:
 cat /var/lib/rancher/rke2/server/token
 ` + "```" + `
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Packaged Component Versions
 | Component       | Version                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
 | Etcd            | [{{.EtcdVersionRKE2}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionRKE2}})                       |
-| Containerd      | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}})                      |
-| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
+{{- if eq .majorMinor "1.23"}}
+| Containerd      | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}})                      |
+{{- else }}
+| Containerd      | [{{.ContainerdVersionRKE2}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionRKE2}})                      |
+{{- end }}
+| Runc            | [{{.RuncVersionRKE2}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionRKE2}})                              |
 | Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
 | CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
 | Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
@@ -452,8 +499,8 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }}) | Yes            |
-| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ .CalicoVersionMajMin }}/release-notes/#{{ .CalicoVersionTrimmed }})                                                                    | No             |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
 | Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
 
@@ -477,16 +524,16 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Open issues here](https://github.com/rancher/rke2/issues/new)
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://docs.rke2.io) for guidance on how to get started.
-`
+{{ end }}`
 
-const k3sReleaseNoteTemplate = `<!-- {{.milestone}} -->
+const k3sReleaseNoteTemplate = `
+{{- define "k3s" -}}
+<!-- {{.milestone}} -->
 This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues.
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Embedded Component Versions
 | Component | Version |
@@ -495,8 +542,13 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
-| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+{{- if eq .majorMinor "1.23"}}
+| Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
+| Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
+{{- else }}
+| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
+| Runc | [{{.RuncVersionGoMod}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionGoMod}}) |
+{{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
 | Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
@@ -510,4 +562,4 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://rancher.com/docs/k3s/latest/en/) for guidance on how to get started or to dive deep into K3s.
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
-`
+{{ end }}`

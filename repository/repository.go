@@ -25,6 +25,15 @@ var repoToOrg = map[string]string{
 	"k3s":  "k3s-io",
 }
 
+// stripBackportTag returns a string with a prefix backport tag removed
+func stripBackportTag(s string) string {
+	if strings.Contains(s, "elease") {
+		s = strings.Split(s, "]")[1]
+	}
+	s = strings.Trim(s, " ")
+	return s
+}
+
 // TokenSource
 type TokenSource struct {
 	AccessToken string
@@ -162,6 +171,7 @@ type Issue struct {
 // to populate the template.
 type ChangeLog struct {
 	Title  string
+	Note   string
 	Number int
 	URL    string
 }
@@ -271,6 +281,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				continue
 			}
 
+			title := stripBackportTag(strings.TrimSpace(prs[0].GetTitle()))
 			body := prs[0].GetBody()
 
 			var releaseNote string
@@ -290,17 +301,12 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 					}
 				}
 				releaseNote = strings.TrimSpace(releaseNote)
-
-				if strings.Contains(releaseNote, "\r") {
-					releaseNote = prs[0].GetTitle() + "\n * " + releaseNote
-					releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n * ")
-				}
-			} else {
-				releaseNote = prs[0].GetTitle()
+				releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n")
 			}
 
 			found = append(found, ChangeLog{
-				Title:  releaseNote,
+				Title:  title,
+				Note:   releaseNote,
 				Number: prs[0].GetNumber(),
 				URL:    prs[0].GetHTMLURL(),
 			})
