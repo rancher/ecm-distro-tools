@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -30,6 +31,20 @@ func trimPeriods(v string) string {
 	return strings.Replace(v, ".", "", -1)
 }
 
+// capitalize returns a new string whose first letter is capitalized.
+func capitalize(s string) string {
+	if runes := []rune(s); len(runes) > 0 {
+		for i, r := range runes {
+			if unicode.IsLetter(r) {
+				runes[i] = unicode.ToUpper(r)
+				s = string(runes)
+				break
+			}
+		}
+	}
+	return s
+}
+
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
@@ -38,15 +53,14 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	funcMap := template.FuncMap{
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
+		"split":       strings.Split,
+		"capitalize":  capitalize,
 	}
 
-	var tmpl *template.Template
-	switch repo {
-	case "rke2":
-		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(rke2ReleaseNoteTemplate))
-	case "k3s":
-		tmpl = template.Must(template.New(templateName).Funcs(funcMap).Parse(k3sReleaseNoteTemplate))
-	}
+	tmpl := template.New(templateName).Funcs(funcMap)
+	tmpl = template.Must(tmpl.Parse(changelogTemplate))
+	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
+	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
@@ -72,7 +86,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 
 	buf := bytes.NewBuffer(nil)
 
-	if err := tmpl.Execute(buf, map[string]interface{}{
+	if err := tmpl.ExecuteTemplate(buf, repo, map[string]interface{}{
 		"milestone":                   milestoneNoRC,
 		"prevMilestone":               prevMilestone,
 		"changeLogSince":              changeLogSince,
@@ -435,7 +449,23 @@ func findInURL(url, regex, str string) []string {
 	return submatch
 }
 
-const rke2ReleaseNoteTemplate = `<!-- {{.milestone}} -->
+var changelogTemplate = `
+{{- define "changelog" -}}
+## Changes since {{.prevMilestone}}:
+{{range .content}}
+* {{ capitalize .Title }} [(#{{.Number}})]({{.URL}})
+{{- $lines := split .Note "\n"}}
+{{- range $i, $line := $lines}}
+{{- if ne $line "" }}
+  * {{ capitalize $line }}
+{{- end}}
+{{- end}}
+{{- end}}
+{{- end}}`
+
+const rke2ReleaseNoteTemplate = `
+{{- define "rke2" -}}
+<!-- {{.milestone}} -->
 
 This release ... <FILL ME OUT!>
 
@@ -448,9 +478,7 @@ You may retrieve the token value from any server already joined to the cluster:
 cat /var/lib/rancher/rke2/server/token
 ` + "```" + `
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Packaged Component Versions
 | Component       | Version                                                                                           |
@@ -496,16 +524,16 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Open issues here](https://github.com/rancher/rke2/issues/new)
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://docs.rke2.io) for guidance on how to get started.
-`
+{{ end }}`
 
-const k3sReleaseNoteTemplate = `<!-- {{.milestone}} -->
+const k3sReleaseNoteTemplate = `
+{{- define "k3s" -}}
+<!-- {{.milestone}} -->
 This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues.
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
 
-## Changes since {{.prevMilestone}}:
-{{range .content}}
-* {{.Title}} [(#{{.Number}})]({{.URL}}){{end}}
+{{ template "changelog" . }}
 
 ## Embedded Component Versions
 | Component | Version |
@@ -534,4 +562,4 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://rancher.com/docs/k3s/latest/en/) for guidance on how to get started or to dive deep into K3s.
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
-`
+{{ end }}`

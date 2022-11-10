@@ -171,6 +171,7 @@ type Issue struct {
 // to populate the template.
 type ChangeLog struct {
 	Title  string
+	Note   string
 	Number int
 	URL    string
 }
@@ -280,6 +281,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				continue
 			}
 
+			title := stripBackportTag(strings.TrimSpace(prs[0].GetTitle()))
 			body := prs[0].GetBody()
 
 			var releaseNote string
@@ -299,20 +301,12 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 					}
 				}
 				releaseNote = strings.TrimSpace(releaseNote)
-
-				if strings.Contains(releaseNote, "\r") {
-					title := stripBackportTag(prs[0].GetTitle())
-					releaseNote = title + "\n  * " + releaseNote
-					releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n * ")
-				}
-			} else {
-				releaseNote = prs[0].GetTitle()
-				releaseNote = strings.TrimSpace(releaseNote)
-				releaseNote = stripBackportTag(releaseNote)
+				releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n")
 			}
 
 			found = append(found, ChangeLog{
-				Title:  releaseNote,
+				Title:  title,
+				Note:   releaseNote,
 				Number: prs[0].GetNumber(),
 				URL:    prs[0].GetHTMLURL(),
 			})
