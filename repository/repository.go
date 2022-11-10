@@ -25,6 +25,15 @@ var repoToOrg = map[string]string{
 	"k3s":  "k3s-io",
 }
 
+// stripBackportTag returns a string with a prefix backport tag removed
+func stripBackportTag(s string) string {
+	if strings.Contains(s, "elease") {
+		s = strings.Split(s, "]")[1]
+	}
+	s = strings.Trim(s, " ")
+	return s
+}
+
 // TokenSource
 type TokenSource struct {
 	AccessToken string
@@ -272,7 +281,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 				continue
 			}
 
-			title := strings.TrimSpace(prs[0].GetTitle())
+			title := stripBackportTag(strings.TrimSpace(prs[0].GetTitle()))
 			body := prs[0].GetBody()
 
 			var releaseNote string
