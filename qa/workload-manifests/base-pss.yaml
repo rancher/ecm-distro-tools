@@ -12,3 +12,4 @@ plugins:
       usernames: []
       runtimeClasses: []
       namespaces: [kube-system, cis-operator-system, tigera-operator]
+      
