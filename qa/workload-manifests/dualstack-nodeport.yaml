@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dualstack-nodeport-deployment
+spec:
+  selector:
+    matchLabels:
+      app: dualstack-nodeport
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: dualstack-nodeport
+    spec:
+      containers:
+      - name: nginx
+        image: ranchertest/mytestcontainer:unprivileged
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dualstack-nodeport
+  name: dualstack-nodeport-svc
+  namespace: default
+spec:
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  ports:
+    - port: 8080
+      nodePort: 30097
+      name: http
+  selector:
+    app: dualstack-nodeport

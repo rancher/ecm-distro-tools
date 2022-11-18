@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dualstack-ing-ds
+  labels:
+    app: dualstack-ing
+spec:
+  selector:
+    matchLabels:
+      app: dualstack-ing
+  template:
+    metadata:
+      labels:
+        app: dualstack-ing
+    spec:
+      containers:
+      - name: dualstack-ing-ds
+        image: ranchertest/mytestcontainer:unprivileged
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dualstack-ing
+  name: dualstack-ing-svc
+  namespace: default
+spec:
+  ipFamilyPolicy: PreferDualStack
+  ports:
+   - port: 8080
+     targetPort: 8080
+     protocol: TCP
+     name: http
+  selector:
+    app: dualstack-ing
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dualstack-ingress
+spec:
+  rules:
+  - host: test1.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: dualstack-ing-svc
+            port:
+              number: 8080
+        pathType: ImplementationSpecific
