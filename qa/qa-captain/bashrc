@@ -731,7 +731,7 @@ function take.etcd() {
 
 # --- curl to pull down patch tests kubectl assert statements ---
 function get.tests() {
-    git clone git clone https://github.com/rancher/ecm-distro-tools.git && cd ecm-distro-tools/qa/
+    git clone https://github.com/rancher/ecm-distro-tools.git && cd ecm-distro-tools/qa/
 }
 
 # --- future home of a function to post or redirect kubectl api json results to an http endpoint ---
