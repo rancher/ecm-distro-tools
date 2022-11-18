@@ -39,3 +39,4 @@ spec:
     force: true
   upgrade:
     image: rancher/rke2-upgrade
+    
