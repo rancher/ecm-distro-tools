@@ -84,7 +84,24 @@ esac
 # Some of the functions like get.k3s and get.rke2 are redundant just to meet the expectations
 # of my internal monologue when typing. You could just create a new function called get.product or 
 # get.cli which expects you to pass in the name of the product k3s or rke2.
-#
+
+# --- stolen from libstd-ecm.sh ---
+# cmd_check checks if the command output
+# passed in is empty or not. If it is then
+# we print an error containing the missing
+# command and exit.
+# __cmd_check() {
+    
+# }
+
+# --- this could be simplified to just one function --- However the error handling in __cmd_check exits the bash session if it fails and it doesn't correctly print the binary name that is missing. ---
+has_bin() {
+    bin="$(command -v $1)"
+    if [ -z "$bin" ]; then 
+        echo "error: ${0} requires ${1} to use this function"
+    fi
+}
+
 # ======================================================================================
 # ================================ ~ CLUSTERS ~ ========================================
 # ======================================================================================
@@ -92,6 +109,7 @@ esac
 
 # --- download k3s install.sh ---
 function get_k3s() {
+    has_bin curl
     curl https://get.k3s.io --output install-k3s.sh
     sudo chmod +x install-k3s.sh
 }
@@ -107,6 +125,7 @@ function go_k3s() {
 
 # --- download rke2 install.sh ---
 function get_rke2() {
+    has_bin curl
     curl https://get.rke2.io --output install-rke2.sh
     sudo chmod +x install-rke2.sh
 }
@@ -114,6 +133,7 @@ function get_rke2() {
 # --- start rke2 systemctl service type ---
 function go_rke2() {
     local type="${1:-server}"
+    has_bin rke2
     sudo systemctl enable rke2-"${type}" --now
 }
 
@@ -126,7 +146,7 @@ function get_figs() {
 
 # --- restore previously saved config file (from void function) ---
 function go_replay() {
-    # after you've called void the tmp-confs directory is made with your previos config
+    # after you've called void the tmp-confs directory is made with your previous config
     local product="${1:-k3s}"
     sudo mkdir -p /etc/rancher/"${product}"/;
     sudo cp ~/tmp-confs/"${product}"-config.yaml /etc/rancher/"${product}"/config.yaml
@@ -184,6 +204,7 @@ function get_bins() {
 function get_pprof() {
     # note this requires enable-pprof=true in config.yaml
     local array=("profile" "symbol" "trace?seconds=8" "cmdline");
+    has_bin curl
 	for id in "${array[@]}"
 		do
             curl --insecure https://localhost:6443/debug/pprof/"${id}" > ~/"${id}".pprof
@@ -199,14 +220,15 @@ function get_pprof() {
 
 # --- download sonobuoy ---
 function get_sono() {
-    sudo yum install wget
-    wget https://github.com/vmware-tanzu/sonobuoy/releases/download/v0.56.10/sonobuoy_0.56.10_linux_amd64.tar.gz
+    has_bin wget
+    wget https://github.com/vmware-tanzu/sonobuoy/releases/download/v0.56.12/sonobuoy_0.56.12_linux_amd64.tar.gz
     sudo tar -xzf sonobuoy_0.56.10_linux_amd64.tar.gz -C /usr/local/bin
 }
 
 # --- start sonobuoy e2e conformance tests ---
 function go_sono() {
     local product="${1:-k3s}"
+    has_bin sonobuoy
     #sonobuoy run --wait --kubeconfig /etc/rancher/"${product}"/"${product}".yaml --plugin https://raw.githubusercontent.com/vmware-tanzu/sonobuoy-plugins/master/cis-benchmarks/kube-bench-plugin.yaml --plugin https://raw.githubusercontent.com/vmware-tanzu/sonobuoy-plugins/master/cis-benchmarks/kube-bench-master-plugin.yaml
     sonobuoy run --wait --kubeconfig /etc/rancher/"${product}"/"${product}".yaml --mode=certified-conformance
     #--kubernetes-version="$version" --mode=certified-conformance
@@ -215,12 +237,14 @@ function go_sono() {
 # --- view sonobuoy results ---
 function sono_results() {
     local product="${1:-k3s}"
+    has_bin sonobuoy
     results=$(sonobuoy retrieve --kubeconfig /etc/rancher/"${product}"/"${product}".yaml)
     sonobuoy results "${results}"    
 }
 
 # --- removes all docker images from the local cache ---
 function void_docker() {
+    has_bin docker
     docker rmi "$(docker images -a -q)"
 }
 # ======================================================================================
@@ -229,6 +253,8 @@ function void_docker() {
 
 # --- requires helm --- REWRITE WITH INSTALL.SH IF CHECKS FOR HELM --- https://github.com/k3s-io/k3s/blob/master/install.sh
 function make_ranch() {
+    has_bin helm
+    has_bin kubectl
     echo "need to adjust this to detect which binaries are already installed - modify the path based on their presences"
     echo "figure out all the steps here to setup a local rancher node to add downstream clusters to"
     sudo apt update && sudo apt upgrade -y
@@ -253,12 +279,14 @@ function make_ranch() {
 
 # --- gets rancher password and dashboard url ---
 function get_ranch() {
+    has_bin kubectl
     echo https://break.qa/dashboard/?setup="$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}')"
     kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}{{ "\n" }}'
 }
 
 # --- forward the rancher ui to all interfaces ---
 function forward_ranch() {
+    has_bin kubectl
     kubectl port-forward -n cattle-system svc/rancher 9944:443 --address='0.0.0.0'
 }
 #
@@ -283,6 +311,7 @@ profile: cis-1.6
 selinux: true
 #protect-kernel-defaults: true
 #cluster-init: true
+#disable: rke2-ingress-nginx
 
 ##EDIT these
 node-ip: $(hostname -I)
@@ -560,6 +589,7 @@ EOF
 # --- label nodes server and agent respectively for suc upgrade to run correctly ---
 function set_labels() {
     local product="${1:-k3s}"
+    has_bin kubectl
     kubectl label node -l node-role.kubernetes.io/master==true "${product}"-upgrade=server 
     kubectl label node -l node-role.kubernetes.io/master!=true "${product}"-upgrade=agent
 }
@@ -595,6 +625,7 @@ function get_status() {
 # --- quickly list etcd cluster members ---
 function get_etcd() {
     local product="${1:-rke2}"
+    has_bin etcdctl
      sudo ETCDCTL_API=3 etcdctl \
     --cert /var/lib/rancher/"${product}"/server/tls/etcd/server-client.crt \
     --key /var/lib/rancher/"${product}"/server/tls/etcd/server-client.key \
@@ -607,18 +638,22 @@ function get_etcd() {
 # --- quickly list manifest files ---
 function get_manifests() {
     local product="${1:-k3s}"
-    sudo bash -c 'ls --color=auto /var/lib/rancher/"${product}"/server/manifests/'
+    local command="ls --color=auto /var/lib/rancher/${product}/server/manifests"
+    has_bin bash
+    sudo --preserve-env=product bash -c "${command}"
 }
 
 # --- quickly exec a shell in a pod ---
 function k_tty() {
     local namespace="{$1}"
     local podTarget="{$2}"
+    has_bin kubectl
     kubectl exec -n "${namespace}" --stdin --tty "${podTarget}" -- /bin/bash
 }
 
 # --- quickly list any pods in any namespace in error or crashloop status ---
 function get_podcrash() {
+    has_bin kubectl
     kubectl get pods -A | awk '$3 ~/CrashLoopBackOff/ {print $1 $3}'
     kubectl get pods -A | awk '$3 ~/Error/ {print $1 $3}'
 }
@@ -626,6 +661,7 @@ function get_podcrash() {
 
 # --- quickly list node taints ---
 function get_taints() {
+    has_bin kubectl
     kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints
 }
 #
@@ -704,13 +740,16 @@ function take_etcd() {
 
 # --- curl to pull down patch tests kubectl assert statements ---
 function get_tests() {
+    has_bin git
     git clone https://github.com/rancher/ecm-distro-tools.git && cd ecm-distro-tools/qa/ || return
 }
 
 # --- future home of a function to post or redirect kubectl api json results to an http endpoint ---
 function post_tests() {
+    has_bin curl
+    has_bin kubectl
     #curl -X POST -H "Content-type: application/json" -d '{"json":"json"}' http://localhost:8080
-    #local YOUR_PUB_KEY="${1:-$HOME/.ssh/id_rsa.pub}"
+    #local YOUR_PUB_KEY="${1:-${HOME}/.ssh/id_rsa.pub}"
     echo "curl -X POST github.api thing"
     kubectl cluster-info dump > dump.json
 }
@@ -751,7 +790,7 @@ $(sudo cat /etc/rancher/"${product}"/config.yaml)
 
 <!-- Provide the command to install "${product}" -->
 
-"$" curl https://get.$product.io --output install-"${product}".sh
+"$" curl https://get.${product}.io --output install-"${product}".sh
 "$" sudo chmod +x install-"${product}".sh
 "$" sudo groupadd --system etcd && sudo useradd -s /sbin/nologin --system -g etcd etcd
 "$" sudo modprobe ip_vs_rr
@@ -784,7 +823,7 @@ EOF
 #
 
 # --- creates etcduser account on system and also kernel params in rke2 ---
-function make_etcduser() {
+function set_etcduser() {
     sudo groupadd --system etcd && sudo useradd -s /sbin/nologin --system -g etcd etcd
 }
 
@@ -852,6 +891,7 @@ function get_help() {
 
 # --- install helm to the node ---
 function get_helm() {
+    has_bin curl
     sudo curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
     sudo chmod +x get_helm.sh
     sudo ./get_helm.sh
@@ -859,9 +899,10 @@ function get_helm() {
 
 # --- install docker ---
 function get_docker() {
+    has_bin curl
     curl -fsSL https://get.docker.com -o get-docker.sh && sudo chmod +x get-docker.sh
     sudo ./get-docker.sh
-    wait
+    has_bin docker
     sudo systemctl enable docker --now
 }
 
@@ -872,6 +913,7 @@ function get_wireguard() {
 
 # --- install etcdctl ---
 function get_etcdctl() {
+    has_bin curl
     local etcd_version=v3.5.0
     # choose either URL
     # GOOGLE_URL=https://storage.googleapis.com/etcd
@@ -892,6 +934,7 @@ function get_etcdctl() {
 
 # --- install zerotier vpn ---
 function get_zt() {
+    has_bin curl
     curl -s https://install.zerotier.com | sudo bash
     wait
     sudo zerotier-cli join YOUR_ZT_NETWORK_ID
@@ -899,6 +942,7 @@ function get_zt() {
 
 # --- install nats.io ---
 function get_nats() {
+    has_bin wget
     wget https://github.com/nats-io/nats-server/releases/download/v2.8.2/nats-server-v2.8.2-linux-amd64.tar.gz
     sudo tar -zxf nats-server-v2.8.2-linux-amd64.tar.gz
     sudo cp nats-server-v2.8.2-linux-amd64/nats-server /usr/bin/
@@ -907,7 +951,8 @@ function get_nats() {
 
 # --- install krew plugin for kubectl ---
 function get_krew() {
-    # check for git installed
+    has_bin git
+    has_bin kubectl
     (
   set -x; cd "$(mktemp -d)" &&
   OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
@@ -921,6 +966,7 @@ function get_krew() {
 
 # --- install krew plugin for kubectl ---
 function get_kuttl() {
+    has_bin kubectl
     kubectl krew install kuttl
 }
 # ======================================================================================
@@ -935,9 +981,10 @@ function get_ci() {
 
 # --- check DockerHub system agent installers and upgrade images ---
 function get_artifacts() {
-    #requires jq
     local product="${1:-k3s}"
     local branch="${2:-v1.22}"
+    has_bin curl
+    has_bin jq 
         printf "===== System Agent Installers ===== \n"
         curl -L -s "https://registry.hub.docker.com/v2/repositories/rancher/system-agent-installer-${product}/tags?page_size=300" | jq -r ".results[].name" | sort --version-sort | grep -i -e "${branch}" | tail -n 5 # > system-agent-installers.txt
         printf "===== Upgrade Images ===== \n"
@@ -955,9 +1002,6 @@ function get_artifacts() {
     esac
 }
 
-# --- check for upgrade images in 
-
-
 # ======================================================================================
 # ================================== ~ GITHUB ~ =======================================
 # ======================================================================================
@@ -966,6 +1010,7 @@ function get_artifacts() {
  function ghls() {
 	local product="${1:-k3s}"
     local user="${2:-YOUR_GITHUB_USERNAME}"
+    has_bin gh
     case $product in
     qa) gh issue ls -R rancher/qa-tasks -a "${user}" ;;
 	rke2) gh issue ls -R rancher/rke2 -a "${user}" ;;
@@ -985,6 +1030,7 @@ function get_artifacts() {
  function ghcom() {
 	local product="${1:-k3s}"	
 	local issue="${2}"
+    has_bin gh
     case $product in
 	rke2)
 	  gh issue view -c "${issue}" -R rancher/rke2
@@ -1003,6 +1049,7 @@ function ghclosed() {
     local product="${1:-k3s}"
     local days="${2:-7}"
     local date
+    has_bin gh
     date=$(date -v -"$days"d +%F)
     local milestone="${3:-v1.25.3+k3s1}"
     case $product in
@@ -1022,6 +1069,7 @@ function ghclosed() {
 function ghmile() {
     local milestone="${1}"
     local product="${2:-k3s}"
+    has_bin gh
     case $product in
     rke2)
         gh issue list --milestone "${milestone}" -R rancher/rke2
