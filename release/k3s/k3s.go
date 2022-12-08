@@ -302,7 +302,7 @@ func (r *Release) buildGoWrapper() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	goImageVersion := fmt.Sprintf("golang:%s-alpine3.15", goVersion)
+	goImageVersion := fmt.Sprintf("golang:%s-alpine3.16", goVersion)
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
