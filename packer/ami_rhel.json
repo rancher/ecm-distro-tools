@@ -1,0 +1,48 @@
+{
+    "variables": {
+      "name":"RHEL-9-FIPS",
+      "source_ami":"ami-0d03b1ad793d7ac93",
+      "access_key":"",
+      "secret_key":"",
+      "region":"us-east-2"
+    },
+    "builders": [{
+      "type": "amazon-ebs",
+      "access_key": "{{user `access_key`}}",
+      "secret_key":"{{user `secret_key`}}",
+      "ami_name": "{{user `name`}}",
+      "region": "{{user `region`}}",
+      "ami_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "source_ami": "{{user `source_ami`}}",
+      "instance_type": "t2.medium",
+      "communicator": "ssh",
+      "ssh_username": "ec2-user",
+      "force_deregister": true,
+      "run_tags":{"Name":"{{user `name`}}"}
+    }],
+    "provisioners": [
+	{
+	    "type": "file",
+	    "source": "enable_fips.sh",
+	    "destination": "/tmp/enable_fips.sh"
+	},
+        {
+            "type": "shell",
+	    "inline": "sudo chmod +x /tmp/enable_fips.sh && sudo /tmp/enable_fips.sh rhel8"
+        },
+        {
+            "type": "file",
+            "source": "disable_nm_cloud_setup.sh",
+            "destination": "/tmp/disable_nm_cloud_setup.sh"
+        },
+        {
+            "type": "shell",
+            "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh rhel9"
+        }
+      ]
+  }

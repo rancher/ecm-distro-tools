@@ -1,0 +1,45 @@
+{
+    "variables": {
+      "name": "Oracle-Linux-8.7-OL8.7",
+      "source_ami": "ami-01d29ab1ae3200806",
+      "access_key":"",
+      "secret_key":"",
+      "region":"us-east-2"
+    },
+    "builders": [{
+      "type": "amazon-ebs",
+      "access_key": "{{user `access_key`}}",
+      "secret_key":"{{user `secret_key`}}",
+      "ami_name": "{{user `name`}}",
+      "region": "{{user `region`}}",
+      "ami_regions": [
+        "us-east-2"
+      ],
+      "source_ami": "{{user `source_ami`}}",
+      "instance_type": "t2.medium",
+      "communicator": "ssh",
+      "ssh_username": "cloud-user",
+      "force_deregister": true,
+      "run_tags":{"Name":"{{user `name`}}"}
+    }],
+    "provisioners": [
+	{
+	    "type": "file",
+	    "source": "disable_firewall.sh",
+	    "destination": "/tmp/disable_firewall.sh"
+	},
+        {
+            "type": "shell",
+	    "inline": "sudo chmod +x /tmp/disable_firewall.sh && sudo /tmp/disable_firewall.sh"
+        },
+        {
+            "type": "file",
+            "source": "oracle_growpart_userdata.sh",
+            "destination": "/tmp/user_data.sh"
+        },
+        {
+            "type": "shell",
+            "inline": "sudo chmod +x /tmp/user_data.sh && sudo cp /tmp/user_data.sh /var/lib/cloud/scripts/per-instance/user_data.sh"
+        }
+      ]
+  }
