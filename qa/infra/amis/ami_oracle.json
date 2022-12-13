@@ -23,14 +23,14 @@
         "run_tags":{"Name":"{{user `name`}}"}
     }],
     "provisioners": [
-	  {
+    {
         "type": "file",
         "source": "disable_firewall.sh",
         "destination": "/tmp/disable_firewall.sh"
-	  },
+    },
     {
         "type": "shell",
-	      "inline": "sudo chmod +x /tmp/disable_firewall.sh && sudo /tmp/disable_firewall.sh"
+        "inline": "sudo chmod +x /tmp/disable_firewall.sh && sudo /tmp/disable_firewall.sh"
     },
     {
         "type": "file",

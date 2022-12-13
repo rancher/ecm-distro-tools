@@ -26,11 +26,11 @@
         "run_tags":{"Name":"{{user `name`}}"}
     }],
     "provisioners": [
-	  {
+    {
         "type": "file",
         "source": "enable_fips.sh",
         "destination": "/tmp/enable_fips.sh"
-	  },
+    },
     {
         "type": "shell",
         "inline": "sudo chmod +x /tmp/enable_fips.sh && sudo /tmp/enable_fips.sh rhel8"
