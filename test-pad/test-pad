@@ -396,7 +396,8 @@ rancher)
     E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_MEMORY=2048 E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
     CMD="kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'"
     SECRET=$(vagrant ssh server-0 -c "${CMD}" 2> /dev/null)
-    echo "Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=${SECRET}"
+    echo "Rancher URL: https://test-pad.rancher/dashboard/?setup=${SECRET}"
+    printf "Add the following to your /etc/hosts file:\n10.10.10.100 test-pad.rancher\n"
 
 ;;
 esac
