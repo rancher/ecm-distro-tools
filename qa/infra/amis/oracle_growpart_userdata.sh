@@ -5,7 +5,7 @@ yum install cloud-utils-growpart -y
 
 VOL_NAME=$(pvs | grep -i xvda)
 
-if [ "$VOL_NAME" ]; then
+if [ "${VOL_NAME}" ]; then
   growpart /dev/xvda 2
   pvresize /dev/xvda2
 else
