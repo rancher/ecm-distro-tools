@@ -53,9 +53,9 @@ const (
 		git checkout -B {{ .NewK8SVersion }}-{{ .NewK3SVersion }} upstream/{{.ReleaseBranch}}
 		git clean -xfd
 		
-		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ .OldK8SVersion }}-{{ .OldK3SVersion }}|{{ .NewK8SVersion }}-{{ .NewK3SVersion }}|" go.mod
-		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ .NewK8SVersion }}/" go.mod
-		sed -Ei "s/{{ .OldK8SClient }}/{{ .NewK8SClient }}/g" go.mod # This should only change ~6 lines in go.mod
+		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
+		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
+		sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
 		
 		go mod tidy
 		# There is no need for running make since the changes will be only for go.mod
