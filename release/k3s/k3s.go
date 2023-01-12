@@ -483,7 +483,10 @@ func (r *Release) ModifyAndPush(ctx context.Context) error {
 		return err
 	}
 
-	tmpl, err := template.New("modify_script.sh").Parse(modifyScript)
+	funcMap := template.FuncMap{
+		"replaceAll": strings.ReplaceAll,
+	}
+	tmpl, err := template.New("modify_script.sh").Funcs(funcMap).Parse(modifyScript)
 	if err != nil {
 		return err
 	}
