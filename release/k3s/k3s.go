@@ -44,6 +44,7 @@ const (
 
 	modifyScript = `
 		#!/bin/bash
+		set -x
 		cd {{ .Workspace }}
 		git clone "git@github.com:{{ .Handler }}/k3s.git"
 		cd {{ .Workspace }}/k3s
@@ -81,30 +82,31 @@ type Release struct {
 	Token         string `json:"token"`
 }
 
-func NewReleaseFromConfig(configPath string) (*Release, error) {
+func NewRelease(configPath string) (*Release, error) {
+	var release Release
 
-	var release *Release
 	if configPath == "" {
 		return nil, errors.New("error: config file required")
 	}
 
-	configData, err := os.ReadFile(configPath)
+	b, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(configData, &release); err != nil {
+	if err := json.Unmarshal(b, &release); err != nil {
 		return nil, err
 	}
-	return release, nil
+
+	return &release, nil
 }
 
 // SetupK8sRemotes will clone the kubernetes upstream repo and proceed with setting up remotes
 // for rancher and user's forks, then it will fetch branches and tags for all remotes
-func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) error {
+func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) error {
 	k3sDir := filepath.Join(r.Workspace, "kubernetes")
-	_, err := os.Stat(r.Workspace)
-	if err != nil {
+
+	if _, err := os.Stat(r.Workspace); err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(r.Workspace, 0755); err != nil {
 				return err
@@ -113,6 +115,7 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	// clone the repo
 	repo, err := git.PlainClone(k3sDir, false, &git.CloneOptions{
 		URL:             k8sUpstreamURL,
@@ -129,10 +132,12 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	gitAuth, err := getAuth("")
 	if err != nil {
 		return err
 	}
+
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName:      "origin",
 		Progress:        os.Stdout,
@@ -152,6 +157,7 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: rancherRemote,
 		Progress:   os.Stdout,
@@ -162,6 +168,7 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	userRemoteURL := strings.Replace(k8sUserURL, "user", r.Handler, -1)
 	if _, err := repo.CreateRemote(&config.RemoteConfig{
 		Name: r.Handler,
@@ -171,6 +178,7 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: r.Handler,
 		Progress:   os.Stdout,
@@ -181,10 +189,11 @@ func (r *Release) SetupK8sRemotes(ctx context.Context, ghClient *github.Client) 
 			return err
 		}
 	}
+
 	return nil
 }
 
-func (r *Release) RebaseAndTag(ctx context.Context, ghClient *github.Client) ([]string, error) {
+func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]string, error) {
 	if err := r.gitRebaseOnto(); err != nil {
 		return nil, err
 	}
@@ -217,6 +226,7 @@ func (r *Release) RebaseAndTag(ctx context.Context, ghClient *github.Client) ([]
 	if len(tags) == 0 {
 		return nil, errors.New("failed to extract tag push lines")
 	}
+
 	return tags, nil
 }
 
@@ -230,6 +240,7 @@ func getAuth(privateKey string) (ssh.AuthMethod, error) {
 		return nil, err
 	}
 	publicKeys.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
+
 	return publicKeys, nil
 }
 
@@ -262,17 +273,19 @@ func (r *Release) gitRebaseOnto() error {
 
 func (r *Release) goVersion() (string, error) {
 	var dep map[string]interface{}
+
 	depFile := filepath.Join(r.Workspace, "kubernetes", "build", "dependencies.yaml")
 	dat, err := os.ReadFile(depFile)
 	if err != nil {
 		return "", err
 	}
 
-	err = yaml.Unmarshal(dat, &dep)
-	if err != nil {
+	if err := yaml.Unmarshal(dat, &dep); err != nil {
 		return "", err
 	}
+
 	depList := dep["dependencies"].([]interface{})
+
 	for _, v := range depList {
 		item := v.(map[interface{}]interface{})
 		itemName := item["name"]
@@ -281,19 +294,21 @@ func (r *Release) goVersion() (string, error) {
 			return version.(string), nil
 		}
 	}
-	return "", errors.New("can not find go dependency")
+
+	return "", errors.New("can not find Go dependency")
 }
 
 func runCommand(dir, cmd string, args ...string) (string, error) {
 	command := exec.Command(cmd, args...)
+
 	var outb, errb bytes.Buffer
 	command.Stdout = &outb
 	command.Stderr = &errb
 	command.Dir = dir
-	err := command.Run()
-	if err != nil {
+	if err := command.Run(); err != nil {
 		return "", errors.New(errb.String())
 	}
+
 	return outb.String(), nil
 }
 
@@ -302,11 +317,14 @@ func (r *Release) buildGoWrapper() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	goImageVersion := fmt.Sprintf("golang:%s-alpine", goVersion)
+
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
 	}
+
 	wrapperImageTag := goImageVersion + "-dev"
 	if _, err := runCommand(r.Workspace, "docker", "build", "-t", wrapperImageTag, "."); err != nil {
 		return "", err
@@ -325,17 +343,21 @@ func (r *Release) setupGitArtifacts() (string, error) {
 	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
 		return "", err
 	}
+
 	return gitconfigFile, nil
 }
 
 func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, error) {
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
+
 	gopath, err := runCommand(r.Workspace, "go", "env", "GOPATH")
 	if err != nil {
 		return "", err
 	}
+
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
+
 	// prep the docker run command
 	goWrapper := []string{
 		"run",
@@ -359,51 +381,59 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	}
 
 	args := append(goWrapper, "./tag.sh", r.NewK8SVersion+"-k3s1")
+
 	return runCommand(k8sDir, "docker", args...)
 }
 
 func tagPushLines(out string) []string {
 	var tagCmds []string
+
 	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "git push $REMOTE") {
 			tagCmds = append(tagCmds, line)
 		}
 	}
+
 	return tagCmds
 }
 
-func (r *Release) TagsFromFile(ctx context.Context) ([]string, error) {
-	tagCmds := []string{}
+func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
+	var tagCmds []string
+
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8SVersion)
-	_, err := os.Stat(tagFile)
-	if err != nil {
+	if _, err := os.Stat(tagFile); err != nil {
 		return nil, err
 	}
+
 	dat, err := os.ReadFile(tagFile)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, line := range strings.Split(string(dat), "\n") {
 		if strings.Contains(line, "git push $REMOTE") {
 			tagCmds = append(tagCmds, line)
 		}
 	}
+
 	return tagCmds, nil
 
 }
 
-func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
+func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
 	// here we can use go-git library or runCommand function
 	// I am using go-git library to enhance code quality
 	gitConfigFile, err := r.setupGitArtifacts()
 	if err != nil {
 		return err
 	}
+
 	file, err := os.Open(gitConfigFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
 	cfg, err := config.ReadConfig(file)
 	if err != nil {
 		return err
@@ -413,18 +443,22 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err != nil {
 		return err
 	}
+
 	userRemote, err := repo.Remote(r.Handler)
 	if err != nil {
 		return err
 	}
+
 	originRemote, err := repo.Remote("origin")
 	if err != nil {
 		return err
 	}
+
 	k3sRemote, err := repo.Remote("k3s-io")
 	if err != nil {
 		return err
 	}
+
 	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[r.Handler] = userRemote.Config()
 	cfg.Remotes["k3s-io"] = k3sRemote.Config()
@@ -432,11 +466,14 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
 	}
+
 	gitAuth, err := getAuth("")
 	if err != nil {
 		return err
 	}
+
 	var wg sync.WaitGroup
+
 	for _, tagCmd := range tagsCmds {
 		wg.Add(1)
 		tagCmdStr := tagCmd
@@ -458,12 +495,12 @@ func (r *Release) PushTags(ctx context.Context, tagsCmds []string, ghClient *git
 		}()
 	}
 	wg.Wait()
+
 	return nil
 }
 
-func (r *Release) ModifyAndPush(ctx context.Context) error {
-	_, err := os.Stat(r.Workspace)
-	if err != nil {
+func (r *Release) ModifyAndPush(_ context.Context) error {
+	if _, err := os.Stat(r.Workspace); err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(r.Workspace, 0755); err != nil {
 				return err
@@ -495,11 +532,13 @@ func (r *Release) ModifyAndPush(ctx context.Context) error {
 	if _, err := runCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) error {
-	repo := "k3s"
+	const repo = "k3s"
+
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Update to %s-%s", r.NewK8SVersion, r.NewK3SVersion)),
 		Base:                github.String(r.ReleaseBranch),
@@ -509,6 +548,7 @@ func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) 
 
 	// creating a pr from your fork branch
 	_, _, err := ghClient.PullRequests.Create(ctx, "k3s-io", repo, pull)
+
 	return err
 }
 
@@ -516,44 +556,51 @@ func NewGithubClient(ctx context.Context, token string) (*github.Client, error) 
 	if token == "" {
 		return nil, errors.New("error: github token required")
 	}
-	client := repository.NewGithub(ctx, token)
-	return client, nil
+
+	return repository.NewGithub(ctx, token), nil
 }
 
-func (r *Release) TagsCreated(ctx context.Context) (bool, error) {
+func (r *Release) TagsCreated(_ context.Context) (bool, error) {
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8SVersion)
-	_, err := os.Stat(tagFile)
-	if err != nil {
+
+	if _, err := os.Stat(tagFile); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	}
+
 	return true, nil
 }
 
 func (r *Release) isTagExists() (bool, error) {
 	dir := filepath.Join(r.Workspace, "kubernetes")
+
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		return false, err
 	}
+
 	tag := r.NewK8SVersion + "-" + r.NewK3SVersion
+
 	if _, err := repo.Tag(tag); err != nil {
 		if err == git.ErrTagNotFound {
 			return false, nil
 		}
 		return false, errors.New("invalid tag " + tag + " object: " + err.Error())
 	}
+
 	return true, nil
 }
 
 func (r *Release) removeExistingTags() error {
 	dir := filepath.Join(r.Workspace, "kubernetes")
+
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		return err
 	}
+
 	tagsIter, err := repo.Tags()
 	if err != nil {
 		return err
@@ -569,6 +616,7 @@ func (r *Release) removeExistingTags() error {
 	}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -576,11 +624,14 @@ func cleanGitRepo(dir string) error {
 	if _, err := runCommand(dir, "rm", "-rf", "_output"); err != nil {
 		return err
 	}
+
 	if _, err := runCommand(dir, "git", "clean", "-xfd"); err != nil {
 		return err
 	}
+
 	if _, err := runCommand(dir, "git", "checkout", "."); err != nil {
 		return err
 	}
+
 	return nil
 }
