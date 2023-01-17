@@ -80,6 +80,7 @@ type Release struct {
 	Handler       string `json:"handler"`
 	Email         string `json:"email"`
 	Token         string `json:"token"`
+	SSHKeyPath    string `json:"ssh_key_path"`
 }
 
 func NewRelease(configPath string) (*Release, error) {
@@ -133,7 +134,7 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 		}
 	}
 
-	gitAuth, err := getAuth("")
+	gitAuth, err := getAuth(r.SSHKeyPath)
 	if err != nil {
 		return err
 	}
@@ -467,7 +468,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	gitAuth, err := getAuth("")
+	gitAuth, err := getAuth(r.SSHKeyPath)
 	if err != nil {
 		return err
 	}
