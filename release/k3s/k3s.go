@@ -231,6 +231,8 @@ func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]st
 	return tags, nil
 }
 
+// The getAuth privateKey is supplied by user in the Release struct variable ssh_key_path.
+// If no privateKey is supplied, then privateKey defaults to the rsa key in a users (This is assumed to be ~/.ssh/id_rsa).
 func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	if privateKey == "" {
 		privateKey = fmt.Sprintf("%s/.ssh/id_rsa", os.Getenv("HOME"))
