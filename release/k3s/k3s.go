@@ -231,8 +231,12 @@ func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]st
 	return tags, nil
 }
 
-// The getAuth privateKey is supplied by user in the Release struct variable ssh_key_path.
-// If no privateKey is supplied, then privateKey defaults to the rsa key in a users (This is assumed to be ~/.ssh/id_rsa).
+// getAuth is a utility function which is used to get the ssh authentication method for connecting to an ssh server.
+// the function takes a single parameter, privateKey, which is a string representing the path to a private key file.
+// If the privateKey is an empty string, the function uses the default private key located at $HOME/.ssh/id_rsa.
+// The function then creates a new ssh.AuthMethod using the ssh.NewPublicKeysFromFile function, passing in the "git" user, the privateKey path, and an empty password.
+// If this returns an error, the function returns nil and the error.
+// Finally, the function returns the publicKeys variable, which is now an ssh.AuthMethod, and a nil error.
 func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	if privateKey == "" {
 		privateKey = fmt.Sprintf("%s/.ssh/id_rsa", os.Getenv("HOME"))
