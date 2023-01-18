@@ -22,11 +22,14 @@ func createTagsCommand() cli.Command {
 
 func createTags(c *cli.Context) error {
 	ctx := context.Background()
+
 	configPath := c.String("config")
-	release, err := k3s.NewReleaseFromConfig(configPath)
+
+	release, err := k3s.NewRelease(configPath)
 	if err != nil {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
+
 	client, err := k3s.NewGithubClient(ctx, release.Token)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
@@ -35,6 +38,7 @@ func createTags(c *cli.Context) error {
 	if err := release.SetupK8sRemotes(ctx, client); err != nil {
 		logrus.Fatalf("failed to clone and setup remotes for k8s repo: %v", err)
 	}
+
 	// all business logic should exists in the package
 	tagsCreated, err := release.TagsCreated(ctx)
 	if err != nil {
@@ -44,13 +48,16 @@ func createTags(c *cli.Context) error {
 		logrus.Infof("Tag file already exists, skipping rebase and tag")
 		return nil
 	}
+
 	tags, err := release.RebaseAndTag(ctx, client)
 	if err != nil {
 		logrus.Fatalf("failed to rebase and create tags: %v", err)
 	}
+
 	tagFile := filepath.Join(release.Workspace, "tags-"+release.NewK8SVersion)
 	if err := os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644); err != nil {
 		logrus.Fatalf("failed to write tags file: %v", err)
 	}
+
 	return nil
 }
