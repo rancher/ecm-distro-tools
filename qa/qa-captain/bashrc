@@ -174,23 +174,30 @@ get_token() {
 
 # --- killall uninstall all ---
 void() {
-    # sudo systemctl list-units | grep -i -e k3s -e rke2 ??? find whats installed - then just remove those instead of trying all
-    mkdir ~/tmp-confs/
-    sudo cp /etc/rancher/k3s/config.yaml ~/tmp-confs/k3s-config.yaml
-    sudo cp /etc/rancher/rke2/config.yaml ~/tmp-confs/rke2-config.yaml
-    sudo /usr/local/bin/rke2-agent-killall.sh
-    sudo /usr/local/bin/rke2-agent-uninstall.sh
-    sudo /usr/local/bin/k3s-agent-killall.sh
-    sudo /usr/local/bin/k3s-agent-uninstall.sh
-    sudo /usr/local/bin/rke2-killall.sh
-    sudo /usr/local/bin/rke2-uninstall.sh
-    sudo /usr/local/bin/k3s-killall.sh
-    sudo /usr/local/bin/k3s-uninstall.sh
-    sudo /usr/bin/rke2-killall.sh
-    sudo /usr/bin/rke2-uninstall.sh
-    sudo /usr/bin/k3s-killall.sh
-    sudo /usr/bin/k3s-uninstall.sh
-    # consider rm -rf /var/lib/rancher/
+    if [ ! -d ~/tmp-confs/ ]; then
+        mkdir ~/tmp-confs/
+    fi
+
+    if command -v k3s > /dev/null 2>&1; then
+        binary_path="$(command -v k3s)"
+        binary_name="k3s"
+    elif command -v rke2 > /dev/null 2>&1; then
+        binary_path="$(command -v rke2)"
+        binary_name="rke2"
+    else
+        echo "Neither k3s nor rke2 are installed"
+    fi
+
+    sudo cp "/etc/rancher/${binary_name}/config.yaml" ~/tmp-confs/"${binary_name}"-config.yaml
+    binary_path="${binary_path%/*}"
+    if pgrep -f "${binary_name}-agent" > /dev/null; then
+        sudo "${binary_path}"/"${binary_name}"-agent-killall.sh
+        sudo "${binary_path}"/"${binary_name}"-agent-uninstall.sh
+    else
+        sudo "${binary_path}"/"${binary_name}"-killall.sh
+        sudo "${binary_path}"/"${binary_name}"-uninstall.sh
+    fi
+    echo "${binary_path}"
 }
 
 # --- list binaries in directory from product install ---
