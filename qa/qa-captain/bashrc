@@ -1093,7 +1093,7 @@ get_wasmcloud() {
 }
 
 # --- check etcdctl secrets ---
-chrome() {
+get_secret() {
     has_bin etcdctl
      _product="${1:-k3s}"
     _secret="${2:-secret1}"
