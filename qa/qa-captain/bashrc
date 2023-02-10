@@ -160,6 +160,22 @@ set_kubefig() {
     fi
 }
 
+# --- wrap rke2 setup commands into one ---
+setup_rke2() {
+    get_rke2;
+    set_figs rke2;
+    set_etcduser;
+    set_harden rke2;
+}
+
+# --- wrap k3s setup commands into one ---
+setup_k3s() {
+    get_k3s;
+    set_figs;
+    set_etcduser;
+    set_harden;
+}
+
 # --- quickly edit product config file ---
 conf() {
     _product="${1:-k3s}"
@@ -191,7 +207,7 @@ void() {
     sudo cp "/etc/rancher/${binary_name}/config.yaml" ~/tmp-confs/"${binary_name}"-config.yaml
     binary_path="${binary_path%/*}"
     if pgrep -f "${binary_name}-agent" > /dev/null; then
-        sudo "${binary_path}"/"${binary_name}"-agent-killall.sh
+        sudo "${binary_path}"/"${binary_name}"-killall.sh
         sudo "${binary_path}"/"${binary_name}"-agent-uninstall.sh
     else
         sudo "${binary_path}"/"${binary_name}"-killall.sh
@@ -281,10 +297,10 @@ make_ranch() {
     wait
     kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
     wait
-    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.6.9 --version=v2.6.9 
-    wait
-    watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
-    kubectl port-forward "$(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -A)" 9000:9000 -A
+    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.7.2-rc1 --version=v2.7.2-rc1 
+    #wait
+    #watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
+    #kubectl port-forward "$(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -A)" 9000:9000 -A
 }
 
 # --- gets rancher password and dashboard url ---
@@ -313,9 +329,9 @@ set_figs() {
     cat <<EOF >> "${_product}"-config.yaml
 write-kubeconfig-mode: 644
 debug: true
-token: epicsalsa
+token: mangocabbages
 cni: cilium
-server:
+server: https://
 
 profile: cis-1.6
 selinux: true
@@ -324,6 +340,7 @@ selinux: true
 #disable: rke2-ingress-nginx
 #pod-security-admission-config-file: "/etc/rancher/rke2/base-pss.yaml"
 
+#datastore-endpoint: etcd, Mysql, Postgres, Sqlite, nats-jetstream
 ##EDIT these
 node-ip: $(hostname -I)
 #node-external-ip: IPV4,IPV6
@@ -336,6 +353,10 @@ node-ip: $(hostname -I)
 #  - system-reserved=cpu=400m,memory=1Gi
 #  - memory-manager-policy=Static
 #  - reserved-memory=0:memory=2Gi
+
+##KUBELET APISERVER ARGS
+#kube-apiserver-arg:
+#  - tls-cipher-suites=TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
 
 ##SNAPSHOTS
 #snapshot-compress: true
@@ -785,10 +806,12 @@ get_tests() {
 post_tests() {
     has_bin curl
     has_bin kubectl
+    has_bin jq
     #curl -X POST -H "Content-type: application/json" -d '{"json":"json"}' http://localhost:8080
-    #_YOUR_PUB_KEY="${1:-${HOME}/.ssh/id_rsa.pub}"
+    _your_pub_key_on_remote="${1:-${HOME}/.ssh/id_rsa.pub}"
     echo "curl -X POST github.api thing"
-    kubectl cluster-info dump > dump.json
+    kubectl get nodes -o go-template='{{range .items}}{{println "{\"architecture\": \"" .status.nodeInfo.architecture "\", \"containerRuntimeVersion\": \"" .status.nodeInfo.containerRuntimeVersion "\", \"kernelVersion\": \"" .status.nodeInfo.kernelVersion "\", \"kubeletVersion\": \"" .status.nodeInfo.kubeletVersion "\", \"osImage\": \"" .status.nodeInfo.osImage "\"}"}}{{end}}' \
+    | jq -s | curl -X POST -H "Content-type: application/json" -d https://IP:PORT/webhook/api
 }
 #
 # ======================================================================================
@@ -802,8 +825,8 @@ get_report() {
 <!-- Thanks for using this template. Comment like this will be hidden. Enjoy! -->
 <!-- Make sure you remove any sensitive information and change IPs before sharing. -->
 ##Environment Details
-COMMIT=${COMMIT}
 VERSION=${VERSION}
+COMMIT=${COMMIT}
 
 *Infrastructure*
 - [X] Cloud
@@ -827,18 +850,18 @@ $(sudo cat /etc/rancher/"${_product}"/config.yaml)
 
 <!-- Provide the command to install "${_product}" -->
 
-curl https://get.${_product}.io --output install-"${_product}".sh
-sudo chmod +x install-"${_product}".sh
-sudo groupadd --system etcd && sudo useradd -s /sbin/nologin --system -g etcd etcd
-sudo modprobe ip_vs_rr
-sudo modprobe ip_vs_wrr
-sudo modprobe ip_vs_sh
-sudo printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \n" > ~/60-rke2-cis.conf
-sudo cp 60-rke2-cis.conf /etc/sysctl.d/
-sudo systemctl restart systemd-sysctl
+ curl https://get.${_product}.io --output install-"${_product}".sh
+ sudo chmod +x install-"${_product}".sh
+ sudo groupadd --system etcd && sudo useradd -s /sbin/nologin --system -g etcd etcd
+ sudo modprobe ip_vs_rr
+ sudo modprobe ip_vs_wrr
+ sudo modprobe ip_vs_sh
+ sudo printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \n" > ~/60-rke2-cis.conf
+ sudo cp 60-rke2-cis.conf /etc/sysctl.d/
+ sudo systemctl restart systemd-sysctl
 
 
-"$(history)"
+"$(history | cut -c 8-)"
 
 **Results:**
 
@@ -846,7 +869,6 @@ sudo systemctl restart systemd-sysctl
 
 <details>
 <summmary><h4> YOUR_VALIDATION_RESULTS_HERE </h4></summary>
-**Validated with **
  
 ## Validation Steps
  
@@ -886,7 +908,7 @@ set_harden() {
 
 # --- create arbitrary nats server config ---
 set_nats() {
-cat <<'EOF' >> nats.conf
+cat <<'EOF' >> nats.config
 port: 4222
 net: '0.0.0.0'
 authorization: {
@@ -897,13 +919,13 @@ authorization: {
 }
 EOF
 sudo mkdir -p /srv/nats/
-sudo cp nats-config.yaml /srv/nats/nats.conf
+sudo cp nats.config /srv/nats/nats.config
 cat <<'EOF' >> nats.service
 [Unit]
 Description=NATS jetstream messaging server
 
 [Service]
-ExecStart=/usr/bin/nats-server -js -c /srv/nats/nats.config
+ExecStart="/usr/bin/nats-server -js -c /srv/nats/nats.config"
 User=nats
 Restart=on-failure
 
@@ -1028,9 +1050,9 @@ get_zt() {
 # --- install nats.io ---
 get_nats() {
     has_bin wget
-    wget https://github.com/nats-io/nats-server/releases/download/v2.8.2/nats-server-v2.8.2-linux-amd64.tar.gz
-    sudo tar -zxf nats-server-v2.8.2-linux-amd64.tar.gz
-    sudo cp nats-server-v2.8.2-linux-amd64/nats-server /usr/bin/
+    wget https://github.com/nats-io/nats-server/releases/download/v2.9.11/nats-server-v2.9.11-linux-amd64.tar.gz
+    sudo tar -zxf nats-server-v2.9.11-linux-amd64.tar.gz
+    sudo cp nats-server-v2.9.11-linux-amd64/nats-server /usr/bin/
     nats-server -v
 }
 
@@ -1058,9 +1080,29 @@ get_kuttl() {
 # --- install akri into the cluster using helm ---
 get_akri() {
     has_bin helm
-    _akri_helm_crictl_configuration="--set kubernetesDistro=k3s"
     helm repo add akri-helm-charts https://project-akri.github.io/akri/
-    helm install akri akri-helm-charts/akri "${_akri_helm_crictl_configuration}"
+    helm install akri akri-helm-charts/akri --set kubernetesDistro=k3s
+}
+
+# --- install wasmcloud into the cluster using helm ---
+get_wasmcloud() {
+    has_bin helm
+    helm repo add wasmcloud https://wasmcloud.github.io/wasmcloud-otp/
+    helm install wasmcloud wasmcloud/wasmcloud-host
+
+}
+
+# --- check etcdctl secrets ---
+chrome() {
+    has_bin etcdctl
+     _product="${1:-k3s}"
+    _secret="${2:-secret1}"
+    sudo ETCDCTL_API=3 etcdctl \
+    --cert /var/lib/rancher/"${_product}"/server/tls/etcd/server-client.crt \
+    --key /var/lib/rancher/"${_product}"/server/tls/etcd/server-client.key \
+    --endpoints https://127.0.0.1:2379 \
+    --cacert /var/lib/rancher/"${_product}"/server/tls/etcd/server-ca.crt \
+    get /registry/secrets/default/"${_secret}" | hexdump -C
 }
 # ======================================================================================
 # ================================== ~ CAPTAINS ~ ======================================
@@ -1176,6 +1218,9 @@ ghmile() {
 # ======================================================================================
 # ================================== ~ ALIASES ~ =======================================
 # ======================================================================================
+komplete() {
+    echo "source <(kubectl completion bash)" >> ~/.bashrc
+}
 #
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin:/snap/bin:/var/lib/rancher/k3s/bin:/var/lib/rancher/rke2/bin:/usr/local/bin/go/bin:/opt/rke2/bin/:${HOME}/.krew/bin
 # enable color support of ls and also add handy aliases
