@@ -25,6 +25,10 @@ standup:
 test_coverage:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: test
+test:
+	go test -v -cover ./...
+
 .PHONY: build-image
 build-image:
 	docker build -t rancher/opdom:$(shell git rev-parse HEAD) .

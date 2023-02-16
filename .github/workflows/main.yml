@@ -26,4 +26,6 @@ jobs:
       - name: Make ECM Distro Tools
         run: |
           make all
+          make test
+
 
