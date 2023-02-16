@@ -1,0 +1,53 @@
+name: ECM Distro Tools Release
+on:
+ push:
+   tags:
+     - "v*"
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v2
+      - name: Build ECM Distro Tools
+        run: |
+          make all
+          make test
+      - name: Publish Binaries
+        uses: SierraSoftworks/gh-releases@v1.0.7
+        with:
+          token: ${{ secrets.TOKEN }}
+          overwrite: 'true'
+          files: |
+            ${{ github.workspace }}/bin/bootstrap_hash
+            ${{ github.workspace }}/bin/check_for_k8s_release
+            ${{ github.workspace }}/bin/cut_k3s_release_issue
+            ${{ github.workspace }}/bin/cut_rke2_release_issue
+            ${{ github.workspace }}/bin/delete_release_assets
+            ${{ github.workspace }}/bin/rancher_image_scan
+            ${{ github.workspace }}/bin/tag_image_build_k8s_release
+            ${{ github.workspace }}/bin/tag_rke2_packaging_release
+            ${{ github.workspace }}/bin/tag_rke2_release
+            ${{ github.workspace }}/bin/update_go
+            ${{ github.workspace }}/bin/utility_index
+            ${{ github.workspace }}/bin/verify_release_assets
+            ${{ github.workspace }}/bin/verify_rke2_charts
+            ${{ github.workspace }}/cmd/backport/bin/backport
+            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes
+            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release
+            ${{ github.workspace }}/cmd/standup/bin/standup
+            ${{ github.workspace }}/cmd/test_coverage/bin/test_coverage
+      - name: Docker Hub Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: rancher/ecm-distro-tools:${{ github.ref_name }}
+          file: ./Dockerfile
+          context: .
