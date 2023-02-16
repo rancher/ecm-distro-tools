@@ -17,7 +17,7 @@ jobs:
           severity: info
           scandir: 'bin/'
         env:
-          SHELLCHEK_OPTS: -e SC1091 -e SC2034 -e SC2317 -s sh
+          SHELLCHECK_OPTS: -s sh -e SC1091 -e SC2034 -e SC2317
   build:
     name: Build
     runs-on: ubuntu-latest
