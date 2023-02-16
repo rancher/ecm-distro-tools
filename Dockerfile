@@ -1,5 +1,5 @@
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
-ARG GO_IMAGE=rancher/hardened-build-base:v1.17.8b7
+ARG GO_IMAGE=rancher/hardened-build-base:v1.20.1b1
 FROM ${BCI_IMAGE} as bci
 FROM ${GO_IMAGE} as builder
 RUN apk --no-cache add \
