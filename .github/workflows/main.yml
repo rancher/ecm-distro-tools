@@ -2,10 +2,8 @@ name: CI
 
 on:
   pull_request:
-    paths:
-      - '**.go'
-    types:
-      [opened, reopened, edited]
+    branches:
+      - master
 
 jobs:
   shellcheck:
