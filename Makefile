@@ -1,5 +1,5 @@
 .PHONY: all
-all: gen_release_notes gen_release_report backport standup k3s_release
+all: gen_release_notes gen_release_report backport standup k3s_release test_coverage
 
 .PHONY: gen_release_notes
 gen_release_notes:
@@ -21,6 +21,10 @@ backport:
 standup:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: test_coverage
+test_coverage:
+	cd cmd/$@ && $(MAKE)
+
 .PHONY: build-image
 build-image:
-	docker build -t ecmdt-local .
+	docker build -t rancher/opdom:$(shell git rev-parse HEAD) .

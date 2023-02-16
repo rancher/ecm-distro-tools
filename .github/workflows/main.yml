@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - '**.go'
+    types:
+      [opened, reopened, edited]
+
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          severity: info
+          scandir: 'bin/'
+        env:
+          SHELLCHEK_OPTS: -s sh --check-sourced -e SC1091 -e SC2034 -e SC2317
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Make ECM Distro Tools
+        run: |
+          make all
+
