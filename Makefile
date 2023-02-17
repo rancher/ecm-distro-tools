@@ -31,4 +31,4 @@ test:
 
 .PHONY: build-image
 build-image:
-	docker build -t rancher/opdom:$(shell git rev-parse HEAD) .
+	docker build -t rancher/ecm-distro-tools:$(shell git rev-parse HEAD) .
