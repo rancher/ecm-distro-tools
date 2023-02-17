@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 
 	"github.com/go-git/go-git/v5"
@@ -479,29 +478,22 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	var wg sync.WaitGroup
-
 	for _, tagCmd := range tagsCmds {
-		wg.Add(1)
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
-		go func() {
-			defer wg.Done()
-			if err := repo.Push(&git.PushOptions{
-				RemoteName: remote,
-				Auth:       gitAuth,
-				Progress:   os.Stdout,
-				RefSpecs: []config.RefSpec{
-					config.RefSpec("+refs/tags/" + tag + ":refs/tags/" + tag),
-				},
-			}); err != nil {
-				if err != git.NoErrAlreadyUpToDate {
-					os.Exit(1)
-				}
+		if err := repo.Push(&git.PushOptions{
+			RemoteName: remote,
+			Auth:       gitAuth,
+			Progress:   os.Stdout,
+			RefSpecs: []config.RefSpec{
+				config.RefSpec("+refs/tags/" + tag + ":refs/tags/" + tag),
+			},
+		}); err != nil {
+			if err != git.NoErrAlreadyUpToDate {
+				os.Exit(1)
 			}
-		}()
+		}
 	}
-	wg.Wait()
 
 	return nil
 }
