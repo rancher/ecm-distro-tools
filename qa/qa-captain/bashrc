@@ -284,15 +284,15 @@ make_ranch() {
     helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
     helm repo add jetstack https://charts.jetstack.io
     helm repo update
+    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml
     kubectl create namespace cattle-system
-    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
     wait
-    helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --version v1.5.1
+    helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --version v1.8.0
     wait
     echo "checking cert-manager pods.... "
     kubectl get pods -n cert-manager
     wait
-    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.7.2-rc1 --version=v2.7.2-rc1 
+    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.7-head --version=v2.7-head 
     #wait
     watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
     #kubectl port-forward "$(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -A)" 9000:9000 -A
