@@ -281,25 +281,20 @@ void_docker() {
 make_ranch() {
     has_bin helm
     has_bin kubectl
-    echo "need to adjust this to detect which binaries are already installed - modify the path based on their presences"
-    echo "figure out all the steps here to setup a _rancher node to add downstream clusters to"
-    sudo apt update && sudo apt upgrade -y
-    wait
     helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
-    kubectl create namespace cattle-system
     helm repo add jetstack https://charts.jetstack.io
     helm repo update
+    kubectl create namespace cattle-system
+    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
     wait
     helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --version v1.5.1
     wait
     echo "checking cert-manager pods.... "
     kubectl get pods -n cert-manager
     wait
-    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
-    wait
     helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.7.2-rc1 --version=v2.7.2-rc1 
     #wait
-    #watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
+    watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
     #kubectl port-forward "$(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -A)" 9000:9000 -A
 }
 
@@ -329,7 +324,7 @@ set_figs() {
     cat <<EOF >> "${_product}"-config.yaml
 write-kubeconfig-mode: 644
 debug: true
-token: mangocabbages
+token: garbokenganic
 cni: cilium
 server: https://
 
@@ -344,6 +339,9 @@ selinux: true
 ##EDIT these
 node-ip: $(hostname -I)
 #node-external-ip: IPV4,IPV6
+##DUALSTACK note reverse the IPV4/IPV6 order to prioritize IPV6 over IPV4 if needed during testing
+#cluster-cidr: 10.42.0.0/16,2001:cafe:42:0::/56
+#service-cidr: 10.43.0.0/16,2001:cafe:42:1::/112
 
 ##KUBELET ARGS 
 #kubelet-arg:
@@ -380,10 +378,6 @@ node-ip: $(hostname -I)
 #etcd-s3-endpoint: "s3.us-west-2.amazonaws.com"
 #etcd-s3-access-key: "YOUR_ACCESS_KEY"
 #etcd-s3-secret-key: "YOUR_SECRET_KEY"
-
-##DUALSTACK
-#cluster-cidr: 10.42.0.0/16,2001:cafe:42:0::/56
-#service-cidr: 10.43.0.0/16,2001:cafe:42:1::/112
 
 #flannel-ipv6-masq: true
 #disable: rke2-ingress-nginx
@@ -735,27 +729,6 @@ get_images() {
         sudo k3s crictl ps
         sudo k3s crictl img ls
         ;;
-    esac
-}
-
-# --- checks for the bci tag in rke2 containerd images ---
-get_bci() {
-    _product="${1:-rke2}"
-    case "${_product}" in
-    rke2) 
-        has_bin rke2
-        for id in $(sudo /var/lib/rancher/rke2/bin/crictl -r unix:///run/k3s/containerd/containerd.sock images | awk 'NR>1{print $3}'); do
-                echo "The ID: ${id} "
-                sudo /var/lib/rancher/rke2/bin/crictl -r unix:///run/k3s/containerd/containerd.sock inspecti "${id}" | grep bci
-            done
-        ;;
-    k3s) 
-        has_bin k3s
-        for id in $(sudo k3s crictl -r unix:///run/k3s/containerd/containerd.sock images | awk 'NR>1{print $3}'); do 
-            echo "The ID: ${id} "
-            sudo k3s crictl -r unix:///run/k3s/containerd/containerd.sock inspecti "${id}" | grep bci 
-        done
-    ;;
     esac
 }
 
