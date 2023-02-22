@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: othertest-deploy
+  labels:
+    app: othertest
+spec:
+  selector:
+    matchLabels:
+      app: othertest
+  template:
+    metadata:
+      labels:
+        app: othertest
+    spec:
+      containers:
+      - name: othertest
+        image: ranchertest/mytestcontainer:unprivileged
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: othertest-ingress-svc
+ labels:
+   app: othertest
+spec:
+ ports:
+ - port: 8080
+   targetPort: 8080
+   protocol: TCP
+   name: http
+ selector:
+   app: othertest
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: othertest-ingress
+spec:
+  rules:
+  - host: test1.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: othertest-ingress-svc
+            port:
+              number: 8080
+        pathType: ImplementationSpecific
+        
