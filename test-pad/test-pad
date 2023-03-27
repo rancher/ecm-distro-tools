@@ -154,7 +154,7 @@ check_and_update_boxes() {
 
 get_possible_node_roles() {
     case ${CLUSTER} in
-    split|split-lite)
+    split|split-lite|split-heavy)
         NODE_ROLES="server-etcd-0 server-etcd-1 server-etcd-2 server-cp-0 server-cp-1 agent-0 agent-1"
     ;;
     *)
@@ -299,28 +299,29 @@ fi
 
 # Download and setup appropiate vagrant files and binary
 if [ -z "${SKIP_DOWNLOAD}" ]; then
-    
+    set -e
     download_artifacts
     
     GITHUB_URL="https://raw.githubusercontent.com/$ORG/$REPO/master/tests/e2e"
     case ${CLUSTER} in
     basic | basic-lite | ha | ha-lite )
-        wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
-        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+        wget -q --show-progress "${GITHUB_URL}"/validatecluster/Vagrantfile
+        wget -q --show-progress "${GITHUB_URL}"/vagrantdefaults.rb
     ;;
     split | split-heavy | split-lite)
-        wget -q "${GITHUB_URL}"/splitserver/Vagrantfile
-        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+        wget -q --show-progress "${GITHUB_URL}"/splitserver/Vagrantfile
+        wget -q --show-progress "${GITHUB_URL}"/vagrantdefaults.rb
         check_and_install_plugins
     ;;
     rancher)
-        wget -q "${GITHUB_URL}"/validatecluster/Vagrantfile
+        wget -q --show-progress "${GITHUB_URL}"/validatecluster/Vagrantfile
         curl --create-dirs -q "${GITHUB_URL}"/scripts/rancher.sh -o ./scripts/rancher.sh
-        wget -q "${GITHUB_URL}"/vagrantdefaults.rb
+        wget -q --show-progress "${GITHUB_URL}"/vagrantdefaults.rb
     ;;
     esac
     curl --create-dirs -q "${GITHUB_URL}"/scripts/latest_commit.sh -o ./scripts/latest_commit.sh
-    
+    set +e
+
     # Replace default roles
     get_possible_node_roles
     sed -i "3s/.*/  %w[$NODE_ROLES])/" Vagrantfile
@@ -394,9 +395,11 @@ rancher)
     E2E_EXTERNAL_DB=none E2E_RELEASE_VERSION=skip E2E_NODE_BOXES="${OS}" vagrant provision server-0
     E2E_RANCHER=true vagrant provision server-0 --provision-with "Install Rancher"
     E2E_NODE_ROLES="agent-0 agent-1 agent-2" E2E_NODE_MEMORY=2048 E2E_NODE_BOXES="${OS} ${OS} ${OS}" vagrant up --no-provision
+    E2E_RANCHER=true vagrant provision agent-0 agent-1 agent-2 --provision-with "Install Rancher"
     CMD="kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}'"
     SECRET=$(vagrant ssh server-0 -c "${CMD}" 2> /dev/null)
-    echo "Rancher URL: https://10.10.10.100.nip.io/dashboard/?setup=${SECRET}"
+    echo "Rancher URL: https://test-pad.rancher/dashboard/?setup=${SECRET}"
+    printf "Add the following to your /etc/hosts file:\n10.10.10.100 test-pad.rancher\n"
 
 ;;
 esac
