@@ -361,6 +361,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	if err != nil {
 		return "", err
 	}
+	gopath = strings.Trim(gopath, "\n")
 
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
