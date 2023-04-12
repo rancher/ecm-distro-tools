@@ -1,9 +1,5 @@
 #! /bin/sh
 #~/.bashrc: executed by bash(1) for non-login shells.
-#[[ $- != *i* ]] && return
-if ! echo "$-" | grep -q "i"; then
-  exit 0
-fi
 
 cat << "EOF"
 --------------------------------
