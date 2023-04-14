@@ -151,6 +151,62 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 	return releases, nil
 }
 
+func KubernetesGoVersion(ctx context.Context, client *github.Client) (map[string]string, error) {
+	const (
+		defaultPerPage int    = 100
+		limitMax       int    = 20
+		owner          string = "kubernetes"
+		repo           string = "kubernetes"
+	)
+	var latestVersion, stableVersion string
+	goVersions := make(map[string]int)
+	maxOccurrences := 0
+	limitCount := 1
+
+	branches, _, err := client.Repositories.ListBranches(ctx, owner, repo, &github.BranchListOptions{
+		ListOptions: github.ListOptions{PerPage: defaultPerPage},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(branches)/2; i++ {
+		branches[i], branches[len(branches)-1-i] = branches[len(branches)-1-i], branches[i]
+	}
+
+	for _, branch := range branches {
+		if limitCount == limitMax {
+			break
+		}
+		file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, ".go-version", &github.RepositoryContentGetOptions{
+			Ref: *branch.Name,
+		})
+		limitCount++
+		if err != nil {
+			continue
+		}
+		version, _ := file.GetContent()
+		goVersions[version]++
+	}
+
+	for version, occurrences := range goVersions {
+		if occurrences > maxOccurrences {
+			maxOccurrences = occurrences
+			stableVersion = version
+		}
+		if version > latestVersion {
+			latestVersion = version
+		}
+	}
+
+	result := map[string]string{
+		"latestVersion": latestVersion,
+		"stableVersion": stableVersion,
+	}
+
+	return result, nil
+}
+
 // VerifyAssets checks the number of assets for the
 // given release and indicates if the expected number has
 // been met.
