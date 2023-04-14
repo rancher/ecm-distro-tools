@@ -23,8 +23,8 @@ K8S_GO_MOD=$(curl -qsL "https://raw.githubusercontent.com/${K8S_REPO}/${K8S_COMM
 
 # update replacements
 go mod edit --json | jq -r '.Replace[] | .Old.Path + " " + .New.Path + " " + .New.Version' |
-while read OLDPATH NEWPATH VERSION; do
-  REPLACEMENT=$(go mod edit --json /dev/stdin <<<"${K8S_GO_MOD}" | jq -r --arg OLDPATH "${OLDPATH}" '.Replace[] | select(.Old.Path==$OLDPATH) | .New.Version')
+while read -r OLDPATH NEWPATH VERSION; do
+  REPLACEMENT=$(echo "${K8S_GO_MOD}" | go mod edit --json /dev/stdin | jq -r --arg OLDPATH "${OLDPATH}" '.Replace[] | select(.Old.Path==$OLDPATH) | .New.Version')
   echo "Checking for updates to ${OLDPATH} ${VERSION} -> ${REPLACEMENT}"
   if [ -n "${REPLACEMENT}" ] && [ "${REPLACEMENT}" != "null" ] && echo "${NEWPATH}" | grep -vq k3s && semver-cli greater "${REPLACEMENT}" "${VERSION}" ; then
     (set -x; go mod edit --replace="${OLDPATH}=${NEWPATH}@${REPLACEMENT}")
