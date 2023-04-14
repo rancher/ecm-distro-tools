@@ -17,6 +17,14 @@ var (
 			Name:  "graph,g ",
 			Usage: "display results as a graph",
 		},
+		&cli.BoolFlag{
+			Name:  "table,t ",
+			Usage: "display results as a markdown table",
+		},
+		&cli.BoolFlag{
+			Name:  "list,l ",
+			Usage: "display results as a list",
+		},
 		&cli.StringFlag{
 			Name:     "path, p",
 			Usage:    "path to K3s/RKE2 repository",

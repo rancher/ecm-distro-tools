@@ -248,7 +248,7 @@ func coverage(c *cli.Context) error {
 	percentageCover := float32(totalUsedFlags) / float32(len(serverFlagSet)) * 100
 	fmt.Printf("Covering %d out of %d (%.2f%%) of server flags\n", totalUsedFlags, len(serverFlagSet), percentageCover)
 
-	// integration tests don't have agent flags
+	// integration tests don't have agent flags, so we only check the vagrant tests
 	agentFlagSet, err := extractHelp(program, "agent")
 	if err != nil {
 		return err
@@ -265,60 +265,114 @@ func coverage(c *cli.Context) error {
 	fmt.Printf("Covering %d out of %d (%.2f%%) of agent flags\n", totalUsedFlags, len(agentFlagSet), percentageCover)
 
 	if c.Bool("graph") {
+		graphResults(serverFlagSet, vagrantCoverage, intCoverage)
+	}
 
-		data := grob.Traces{}
-		xFlagNames := []string{}
-
-		for k := range serverFlagSet {
-			xFlagNames = append(xFlagNames, k)
+	usedFlags := []string{}
+	unusedFlags := []string{}
+	for k, v := range serverFlagSet {
+		if v > 0 {
+			usedFlags = append(usedFlags, k)
+		} else {
+			unusedFlags = append(unusedFlags, k)
 		}
-		for _, test := range append(vagrantCoverage, intCoverage...) {
-			var testGroup string
-			if group := "integration"; strings.Contains(test.shortPath, group) {
-				testGroup = group
-			} else if group := "install"; strings.Contains(test.shortPath, group) {
-				testGroup = group
-			} else if group := "e2e"; strings.Contains(test.shortPath, group) {
-				testGroup = group
+	}
+
+	if c.Bool("list") {
+		fmt.Printf("Used flags:\n\n")
+		for _, f := range usedFlags {
+			fmt.Println(f)
+		}
+		fmt.Printf("Unused flags:\n\n")
+		for _, f := range unusedFlags {
+			fmt.Println(f)
+		}
+	}
+
+	if c.Bool("table") {
+		fmt.Printf("\n| Server flags: | | | \n| - | - | - |\n")
+		for i := 0; i < len(usedFlags); i += 3 {
+			checkBoxHtml0 := fmt.Sprintf("<ul><li>- [x] %s</li></ul>", usedFlags[i])
+			if i+2 < len(usedFlags) {
+				checkBoxHtml1 := fmt.Sprintf("<ul><li>- [x] %s</li></ul>", usedFlags[i+1])
+				checkBoxHtml2 := fmt.Sprintf("<ul><li>- [x] %s</li></ul>", usedFlags[i+2])
+				fmt.Printf("| %s | %s | %s |\n", checkBoxHtml0, checkBoxHtml1, checkBoxHtml2)
+			} else if i+1 < len(usedFlags) {
+				checkBoxHtml1 := fmt.Sprintf("<ul><li>- [x] %s</li></ul>", usedFlags[i+1])
+				fmt.Printf("| %s | %s | |\n", checkBoxHtml0, checkBoxHtml1)
+			} else {
+				fmt.Printf("| %s | | |\n", checkBoxHtml0)
 			}
+		}
 
-			flagHits := make([]int, len(xFlagNames))
-			for i, flag := range xFlagNames {
-				if test.serverArguments[flag] {
-					flagHits[i] = 1
-				}
+		for i := 0; i < len(unusedFlags); i += 3 {
+			checkBoxHtml0 := fmt.Sprintf("<ul><li>- [ ] %s</li></ul>", unusedFlags[i])
+			if i+2 < len(unusedFlags) {
+				checkBoxHtml1 := fmt.Sprintf("<ul><li>- [ ] %s</li></ul>", unusedFlags[i+1])
+				checkBoxHtml2 := fmt.Sprintf("<ul><li>- [ ] %s</li></ul>", unusedFlags[i+2])
+				fmt.Printf("| %s | %s | %s |\n", checkBoxHtml0, checkBoxHtml1, checkBoxHtml2)
+			} else if i+1 < len(unusedFlags) {
+				checkBoxHtml1 := fmt.Sprintf("<ul><li>- [ ] %s</li></ul>", unusedFlags[i+1])
+				fmt.Printf("| %s | %s | |\n", checkBoxHtml0, checkBoxHtml1)
+			} else {
+				fmt.Printf("| %s | | |\n", checkBoxHtml0)
 			}
-			data = append(data, &grob.Bar{
-				Name:        test.shortPath,
-				X:           xFlagNames,
-				Y:           flagHits,
-				Type:        grob.TraceTypeBar,
-				Legendgroup: testGroup,
-			})
 		}
-
-		fig := &grob.Fig{
-			Data: data,
-			Layout: &grob.Layout{
-				Title: &grob.LayoutTitle{
-					Text: "Server Argument Coverage",
-				},
-				Xaxis: &grob.LayoutXaxis{
-					Tickangle: 60,
-				},
-				Yaxis: &grob.LayoutYaxis{
-					Title: &grob.LayoutYaxisTitle{
-						Text: "# of Tests Using Flag",
-					},
-				},
-				Barmode: "stack",
-			},
-		}
-		offline.ToHtml(fig, "graph.html")
-		cd, _ := os.Getwd()
-		fmt.Printf("Graph written to: file://%s\n", filepath.Join(cd, "graph.html"))
-
 	}
 
 	return nil
+}
+
+func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCoverage []TestCov) {
+	data := grob.Traces{}
+	xFlagNames := []string{}
+
+	for k := range serverFlagSet {
+		xFlagNames = append(xFlagNames, k)
+	}
+	for _, test := range append(vagrantCoverage, intCoverage...) {
+		var testGroup string
+		if group := "integration"; strings.Contains(test.shortPath, group) {
+			testGroup = group
+		} else if group := "install"; strings.Contains(test.shortPath, group) {
+			testGroup = group
+		} else if group := "e2e"; strings.Contains(test.shortPath, group) {
+			testGroup = group
+		}
+
+		flagHits := make([]int, len(xFlagNames))
+		for i, flag := range xFlagNames {
+			if test.serverArguments[flag] {
+				flagHits[i] = 1
+			}
+		}
+		data = append(data, &grob.Bar{
+			Name:        test.shortPath,
+			X:           xFlagNames,
+			Y:           flagHits,
+			Type:        grob.TraceTypeBar,
+			Legendgroup: testGroup,
+		})
+	}
+
+	fig := &grob.Fig{
+		Data: data,
+		Layout: &grob.Layout{
+			Title: &grob.LayoutTitle{
+				Text: "Server Argument Coverage",
+			},
+			Xaxis: &grob.LayoutXaxis{
+				Tickangle: 60,
+			},
+			Yaxis: &grob.LayoutYaxis{
+				Title: &grob.LayoutYaxisTitle{
+					Text: "# of Tests Using Flag",
+				},
+			},
+			Barmode: "stack",
+		},
+	}
+	offline.ToHtml(fig, "graph.html")
+	cd, _ := os.Getwd()
+	fmt.Printf("Graph written to: file://%s\n", filepath.Join(cd, "graph.html"))
 }
