@@ -193,7 +193,7 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 	goVersion, err := file.GetContent()
 
 	if err != nil {
-		logrus.Debugf("Failed to decode content from .go-version file")
+		logrus.Debugf("Failed to decode content from file")
 		return "", err
 	}
 
