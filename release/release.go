@@ -151,60 +151,65 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 	return releases, nil
 }
 
-func KubernetesGoVersion(ctx context.Context, client *github.Client) (map[string]string, error) {
+func KubernetesGoVersion(ctx context.Context, client *github.Client, version string) (string, error) {
 	const (
-		defaultPerPage int    = 100
-		limitMax       int    = 20
-		owner          string = "kubernetes"
-		repo           string = "kubernetes"
+		owner string = "kubernetes"
+		repo  string = "kubernetes"
 	)
-	var latestVersion, stableVersion string
-	goVersions := make(map[string]int)
-	maxOccurrences := 0
-	limitCount := 1
+	var fromGoMod bool
 
-	branches, _, err := client.Repositories.ListBranches(ctx, owner, repo, &github.BranchListOptions{
-		ListOptions: github.ListOptions{PerPage: defaultPerPage},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < len(branches)/2; i++ {
-		branches[i], branches[len(branches)-1-i] = branches[len(branches)-1-i], branches[i]
-	}
-
-	for _, branch := range branches {
-		if limitCount == limitMax {
-			break
-		}
-		file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, ".go-version", &github.RepositoryContentGetOptions{
-			Ref: *branch.Name,
+	getFromFile := func(path string) (*github.RepositoryContent, error) {
+		file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, &github.RepositoryContentGetOptions{
+			Ref: version,
 		})
-		limitCount++
 		if err != nil {
-			continue
+			return nil, err
 		}
-		version, _ := file.GetContent()
-		goVersions[version]++
+		return file, nil
 	}
 
-	for version, occurrences := range goVersions {
-		if occurrences > maxOccurrences {
-			maxOccurrences = occurrences
-			stableVersion = version
-		}
-		if version > latestVersion {
-			latestVersion = version
+	file, err := getFromFile(".go-version")
+
+	if err != nil {
+		switch err := err.(type) {
+		case *github.ErrorResponse:
+			if err.Response.StatusCode == http.StatusNotFound {
+				logrus.Debugf("Failed to get .go-version file from given Kubernetes version")
+				// Get from go.mod
+				newFile, err := getFromFile("go.mod")
+
+				if err != nil {
+					return "", err
+				}
+				file = newFile
+				fromGoMod = true
+			}
+			return "", err
+		default:
+			return "", err
 		}
 	}
 
-	result := map[string]string{
-		"latestVersion": latestVersion,
-		"stableVersion": stableVersion,
+	goVersion, err := file.GetContent()
+
+	if err != nil {
+		logrus.Debugf("Failed to decode content from .go-version file")
+		return "", err
 	}
 
-	return result, nil
+	// Extract version from go.mod
+	if fromGoMod {
+		lines := strings.Split(goVersion, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "go ") {
+				goVersion := strings.TrimPrefix(line, "go ")
+				return goVersion, nil
+			}
+		}
+		return "", errors.New("Go version not found in go.mod")
+	}
+
+	return goVersion, nil
 }
 
 // VerifyAssets checks the number of assets for the
