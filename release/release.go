@@ -152,31 +152,18 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 }
 
 func KubernetesGoVersion(ctx context.Context, client *github.Client, version string) (string, error) {
-	const (
-		owner string = "kubernetes"
-		repo  string = "kubernetes"
-	)
 
-	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, ".go-version", &github.RepositoryContentGetOptions{
+	file, _, _, err := client.Repositories.GetContents(ctx, "kubernetes", "kubernetes", ".go-version", &github.RepositoryContentGetOptions{
 		Ref: version,
 	})
 
 	if err != nil {
-		switch err := err.(type) {
-		case *github.ErrorResponse:
-			if err.Response.StatusCode == http.StatusNotFound {
-				logrus.Debugf("Failed to get .go-version file from given Kubernetes version")
-			}
-			return "", err
-		default:
-			return "", err
-		}
+		return "", err
 	}
 
 	goVersion, err := file.GetContent()
 
 	if err != nil {
-		logrus.Debugf("Failed to decode content from file")
 		return "", err
 	}
 
