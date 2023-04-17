@@ -165,7 +165,7 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 			}
 			return "", errors.New("unexpected GitHub API error")
 		} else {
-			return "", errors.New("failed to find .go-version file in given Kubernetes version")
+			return "", err
 		}
 	}
 
