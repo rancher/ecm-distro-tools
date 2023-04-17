@@ -156,33 +156,16 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 		owner string = "kubernetes"
 		repo  string = "kubernetes"
 	)
-	var fromGoMod bool
 
-	getFromFile := func(path string) (*github.RepositoryContent, error) {
-		file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, &github.RepositoryContentGetOptions{
-			Ref: version,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return file, nil
-	}
-
-	file, err := getFromFile(".go-version")
+	file, _, _, err := client.Repositories.GetContents(ctx, owner, repo, ".go-version", &github.RepositoryContentGetOptions{
+		Ref: version,
+	})
 
 	if err != nil {
 		switch err := err.(type) {
 		case *github.ErrorResponse:
 			if err.Response.StatusCode == http.StatusNotFound {
 				logrus.Debugf("Failed to get .go-version file from given Kubernetes version")
-				// Get from go.mod
-				newFile, err := getFromFile("go.mod")
-
-				if err != nil {
-					return "", err
-				}
-				file = newFile
-				fromGoMod = true
 			}
 			return "", err
 		default:
@@ -195,18 +178,6 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 	if err != nil {
 		logrus.Debugf("Failed to decode content from file")
 		return "", err
-	}
-
-	// Extract version from go.mod
-	if fromGoMod {
-		lines := strings.Split(goVersion, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "go ") {
-				goVersion := strings.TrimPrefix(line, "go ")
-				return goVersion, nil
-			}
-		}
-		return "", errors.New("Go version not found in go.mod")
 	}
 
 	return goVersion, nil
