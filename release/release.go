@@ -157,19 +157,16 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 	file, _, _, err := client.Repositories.GetContents(ctx, "kubernetes", "kubernetes", ".go-version", &github.RepositoryContentGetOptions{
 		Ref: version,
 	})
-
 	if err != nil {
 		if errors.As(err, &githubError) {
 			if githubError.Response.StatusCode == http.StatusNotFound {
 				return "", errors.New("failed to find .go-version file in given Kubernetes version")
 			}
-			return "", errors.New("unexpected GitHub API error")
 		}
 		return "", err
 	}
 
 	goVersion, err := file.GetContent()
-
 	if err != nil {
 		return "", errors.New("failed to decode content from .go-version file")
 	}
