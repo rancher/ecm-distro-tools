@@ -160,7 +160,7 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 	if err != nil {
 		if errors.As(err, &githubError) {
 			if githubError.Response.StatusCode == http.StatusNotFound {
-				return "", errors.New("failed to find .go-version file in given Kubernetes version")
+				return "", err
 			}
 		}
 		return "", err
@@ -168,10 +168,10 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 
 	goVersion, err := file.GetContent()
 	if err != nil {
-		return "", errors.New("failed to decode content from .go-version file")
+		return "", err
 	}
 
-	return goVersion, nil
+	return strings.Trim(goVersion, "\n"), nil
 }
 
 // VerifyAssets checks the number of assets for the
