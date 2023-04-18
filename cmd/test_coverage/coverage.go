@@ -332,12 +332,12 @@ func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCo
 	}
 	for _, test := range append(vagrantCoverage, intCoverage...) {
 		var testGroup string
-		if group := "integration"; strings.Contains(test.shortPath, group) {
-			testGroup = group
-		} else if group := "install"; strings.Contains(test.shortPath, group) {
-			testGroup = group
-		} else if group := "e2e"; strings.Contains(test.shortPath, group) {
-			testGroup = group
+		if strings.Contains(test.shortPath, "integration") {
+			testGroup = "integration"
+		} else if strings.Contains(test.shortPath, "install") {
+			testGroup = "install"
+		} else if strings.Contains(test.shortPath, "e2e") {
+			testGroup = "e2e"
 		}
 
 		flagHits := make([]int, len(xFlagNames))
