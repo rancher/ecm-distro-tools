@@ -151,6 +151,29 @@ func CheckUpstreamRelease(ctx context.Context, client *github.Client, org, repo 
 	return releases, nil
 }
 
+func KubernetesGoVersion(ctx context.Context, client *github.Client, version string) (string, error) {
+	var githubError *github.ErrorResponse
+
+	file, _, _, err := client.Repositories.GetContents(ctx, "kubernetes", "kubernetes", ".go-version", &github.RepositoryContentGetOptions{
+		Ref: version,
+	})
+	if err != nil {
+		if errors.As(err, &githubError) {
+			if githubError.Response.StatusCode == http.StatusNotFound {
+				return "", err
+			}
+		}
+		return "", err
+	}
+
+	goVersion, err := file.GetContent()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(goVersion, "\n"), nil
+}
+
 // VerifyAssets checks the number of assets for the
 // given release and indicates if the expected number has
 // been met.
