@@ -474,7 +474,7 @@ func findInURL(url, regex, str string) []string {
 }
 
 // LatestRC will get the latest rc created for the k8s version in either rke2 or k3s
-func LatestRC(ctx context.Context, repo string, k8sVersion string, client *github.Client) (string, error) {
+func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Client) (string, error) {
 	var rcs []*github.RepositoryRelease
 	org, err := repository.OrgFromRepo(repo)
 	if err != nil {

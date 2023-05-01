@@ -32,9 +32,5 @@ func createRelease(c *cli.Context) error {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}
 
-	err = release.CreateRelease(ctx, client, false)
-	if err != nil {
-		return err
-	}
-	return nil
+	return release.CreateRelease(ctx, client, false)
 }
