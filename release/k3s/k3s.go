@@ -18,12 +18,14 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
 
 const (
+	k3sRepo            = "k3s"
 	k8sUpstreamURL     = "https://github.com/kubernetes/kubernetes"
 	rancherRemote      = "k3s-io"
 	k8sRancherURL      = "git@github.com:k3s-io/kubernetes.git"
@@ -636,5 +638,46 @@ func cleanGitRepo(dir string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc bool) error {
+	rcNum := 1
+	name := r.NewK8SClient + "+" + r.NewK3SVersion
+	oldName := r.OldK8SVersion + "+" + r.OldK8SVersion
+	for {
+		if rc {
+			name = r.NewK8SVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewK3SVersion
+		}
+		opts := &repository.CreateReleaseOpts{
+			Repo:         k3sRepo,
+			Name:         name,
+			Prerelease:   rc,
+			Branch:       r.ReleaseBranch,
+			Draft:        !rc,
+			ReleaseNotes: "",
+		}
+		if !rc {
+			latestRc, err := release.LatestRC(ctx, k3sRepo, r.NewK8SVersion, client)
+			buff, err := release.GenReleaseNotes(ctx, k3sRepo, latestRc, oldName, client)
+			if err != nil {
+				return err
+			}
+			opts.ReleaseNotes = buff.String()
+		}
+		_, err := repository.CreateRelease(ctx, client, opts)
+		if err != nil {
+			githubErr := err.(*github.ErrorResponse)
+			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
+				if !rc {
+					return err
+				}
+				rcNum += 1
+				continue
+			}
+			return err
+		}
+		break
+	}
 	return nil
 }

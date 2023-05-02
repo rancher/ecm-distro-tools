@@ -85,10 +85,25 @@ func IsValidRepo(repo string) bool {
 
 // CreateReleaseOpts
 type CreateReleaseOpts struct {
-	Repo       string
-	Name       string
-	Prerelease bool
-	Branch     string
+	Repo         string `json:"repo"`
+	Name         string `json:"name"`
+	Prerelease   bool   `json:"pre_release"`
+	Branch       string `json:"branch"`
+	ReleaseNotes string `json:"release_notes"`
+	Draft        bool   `json:"draft"`
+}
+
+// ListReleases
+func ListReleases(ctx context.Context, client *github.Client, repo string) ([]*github.RepositoryRelease, error) {
+	org, err := OrgFromRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+	releases, _, err := client.Repositories.ListReleases(ctx, org, repo, &github.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return releases, nil
 }
 
 // CreateRelease
@@ -107,6 +122,12 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		TagName:         &cro.Name,
 		Prerelease:      &cro.Prerelease,
 		TargetCommitish: &cro.Branch,
+		Draft:           &cro.Draft,
+	}
+	if cro.ReleaseNotes != "" {
+		genReleaseNotes := true
+		rr.Body = &cro.ReleaseNotes
+		rr.GenerateReleaseNotes = &genReleaseNotes
 	}
 	release, _, err := client.Repositories.CreateRelease(ctx, org, cro.Repo, &rr)
 	if err != nil {
