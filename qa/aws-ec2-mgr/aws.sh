@@ -144,13 +144,6 @@ case $osname in
     #     ssh_user="rocky"
     #     instance_type="a1.large"
     #     ;;
-    *)
-        # Default is ubuntu 22.04 if the second argument is not provided 
-        image_id="ami-0a695f0d95cefc163"
-        ssh_user="ubuntu"
-        instance_type="t3.medium"
-        ;;
-
 esac
 
 if [[ -z $osname ]]; then
@@ -212,12 +205,9 @@ fi
 
 case $action in
     deploy)
-        rm $public_dns_file_path $deployed_file_path
         echo "Deploying OS: $osname ImageID: $image_id SSH_User: $ssh_user" 
-        # aws ec2 run-instances --image-id $image_id --instance-type $instance_type --count $count --key-name $key_name --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":$volume_size,\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"$prefix-$osname\"},{\"Key\":\"creator\",\"Value\":\"$full_name\"}]}]" > /dev/null
         aws ec2 run-instances --image-id $image_id --instance-type $instance_type --count $count --key-name $key_name --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":$volume_size,\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"$prefix-$osname\"}]}]" > /dev/null
-        sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script. 
-        # Note: Sometimes, the output displays terminated instances as well. In which case, choose to use the get_running action - to get the running instances only
+        sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
         aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
         grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
         while read -r line
@@ -238,7 +228,6 @@ case $action in
         rm $public_dns_file_path $deployed_file_path
         ;;
     terminate)
-        all="all"
         if [[ $osname == "all" ]]; then
             echo "Initiate termination for all running instances"
             aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=instance-state-name,Values="running" > $terminate_file_path
