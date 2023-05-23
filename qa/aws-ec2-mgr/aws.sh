@@ -12,7 +12,7 @@ do
         k) key_name=${OPTARG};;
         f) pem_file_path=${OPTARG};;
         c) count=${OPTARG};;
-        v) volume=${OPTARG};;
+        v) volume_size=${OPTARG};;
         ?|h)
             echo "
         Usage: 
@@ -49,7 +49,7 @@ echo "prefix   : $prefix"
 echo "key_name : $key_name"
 echo "pem_file_path   : $pem_file_path"
 echo "count : $count"
-echo "EBS volume size   : $volume"
+echo "EBS volume size   : $volume_size"
 
 public_dns_file_path="$PWD/public_dns"
 instances_file_path="$PWD/instances"
@@ -244,8 +244,3 @@ case $action in
         rm $instances_file_path $terminate_file_path
         ;;
 esac
-
-
-
-
-
