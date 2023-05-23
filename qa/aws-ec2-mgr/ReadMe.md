@@ -47,7 +47,7 @@ Examples:
 
 Assuming PREFIX, KEY_NAME and PEM_FILE_PATH are already exported: 
 ```
-    bash aws.sh h  -> For Usage/Help information
+    bash aws.sh -h  -> For Usage/Help information
 
     bash aws.sh -d -> Deploy ubuntu22.04 by default. 
     bash aws.sh -t -> terminate all instances previously deployed
