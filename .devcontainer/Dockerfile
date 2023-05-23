@@ -1,15 +1,7 @@
-FROM alpine:3.18.0
+FROM ubuntu:20.04
 
-# Set the Go version
-ARG go_version=1.20
+COPY . .
 
-# Install dependencies
-RUN apk update
-
-RUN apk add --no-cache git docker docker-compose go make openrc
-RUN rc-update add docker boot
-
-# Set Go environment variables
-ENV GOROOT=/usr/lib/go \
-    GOPATH=/go \
-    PATH=/go/bin:/usr/lib/go/bin:$PATH
+ENV PATH "$PATH:/usr/local/go/bin:/home/user/go/bin:/home/user/.cargo/bin"
+RUN bash setup.sh
+USER user
