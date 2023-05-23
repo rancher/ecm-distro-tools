@@ -204,7 +204,7 @@ if [[ $action == "deploy" || $action == "get_running" ]]; then
     fi
 fi
 
-echo "ACTION STAGE:\n $action"
+echo "ACTION STAGE: $action"
 
 case $action in
     deploy)
