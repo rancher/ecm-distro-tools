@@ -56,7 +56,7 @@ instances_file_path="$PWD/instances"
 deployed_file_path="$PWD/deployed"
 terminate_file_path="$PWD/terminate"
 
-# Which OS to deploy - the second argument to the script
+# Which OS to deploy
 case $osname in
     rhel9_arm)
         image_id="ami-0a33bf6de464f0857"
@@ -147,16 +147,17 @@ case $osname in
 esac
 
 if [[ -z $osname ]]; then
-    # Default is ubuntu 22.04 if the second argument is not provided
+    # Default is ubuntu 22.04 for deploy/get_running actions
     if [[ $action == "deploy" || $action == "get_running" ]]; then
-        echo "osname was not provided via args. Setting default value to ubuntu22.4"
+        osname="ubuntu22.4"
+        echo "WARN: Set Default osname: $osname"
         image_id="ami-0a695f0d95cefc163"
         ssh_user="ubuntu"
         instance_type="t3.medium"
-        osname="ubuntu22.4"
     else
+        # Terminates 'all' instances irrespective of os - if not provided as a cmd line argument
         osname="all"
-        echo "Going to terminate $osname"
+        echo "Going to terminate $osname running ec2 instances"
     fi
 fi
 
@@ -164,20 +165,20 @@ if [[ $action == "deploy" ]]; then
     if [[ -z $count ]]; then
         # Default count value to 4 ec2 instances
         count=4
-        echo "Default count to $count"
+        echo "WARN: Set Default count: $count"
     fi
 
     if [[ -z $volume_size ]]; then
         # Default volume_size to 30G for RKE2 setup
         volume_size=30
-        echo "Default volume_size to $volume_size"
+        echo "WARN: Set Default volume_size: $volume_size"
     fi
     if [[ -z $prefix ]]; then
         if [[ -z $PREFIX ]]; then
-            echo "Either use -p option to set prefix or set env var/ export PREFIX to skip this option. Cannot proceed with deploy action without this. Exiting the script."
+            echo "FATAL: Either use -p option to set prefix or set env var/ export PREFIX to skip this option. Cannot proceed with deploy action without this. Exiting the script."
             exit 1
         fi
-        echo "Default prefix to the environment variable PREFIX: $PREFIX"
+        echo "WARN: Set Default prefix - to the environment variable PREFIX value: $PREFIX"
         prefix=$PREFIX
     fi
 fi
@@ -185,23 +186,25 @@ fi
 
 if [[ -z $key_name ]]; then
     if [[ -z $KEY_NAME ]]; then
-        echo "Either set -k value for key_name or set env var/export variable KEY_NAME to skip this option. cannot proceed without this value. Exiting the script."
+        echo "FATAL: Either set -k value for key_name or set env var/export variable KEY_NAME to skip this option. Cannot proceed without this value. Exiting the script."
         exit 1
     fi
-    echo "Default key_name to the environement variable KEY_NAME: $KEY_NAME"
+    echo "WARN: Set Default key_name - to the environement variable KEY_NAME value: $KEY_NAME"
     key_name=$KEY_NAME
 fi
 
 if [[ $action == "deploy" || $action == "get_running" ]]; then
     if [[ -z $pem_file_path ]]; then
         if [[ -z $PEM_FILE_PATH ]]; then
-            echo "Either set -f value for pem_file_path or set env var/export PEM_FILE_PATH to skip this option. Cannot proceed without this value. Exiting the script."
+            echo "FATAL: Either set -f value for pem_file_path or set env var/export PEM_FILE_PATH to skip this option. Cannot proceed without this value. Exiting the script."
             exit 1
         fi
-        echo "Default pem_file_path to the environment variable PEM_FILE_PATH: $PEM_FILE_PATH"
+        echo "WARN: Set Default pem_file_path - to the environment variable PEM_FILE_PATH value: $PEM_FILE_PATH"
         pem_file_path=$PEM_FILE_PATH
     fi
 fi
+
+echo "ACTION STAGE:\n $action"
 
 case $action in
     deploy)
