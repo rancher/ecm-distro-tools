@@ -1,9 +1,3 @@
-# FROM ubuntu:20.04
-
-# COPY . .
-
-# ENV PATH "$PATH:/usr/local/go/bin:/home/user/go/bin"
-# RUN bash setup.sh
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
 ARG GO_IMAGE=rancher/hardened-build-base:v1.20.1b1
 FROM ${BCI_IMAGE} as bci
@@ -61,4 +55,5 @@ COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
 COPY --from=builder /usr/local/bin/trivy /usr/local/bin
 COPY --from=builder /usr/local/bin/gh /usr/local/bin
 COPY --from=builder /usr/local/bin/yq /usr/local/bin
+COPY --from=builder /usr/local/go/bin /home/local/go/bin
 ENV PATH "$PATH:/usr/local/go/bin:/home/user/go/bin"
