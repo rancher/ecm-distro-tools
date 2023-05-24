@@ -7,9 +7,9 @@
     // List of ports that you want to preview
     // "forwardPorts": [1234, 5678],
     // Script to run to bootstrap the app when the space is created
-    // "postCreateCommand": "service start docker && make all",
+    // "postCreateCommand": "",
     // Automatically start the app in subsequent sessions
-    // "postStartCommand": "docker build . -t rancher/ecm-distro-tools",
+    "postStartCommand": "bash init.sh",
     // Privileged flag is needed to run docker-in-docker, the volume
     // is needed or docker build will fail
     "extensions": [

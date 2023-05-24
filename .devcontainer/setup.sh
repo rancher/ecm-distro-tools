@@ -39,6 +39,3 @@ echo "Getting dependencies for the vscode-go plugin "
 # go get -u -v github.com/zmb3/gogetdoc
 # go get -u -v golang.org/x/lint/golint
 # go get -u -v golang.org/x/tools/cmd/gorename
-
-service docker start
-make all
