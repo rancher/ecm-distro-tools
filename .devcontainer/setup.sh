@@ -2,8 +2,8 @@
 apt-get update
 apt-get install -y curl git jq
 
-useradd -m user
-su user
+# useradd -m user
+# su user
 
 # install go
 VERSION='1.17'
@@ -18,8 +18,8 @@ rm go$VERSION.$OS-$ARCH.tar.gz
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
 
-# Add the user to the docker group
-usermod -aG docker user
+# # Add the user to the docker group
+# usermod -aG docker user
 
 # Verify Docker installation
 docker version

@@ -1,23 +1,13 @@
-// {
-//     "name": "ECM-distro codespace",
-
-//     "settings": {
-//         "files.exclude": {
-//             "**/CODE_OF_CONDUCT.md": true,
-//             "**/LICENSE": true
-//         }
-//     }
-// }
 {
     "name": "ecm-distro-tools",
     // The dockerfile will be at te root of the project
     "build": {"dockerfile": "Dockerfile"},
     // // Your code path from the .devcontainer directory
-    // "workspaceFolder": "../app",
+    // "workspaceFolder": ".",
     // List of ports that you want to preview
     // "forwardPorts": [1234, 5678],
     // Script to run to bootstrap the app when the space is created
-    // "postCreateCommand": ". ../path_to_setup_script.sh",
+    // "postCreateCommand": ". ../setup_script.sh",
     // Automatically start the app in subsequent sessions
     // "postStartCommand": "docker build . -t rancher/ecm-distro-tools",
     // Privileged flag is needed to run docker-in-docker, the volume
