@@ -20,13 +20,13 @@ INSTALLED_GO_VERSION=$(go version)
 echo "Go version ${INSTALLED_GO_VERSION} is installed"
 
 # install gopls, dlv, hey
-echo "Getting development tools"
-go get -u golang.org/x/tools/gopls
-go get -u github.com/go-delve/delve/cmd/dlv
-go get -u github.com/rakyll/hey
+# echo "Getting development tools"
+# go get -u golang.org/x/tools/gopls
+# go get -u github.com/go-delve/delve/cmd/dlv
+# go get -u github.com/rakyll/hey
 
 # vscode-go dependencies 
-echo "Getting dependencies for the vscode-go plugin "
+# echo "Getting dependencies for the vscode-go plugin "
 # go get -u -v github.com/acroca/go-symbols
 # go get -u -v github.com/cweill/gotests/...
 # go get -u -v github.com/davidrjenni/reftools/cmd/fillstruct

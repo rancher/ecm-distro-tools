@@ -7,11 +7,8 @@
     // List of ports that you want to preview
     // "forwardPorts": [1234, 5678],
     // Script to run to bootstrap the app when the space is created
-    // "postCreateCommand": "",
-    // Automatically start the app in subsequent sessions
-    "postStartCommand": "bash init.sh",
-    // Privileged flag is needed to run docker-in-docker, the volume
-    // is needed or docker build will fail
+    "onCreateCommand": "service docker start && make all",
+    "postCreateCommand": "service docker start && make all",
     "extensions": [
         "github.vscode-pull-request-github",
         "ms-azuretools.vscode-docker",
