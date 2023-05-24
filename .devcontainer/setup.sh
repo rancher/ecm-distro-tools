@@ -1,9 +1,6 @@
 # install curl, git, ...
 apt-get update
-apt-get install -y curl git jq
-
-# useradd -m user
-# su user
+apt-get install -y build-essential curl git jq make
 
 # install go
 VERSION='1.17'
@@ -17,11 +14,6 @@ rm go$VERSION.$OS-$ARCH.tar.gz
 # Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
-
-# # Add the user to the docker group
-# usermod -aG docker user
-
-# Verify Docker installation
 docker version
 
 INSTALLED_GO_VERSION=$(go version)
