@@ -130,7 +130,7 @@ case $osname in
         ;;
     OL8.7)
         image_id="ami-06ac6a66b683196b8"
-        ssh_user="root"
+        ssh_user="ec2-user"
         instance_type="t3.medium"
         ;;
     rocky8.7)
