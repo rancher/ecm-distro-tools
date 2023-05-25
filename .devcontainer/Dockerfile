@@ -16,7 +16,6 @@ RUN zypper update -y && \
         pigz            \
         awk             \
         make            \
-        docker          \
         zlib-devel      \
         net-tools    
 
