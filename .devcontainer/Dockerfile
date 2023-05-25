@@ -18,7 +18,6 @@ RUN zypper update -y && \
         make            \
         docker          \
         zlib-devel      \
-        net-tools    && \
-    zypper clean --all 
+        net-tools    
 
 ENV PATH "$PATH:/usr/local/go/bin:/home/user/go/bin"
