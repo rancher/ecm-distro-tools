@@ -27,7 +27,7 @@ RUN zypper update -y && \
         net-tools       && \
     zypper clean --all 
 
-ARG GO_VERSION=1.17
+ARG GO_VERSION=1.20.4
 RUN curl -OL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz
 RUN tar -C /usr/local -xvf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz
