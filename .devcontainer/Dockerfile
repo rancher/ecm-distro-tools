@@ -5,25 +5,26 @@ FROM bci
 
 RUN zypper update -y && \
     zypper && \
-    zypper install -y   \
-        ca-certificates \
-        strongswan      \
-        curl            \
-        git             \
-        gcc             \
-        glibc-devel     \
-        gzip            \
-        tar             \
-        autoconf        \
-        file            \ 
-        curl            \
-        wget            \
-        pigz            \
-        awk             \
-        make            \
-        zlib-devel      \
-        libtool         \
-        net-tools    && \
+    zypper install -y      \
+        ca-certificates    \
+        strongswan         \
+        curl               \
+        git                \
+        gcc                \
+        glibc-devel        \
+        glibc-devel-static \
+        gzip               \
+        tar                \
+        autoconf           \
+        file               \ 
+        curl               \
+        wget               \
+        pigz               \
+        awk                \
+        make               \
+        zlib-devel         \ 
+        libtool            \
+        net-tools       && \
     zypper clean --all 
 
 ARG GO_VERSION=1.17
