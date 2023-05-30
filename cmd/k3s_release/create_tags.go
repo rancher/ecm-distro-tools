@@ -53,8 +53,8 @@ func createTags(c *cli.Context) error {
 	if err != nil {
 		logrus.Fatalf("failed to rebase and create tags: %v", err)
 	}
-  logrus.Info("successfully rebased and tagged")
-  logrus.Info(rebaseOut)
+	logrus.Info("successfully rebased and tagged")
+	logrus.Info(rebaseOut)
 
 	tagFile := filepath.Join(release.Workspace, "tags-"+release.NewK8SVersion)
 	if err := os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644); err != nil {
