@@ -181,6 +181,8 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 		}
 	}
 
+
+
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: r.Handler,
 		Progress:   os.Stdout,
@@ -195,41 +197,42 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	return nil
 }
 
-func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]string, error) {
-	if err := r.gitRebaseOnto(); err != nil {
-		return nil, err
+func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) (string, []string, error) {
+  rebaseOut, err := r.gitRebaseOnto()
+	if err != nil {
+		return "", nil, err
 	}
 	wrapperImageTag, err := r.buildGoWrapper()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	// setup gitconfig
 	gitconfigFile, err := r.setupGitArtifacts()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	// make sure that tag doesnt exist first
 	tagExists, err := r.isTagExists()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	if tagExists {
 		if err := r.removeExistingTags(); err != nil {
-			return nil, err
+			return "", nil, err
 		}
 	}
 	out, err := r.runTagScript(gitconfigFile, wrapperImageTag)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	tags := tagPushLines(out)
 	if len(tags) == 0 {
-		return nil, errors.New("failed to extract tag push lines")
+		return "", nil, errors.New("failed to extract tag push lines")
 	}
 
-	return tags, nil
+	return rebaseOut, tags, nil
 }
 
 // getAuth is a utility function which is used to get the ssh authentication method for connecting to an ssh server.
@@ -252,15 +255,15 @@ func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	return publicKeys, nil
 }
 
-func (r *Release) gitRebaseOnto() error {
+func (r *Release) gitRebaseOnto() (string, error) {
 	dir := filepath.Join(r.Workspace, "kubernetes")
 
 	// clean kubernetes directory before rebase
 	if err := cleanGitRepo(dir); err != nil {
-		return err
+		return "", err
 	}
 	if _, err := runCommand(dir, "rm", "-rf", "_output"); err != nil {
-		return err
+		return "", err
 	}
 
 	commandArgs := strings.Split(fmt.Sprintf("rebase --onto %s %s %s-k3s1~1",
@@ -268,15 +271,15 @@ func (r *Release) gitRebaseOnto() error {
 		r.OldK8SVersion,
 		r.OldK8SVersion), " ")
 	cmd := exec.Command("git", commandArgs...)
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
+	var errb bytes.Buffer
+	cmd.Stdout = &errb
 	cmd.Stderr = &errb
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
-		return errors.New(err.Error() + ": " + errb.String())
+		return "", errors.New(err.Error() + ": " + errb.String())
 	}
 
-	return nil
+	return errb.String(), nil
 }
 
 func (r *Release) goVersion() (string, error) {
