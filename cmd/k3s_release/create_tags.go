@@ -49,7 +49,7 @@ func createTags(c *cli.Context) error {
 		return nil
 	}
 
-	rebaseOut, tags, err := release.RebaseAndTag(ctx, client)
+	tags, rebaseOut, err := release.RebaseAndTag(ctx, client)
 	if err != nil {
 		logrus.Fatalf("failed to rebase and create tags: %v", err)
 	}

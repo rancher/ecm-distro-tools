@@ -180,9 +180,6 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 			return err
 		}
 	}
-
-
-
 	if err := repo.Fetch(&git.FetchOptions{
 		RemoteName: r.Handler,
 		Progress:   os.Stdout,
@@ -197,42 +194,42 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	return nil
 }
 
-func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) (string, []string, error) {
-  rebaseOut, err := r.gitRebaseOnto()
+func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]string, string, error) {
+	rebaseOut, err := r.gitRebaseOnto()
 	if err != nil {
-		return "", nil, err
+		return nil, "", err
 	}
 	wrapperImageTag, err := r.buildGoWrapper()
 	if err != nil {
-		return "", nil, err
+		return nil, "", err
 	}
 
 	// setup gitconfig
 	gitconfigFile, err := r.setupGitArtifacts()
 	if err != nil {
-		return "", nil, err
+		return nil, "", err
 	}
 	// make sure that tag doesnt exist first
 	tagExists, err := r.isTagExists()
 	if err != nil {
-		return "", nil, err
+		return nil, "", err
 	}
 	if tagExists {
 		if err := r.removeExistingTags(); err != nil {
-			return "", nil, err
+			return nil, "", err
 		}
 	}
 	out, err := r.runTagScript(gitconfigFile, wrapperImageTag)
 	if err != nil {
-		return "", nil, err
+		return nil, "", err
 	}
 
 	tags := tagPushLines(out)
 	if len(tags) == 0 {
-		return "", nil, errors.New("failed to extract tag push lines")
+		return nil, "", errors.New("failed to extract tag push lines")
 	}
 
-	return rebaseOut, tags, nil
+	return tags, rebaseOut, nil
 }
 
 // getAuth is a utility function which is used to get the ssh authentication method for connecting to an ssh server.
@@ -271,15 +268,15 @@ func (r *Release) gitRebaseOnto() (string, error) {
 		r.OldK8SVersion,
 		r.OldK8SVersion), " ")
 	cmd := exec.Command("git", commandArgs...)
-	var errb bytes.Buffer
-	cmd.Stdout = &errb
-	cmd.Stderr = &errb
+	var outb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &outb
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
-		return "", errors.New(err.Error() + ": " + errb.String())
+		return "", errors.New(err.Error() + ": " + outb.String())
 	}
 
-	return errb.String(), nil
+	return outb.String(), nil
 }
 
 func (r *Release) goVersion() (string, error) {
