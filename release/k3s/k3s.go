@@ -88,7 +88,7 @@ func NewRelease(configPath string) (*Release, error) {
 	var release Release
 
 	if configPath == "" {
-		return nil, errors.New("error: config file required")
+		return nil, errors.New("config file required")
 	}
 
 	b, err := os.ReadFile(configPath)
@@ -98,6 +98,14 @@ func NewRelease(configPath string) (*Release, error) {
 
 	if err := json.Unmarshal(b, &release); err != nil {
 		return nil, err
+	}
+
+	if release.Workspace == "" {
+		return nil, errors.New("workspace path required")
+	}
+
+	if !filepath.IsAbs(release.Workspace) {
+		return nil, errors.New("workspace path must be an absolute path")
 	}
 
 	return &release, nil

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build ECM Distro Tools
         run: |
           make all
@@ -18,7 +18,7 @@ jobs:
       - name: Publish Binaries
         uses: SierraSoftworks/gh-releases@v1.0.7
         with:
-          token: ${{ secrets.TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           overwrite: 'true'
           files: |
             ${{ github.workspace }}/bin/bootstrap_hash
