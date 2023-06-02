@@ -590,11 +590,14 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-{{- if eq .majorMinor "1.23"}}
+{{- if and (ge .majorMinor "1.23") (lt .majorMinor "1.26")}}
+| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
+{{- else }}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
+{{- end }}
+{{- if eq .majorMinor "1.23"}}
 | Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
 {{- else }}
-| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 | Runc | [{{.RuncVersionGoMod}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionGoMod}}) |
 {{- end }}
 | Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
