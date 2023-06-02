@@ -81,6 +81,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	markdownVersion := strings.Replace(k8sVersion, ".", "", -1)
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
+	fullVersion := majorMinor + "." + tmp[2]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
@@ -95,6 +96,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 		"k8sVersion":                  k8sVersion,
 		"changeLogVersion":            markdownVersion,
 		"majorMinor":                  majorMinor,
+		"fullVersion":                 fullVersion,
 		"EtcdVersionRKE2":             buildScriptVersion("ETCD_VERSION", repo, milestone),
 		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
 		"ContainerdVersionK3S":        buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
@@ -590,11 +592,12 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-{{- if and (ge .majorMinor "1.23") (lt .majorMinor "1.26")}}
+{{- if and (ge .fullVersion "1.23.17") (lt .fullVersion "1.26.5")}}
 | Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 {{- else }}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
 {{- end }}
+| Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
 {{- if eq .majorMinor "1.23"}}
 | Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
 {{- else }}
