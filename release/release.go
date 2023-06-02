@@ -592,7 +592,7 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
 | Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-{{- if and (ge .fullVersion "1.23.17") (lt .fullVersion "1.26.5")}}
+{{- if and (ge .fullVersion "1.24.0") (lt .fullVersion "1.26.5")}}
 | Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
 {{- else }}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
