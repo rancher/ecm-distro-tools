@@ -597,7 +597,6 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 {{- else }}
 | Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
 {{- end }}
-| Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
 {{- if eq .majorMinor "1.23"}}
 | Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
 {{- else }}
