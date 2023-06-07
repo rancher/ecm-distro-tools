@@ -77,22 +77,6 @@ docker run --rm -it rancher/ecm-distro-tools standup -f
 docker run --rm -it rancher/ecm-distro-tools bootstrap_hash -p k3s
 ```
 
-### Verify k3s and rke2 release assets
-
-```sh
-# RKE2
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets v1.23.5+rke2r1 v1.22.8+rke2r1 v1.21.11+rke2r1
-
-#K3s
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets -r k3s-io/k3s v1.23.5+k3s1
-```
-
-### Verify rke2 charts are up to date
-
-```sh
-docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools verify_release_assets  verify_rke2_charts -i 'rancher-vsphere-cpi rancher-vsphere-csi' -b 'release-1.22'
-```
-
 ### Scan an image the same as Rancher
 
 ```sh
