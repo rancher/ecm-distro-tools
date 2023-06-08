@@ -98,6 +98,11 @@ case $osname in
         ssh_user="ec2-user"
         instance_type="a1.large"
         ;;
+    rhel8.6)
+        image_id="ami-068ee501b16366120"
+        ssh_user="ec2-user"
+        instance_type="a1.large"
+        ;;
     sles15sp4_arm)
         image_id="ami-052fd3067d337faf6"
         ssh_user="ec2-user"
@@ -109,22 +114,22 @@ case $osname in
         instance_type="t3.medium"
         ;;
     ubuntu22.4)
-        image_id="ami-0a695f0d95cefc163"
+        image_id="ami-024e6efaf93d85776"
         ssh_user="ubuntu"
         instance_type="t3.medium"
         ;;
     ubuntu22.4_arm)
-        image_id="ami-0f12014c8b2f26d33"
+        image_id="ami-08fdd91d87f63bb09"
         ssh_user="ubuntu"
         instance_type="a1.large"
         ;;
     ubuntu20.4)
-        image_id="ami-06c4532923d4ba1ec"
+        image_id="ami-0430580de6244e02e"
         ssh_user="ubuntu"
         instance_type="t3.medium"
         ;;
     ubuntu20.4_arm)
-        image_id="ami-090226778695b30b9"
+        image_id="ami-0071e4b30f26879e2"
         ssh_user="ubuntu"
         instance_type="a1.large"
         ;;
