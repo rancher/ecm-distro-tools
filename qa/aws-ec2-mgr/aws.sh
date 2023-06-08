@@ -133,8 +133,18 @@ case $osname in
         ssh_user="ec2-user"
         instance_type="t3.medium"
         ;;
+    OL9.1)
+        image_id="ami-0f63746fd58bbccf7"
+        ssh_user="ec2-user"
+        instance_type="t3.medium"
+        ;;
     rocky8.7)
         image_id="ami-02fb9384e880ed67c"
+        ssh_user="rocky"
+        instance_type="t3.medium"
+        ;;
+    rocky9.1)
+        image_id="ami-01778de3d921acbe9"
         ssh_user="rocky"
         instance_type="t3.medium"
         ;;
