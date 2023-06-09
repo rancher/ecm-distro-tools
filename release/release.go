@@ -194,7 +194,7 @@ func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags 
 
 	const (
 		rke2Assets    = 50
-		k3sAssets     = 18
+		k3sAssets     = 23
 		rke2Packaging = 23
 	)
 
