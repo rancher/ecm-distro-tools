@@ -22,8 +22,9 @@ Pre-Requisites:
 Usage:
 
 ```         
-    $(basename $0) [-d] [-t] [-g] [-o osname] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
-    
+    $(basename $0) [-l] [-d] [-t] [-g] [-o osname] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
+
+    -l: logging is in 'debug' mode and detailed
     -d: deploy ec2 instances. displays ssh command output to setup deployed. 
     -t: terminate ec2 instances
     -g: get_running ec2 instances
