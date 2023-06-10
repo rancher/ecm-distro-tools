@@ -315,7 +315,7 @@ case $action in
     deploy)
         echo "Deploying OS: $osname ImageID: $image_id SSH_User: $ssh_user" 
         aws ec2 run-instances --image-id $image_id --instance-type $instance_type --count $count --key-name $key_name --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":$volume_size,\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"$prefix-$osname\"}]}]" > /dev/null
-        # sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
+        sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
         aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
         grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
         while read -r line
