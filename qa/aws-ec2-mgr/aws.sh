@@ -19,6 +19,7 @@ do
         Usage: 
             
             $(basename $0) [-l] [-d] [-t] [-g] [-o osname] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
+
             -l: logging is in 'debug' mode and detailed
             -d: deploy ec2 instances. displays ssh command output to setup deployed. 
             -t: terminate ec2 instances
@@ -26,11 +27,15 @@ do
             only one operation will be performed at one test run: deploy | terminate | get_running - if you provide all, the last action get_running overrides.
             -o osname: Format: osnameVersion_architecture. architecture specified only for 'arm'. default is x86
             Ex:
-                RHEL: rhel9_arm, rhel9, rhel9.1_arm, rhel9.1, rhel9.2_arm, rhel9.2 (rhel x86 versions are packer generated modified ami's for enable fips/disable ntwk mgmt; arm versions unedited)
+                RHEL: rhel9_arm, rhel9, rhel9.1_arm, rhel9.1, rhel9.2_arm, rhel9.2 
+                      rhel8.8, rhel8.7, rhel8.7_arm, rhel8.6, rhel8.6_arm
+                ** rhel x86 versions are packer generated modified ami's with enable fips/disable ntwk mgmt; arm versions are unedited
+                *** Did not find rhel8.8_arm ami
                 SLES: sles15sp4_arm, sles15sp4
                 Ubuntu: ubuntu22.4, ubuntu22.4_arm, ubuntu20.4, ubuntu20.4_arm
-                Oracle Linux: OL8.7 (packer edit version), OL8.8, OL9, OL9.1 (packer edit version), OL9.2 (did not find arm version)
-                Rocky: rocky8.7, rock8.8, rocky8.8_arm, rocky9, rocky9.1, rocky9.2 (unmodified ami's)
+                Oracle Linux: OL8.7 (packer edit version), OL8.8, OL9, OL9.1 (packer edit version), OL9.2 
+                *** Did not find arm ami's for Oracle Linux
+                Rocky: rocky8.6, rocky8.6_arm, rocky8.7(packer edited), rocky8.7_arm, rock8.8, rocky8.8_arm, rocky9, rocky9.1, rocky9.1_arm, rocky9.2, rocky9.2_arm
             -p prefix: used to append to name tag the ec2 instance - you can also export PREFIX var to set as default value, if not using this option
             -k key_name: key-pair login name used from aws registry to login securely to your ec2 instances - export KEY_NAME var to set as default value, if not using this option
             -f pem_file_path: absolute file path of your .pem file - for ssh command to your ec2 instances - export PEM_FILE_PATH var to set as default value, if not using this option
