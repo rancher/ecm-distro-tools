@@ -158,12 +158,12 @@ case $osname in
     OL9.2_arm) echo "Did not find an ami for this. Exiting." ; exit;;
 # Rocky Linux
     rocky8.6) image_id="ami-0072f50382eb71b1d";;
-    rocky8.6_arm) image_id="ami-0c92c0d181d0cfa1e" ;;
+    rocky8.6_arm) image_id="ami-0c92c0d181d0cfa1e";;
     rocky8.7)
         image_id="ami-05ab2eb74c93eb441"  # Packer generated pre-existing ami
         source_image_id="Pre existing packer image"
         ;;
-    rocky8.7_arm) image_id="ami-0491a50679ee1bc89" ;;
+    rocky8.7_arm) image_id="ami-0491a50679ee1bc89";;
     rocky8.8) image_id="ami-0425d70f0df70df0e";;
     rocky8.8_arm) image_id="ami-074e816b93be89812";;
     rocky9) image_id="ami-05d9eb66565e1792c";;
