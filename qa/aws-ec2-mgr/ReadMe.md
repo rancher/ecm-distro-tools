@@ -37,7 +37,10 @@ Usage:
         *** Did not find rhel8.8_arm ami
         SLES: sles15sp4_arm, sles15sp4
         Ubuntu: ubuntu22.4, ubuntu22.4_arm, ubuntu20.4, ubuntu20.4_arm
-        Oracle Linux: OL8.7 (packer edit version), OL8.8, OL9, OL9.1 (packer edit version), OL9.2 
+        Oracle Linux: OL8.6, OL8.7, OL8.8(ProComputer), OL9, OL9.1, OL9.2
+        **  All are packer generated AMIs
+            Most images are packer edited from Tiov IT - use 'cloud-user' for ssh
+            AMI packer generated from ProComputer - use 'ec2-user' for ssh. Double check the firewall service.
         *** Did not find arm ami's for Oracle Linux
         Rocky: rocky8.6, rocky8.6_arm, rocky8.7(packer edited), rocky8.7_arm, rock8.8, rocky8.8_arm, rocky9, rocky9.1, rocky9.1_arm, rocky9.2, rocky9.2_arm
     -p prefix: used to append to name tag the ec2 instance - you can also export PREFIX var to set as default value, if not using this option

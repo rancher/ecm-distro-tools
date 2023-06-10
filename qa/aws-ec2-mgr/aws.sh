@@ -33,7 +33,10 @@ do
                 *** Did not find rhel8.8_arm ami
                 SLES: sles15sp4_arm, sles15sp4
                 Ubuntu: ubuntu22.4, ubuntu22.4_arm, ubuntu20.4, ubuntu20.4_arm
-                Oracle Linux: OL8.7 (packer edit version), OL8.8, OL9, OL9.1 (packer edit version), OL9.2 
+                Oracle Linux: OL8.6, OL8.7, OL8.8(ProComputer), OL9, OL9.1, OL9.2
+                **  All are packer generated AMIs
+                    Most images are packer edited from Tiov IT - use 'cloud-user' for ssh
+                    AMI packer generated from ProComputer - use 'ec2-user' for ssh. Double check the firewall service.
                 *** Did not find arm ami's for Oracle Linux
                 Rocky: rocky8.6, rocky8.6_arm, rocky8.7(packer edited), rocky8.7_arm, rock8.8, rocky8.8_arm, rocky9, rocky9.1, rocky9.1_arm, rocky9.2, rocky9.2_arm
             -p prefix: used to append to name tag the ec2 instance - you can also export PREFIX var to set as default value, if not using this option
@@ -108,24 +111,50 @@ case $osname in
     ubuntu20.4) image_id="ami-0430580de6244e02e";;
     ubuntu20.4_arm) image_id="ami-0071e4b30f26879e2";;
 # Oracle Linux
-    OL8.6) image_id="ami-0f2049f50900caa90";;
+# Note: The AMIs from Tiov IT use 'cloud-user' as the ssh username
+# AMIs from ProComputer user ssh user 'ec2-user'. The packer generated from this AMI says: firewalld.service could not be found
+# TODO need to see what firewall service ProComputer AMIs are using, and fix them.
+# 8.8 version alone is from ProComputer. The rest are from Tiov IT source image AMI
+# Could not find ARM version AMIs for Oracle Linux.
+    OL8.6) 
+        image_id="ami-02044a75f9562cb63"
+        source_image_id="ami-0f2049f50900caa90"
+        ;;
     OL8.6_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL8.7)
         image_id="ami-054a49e0c0c7fce5c"  # Packer generated pre-existing ami
         source_image_id="Pre existing packer image"
-        ssh_user="cloud-user"
         ;;
     OL8.7_arm) echo "Did not find an ami for this. Exiting." ; exit;;
-    OL8.8) image_id="ami-012cc9c259aba3097";;
+    OL8.8)
+        image_id="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
+        source_image_id="ami-012cc9c259aba3097"
+        ssh_user="ec2-user"
+        ;;
     OL8.8_arm) echo "Did not find an ami for this. Exiting." ; exit;;
-    OL9) image_id="ami-0320e81c16ae2d4d4";;  # Not modified image: Error with both ec2-user and root users for packer generation.
+    OL9)
+        image_id="ami-0aa0d55ea757321b4"
+        source_image_id="ami-0b04c8dbeb20a9d8c"
+        # image_id="ami-0787a0db6f5308066"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # source_image_id="ami-0320e81c16ae2d4d4"
+        # ssh_user="ec2-user"
+        ;;
     OL9_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.1)
-        image_id="ami-0e572f06bbf6a0049"  # Packer generated ami running ami_oracle.json on the source_image_id in us-east-2 region
-        source_image_id="ami-0ca33870ec73abf78"
+        image_id="ami-01680e3ddcae57326"
+        source_image_id="ami-045f72873d59547dc"
+        # image_id="ami-0e572f06bbf6a0049"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # source_image_id="ami-0ca33870ec73abf78"
+        # ssh_user="ec2-user"
         ;;
     OL9.1_arm) echo "Did not find an ami for this. Exiting." ; exit;;
-    OL9.2) image_id="ami-0fee377e2c84d751b";;  # Not modified image: Error with both ec2-user and root users for packer generation.
+    OL9.2)
+        image_id="ami-0c50bf6c5b057201a"
+        source_image_id="ami-007822fffce54749b"
+        # image_id="ami-0debd32745f38204f"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # source_image_id="ami-0fee377e2c84d751b"
+        # ssh_user="ec2-user"
+        ;;
     OL9.2_arm) echo "Did not find an ami for this. Exiting." ; exit;;
 # Rocky Linux
     rocky8.6) image_id="ami-0072f50382eb71b1d";;
@@ -143,6 +172,28 @@ case $osname in
     rocky9.1_arm) image_id="ami-0fd23c283a54fb00d";;
     rocky9.2) image_id="ami-0140491b434cb5296";;
     rocky9.2_arm) image_id="ami-03a4cf1ef87c11545";;
+# Default value when any other os name was provided or was empty
+    *)
+        if [[ $osname ]]; then
+            echo "FATAL: Wrong OS Name. Please use -h to get usage info"
+            exit
+        else
+            if [[ $action == "deploy" || $action == "get_running" ]]; then
+                osname="ubuntu22.4"
+                if [[ $log == "debug" ]]; then
+                    echo "WARN: Setting osname = $osname"
+                fi
+                image_id="ami-024e6efaf93d85776"
+                # image_id="ami-0a695f0d95cefc163"  # previous image id used
+                ssh_user="ubuntu"
+                instance_type="t3.medium"
+            else
+                # Terminates 'all' instances irrespective of os - if not provided as a cmd line argument
+                osname="all"
+                echo "INFO: Going to terminate $osname running ec2 instances"
+            fi
+        fi
+        ;;
 esac
 
 if [[ -z $osname ]]; then
@@ -162,23 +213,26 @@ if [[ -z $osname ]]; then
     fi
 fi
 
-# Set SSH User to ubuntu/rocky/ec2-user based on os
-if [[ $osname == *"ubuntu"* ]]; then
+# Set SSH User based on os and if ssh_user was not already assigned already
+
+if [[ $osname == *"ubuntu"* && -z $ssh_user ]]; then
     ssh_user="ubuntu"
 fi
-
-if [[ $osname == *"rocky"* ]]; then
+if [[ $osname == *"rocky"* && -z $ssh_user ]]; then
     ssh_user="rocky"
 fi
-
+if [[ $osname == *"OL"* && -z $ssh_user ]]; then
+    # Tiov IT AMIs and Packer AMIs generated from them use 'cloud-user'
+    # ProComputer AMIs user 'ec2-user' as the ssh username
+    ssh_user="cloud-user"
+fi
 if [[ -z $ssh_user ]]; then
     ssh_user="ec2-user"
 fi
-
 if [[ $log == "debug" ]]; then
     echo "ssh_user = $ssh_user"
+    echo "INFO: If ssh user did not work: SSH User Alternatives: 'ec2-user' or 'root' or 'cloud-user' ; rocky linux user is: 'rocky'; ubuntu user is: 'ubuntu'"
 fi
-echo "INFO: If ssh user did not work: SSH User Alternatives: 'ec2-user' or 'root' or 'cloud-user' ; rocky linux user is: 'rocky'; ubuntu user is: 'ubuntu'"
 
 # Set instance_type based on os architecture
 
@@ -190,26 +244,28 @@ fi
 if [[ $log == "debug" ]]; then
     echo "instance_type = $instance_type"
 fi
-# Notify if the ami is packer generated
-if [[ -z $source_image_id ]]; then
-    echo "INFO: Unedited(non-packer) AMI used for $osname"
-    if [[ $osname == *"rhel"* ]]; then
-        echo "     Kindly edit enable fips and disable network mgmt as needed manually"
-    fi
-    if [[ $osname == *"OL"* ]]; then
-        echo "      Please run disable firewall/modify user_data steps manually"
-    fi
-else
-    if [[ $source_image_id == *"ami"* ]]; then
-        echo "INFO: This AMI is packer generated from $source_image_id"
-        if [[ $osname == *"rhel"* || $osname == *"rocky"* ]]; then
-            echo "      Enable FIPS and Disable Network Management has been pre-run in the AMI for you"
+# Notify if the ami is packer generated during deploy
+if [[ $action == "deploy" ]]; then
+    if [[ -z $source_image_id ]]; then
+        echo "INFO: Unedited(non-packer) AMI used for $osname"
+        if [[ $osname == *"rhel"* ]]; then
+            echo "     Kindly edit enable fips and disable network mgmt as needed manually"
         fi
         if [[ $osname == *"OL"* ]]; then
-            echo "      Disable Firewall and Modify user_data has been pre-run in the AMI for you"
+            echo "      Please run disable firewall/modify user_data steps manually"
         fi
     else
-        echo "Using $source_image_id"
+        if [[ $source_image_id == *"ami"* ]]; then
+            echo "INFO: This AMI is packer generated from $source_image_id"
+            if [[ $osname == *"rhel"* || $osname == *"rocky"* ]]; then
+                echo "      Enable FIPS and Disable Network Management has been pre-run in the AMI for you"
+            fi
+            if [[ $osname == *"OL"* ]]; then
+                echo "      Disable Firewall and Modify user_data has been pre-run in the AMI for you"
+            fi
+        else
+            echo "Using $source_image_id"
+        fi
     fi
 fi
 
