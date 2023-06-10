@@ -196,23 +196,6 @@ case $osname in
         ;;
 esac
 
-if [[ -z $osname ]]; then
-    # Default is ubuntu 22.04 for deploy/get_running actions
-    if [[ $action == "deploy" || $action == "get_running" ]]; then
-        osname="ubuntu22.4"
-        if [[ $log == "debug" ]]; then
-            echo "WARN: Setting osname = $osname"
-        fi
-        image_id="ami-0a695f0d95cefc163"
-        ssh_user="ubuntu"
-        instance_type="t3.medium"
-    else
-        # Terminates 'all' instances irrespective of os - if not provided as a cmd line argument
-        osname="all"
-        echo "INFO: Going to terminate $osname running ec2 instances"
-    fi
-fi
-
 # Set SSH User based on os and if ssh_user was not already assigned already
 
 if [[ $osname == *"ubuntu"* && -z $ssh_user ]]; then
