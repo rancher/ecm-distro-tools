@@ -1,6 +1,6 @@
 #!/bin/sh
 
-while getopts ldtgo:p:k:f:c:v:h option
+while getopts ldtgo:p:k:f:c:v:s:h option
 do 
     case "${option}"
         in
@@ -14,6 +14,7 @@ do
         f) pem_file_path=${OPTARG};;
         c) count=${OPTARG};;
         v) volume_size=${OPTARG};;
+        s) num_of_servers=${OPTARG};;
         ?|h)
             echo "
         Usage: 
@@ -44,6 +45,7 @@ do
             -f pem_file_path: absolute file path of your .pem file - for ssh command to your ec2 instances - export PEM_FILE_PATH var to set as default value, if not using this option
             -c count: How many ec2 instances do you want to launch?
             -v volume_size: Recommend 20 (20GB for EBS volume) for k3s setup. Recommend 30 (30GB for EBS volume)for rke2 setups. Default value is 30.
+            -r ratio: Can be 3:1 for 3 servers 1 agent or 2:2 for 2 servers and 2 agents; To be used with the -g get_running option
             -h help - usage is displayed
             "
             exit 1
@@ -73,20 +75,36 @@ terminate_file_path="$PWD/terminate"
 case $osname in
 # RHEL
     rhel9.2)
-        image_id="ami-018682060296f1acb"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
+
+        # image_id="ami-024fe43f3e88e89b5"
+        # source_image_id="ami-00bc24f98893a4bef"
+        image_id="ami-082bf7cc12db545b9"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
+        # image_id="ami-018682060296f1acb"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
         source_image_id="ami-02b8534ff4b424939"
         ;;
-    rhel9.2_arm) image_id="ami-06df7225cc50ee1a3";;
-    rhel9.1)
-        image_id="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
-        source_image_id="ami-0beb7639ce29e0148"
+    rhel9.2_arm)
+        image_id="ami-08e34b72961f79fae"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
+        source_image_id="ami-06df7225cc50ee1a3"
         ;;
-    rhel9.1_arm) image_id="ami-0702921e4ba107be7";;
+    rhel9.1)
+        image_id="ami-04c5820302c03d3ba"
+        source_image_id="ami-045f72873d59547dc"
+        ssh_user="cloud-user"
+        # image_id="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
+        # source_image_id="ami-0beb7639ce29e0148"
+        ;;
+    rhel9.1_arm) 
+        image_id="ami-022b0843d9926c2ea"
+        source_image_id="ami-0702921e4ba107be7"
+        ;;
     rhel9)
         image_id="ami-00f8614ef399e8619"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
         source_image_id="ami-0b8384a301b67118e"
         ;;
-    rhel9_arm) image_id="ami-0a33bf6de464f0857";;
+    rhel9_arm)
+        image_id="ami-0ab8d8846ed3b5a7d"
+        source_image_id="ami-0a33bf6de464f0857"
+        ;;
     rhel8.8)
         image_id="ami-01b9a0d844d27c780"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
         source_image_id="ami-064360afd86576543"
@@ -96,12 +114,18 @@ case $osname in
         image_id="ami-0defbb5087b2b63c1"  # Packer generated pre-existing image
         source_image_id="Pre-existing packer image"
         ;;
-    rhel8.7_arm) image_id="ami-0ea3f28d61bb27a55";;
+    rhel8.7_arm)
+        image_id="ami-0085ea62fc18e0154" 
+        source_image_id="ami-0ea3f28d61bb27a55"
+        ;;
     rhel8.6)
         image_id="ami-0bb95ea8da9bc48e0"   # Packer generated pre-existing image
         source_image_id="Pre-existing packer image"
         ;;
-    rhel8.6_arm) image_id="ami-0967b839a12c34f06";;
+    rhel8.6_arm) 
+        image_id="ami-0f9fc13cd1cfaab88"
+        source_image_id="ami-0967b839a12c34f06"
+        ;;
 # SLES
     sles15sp4) image_id="ami-0fb3a91b7ce257ec1";;
     sles15sp4_arm) image_id="ami-052fd3067d337faf6";;
@@ -127,7 +151,8 @@ case $osname in
         ;;
     OL8.7_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL8.8)
-        image_id="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
+        image_id="ami-0e17d020894274cb7" # Disable firewall, UserGrowPart, Disable NtwkMgr were run
+        # image_id="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
         source_image_id="ami-012cc9c259aba3097"
         ssh_user="ec2-user"
         ;;
@@ -254,7 +279,7 @@ fi
 
 # Set some default values if they were not provided as args
 
-if [[ $action == "deploy" ]]; then
+if [[ $action == "deploy" || $action == "get_running" ]]; then
     if [[ -z $count ]]; then
         # Default count value to 4 ec2 instances
         count=4
@@ -307,6 +332,10 @@ if [[ $action == "deploy" || $action == "get_running" ]]; then
     fi
 fi
 
+if [[ $num_of_servers ]]; then
+    num_of_agents=$(($count-$num_of_servers))
+fi
+
 echo "*************************
 ACTION STAGE: $action
 *************************"
@@ -317,21 +346,37 @@ case $action in
         aws ec2 run-instances --image-id $image_id --instance-type $instance_type --count $count --key-name $key_name --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":$volume_size,\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"$prefix-$osname\"}]}]" > /dev/null
         sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
         aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
-        grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
+        # grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
+        grep PublicIp $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
         while read -r line
         do
             echo "ssh -i \"$pem_file_path\" $ssh_user@$line"
         done < $public_dns_file_path
+        cat $public_dns_file_path
         rm $public_dns_file_path $deployed_file_path
         ;;
     get_running)
         # Running instance ssh cmd is output
         echo "Getting setups for OS: $osname with ImageID: $image_id and SSH_User: $ssh_user"
         aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
-        grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
+        # grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
+        grep PublicIp $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
         while read -r line
         do
             echo "ssh -i \"$pem_file_path\" $ssh_user@$line"
+        done < $public_dns_file_path
+
+        cat $public_dns_file_path
+
+        while read -r line
+        do
+            if [[ $num_of_servers == 0 ]]; then
+                echo "agent$num_of_agents=\"$line\""
+                num_of_agents=$((num_of_agents-1))
+            else
+                echo "server$num_of_servers=\"$line\""
+                num_of_servers=$((num_of_servers-1))
+            fi
         done < $public_dns_file_path
         rm $public_dns_file_path $deployed_file_path
         ;;
