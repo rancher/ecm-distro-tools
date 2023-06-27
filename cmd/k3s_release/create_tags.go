@@ -27,7 +27,7 @@ func createTags(c *cli.Context) error {
 
 	release, err := k3s.NewRelease(configPath)
 	if err != nil {
-		logrus.Fatalf("failed to read config file: %v", err)
+		logrus.Fatalf("config file: %v", err)
 	}
 
 	client, err := k3s.NewGithubClient(ctx, release.Token)
@@ -49,15 +49,16 @@ func createTags(c *cli.Context) error {
 		return nil
 	}
 
-	tags, err := release.RebaseAndTag(ctx, client)
+	tags, rebaseOut, err := release.RebaseAndTag(ctx, client)
 	if err != nil {
 		logrus.Fatalf("failed to rebase and create tags: %v", err)
 	}
+	logrus.Info("successfully rebased and tagged")
+	logrus.Info(rebaseOut)
 
 	tagFile := filepath.Join(release.Workspace, "tags-"+release.NewK8SVersion)
 	if err := os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644); err != nil {
 		logrus.Fatalf("failed to write tags file: %v", err)
 	}
-
 	return nil
 }
