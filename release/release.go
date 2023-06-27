@@ -20,6 +20,57 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const (
+	k3sRepo  = "k3s"
+	rke2Repo = "rke2"
+)
+
+type changeLogData struct {
+	PrevMilestone string
+	Content       []repository.ChangeLog
+}
+
+type rke2ReleaseNoteData struct {
+	Milestone             string
+	K8sVersion            string
+	MajorMinor            string
+	EtcdVersion           string
+	ContainerdVersion     string
+	RuncVersion           string
+	MetricsServerVersion  string
+	CoreDNSVersion        string
+	ChangeLogVersion      string
+	IngressNginxVersion   string
+	HelmControllerVersion string
+	FlannelVersion        string
+	CanalCalicoVersion    string
+	CalicoVersion         string
+	CiliumVersion         string
+	MultusVersion         string
+	ChangeLogData         changeLogData
+}
+
+type k3sReleaseNoteData struct {
+	Milestone                   string
+	K8sVersion                  string
+	MajorMinor                  string
+	ChangeLogSince              string
+	ChangeLogVersion            string
+	KineVersion                 string
+	SQLiteVersion               string
+	SQLiteVersionReplaced       string
+	EtcdVersion                 string
+	ContainerdVersion           string
+	RuncVersion                 string
+	FlannelVersion              string
+	MetricsServerVersion        string
+	TraefikVersion              string
+	CoreDNSVersion              string
+	HelmControllerVersion       string
+	LocalPathProvisionerVersion string
+	ChangeLogData               changeLogData
+}
+
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
 	if majMin == "" {
@@ -49,19 +100,15 @@ func capitalize(s string) string {
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
 func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
-	const templateName = "release-notes"
-
 	funcMap := template.FuncMap{
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
 		"split":       strings.Split,
 		"capitalize":  capitalize,
 	}
-
+	const templateName = "release-notes"
 	tmpl := template.New(templateName).Funcs(funcMap)
 	tmpl = template.Must(tmpl.Parse(changelogTemplate))
-	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
-	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 
 	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
 	if err != nil {
@@ -85,47 +132,105 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
-
-	buf := bytes.NewBuffer(nil)
-
-	if err := tmpl.ExecuteTemplate(buf, repo, map[string]interface{}{
-		"milestone":                   milestoneNoRC,
-		"prevMilestone":               prevMilestone,
-		"changeLogSince":              changeLogSince,
-		"content":                     content,
-		"k8sVersion":                  k8sVersion,
-		"changeLogVersion":            markdownVersion,
-		"majorMinor":                  majorMinor,
-		"fullVersion":                 fullVersion,
-		"EtcdVersionRKE2":             buildScriptVersion("ETCD_VERSION", repo, milestone),
-		"EtcdVersionK3S":              goModLibVersion("etcd/api/v3", repo, milestone),
-		"ContainerdVersionK3S":        buildScriptVersion("VERSION_CONTAINERD", repo, milestone),
-		"ContainerdVersionGoMod":      goModLibVersion("containerd/containerd", repo, milestone),
-		"ContainerdVersionRKE2":       dockerfileVersion("hardened-containerd", repo, milestone),
-		"RuncVersionGoMod":            goModLibVersion("runc", repo, milestone),
-		"RuncVersionBuildScript":      buildScriptVersion("VERSION_RUNC", repo, milestone),
-		"RuncVersionRKE2":             dockerfileVersion("hardened-runc", repo, milestone),
-		"CNIPluginsVersion":           imageTagVersion("cni-plugins", repo, milestone),
-		"MetricsServerVersion":        imageTagVersion("metrics-server", repo, milestone),
-		"TraefikVersion":              imageTagVersion("traefik", repo, milestone),
-		"CoreDNSVersion":              imageTagVersion("coredns", repo, milestone),
-		"IngressNginxVersion":         dockerfileVersion("rke2-ingress-nginx", repo, milestone),
-		"HelmControllerVersion":       goModLibVersion("helm-controller", repo, milestone),
-		"FlannelVersionRKE2":          imageTagVersion("flannel", repo, milestone),
-		"FlannelVersionK3S":           goModLibVersion("flannel", repo, milestone),
-		"CalicoVersion":               imageTagVersion("calico-node", repo, milestone),
-		"CanalCalicoVersion":          imageTagVersion("hardened-calico", repo, milestone),
-		"CiliumVersion":               imageTagVersion("cilium-cilium", repo, milestone),
-		"MultusVersion":               imageTagVersion("multus-cni", repo, milestone),
-		"KineVersion":                 goModLibVersion("kine", repo, milestone),
-		"SQLiteVersion":               sqliteVersionBinding,
-		"SQLiteVersionReplaced":       strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
-		"LocalPathProvisionerVersion": imageTagVersion("local-path-provisioner", repo, milestone),
-	}); err != nil {
-		return nil, err
+	helmControllerVersion := goModLibVersion("helm-controller", repo, milestone)
+	coreDNSVersion := imageTagVersion("coredns", repo, milestone)
+	cgData := changeLogData{
+		PrevMilestone: prevMilestone,
+		Content:       content,
 	}
 
-	return buf, nil
+	if repo == k3sRepo {
+		return genK3SReleaseNotes(
+			tmpl,
+			fullVersion,
+			milestone,
+			k3sReleaseNoteData{
+				Milestone:             milestoneNoRC,
+				MajorMinor:            majorMinor,
+				K8sVersion:            k8sVersion,
+				ChangeLogVersion:      markdownVersion,
+				ChangeLogSince:        changeLogSince,
+				SQLiteVersion:         sqliteVersionBinding,
+				SQLiteVersionReplaced: strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
+				HelmControllerVersion: helmControllerVersion,
+				ChangeLogData:         cgData,
+				CoreDNSVersion:        coreDNSVersion,
+			},
+		)
+	} else if repo == rke2Repo {
+		return genRKE2ReleaseNotes(
+			tmpl,
+			milestone,
+			rke2ReleaseNoteData{
+				MajorMinor:            majorMinor,
+				Milestone:             milestoneNoRC,
+				ChangeLogVersion:      markdownVersion,
+				K8sVersion:            k8sVersion,
+				HelmControllerVersion: helmControllerVersion,
+				CoreDNSVersion:        coreDNSVersion,
+				ChangeLogData:         cgData,
+			},
+		)
+	}
+	return nil, errors.New("invalid repo, it must be either k3s or rke2")
+}
+
+func genK3SReleaseNotes(tmpl *template.Template, fullVersion string, milestone string, releaseNoteData k3sReleaseNoteData) (*bytes.Buffer, error) {
+	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
+	var runcVersion string
+	var containerdVersionK3S string
+
+	// TODO: fix the conditions
+	if fullVersion > "1.24.0" && fullVersion < "1.26.5" {
+		containerdVersionK3S = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
+	} else {
+		containerdVersionK3S = goModLibVersion("containerd/containerd", k3sRepo, milestone)
+	}
+
+	if releaseNoteData.MajorMinor == "1.23" {
+		runcVersion = buildScriptVersion("VERSION_RUNC", k3sRepo, milestone)
+	} else {
+		runcVersion = goModLibVersion("runc", k3sRepo, milestone)
+	}
+
+	releaseNoteData.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
+	releaseNoteData.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
+	releaseNoteData.ContainerdVersion = containerdVersionK3S
+	releaseNoteData.RuncVersion = runcVersion
+	releaseNoteData.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
+	releaseNoteData.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
+	releaseNoteData.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
+	releaseNoteData.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
+
+	buf := bytes.NewBuffer(nil)
+	err := tmpl.ExecuteTemplate(buf, k3sRepo, releaseNoteData)
+	return buf, err
+}
+
+func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, releaseData rke2ReleaseNoteData) (*bytes.Buffer, error) {
+	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
+	var containerdVersionRKE2 string
+
+	if releaseData.MajorMinor == "1.23" {
+		containerdVersionRKE2 = goModLibVersion("containerd/containerd", rke2Repo, milestone)
+	} else {
+		containerdVersionRKE2 = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
+	}
+
+	releaseData.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
+	releaseData.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
+	releaseData.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
+	releaseData.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
+	releaseData.ContainerdVersion = containerdVersionRKE2
+	releaseData.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
+	releaseData.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
+	releaseData.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
+	releaseData.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
+	releaseData.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
+
+	buf := bytes.NewBuffer(nil)
+	err := tmpl.ExecuteTemplate(buf, rke2Repo, releaseData)
+	return buf, err
 }
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
@@ -217,11 +322,11 @@ func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags 
 			}
 		}
 
-		if repo == "rke2" && len(release.Assets) == rke2Assets {
+		if repo == rke2Repo && len(release.Assets) == rke2Assets {
 			releases[tag] = true
 		}
 
-		if repo == "k3s" && len(release.Assets) == k3sAssets {
+		if repo == k3sRepo && len(release.Assets) == k3sAssets {
 			releases[tag] = true
 		}
 
@@ -311,7 +416,7 @@ func DeleteAssetByID(ctx context.Context, client *github.Client, repo, tag strin
 
 func goModLibVersion(libraryName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
-	if repo == "rke2" {
+	if repo == rke2Repo {
 		repoName = "rancher/rke2"
 	}
 
@@ -360,7 +465,7 @@ func goModLibVersion(libraryName, repo, branchVersion string) string {
 func buildScriptVersion(varName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 
-	if repo == "rke2" {
+	if repo == rke2Repo {
 		repoName = "rancher/rke2"
 	}
 
@@ -400,7 +505,7 @@ func imageTagVersion(ImageName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 
 	imageListURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/airgap/image-list.txt"
-	if repo == "rke2" {
+	if repo == rke2Repo {
 		repoName = "rancher/rke2"
 		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
 	}
@@ -501,8 +606,8 @@ func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Clien
 
 var changelogTemplate = `
 {{- define "changelog" -}}
-## Changes since {{.prevMilestone}}:
-{{range .content}}
+## Changes since {{.ChangeLogData.PrevMilestone}}:
+{{range .ChangeLogData.Content}}
 * {{ capitalize .Title }} [(#{{.Number}})]({{.URL}})
 {{- $lines := split .Note "\n"}}
 {{- range $i, $line := $lines}}
@@ -515,7 +620,7 @@ var changelogTemplate = `
 
 const rke2ReleaseNoteTemplate = `
 {{- define "rke2" -}}
-<!-- {{.milestone}} -->
+<!-- {{.Milestone}} -->
 
 This release ... <FILL ME OUT!>
 
@@ -533,14 +638,10 @@ cat /var/lib/rancher/rke2/server/token
 ## Packaged Component Versions
 | Component       | Version                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------- |
-| Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
-| Etcd            | [{{.EtcdVersionRKE2}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionRKE2}})                       |
-{{- if eq .majorMinor "1.23"}}
-| Containerd      | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}})                      |
-{{- else }}
-| Containerd      | [{{.ContainerdVersionRKE2}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionRKE2}})                      |
-{{- end }}
-| Runc            | [{{.RuncVersionRKE2}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionRKE2}})                              |
+| Kubernetes      | [{{.K8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#{{.ChangeLogVersion}}) |
+| Etcd            | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}})                       |
+| Containerd      | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}})                      |
+| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
 | Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
 | CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
 | Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
@@ -549,7 +650,7 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
+| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
 | Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
 | Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
@@ -559,7 +660,7 @@ cat /var/lib/rancher/rke2/server/token
 - [#1447](https://github.com/rancher/rke2/issues/1447) - When restoring RKE2 from backup to a new node, you should ensure that all pods are stopped following the initial restore:
 
 ` + "```" + `bash
-curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_VERSION={{.milestone}}
+curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_VERSION={{.Milestone}}
 rke2 server \
   --cluster-reset \
   --cluster-reset-restore-path=<PATH-TO-SNAPSHOT> --token <token used in the original cluster>
@@ -578,31 +679,23 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 
 const k3sReleaseNoteTemplate = `
 {{- define "k3s" -}}
-<!-- {{.milestone}} -->
-This release updates Kubernetes to {{.k8sVersion}}, and fixes a number of issues.
+<!-- {{.Milestone}} -->
+This release updates Kubernetes to {{.K8sVersion}}, and fixes a number of issues.
 
-For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#changelog-since-{{.changeLogSince}}).
+For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#changelog-since-{{.ChangeLogSince}}).
 
 {{ template "changelog" . }}
 
 ## Embedded Component Versions
 | Component | Version |
 |---|---|
-| Kubernetes | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
+| Kubernetes | [{{.K8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#{{.ChangeLogVersion}}) |
 | Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
 | SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
-| Etcd | [{{.EtcdVersionK3S}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionK3S}}) |
-{{- if and (ge .fullVersion "1.24.0") (lt .fullVersion "1.26.5")}}
-| Containerd | [{{.ContainerdVersionK3S}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionK3S}}) |
-{{- else }}
-| Containerd | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}}) |
-{{- end }}
-{{- if eq .majorMinor "1.23"}}
-| Runc | [{{.RuncVersionBuildScript}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionBuildScript}}) |
-{{- else }}
-| Runc | [{{.RuncVersionGoMod}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionGoMod}}) |
-{{- end }}
-| Flannel | [{{.FlannelVersionK3S}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionK3S}}) | 
+| Etcd | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}}) |
+| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
+| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
+| Flannel | [{{.FlannelVersion}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersion}}) | 
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
 | Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
 | CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
