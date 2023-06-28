@@ -128,7 +128,6 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	markdownVersion := strings.Replace(k8sVersion, ".", "", -1)
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
 	majorMinor := tmp[0] + "." + tmp[1]
-	fullVersion := majorMinor + "." + tmp[2]
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
@@ -142,7 +141,6 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	if repo == k3sRepo {
 		return genK3SReleaseNotes(
 			tmpl,
-			fullVersion,
 			milestone,
 			k3sReleaseNoteData{
 				Milestone:             milestoneNoRC,
@@ -175,16 +173,16 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	return nil, errors.New("invalid repo, it must be either k3s or rke2")
 }
 
-func genK3SReleaseNotes(tmpl *template.Template, fullVersion string, milestone string, releaseNoteData k3sReleaseNoteData) (*bytes.Buffer, error) {
+func genK3SReleaseNotes(tmpl *template.Template, milestone string, releaseNoteData k3sReleaseNoteData) (*bytes.Buffer, error) {
 	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 	var runcVersion string
-	var containerdVersionK3S string
+	var containerdVersion string
 
-	// TODO: fix the conditions
-	if fullVersion > "1.24.0" && fullVersion < "1.26.5" {
-		containerdVersionK3S = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
+	if semver.Compare(releaseNoteData.K8sVersion, "v1.24.0") == 1 &&
+		semver.Compare(releaseNoteData.K8sVersion, "v1.26.5") == -1 {
+		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
-		containerdVersionK3S = goModLibVersion("containerd/containerd", k3sRepo, milestone)
+		containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
 	}
 
 	if releaseNoteData.MajorMinor == "1.23" {
@@ -195,7 +193,7 @@ func genK3SReleaseNotes(tmpl *template.Template, fullVersion string, milestone s
 
 	releaseNoteData.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
 	releaseNoteData.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
-	releaseNoteData.ContainerdVersion = containerdVersionK3S
+	releaseNoteData.ContainerdVersion = containerdVersion
 	releaseNoteData.RuncVersion = runcVersion
 	releaseNoteData.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
 	releaseNoteData.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
@@ -209,19 +207,19 @@ func genK3SReleaseNotes(tmpl *template.Template, fullVersion string, milestone s
 
 func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, releaseData rke2ReleaseNoteData) (*bytes.Buffer, error) {
 	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
-	var containerdVersionRKE2 string
+	var containerdVersion string
 
 	if releaseData.MajorMinor == "1.23" {
-		containerdVersionRKE2 = goModLibVersion("containerd/containerd", rke2Repo, milestone)
+		containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
 	} else {
-		containerdVersionRKE2 = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
+		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
 	}
 
 	releaseData.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
 	releaseData.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
 	releaseData.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
 	releaseData.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
-	releaseData.ContainerdVersion = containerdVersionRKE2
+	releaseData.ContainerdVersion = containerdVersion
 	releaseData.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
 	releaseData.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
 	releaseData.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
