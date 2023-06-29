@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -47,6 +48,8 @@ type rke2ReleaseNoteData struct {
 	CalicoVersion         string
 	CiliumVersion         string
 	MultusVersion         string
+	ComponentsTable       string
+	CNIsTable             string
 	ChangeLogData         changeLogData
 }
 
@@ -68,8 +71,44 @@ type k3sReleaseNoteData struct {
 	CoreDNSVersion              string
 	HelmControllerVersion       string
 	LocalPathProvisionerVersion string
+	ComponentsTable             string
 	ChangeLogData               changeLogData
 }
+
+var componentMarkdownLink map[string]string = map[string]string{
+	"k8s":                  "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)",
+	"kine":                 "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)",
+	"sqlite":               "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)",
+	"etcd":                 "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)",
+	"containerd":           "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)",
+	"runc":                 "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)",
+	"flannel":              "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)",
+	"metricsServer":        "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)",
+	"traefik":              "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)",
+	"coreDNS":              "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)",
+	"helmController":       "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)",
+	"localPathProvisioner": "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)",
+	"ingressNginx":         "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)",
+	"canalDefault":         "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)",
+	"calico":               "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)",
+	"cilium":               "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)",
+	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
+}
+
+type Component struct {
+	Name       string
+	VersionURL string
+}
+
+type Components []Component
+
+type CNI struct {
+	Name          string
+	VersionURL    string
+	FIPSCompliant bool
+}
+
+type CNIs []CNI
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -173,61 +212,103 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	return nil, errors.New("invalid repo, it must be either k3s or rke2")
 }
 
-func genK3SReleaseNotes(tmpl *template.Template, milestone string, releaseNoteData k3sReleaseNoteData) (*bytes.Buffer, error) {
+func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sReleaseNoteData) (*bytes.Buffer, error) {
 	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 	var runcVersion string
 	var containerdVersion string
 
-	if semver.Compare(releaseNoteData.K8sVersion, "v1.24.0") == 1 &&
-		semver.Compare(releaseNoteData.K8sVersion, "v1.26.5") == -1 {
+	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 &&
+		semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
 		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
 		containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
 	}
 
-	if releaseNoteData.MajorMinor == "1.23" {
+	if rd.MajorMinor == "1.23" {
 		runcVersion = buildScriptVersion("VERSION_RUNC", k3sRepo, milestone)
 	} else {
 		runcVersion = goModLibVersion("runc", k3sRepo, milestone)
 	}
 
-	releaseNoteData.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
-	releaseNoteData.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
-	releaseNoteData.ContainerdVersion = containerdVersion
-	releaseNoteData.RuncVersion = runcVersion
-	releaseNoteData.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
-	releaseNoteData.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
-	releaseNoteData.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
-	releaseNoteData.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
+	rd.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
+	rd.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
+	rd.ContainerdVersion = containerdVersion
+	rd.RuncVersion = runcVersion
+	rd.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
+	rd.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
+	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
+	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
+
+	components := Components{
+		{Name: "Kubernetes", VersionURL: fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{Name: "Kine", VersionURL: fmt.Sprintf(componentMarkdownLink["kine"], rd.KineVersion)},
+		{Name: "SQLite", VersionURL: fmt.Sprintf(componentMarkdownLink["sqlite"], rd.SQLiteVersionReplaced)},
+		{Name: "Etcd", VersionURL: fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
+		{Name: "Containerd", VersionURL: fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
+		{Name: "Runc", VersionURL: fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
+		{Name: "Flannel", VersionURL: fmt.Sprintf(componentMarkdownLink["flannel"], rd.FlannelVersion)},
+		{Name: "Metrics-server", VersionURL: fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
+		{Name: "Traefik", VersionURL: fmt.Sprintf(componentMarkdownLink["traefik"], rd.TraefikVersion)},
+		{Name: "CoreDNS", VersionURL: fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
+		{Name: "Helm-controller", VersionURL: fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
+		{Name: "Local-path-provisioner", VersionURL: fmt.Sprintf(componentMarkdownLink["localPathProvisioner"], rd.LocalPathProvisionerVersion)},
+	}
+
+	rd.ComponentsTable = components.Markdown()
 
 	buf := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buf, k3sRepo, releaseNoteData)
+	err := tmpl.ExecuteTemplate(buf, k3sRepo, rd)
 	return buf, err
 }
 
-func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, releaseData rke2ReleaseNoteData) (*bytes.Buffer, error) {
+func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2ReleaseNoteData) (*bytes.Buffer, error) {
 	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
 	var containerdVersion string
 
-	if releaseData.MajorMinor == "1.23" {
+	if rd.MajorMinor == "1.23" {
 		containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
 	} else {
 		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
 	}
 
-	releaseData.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
-	releaseData.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
-	releaseData.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
-	releaseData.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
-	releaseData.ContainerdVersion = containerdVersion
-	releaseData.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
-	releaseData.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
-	releaseData.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
-	releaseData.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
-	releaseData.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
+	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
+	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
+	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
+	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
+	rd.ContainerdVersion = containerdVersion
+	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
+	rd.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
+	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
+	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
+	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
+
+	components := Components{
+		{Name: "Kubernetes", VersionURL: fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{Name: "Etcd", VersionURL: fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
+		{Name: "Containerd", VersionURL: fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
+		{Name: "Runc", VersionURL: fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
+		{Name: "Metrics-server", VersionURL: fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
+		{Name: "CoreDNS", VersionURL: fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
+		{Name: "Ingress-Nginx", VersionURL: fmt.Sprintf(componentMarkdownLink["ingressNginx"], rd.IngressNginxVersion)},
+		{Name: "Helm-controller", VersionURL: fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
+	}
+	rd.ComponentsTable = components.Markdown()
+
+	majMinCanalCalicoVersion, err := majMin(rd.CanalCalicoVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	cnis := CNIs{
+		{Name: "Canal (Default)", VersionURL: fmt.Sprintf(componentMarkdownLink["canalDefault"], rd.FlannelVersion, rd.CanalCalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CanalCalicoVersion)), FIPSCompliant: true},
+		{Name: "Calico", VersionURL: fmt.Sprintf(componentMarkdownLink["calico"], rd.CalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CalicoVersion)), FIPSCompliant: false},
+		{Name: "Cilium", VersionURL: fmt.Sprintf(componentMarkdownLink["cilium"], rd.CiliumVersion), FIPSCompliant: false},
+		{Name: "Multus", VersionURL: fmt.Sprintf(componentMarkdownLink["multus"], rd.MultusVersion), FIPSCompliant: false},
+	}
+	rd.CNIsTable = cnis.Markdown()
 
 	buf := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buf, rke2Repo, releaseData)
+	err = tmpl.ExecuteTemplate(buf, rke2Repo, rd)
 	return buf, err
 }
 
@@ -602,6 +683,76 @@ func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Clien
 
 }
 
+func (components *Components) maxWidth() (nameMax int, versionURLMax int) {
+	nameMax, versionURLMax = 0, 0
+	for _, component := range *components {
+		if len(component.Name) > nameMax {
+			nameMax = len(component.Name)
+		}
+		if len(component.VersionURL) > versionURLMax {
+			versionURLMax = len(component.VersionURL)
+		}
+	}
+	return nameMax, versionURLMax
+}
+
+func (cnis *CNIs) maxWidth() (nameMax int, versionURLMax int, compliantMax int) {
+	nameMax, versionURLMax, compliantMax = 0, 0, len("FIPS Compliant")
+
+	for _, cni := range *cnis {
+		if len(cni.Name) > nameMax {
+			nameMax = len(cni.Name)
+		}
+		if len(cni.VersionURL) > versionURLMax {
+			versionURLMax = len(cni.VersionURL)
+		}
+	}
+
+	return nameMax, versionURLMax, compliantMax
+}
+
+func (components *Components) Markdown() string {
+	var sb strings.Builder
+
+	nameMax, versionURLMax := components.maxWidth()
+
+	header := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version")
+	sb.WriteString(header)
+
+	separator := fmt.Sprintf("| %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax))
+	sb.WriteString(separator)
+
+	for _, component := range *components {
+		row := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, component.Name, versionURLMax, component.VersionURL)
+		sb.WriteString(row)
+	}
+
+	return sb.String()
+}
+
+func (cnis *CNIs) Markdown() string {
+	var sb strings.Builder
+
+	nameMax, versionURLMax, compliantMax := cnis.maxWidth()
+
+	header := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version", compliantMax, "FIPS Compliant")
+	sb.WriteString(header)
+
+	separator := fmt.Sprintf("| %s | %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax), strings.Repeat("-", compliantMax))
+	sb.WriteString(separator)
+
+	for _, cni := range *cnis {
+		compliant := "No"
+		if cni.FIPSCompliant {
+			compliant = "Yes"
+		}
+		row := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, cni.Name, versionURLMax, cni.VersionURL, compliantMax, compliant)
+		sb.WriteString(row)
+	}
+
+	return sb.String()
+}
+
 var changelogTemplate = `
 {{- define "changelog" -}}
 ## Changes since {{.ChangeLogData.PrevMilestone}}:
@@ -634,24 +785,10 @@ cat /var/lib/rancher/rke2/server/token
 {{ template "changelog" . }}
 
 ## Packaged Component Versions
-| Component       | Version                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------- |
-| Kubernetes      | [{{.K8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#{{.ChangeLogVersion}}) |
-| Etcd            | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}})                       |
-| Containerd      | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}})                      |
-| Runc            | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}})                              |
-| Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
-| CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
-| Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
-| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}})                         |
+{{ .ComponentsTable }}
 
 ### Available CNIs
-| Component       | Version                                                                                                                                                                             | FIPS Compliant |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
-| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
-| Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
-| Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
+{{ .CNIsTable }}
 
 ## Known Issues
 
@@ -685,20 +822,7 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 {{ template "changelog" . }}
 
 ## Embedded Component Versions
-| Component | Version |
-|---|---|
-| Kubernetes | [{{.K8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#{{.ChangeLogVersion}}) |
-| Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
-| SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
-| Etcd | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}}) |
-| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
-| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
-| Flannel | [{{.FlannelVersion}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersion}}) | 
-| Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
-| Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
-| CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
-| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
-| Local-path-provisioner | [{{.LocalPathProvisionerVersion}}](https://github.com/rancher/local-path-provisioner/releases/tag/{{.LocalPathProvisionerVersion}}) |
+{{ .ComponentsTable }}
 
 ## Helpful Links
 As always, we welcome and appreciate feedback from our community of users. Please feel free to:
