@@ -95,21 +95,6 @@ var componentMarkdownLink map[string]string = map[string]string{
 	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
 }
 
-type Component struct {
-	Name       string
-	VersionURL string
-}
-
-type Components []Component
-
-type CNI struct {
-	Name          string
-	VersionURL    string
-	FIPSCompliant bool
-}
-
-type CNIs []CNI
-
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
 	if majMin == "" {
@@ -239,25 +224,30 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
 	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
 
-	components := Components{
-		{Name: "Kubernetes", VersionURL: fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
-		{Name: "Kine", VersionURL: fmt.Sprintf(componentMarkdownLink["kine"], rd.KineVersion)},
-		{Name: "SQLite", VersionURL: fmt.Sprintf(componentMarkdownLink["sqlite"], rd.SQLiteVersionReplaced)},
-		{Name: "Etcd", VersionURL: fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
-		{Name: "Containerd", VersionURL: fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
-		{Name: "Runc", VersionURL: fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
-		{Name: "Flannel", VersionURL: fmt.Sprintf(componentMarkdownLink["flannel"], rd.FlannelVersion)},
-		{Name: "Metrics-server", VersionURL: fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
-		{Name: "Traefik", VersionURL: fmt.Sprintf(componentMarkdownLink["traefik"], rd.TraefikVersion)},
-		{Name: "CoreDNS", VersionURL: fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
-		{Name: "Helm-controller", VersionURL: fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
-		{Name: "Local-path-provisioner", VersionURL: fmt.Sprintf(componentMarkdownLink["localPathProvisioner"], rd.LocalPathProvisionerVersion)},
+	componentsHeader := []string{"Component", "Version"}
+	componentsValues := [][]string{
+		{"Kubernetes", fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{"Kine", fmt.Sprintf(componentMarkdownLink["kine"], rd.KineVersion)},
+		{"SQLite", fmt.Sprintf(componentMarkdownLink["sqlite"], rd.SQLiteVersionReplaced)},
+		{"Etcd", fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
+		{"Containerd", fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
+		{"Runc", fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
+		{"Flannel", fmt.Sprintf(componentMarkdownLink["flannel"], rd.FlannelVersion)},
+		{"Metrics-server", fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
+		{"Traefik", fmt.Sprintf(componentMarkdownLink["traefik"], rd.TraefikVersion)},
+		{"CoreDNS", fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
+		{"Helm-controller", fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
+		{"Local-path-provisioner", fmt.Sprintf(componentMarkdownLink["localPathProvisioner"], rd.LocalPathProvisionerVersion)},
 	}
 
-	rd.ComponentsTable = components.Markdown()
+	componentsTable, err := NewMarkdownTable(componentsHeader, componentsValues)
+	if err != nil {
+		return nil, err
+	}
+	rd.ComponentsTable = componentsTable.String()
 
 	buf := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buf, k3sRepo, rd)
+	err = tmpl.ExecuteTemplate(buf, k3sRepo, rd)
 	return buf, err
 }
 
@@ -282,30 +272,42 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 
-	components := Components{
-		{Name: "Kubernetes", VersionURL: fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
-		{Name: "Etcd", VersionURL: fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
-		{Name: "Containerd", VersionURL: fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
-		{Name: "Runc", VersionURL: fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
-		{Name: "Metrics-server", VersionURL: fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
-		{Name: "CoreDNS", VersionURL: fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
-		{Name: "Ingress-Nginx", VersionURL: fmt.Sprintf(componentMarkdownLink["ingressNginx"], rd.IngressNginxVersion)},
-		{Name: "Helm-controller", VersionURL: fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
+	componentsHeader := []string{"Component", "Version"}
+	componentsValues := [][]string{
+		{"Kubernetes", fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{"Etcd", fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
+		{"Containerd", fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
+		{"Runc", fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
+		{"Metrics-server", fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
+		{"CoreDNS", fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
+		{"Ingress-Nginx", fmt.Sprintf(componentMarkdownLink["ingressNginx"], rd.IngressNginxVersion)},
+		{"Helm-controller", fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
 	}
-	rd.ComponentsTable = components.Markdown()
+
+	componentsTable, err := NewMarkdownTable(componentsHeader, componentsValues)
+	if err != nil {
+		return nil, err
+	}
+	rd.ComponentsTable = componentsTable.String()
 
 	majMinCanalCalicoVersion, err := majMin(rd.CanalCalicoVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	cnis := CNIs{
-		{Name: "Canal (Default)", VersionURL: fmt.Sprintf(componentMarkdownLink["canalDefault"], rd.FlannelVersion, rd.CanalCalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CanalCalicoVersion)), FIPSCompliant: true},
-		{Name: "Calico", VersionURL: fmt.Sprintf(componentMarkdownLink["calico"], rd.CalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CalicoVersion)), FIPSCompliant: false},
-		{Name: "Cilium", VersionURL: fmt.Sprintf(componentMarkdownLink["cilium"], rd.CiliumVersion), FIPSCompliant: false},
-		{Name: "Multus", VersionURL: fmt.Sprintf(componentMarkdownLink["multus"], rd.MultusVersion), FIPSCompliant: false},
+	cnisHeader := []string{"Component", "Version", "FIPS Compliant"}
+	cnisValues := [][]string{
+		{"Canal (Default)", fmt.Sprintf(componentMarkdownLink["canalDefault"], rd.FlannelVersion, rd.CanalCalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CanalCalicoVersion)), "Yes"},
+		{"Calico", fmt.Sprintf(componentMarkdownLink["calico"], rd.CalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CalicoVersion)), "No"},
+		{"Cilium", fmt.Sprintf(componentMarkdownLink["cilium"], rd.CiliumVersion), "No"},
+		{"Multus", fmt.Sprintf(componentMarkdownLink["multus"], rd.MultusVersion), "No"},
 	}
-	rd.CNIsTable = cnis.Markdown()
+
+	cnisTable, err := NewMarkdownTable(cnisHeader, cnisValues)
+	if err != nil {
+		return nil, err
+	}
+	rd.CNIsTable = cnisTable.String()
 
 	buf := bytes.NewBuffer(nil)
 	err = tmpl.ExecuteTemplate(buf, rke2Repo, rd)
@@ -681,76 +683,6 @@ func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Clien
 
 	return *rcs[len(rcs)-1].Name, nil
 
-}
-
-func (components *Components) maxWidth() (nameMax int, versionURLMax int) {
-	nameMax, versionURLMax = 0, 0
-	for _, component := range *components {
-		if len(component.Name) > nameMax {
-			nameMax = len(component.Name)
-		}
-		if len(component.VersionURL) > versionURLMax {
-			versionURLMax = len(component.VersionURL)
-		}
-	}
-	return nameMax, versionURLMax
-}
-
-func (cnis *CNIs) maxWidth() (nameMax int, versionURLMax int, compliantMax int) {
-	nameMax, versionURLMax, compliantMax = 0, 0, len("FIPS Compliant")
-
-	for _, cni := range *cnis {
-		if len(cni.Name) > nameMax {
-			nameMax = len(cni.Name)
-		}
-		if len(cni.VersionURL) > versionURLMax {
-			versionURLMax = len(cni.VersionURL)
-		}
-	}
-
-	return nameMax, versionURLMax, compliantMax
-}
-
-func (components *Components) Markdown() string {
-	var sb strings.Builder
-
-	nameMax, versionURLMax := components.maxWidth()
-
-	header := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version")
-	sb.WriteString(header)
-
-	separator := fmt.Sprintf("| %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax))
-	sb.WriteString(separator)
-
-	for _, component := range *components {
-		row := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, component.Name, versionURLMax, component.VersionURL)
-		sb.WriteString(row)
-	}
-
-	return sb.String()
-}
-
-func (cnis *CNIs) Markdown() string {
-	var sb strings.Builder
-
-	nameMax, versionURLMax, compliantMax := cnis.maxWidth()
-
-	header := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version", compliantMax, "FIPS Compliant")
-	sb.WriteString(header)
-
-	separator := fmt.Sprintf("| %s | %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax), strings.Repeat("-", compliantMax))
-	sb.WriteString(separator)
-
-	for _, cni := range *cnis {
-		compliant := "No"
-		if cni.FIPSCompliant {
-			compliant = "Yes"
-		}
-		row := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, cni.Name, versionURLMax, cni.VersionURL, compliantMax, compliant)
-		sb.WriteString(row)
-	}
-
-	return sb.String()
 }
 
 var changelogTemplate = `
