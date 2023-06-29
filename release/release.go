@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -48,6 +49,8 @@ type rke2ReleaseNoteData struct {
 	CalicoVersion         string
 	CiliumVersion         string
 	MultusVersion         string
+	ComponentsTable       string
+	CNIsTable             string
 	ChangeLogData         changeLogData
 }
 
@@ -69,8 +72,44 @@ type k3sReleaseNoteData struct {
 	CoreDNSVersion              string
 	HelmControllerVersion       string
 	LocalPathProvisionerVersion string
+	ComponentsTable             string
 	ChangeLogData               changeLogData
 }
+
+var componentMarkdownLink map[string]string = map[string]string{
+	"k8s":                  "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)",
+	"kine":                 "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)",
+	"sqlite":               "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)",
+	"etcd":                 "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)",
+	"containerd":           "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)",
+	"runc":                 "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)",
+	"flannel":              "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)",
+	"metricsServer":        "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)",
+	"traefik":              "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)",
+	"coreDNS":              "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)",
+	"helmController":       "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)",
+	"localPathProvisioner": "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)",
+	"ingressNginx":         "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)",
+	"canalDefault":         "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)",
+	"calico":               "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)",
+	"cilium":               "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)",
+	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
+}
+
+type Component struct {
+	Name       string
+	VersionURL string
+}
+
+type Components []Component
+
+type CNI struct {
+	Name          string
+	VersionURL    string
+	FIPSCompliant bool
+}
+
+type CNIs []CNI
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -609,6 +648,76 @@ func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Clien
 
 }
 
+func (components *Components) maxWidth() (nameMax int, versionURLMax int) {
+	nameMax, versionURLMax = 0, 0
+	for _, component := range *components {
+		if len(component.Name) > nameMax {
+			nameMax = len(component.Name)
+		}
+		if len(component.VersionURL) > versionURLMax {
+			versionURLMax = len(component.VersionURL)
+		}
+	}
+	return nameMax, versionURLMax
+}
+
+func (cnis *CNIs) maxWidth() (nameMax int, versionURLMax int, compliantMax int) {
+	nameMax, versionURLMax, compliantMax = 0, 0, len("FIPS Compliant")
+
+	for _, cni := range *cnis {
+		if len(cni.Name) > nameMax {
+			nameMax = len(cni.Name)
+		}
+		if len(cni.VersionURL) > versionURLMax {
+			versionURLMax = len(cni.VersionURL)
+		}
+	}
+
+	return nameMax, versionURLMax, compliantMax
+}
+
+func (components *Components) Markdown() string {
+	var sb strings.Builder
+
+	nameMax, versionURLMax := components.maxWidth()
+
+	header := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version")
+	sb.WriteString(header)
+
+	separator := fmt.Sprintf("| %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax))
+	sb.WriteString(separator)
+
+	for _, component := range *components {
+		row := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, component.Name, versionURLMax, component.VersionURL)
+		sb.WriteString(row)
+	}
+
+	return sb.String()
+}
+
+func (cnis *CNIs) Markdown() string {
+	var sb strings.Builder
+
+	nameMax, versionURLMax, compliantMax := cnis.maxWidth()
+
+	header := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version", compliantMax, "FIPS Compliant")
+	sb.WriteString(header)
+
+	separator := fmt.Sprintf("| %s | %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax), strings.Repeat("-", compliantMax))
+	sb.WriteString(separator)
+
+	for _, cni := range *cnis {
+		compliant := "No"
+		if cni.FIPSCompliant {
+			compliant = "Yes"
+		}
+		row := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, cni.Name, versionURLMax, cni.VersionURL, compliantMax, compliant)
+		sb.WriteString(row)
+	}
+
+	return sb.String()
+}
+
 var changelogTemplate = `
 {{- define "changelog" -}}
 ## Changes since {{.ChangeLogData.PrevMilestone}}:
@@ -692,20 +801,7 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 {{ template "changelog" . }}
 
 ## Embedded Component Versions
-| Component | Version |
-|---|---|
-| Kubernetes | [{{.K8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#{{.ChangeLogVersion}}) |
-| Kine | [{{.KineVersion}}](https://github.com/k3s-io/kine/releases/tag/{{.KineVersion}}) |
-| SQLite | [{{.SQLiteVersion}}](https://sqlite.org/releaselog/{{.SQLiteVersionReplaced}}.html) |
-| Etcd | [{{.EtcdVersion}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersion}}) |
-| Containerd | [{{.ContainerdVersion}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersion}}) |
-| Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
-| Flannel | [{{.FlannelVersion}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersion}}) | 
-| Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
-| Traefik | [v{{.TraefikVersion}}](https://github.com/traefik/traefik/releases/tag/v{{.TraefikVersion}}) |
-| CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
-| Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
-| Local-path-provisioner | [{{.LocalPathProvisionerVersion}}](https://github.com/rancher/local-path-provisioner/releases/tag/{{.LocalPathProvisionerVersion}}) |
+{{ .ComponentsTable }}
 
 ## Helpful Links
 As always, we welcome and appreciate feedback from our community of users. Please feel free to:
