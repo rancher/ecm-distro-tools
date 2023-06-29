@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -95,21 +94,6 @@ var componentMarkdownLink map[string]string = map[string]string{
 	"cilium":               "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)",
 	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
 }
-
-type Component struct {
-	Name       string
-	VersionURL string
-}
-
-type Components []Component
-
-type CNI struct {
-	Name          string
-	VersionURL    string
-	FIPSCompliant bool
-}
-
-type CNIs []CNI
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -646,76 +630,6 @@ func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Clien
 
 	return *rcs[len(rcs)-1].Name, nil
 
-}
-
-func (components *Components) maxWidth() (nameMax int, versionURLMax int) {
-	nameMax, versionURLMax = 0, 0
-	for _, component := range *components {
-		if len(component.Name) > nameMax {
-			nameMax = len(component.Name)
-		}
-		if len(component.VersionURL) > versionURLMax {
-			versionURLMax = len(component.VersionURL)
-		}
-	}
-	return nameMax, versionURLMax
-}
-
-func (cnis *CNIs) maxWidth() (nameMax int, versionURLMax int, compliantMax int) {
-	nameMax, versionURLMax, compliantMax = 0, 0, len("FIPS Compliant")
-
-	for _, cni := range *cnis {
-		if len(cni.Name) > nameMax {
-			nameMax = len(cni.Name)
-		}
-		if len(cni.VersionURL) > versionURLMax {
-			versionURLMax = len(cni.VersionURL)
-		}
-	}
-
-	return nameMax, versionURLMax, compliantMax
-}
-
-func (components *Components) Markdown() string {
-	var sb strings.Builder
-
-	nameMax, versionURLMax := components.maxWidth()
-
-	header := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version")
-	sb.WriteString(header)
-
-	separator := fmt.Sprintf("| %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax))
-	sb.WriteString(separator)
-
-	for _, component := range *components {
-		row := fmt.Sprintf("| %-*s | %-*s |\n", nameMax, component.Name, versionURLMax, component.VersionURL)
-		sb.WriteString(row)
-	}
-
-	return sb.String()
-}
-
-func (cnis *CNIs) Markdown() string {
-	var sb strings.Builder
-
-	nameMax, versionURLMax, compliantMax := cnis.maxWidth()
-
-	header := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, "Component", versionURLMax, "Version", compliantMax, "FIPS Compliant")
-	sb.WriteString(header)
-
-	separator := fmt.Sprintf("| %s | %s | %s |\n", strings.Repeat("-", nameMax), strings.Repeat("-", versionURLMax), strings.Repeat("-", compliantMax))
-	sb.WriteString(separator)
-
-	for _, cni := range *cnis {
-		compliant := "No"
-		if cni.FIPSCompliant {
-			compliant = "Yes"
-		}
-		row := fmt.Sprintf("| %-*s | %-*s | %-*s |\n", nameMax, cni.Name, versionURLMax, cni.VersionURL, compliantMax, compliant)
-		sb.WriteString(row)
-	}
-
-	return sb.String()
 }
 
 var changelogTemplate = `
