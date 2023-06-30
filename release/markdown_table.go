@@ -46,29 +46,21 @@ func (m *markdownTable) maxWidths() []int {
 func (m *markdownTable) String() string {
 	var sb strings.Builder
 
+	valueFormat := "|" + strings.Repeat(" %-*s |", m.headerLen) + "\n"
+	separatorFormat := "|" + strings.Repeat(" %s |", m.headerLen) + "\n"
+	headerFormatArguments := make([]interface{}, 0)
+	separatorFormatArguments := make([]interface{}, 0)
 	maxWidths := m.maxWidths()
 
-	valueCell, separatorCell := " %-*s |", " %s |"
-	valueFormatElements, separatorFormatElements := []string{"|"}, []string{"|"}
-	headerFormatArguments, separatorFormatArguments := make([]interface{}, 0), make([]interface{}, 0)
-
 	for i := 0; i < m.headerLen; i++ {
-		valueFormatElements = append(valueFormatElements, valueCell)
 		headerFormatArguments = append(headerFormatArguments, maxWidths[i])
 		headerFormatArguments = append(headerFormatArguments, m.header[i])
-
-		separatorFormatElements = append(separatorFormatElements, separatorCell)
 		separatorFormatArguments = append(separatorFormatArguments, strings.Repeat("-", maxWidths[i]))
 	}
-	valueFormatElements = append(valueFormatElements, "\n")
-	separatorFormatElements = append(separatorFormatElements, "\n")
-
-	valueFormat := strings.Join(valueFormatElements, "")
 
 	header := fmt.Sprintf(valueFormat, headerFormatArguments...)
 	sb.WriteString(header)
-
-	separator := fmt.Sprintf(strings.Join(separatorFormatElements, ""), separatorFormatArguments...)
+	separator := fmt.Sprintf(separatorFormat, separatorFormatArguments...)
 	sb.WriteString(separator)
 
 	for _, rowValue := range m.values {

@@ -75,25 +75,25 @@ type k3sReleaseNoteData struct {
 	ChangeLogData               changeLogData
 }
 
-var componentMarkdownLink map[string]string = map[string]string{
-	"k8s":                  "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)",
-	"kine":                 "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)",
-	"sqlite":               "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)",
-	"etcd":                 "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)",
-	"containerd":           "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)",
-	"runc":                 "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)",
-	"flannel":              "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)",
-	"metricsServer":        "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)",
-	"traefik":              "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)",
-	"coreDNS":              "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)",
-	"helmController":       "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)",
-	"localPathProvisioner": "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)",
-	"ingressNginx":         "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)",
-	"canalDefault":         "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)",
-	"calico":               "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)",
-	"cilium":               "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)",
-	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
-}
+var (
+	mdLinkK8s                  = "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)"
+	mdLinkKine                 = "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)"
+	mdLinkSQLite               = "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)"
+	mdLinkEtcd                 = "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)"
+	mdLinkContainerd           = "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)"
+	mdLinkRunc                 = "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)"
+	mdLinkFlannel              = "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)"
+	mdLinkMetricsServer        = "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)"
+	mdLinkTraefik              = "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)"
+	mdLinkCoreDNS              = "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)"
+	mdLinkHelmController       = "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)"
+	mdLinkLocalPathProvisioner = "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)"
+	mdLinkIngressNginx         = "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)"
+	mdLinkCanalDefault         = "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)"
+	mdLinkCalico               = "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)"
+	mdLinkCilium               = "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)"
+	mdLinkMultus               = "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)"
+)
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
