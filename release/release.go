@@ -75,25 +75,25 @@ type k3sReleaseNoteData struct {
 	ChangeLogData               changeLogData
 }
 
-var componentMarkdownLink map[string]string = map[string]string{
-	"k8s":                  "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)",
-	"kine":                 "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)",
-	"sqlite":               "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)",
-	"etcd":                 "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)",
-	"containerd":           "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)",
-	"runc":                 "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)",
-	"flannel":              "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)",
-	"metricsServer":        "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)",
-	"traefik":              "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)",
-	"coreDNS":              "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)",
-	"helmController":       "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)",
-	"localPathProvisioner": "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)",
-	"ingressNginx":         "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)",
-	"canalDefault":         "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)",
-	"calico":               "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)",
-	"cilium":               "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)",
-	"multus":               "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)",
-}
+var (
+	mdLinkK8s                  = "[%[1]s](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-%[2]s.md#%[3]s)"
+	mdLinkKine                 = "[%[1]s](https://github.com/k3s-io/kine/releases/tag/%[1]s)"
+	mdLinkSQLite               = "[%[1]s](https://sqlite.org/releaselog/%[1]s.html)"
+	mdLinkEtcd                 = "[%[1]s](https://github.com/k3s-io/etcd/releases/tag/%[1]s)"
+	mdLinkContainerd           = "[%[1]s](https://github.com/k3s-io/containerd/releases/tag/%[1]s)"
+	mdLinkRunc                 = "[%[1]s](https://github.com/opencontainers/runc/releases/tag/%[1]s)"
+	mdLinkFlannel              = "[%[1]s](https://github.com/flannel-io/flannel/releases/tag/%[1]s)"
+	mdLinkMetricsServer        = "[%[1]s](https://github.com/kubernetes-sigs/metrics-server/releases/tag/%[1]s)"
+	mdLinkTraefik              = "[v%[1]s](https://github.com/traefik/traefik/releases/tag/v%[1]s)"
+	mdLinkCoreDNS              = "[%[1]s](https://github.com/coredns/coredns/releases/tag/v%[1]s)"
+	mdLinkHelmController       = "[%[1]s](https://github.com/k3s-io/helm-controller/releases/tag/%[1]s)"
+	mdLinkLocalPathProvisioner = "[%[1]s](https://github.com/rancher/local-path-provisioner/releases/tag/%[1]s)"
+	mdLinkIngressNginx         = "[%[1]s](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-%[1]s)"
+	mdLinkCanalDefault         = "[Flannel %[1]s](https://github.com/k3s-io/flannel/releases/tag/%[1]s)<br/>[Calico %[2]s](https://projectcalico.docs.tigera.io/archive/%[3]s/release-notes/#%[4]s)"
+	mdLinkCalico               = "[%[1]s](https://projectcalico.docs.tigera.io/archive/%[2]s/release-notes/#%[3]s)"
+	mdLinkCilium               = "[%[1]s](https://github.com/cilium/cilium/releases/tag/%[1]s)"
+	mdLinkMultus               = "[%[1]s](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/%[1]s)"
+)
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -226,20 +226,19 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 
 	componentsHeader := []string{"Component", "Version"}
 	componentsValues := [][]string{
-		{"Kubernetes", fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
-		{"Kine", fmt.Sprintf(componentMarkdownLink["kine"], rd.KineVersion)},
-		{"SQLite", fmt.Sprintf(componentMarkdownLink["sqlite"], rd.SQLiteVersionReplaced)},
-		{"Etcd", fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
-		{"Containerd", fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
-		{"Runc", fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
-		{"Flannel", fmt.Sprintf(componentMarkdownLink["flannel"], rd.FlannelVersion)},
-		{"Metrics-server", fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
-		{"Traefik", fmt.Sprintf(componentMarkdownLink["traefik"], rd.TraefikVersion)},
-		{"CoreDNS", fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
-		{"Helm-controller", fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
-		{"Local-path-provisioner", fmt.Sprintf(componentMarkdownLink["localPathProvisioner"], rd.LocalPathProvisionerVersion)},
+		{"Kubernetes", fmt.Sprintf(mdLinkK8s, rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{"Kine", fmt.Sprintf(mdLinkKine, rd.KineVersion)},
+		{"SQLite", fmt.Sprintf(mdLinkSQLite, rd.SQLiteVersionReplaced)},
+		{"Etcd", fmt.Sprintf(mdLinkEtcd, rd.EtcdVersion)},
+		{"Containerd", fmt.Sprintf(mdLinkContainerd, rd.ContainerdVersion)},
+		{"Runc", fmt.Sprintf(mdLinkRunc, rd.RuncVersion)},
+		{"Flannel", fmt.Sprintf(mdLinkFlannel, rd.FlannelVersion)},
+		{"Metrics-server", fmt.Sprintf(mdLinkMetricsServer, rd.MetricsServerVersion)},
+		{"Traefik", fmt.Sprintf(mdLinkTraefik, rd.TraefikVersion)},
+		{"CoreDNS", fmt.Sprintf(mdLinkCoreDNS, rd.CoreDNSVersion)},
+		{"Helm-controller", fmt.Sprintf(mdLinkHelmController, rd.HelmControllerVersion)},
+		{"Local-path-provisioner", fmt.Sprintf(mdLinkLocalPathProvisioner, rd.LocalPathProvisionerVersion)},
 	}
-
 	componentsTable, err := NewMarkdownTable(componentsHeader, componentsValues)
 	if err != nil {
 		return nil, err
@@ -274,16 +273,15 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 
 	componentsHeader := []string{"Component", "Version"}
 	componentsValues := [][]string{
-		{"Kubernetes", fmt.Sprintf(componentMarkdownLink["k8s"], rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
-		{"Etcd", fmt.Sprintf(componentMarkdownLink["etcd"], rd.EtcdVersion)},
-		{"Containerd", fmt.Sprintf(componentMarkdownLink["containerd"], rd.ContainerdVersion)},
-		{"Runc", fmt.Sprintf(componentMarkdownLink["runc"], rd.RuncVersion)},
-		{"Metrics-server", fmt.Sprintf(componentMarkdownLink["metricsServer"], rd.MetricsServerVersion)},
-		{"CoreDNS", fmt.Sprintf(componentMarkdownLink["coreDNS"], rd.CoreDNSVersion)},
-		{"Ingress-Nginx", fmt.Sprintf(componentMarkdownLink["ingressNginx"], rd.IngressNginxVersion)},
-		{"Helm-controller", fmt.Sprintf(componentMarkdownLink["helmController"], rd.HelmControllerVersion)},
+		{"Kubernetes", fmt.Sprintf(mdLinkK8s, rd.K8sVersion, rd.MajorMinor, rd.ChangeLogVersion)},
+		{"Etcd", fmt.Sprintf(mdLinkEtcd, rd.EtcdVersion)},
+		{"Containerd", fmt.Sprintf(containerdVersion, rd.ContainerdVersion)},
+		{"Runc", fmt.Sprintf(mdLinkRunc, rd.RuncVersion)},
+		{"Metrics-server", fmt.Sprintf(mdLinkMetricsServer, rd.MetricsServerVersion)},
+		{"CoreDNS", fmt.Sprintf(mdLinkCoreDNS, rd.CoreDNSVersion)},
+		{"Ingress-Nginx", fmt.Sprintf(mdLinkIngressNginx, rd.IngressNginxVersion)},
+		{"Helm-controller", fmt.Sprintf(mdLinkHelmController, rd.HelmControllerVersion)},
 	}
-
 	componentsTable, err := NewMarkdownTable(componentsHeader, componentsValues)
 	if err != nil {
 		return nil, err
@@ -297,10 +295,10 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 
 	cnisHeader := []string{"Component", "Version", "FIPS Compliant"}
 	cnisValues := [][]string{
-		{"Canal (Default)", fmt.Sprintf(componentMarkdownLink["canalDefault"], rd.FlannelVersion, rd.CanalCalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CanalCalicoVersion)), "Yes"},
-		{"Calico", fmt.Sprintf(componentMarkdownLink["calico"], rd.CalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CalicoVersion)), "No"},
-		{"Cilium", fmt.Sprintf(componentMarkdownLink["cilium"], rd.CiliumVersion), "No"},
-		{"Multus", fmt.Sprintf(componentMarkdownLink["multus"], rd.MultusVersion), "No"},
+		{"Canal (Default)", fmt.Sprintf(mdLinkCanalDefault, rd.FlannelVersion, rd.CanalCalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CanalCalicoVersion)), "Yes"},
+		{"Calico", fmt.Sprintf(mdLinkCalico, rd.CalicoVersion, majMinCanalCalicoVersion, trimPeriods(rd.CalicoVersion)), "No"},
+		{"Cilium", fmt.Sprintf(mdLinkCilium, rd.CiliumVersion), "No"},
+		{"Multus", fmt.Sprintf(mdLinkMultus, rd.MultusVersion), "No"},
 	}
 
 	cnisTable, err := NewMarkdownTable(cnisHeader, cnisValues)
