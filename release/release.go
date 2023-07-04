@@ -662,8 +662,6 @@ cat /var/lib/rancher/rke2/server/token
 
 ## Known Issues
 
-- [#1447](https://github.com/rancher/rke2/issues/1447) - When restoring RKE2 from backup to a new node, you should ensure that all pods are stopped following the initial restore:
-
 ` + "```" + `bash
 curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_VERSION={{.Milestone}}
 rke2 server \
