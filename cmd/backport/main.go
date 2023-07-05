@@ -27,10 +27,11 @@ Options:
     -i issue id          original issue id
     -c commits           commits to be backported (comma seperated)
     -b branch(es)        branches issue is being backported to
+	-u user			     user to assign new issues to (default: user assigned to orig. issue)
 
 Examples: 
     # generate 2 backport issues for k3s issue 1234
-    %[2]s -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
+    %[2]s -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
 	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
 `
 
@@ -40,6 +41,7 @@ var (
 	commitIDs string
 	issueID   uint
 	branches  string
+	user      string
 )
 
 func main() {
@@ -59,6 +61,7 @@ func main() {
 	flag.StringVar(&commitIDs, "c", "", "")
 	flag.UintVar(&issueID, "i", 0, "")
 	flag.StringVar(&branches, "b", "", "")
+	flag.StringVar(&user, "u", "", "")
 	flag.Parse()
 
 	if vers {
@@ -91,6 +94,7 @@ func main() {
 		Commits:  commits,
 		IssueID:  issueID,
 		Branches: branches,
+		User:     user,
 	}
 	issues, err := repository.PerformBackport(ctx, client, &pbo)
 	if err != nil {
