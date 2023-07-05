@@ -155,7 +155,8 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 				CoreDNSVersion:        coreDNSVersion,
 			},
 		)
-	} else if repo == rke2Repo {
+	}
+	if repo == rke2Repo {
 		return genRKE2ReleaseNotes(
 			tmpl,
 			milestone,
@@ -170,7 +171,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 			},
 		)
 	}
-	return nil, errors.New("invalid repo, it must be either k3s or rke2")
+	return nil, errors.New("invalid repo: it must be either k3s or rke2")
 }
 
 func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sReleaseNoteData) (*bytes.Buffer, error) {
@@ -178,8 +179,7 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 	var runcVersion string
 	var containerdVersion string
 
-	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 &&
-		semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
+	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
 		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
 		containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
@@ -202,7 +202,10 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 
 	buf := bytes.NewBuffer(nil)
 	err := tmpl.ExecuteTemplate(buf, k3sRepo, rd)
-	return buf, err
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2ReleaseNoteData) (*bytes.Buffer, error) {
@@ -228,7 +231,10 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 
 	buf := bytes.NewBuffer(nil)
 	err := tmpl.ExecuteTemplate(buf, rke2Repo, rd)
-	return buf, err
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
