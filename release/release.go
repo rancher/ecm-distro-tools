@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	k3sRepo  = "k3s"
-	rke2Repo = "rke2"
+	k3sRepo          = "k3s"
+	rke2Repo         = "rke2"
+	alternateVersion = "1.23"
 )
 
 type changeLogData struct {
@@ -185,7 +186,7 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 		containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
 	}
 
-	if rd.MajorMinor == "1.23" {
+	if rd.MajorMinor == alternateVersion {
 		runcVersion = buildScriptVersion("VERSION_RUNC", k3sRepo, milestone)
 	} else {
 		runcVersion = goModLibVersion("runc", k3sRepo, milestone)
@@ -212,7 +213,7 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
 	var containerdVersion string
 
-	if rd.MajorMinor == "1.23" {
+	if rd.MajorMinor == alternateVersion {
 		containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
 	} else {
 		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
