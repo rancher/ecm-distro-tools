@@ -1,32 +1,32 @@
 #!/bin/sh
 
-while getopts ldtgo:p:k:f:c:v:s:h option
+while getopts ldtgo:p:k:f:c:v:s:h OPTION
 do 
-    case "${option}"
+    case "${OPTION}"
         in
-        l) log="debug";;
-        d) action="deploy";;
-        t) action="terminate";;
-        g) action="get_running";;
-        o) osname=${OPTARG};;
-        p) prefix=${OPTARG};;
-        k) key_name=${OPTARG};;
-        f) pem_file_path=${OPTARG};;
-        c) count=${OPTARG};;
-        v) volume_size=${OPTARG};;
-        s) num_of_servers=${OPTARG};;
-        ?|h)
+        l) LOG="debug";;
+        d) ACTION="deploy";;
+        t) ACTION="terminate";;
+        g) ACTION="get_running";;
+        o) OS_NAME=${OPTARG};;
+        p) PREFIX_TAG=${OPTARG};;
+        k) KEY_NAME_VAR=${OPTARG};;
+        f) PEM_FILE_PATH_VAR=${OPTARG};;
+        c) COUNT=${OPTARG};;
+        v) VOLUME_SIZE=${OPTARG};;
+        s) NUM_OF_SERVERS=${OPTARG};;
+        h|?)
             echo "
         Usage: 
             
-            $(basename $0) [-l] [-d] [-t] [-g] [-o osname] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
+            $(basename "$0") [-l] [-d] [-t] [-g] [-o os_name] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
 
             -l: logging is in 'debug' mode and detailed
             -d: deploy ec2 instances. displays ssh command output to setup deployed. 
             -t: terminate ec2 instances
             -g: get_running ec2 instances
             only one operation will be performed at one test run: deploy | terminate | get_running - if you provide all, the last action get_running overrides.
-            -o osname: Format: osnameVersion_architecture. architecture specified only for 'arm'. default is x86
+            -o os_name: Format: {os_name}{version}_{architecture}. architecture specified only for 'arm'. default is x86
             Ex:
                 RHEL: rhel9_arm, rhel9, rhel9.1_arm, rhel9.1, rhel9.2_arm, rhel9.2 
                       rhel8.8, rhel8.7, rhel8.7_arm, rhel8.6, rhel8.6_arm
@@ -53,87 +53,87 @@ do
     esac
 done
 
-if [[ $log == "debug" ]]; then
-    echo "action = $action"
-    echo "osname = $osname"
-    echo "prefix = $prefix"
-    echo "key_name = $key_name"
-    echo "pem_file_path = $pem_file_path"
-    echo "count = $count"
-    echo "EBS volume size = $volume_size"
+if [ "${LOG}" = "debug" ]; then
+    echo "ACTION = ${ACTION}"
+    echo "OS_NAME = ${OS_NAME}"
+    echo "PREFIX_TAG = ${PREFIX_TAG}"
+    echo "KEY_NAME_VAR = ${KEY_NAME_VAR}"
+    echo "PEM_FILE_PATH_VAR = ${PEM_FILE_PATH_VAR}"
+    echo "COUNT = ${COUNT}"
+    echo "EBS VOLUME_SIZE = ${VOLUME_SIZE}"
 fi
 
-public_dns_file_path="$PWD/public_dns"
-instances_file_path="$PWD/instances"
-deployed_file_path="$PWD/deployed"
-terminate_file_path="$PWD/terminate"
+PUBLIC_IPS_FILE_PATH="${PWD}/public_ips"
+INSTANCES_FILE_PATH="${PWD}/instances"
+DEPLOYED_FILE_PATH="${PWD}/deployed"
+TERMINATE_FILE_PATH="${PWD}/terminate"
 
 # Which OS to deploy
 # Note: the x86 image ami for rhel and OL versions are packer generated enabling fips and disabling network management setup
-# The source_image_id from which the new packer generated ami (image_id) was created is also noted in the case
+# The SOURCE_IMAGE_ID from which the new packer generated ami (IMAGE_ID) was created is also noted in the case
 # error occurs for the arm versions as of now. So they are regular ami's without having run the enable fips/disable nm etc.
-case $osname in
+case ${OS_NAME} in
 # RHEL
     rhel9.2)
 
-        # image_id="ami-024fe43f3e88e89b5"
-        # source_image_id="ami-00bc24f98893a4bef"
-        image_id="ami-082bf7cc12db545b9"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
-        # image_id="ami-018682060296f1acb"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
-        source_image_id="ami-02b8534ff4b424939"
+        # IMAGE_ID="ami-024fe43f3e88e89b5"
+        # SOURCE_IMAGE_ID="ami-00bc24f98893a4bef"
+        IMAGE_ID="ami-082bf7cc12db545b9"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
+        # IMAGE_ID="ami-018682060296f1acb"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
+        SOURCE_IMAGE_ID="ami-02b8534ff4b424939"
         ;;
     rhel9.2_arm)
-        image_id="ami-08e34b72961f79fae"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
-        source_image_id="ami-06df7225cc50ee1a3"
+        IMAGE_ID="ami-08e34b72961f79fae"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
+        SOURCE_IMAGE_ID="ami-06df7225cc50ee1a3"
         ;;
     rhel9.1)
-        image_id="ami-04c5820302c03d3ba"
-        source_image_id="ami-045f72873d59547dc"
-        ssh_user="cloud-user"
-        # image_id="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
-        # source_image_id="ami-0beb7639ce29e0148"
+        IMAGE_ID="ami-04c5820302c03d3ba"
+        SOURCE_IMAGE_ID="ami-045f72873d59547dc"
+        SSH_USER="cloud-user"
+        # IMAGE_ID="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
+        # SOURCE_IMAGE_ID="ami-0beb7639ce29e0148"
         ;;
     rhel9.1_arm) 
-        image_id="ami-022b0843d9926c2ea"
-        source_image_id="ami-0702921e4ba107be7"
+        IMAGE_ID="ami-022b0843d9926c2ea"
+        SOURCE_IMAGE_ID="ami-0702921e4ba107be7"
         ;;
     rhel9)
-        image_id="ami-00f8614ef399e8619"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
-        source_image_id="ami-0b8384a301b67118e"
+        IMAGE_ID="ami-00f8614ef399e8619"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
+        SOURCE_IMAGE_ID="ami-0b8384a301b67118e"
         ;;
     rhel9_arm)
-        image_id="ami-0ab8d8846ed3b5a7d"
-        source_image_id="ami-0a33bf6de464f0857"
+        IMAGE_ID="ami-0ab8d8846ed3b5a7d"
+        SOURCE_IMAGE_ID="ami-0a33bf6de464f0857"
         ;;
     rhel8.8)
-        image_id="ami-01b9a0d844d27c780"  # Packer generated ami running ami_rhel.json on the source_image_id in us-east-2 region
-        source_image_id="ami-064360afd86576543"
+        IMAGE_ID="ami-01b9a0d844d27c780"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
+        SOURCE_IMAGE_ID="ami-064360afd86576543"
         ;;
     rhel8.8_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     rhel8.7) 
-        image_id="ami-0defbb5087b2b63c1"  # Packer generated pre-existing image
-        source_image_id="Pre-existing packer image"
+        IMAGE_ID="ami-0defbb5087b2b63c1"  # Packer generated pre-existing image
+        SOURCE_IMAGE_ID="Pre-existing packer image"
         ;;
     rhel8.7_arm)
-        image_id="ami-0085ea62fc18e0154" 
-        source_image_id="ami-0ea3f28d61bb27a55"
+        IMAGE_ID="ami-0085ea62fc18e0154" 
+        SOURCE_IMAGE_ID="ami-0ea3f28d61bb27a55"
         ;;
     rhel8.6)
-        image_id="ami-0bb95ea8da9bc48e0"   # Packer generated pre-existing image
-        source_image_id="Pre-existing packer image"
+        IMAGE_ID="ami-0bb95ea8da9bc48e0"   # Packer generated pre-existing image
+        SOURCE_IMAGE_ID="Pre-existing packer image"
         ;;
     rhel8.6_arm) 
-        image_id="ami-0f9fc13cd1cfaab88"
-        source_image_id="ami-0967b839a12c34f06"
+        IMAGE_ID="ami-0f9fc13cd1cfaab88"
+        SOURCE_IMAGE_ID="ami-0967b839a12c34f06"
         ;;
 # SLES
-    sles15sp4) image_id="ami-0fb3a91b7ce257ec1";;
-    sles15sp4_arm) image_id="ami-052fd3067d337faf6";;
+    sles15sp4) IMAGE_ID="ami-0fb3a91b7ce257ec1";;
+    sles15sp4_arm) IMAGE_ID="ami-052fd3067d337faf6";;
 # Ubuntu
-    ubuntu22.4) image_id="ami-024e6efaf93d85776";;
-    ubuntu22.4_arm) image_id="ami-08fdd91d87f63bb09";;
-    ubuntu20.4) image_id="ami-0430580de6244e02e";;
-    ubuntu20.4_arm) image_id="ami-0071e4b30f26879e2";;
+    ubuntu22.4) IMAGE_ID="ami-024e6efaf93d85776";;
+    ubuntu22.4_arm) IMAGE_ID="ami-08fdd91d87f63bb09";;
+    ubuntu20.4) IMAGE_ID="ami-0430580de6244e02e";;
+    ubuntu20.4_arm) IMAGE_ID="ami-0071e4b30f26879e2";;
 # Oracle Linux
 # Note: The AMIs from Tiov IT use 'cloud-user' as the ssh username
 # AMIs from ProComputer user ssh user 'ec2-user'. The packer generated from this AMI says: firewalld.service could not be found
@@ -141,259 +141,258 @@ case $osname in
 # 8.8 version alone is from ProComputer. The rest are from Tiov IT source image AMI
 # Could not find ARM version AMIs for Oracle Linux.
     OL8.6) 
-        image_id="ami-02044a75f9562cb63"
-        source_image_id="ami-0f2049f50900caa90"
+        IMAGE_ID="ami-02044a75f9562cb63"
+        SOURCE_IMAGE_ID="ami-0f2049f50900caa90"
         ;;
     OL8.6_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL8.7)
-        image_id="ami-054a49e0c0c7fce5c"  # Packer generated pre-existing ami
-        source_image_id="Pre existing packer image"
+        IMAGE_ID="ami-054a49e0c0c7fce5c"  # Packer generated pre-existing ami
+        SOURCE_IMAGE_ID="Pre existing packer image"
         ;;
     OL8.7_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL8.8)
-        image_id="ami-0e17d020894274cb7" # Disable firewall, UserGrowPart, Disable NtwkMgr were run
-        # image_id="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
-        source_image_id="ami-012cc9c259aba3097"
-        ssh_user="ec2-user"
+        IMAGE_ID="ami-0e17d020894274cb7" # Disable firewall, UserGrowPart, Disable NtwkMgr were run
+        # IMAGE_ID="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
+        SOURCE_IMAGE_ID="ami-012cc9c259aba3097"
+        SSH_USER="ec2-user"
         ;;
     OL8.8_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9)
-        image_id="ami-0aa0d55ea757321b4"
-        source_image_id="ami-0b04c8dbeb20a9d8c"
-        # image_id="ami-0787a0db6f5308066"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # source_image_id="ami-0320e81c16ae2d4d4"
-        # ssh_user="ec2-user"
+        IMAGE_ID="ami-0aa0d55ea757321b4"
+        SOURCE_IMAGE_ID="ami-0b04c8dbeb20a9d8c"
+        # IMAGE_ID="ami-0787a0db6f5308066"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # SOURCE_IMAGE_ID="ami-0320e81c16ae2d4d4"
+        # SSH_USER="ec2-user"
         ;;
     OL9_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.1)
-        image_id="ami-01680e3ddcae57326"
-        source_image_id="ami-045f72873d59547dc"
-        # image_id="ami-0e572f06bbf6a0049"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # source_image_id="ami-0ca33870ec73abf78"
-        # ssh_user="ec2-user"
+        IMAGE_ID="ami-01680e3ddcae57326"
+        SOURCE_IMAGE_ID="ami-045f72873d59547dc"
+        # IMAGE_ID="ami-0e572f06bbf6a0049"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # SOURCE_IMAGE_ID="ami-0ca33870ec73abf78"
+        # SSH_USER="ec2-user"
         ;;
     OL9.1_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.2)
-        image_id="ami-0c50bf6c5b057201a"
-        source_image_id="ami-007822fffce54749b"
-        # image_id="ami-0debd32745f38204f"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # source_image_id="ami-0fee377e2c84d751b"
-        # ssh_user="ec2-user"
+        IMAGE_ID="ami-0c50bf6c5b057201a"
+        SOURCE_IMAGE_ID="ami-007822fffce54749b"
+        # IMAGE_ID="ami-0debd32745f38204f"  # packer generated from ProComputer. packer log: firewalld.service could not be found
+        # SOURCE_IMAGE_ID="ami-0fee377e2c84d751b"
+        # SSH_USER="ec2-user"
         ;;
     OL9.2_arm) echo "Did not find an ami for this. Exiting." ; exit;;
 # Rocky Linux
-    rocky8.6) image_id="ami-0072f50382eb71b1d";;
-    rocky8.6_arm) image_id="ami-0c92c0d181d0cfa1e";;
+    rocky8.6) IMAGE_ID="ami-0072f50382eb71b1d";;
+    rocky8.6_arm) IMAGE_ID="ami-0c92c0d181d0cfa1e";;
     rocky8.7)
-        image_id="ami-05ab2eb74c93eb441"  # Packer generated pre-existing ami
-        source_image_id="Pre existing packer image"
+        IMAGE_ID="ami-05ab2eb74c93eb441"  # Packer generated pre-existing ami
+        SOURCE_IMAGE_ID="Pre existing packer image"
         ;;
-    rocky8.7_arm) image_id="ami-0491a50679ee1bc89";;
-    rocky8.8) image_id="ami-0425d70f0df70df0e";;
-    rocky8.8_arm) image_id="ami-074e816b93be89812";;
-    rocky9) image_id="ami-05d9eb66565e1792c";;
+    rocky8.7_arm) IMAGE_ID="ami-0491a50679ee1bc89";;
+    rocky8.8) IMAGE_ID="ami-0425d70f0df70df0e";;
+    rocky8.8_arm) IMAGE_ID="ami-074e816b93be89812";;
+    rocky9) IMAGE_ID="ami-05d9eb66565e1792c";;
     rocky9_arm) echo "Did not find an ami for this. Exiting." ; exit;;
-    rocky9.1) image_id="ami-01778de3d921acbe9";;
-    rocky9.1_arm) image_id="ami-0fd23c283a54fb00d";;
-    rocky9.2) image_id="ami-0140491b434cb5296";;
-    rocky9.2_arm) image_id="ami-03a4cf1ef87c11545";;
+    rocky9.1) IMAGE_ID="ami-01778de3d921acbe9";;
+    rocky9.1_arm) IMAGE_ID="ami-0fd23c283a54fb00d";;
+    rocky9.2) IMAGE_ID="ami-0140491b434cb5296";;
+    rocky9.2_arm) IMAGE_ID="ami-03a4cf1ef87c11545";;
 # Default value when any other os name was provided or was empty
     *)
-        if [[ $osname ]]; then
+        if [ "${OS_NAME}" ]; then
             echo "FATAL: Wrong OS Name. Please use -h to get usage info"
             exit
         else
-            if [[ $action == "deploy" || $action == "get_running" ]]; then
-                osname="ubuntu22.4"
-                if [[ $log == "debug" ]]; then
-                    echo "WARN: Setting osname = $osname"
+            if [ "${ACTION}" = "deploy" ] || [ "${ACTION}" = "get_running" ]; then
+                OS_NAME="ubuntu22.4"
+                if [ "${LOG}" = "debug" ]; then
+                    echo "WARN: Setting OS_NAME = ${OS_NAME}"
                 fi
-                image_id="ami-024e6efaf93d85776"
-                # image_id="ami-0a695f0d95cefc163"  # previous image id used
-                ssh_user="ubuntu"
-                instance_type="t3.medium"
+                IMAGE_ID="ami-024e6efaf93d85776"
+                # IMAGE_ID="ami-0a695f0d95cefc163"  # previous image id used
+                SSH_USER="ubuntu"
+                INSTANCE_TYPE="t3.medium"
             else
                 # Terminates 'all' instances irrespective of os - if not provided as a cmd line argument
-                osname="all"
-                echo "INFO: Going to terminate $osname running ec2 instances"
+                OS_NAME="all"
+                echo "INFO: Going to terminate ${OS_NAME} running ec2 instances"
             fi
         fi
         ;;
 esac
 
-# Set SSH User based on os and if ssh_user was not already assigned already
-
-if [[ $osname == *"ubuntu"* && -z $ssh_user ]]; then
-    ssh_user="ubuntu"
+# Set SSH User based on os and if SSH_USER was not already assigned already
+if [ -z "${SSH_USER}" ]; then
+    if echo "${OS_NAME}" | grep -q "ubuntu" ; then
+        SSH_USER="ubuntu"
+    fi
+    if echo "${OS_NAME}" | grep -q "rocky"; then
+        SSH_USER="rocky"
+    fi
+    if echo "${OS_NAME}" | grep -q "OL"; then
+        # Tiov IT AMIs and Packer AMIs generated from them use 'cloud-user'
+        # ProComputer AMIs user 'ec2-user' as the ssh username
+        SSH_USER="cloud-user"
+    fi
+    if [ -z "${SSH_USER}" ]; then
+        SSH_USER="ec2-user"
+    fi
 fi
-if [[ $osname == *"rocky"* && -z $ssh_user ]]; then
-    ssh_user="rocky"
-fi
-if [[ $osname == *"OL"* && -z $ssh_user ]]; then
-    # Tiov IT AMIs and Packer AMIs generated from them use 'cloud-user'
-    # ProComputer AMIs user 'ec2-user' as the ssh username
-    ssh_user="cloud-user"
-fi
-if [[ -z $ssh_user ]]; then
-    ssh_user="ec2-user"
-fi
-if [[ $log == "debug" ]]; then
-    echo "ssh_user = $ssh_user"
+if [ "${LOG}" = "debug" ]; then
+    echo "SSH_USER = ${SSH_USER}"
     echo "INFO: If ssh user did not work: SSH User Alternatives: 'ec2-user' or 'root' or 'cloud-user' ; rocky linux user is: 'rocky'; ubuntu user is: 'ubuntu'"
 fi
 
 # Set instance_type based on os architecture
 
-if [[ $osname == *"arm"* ]]; then
-    instance_type="a1.large"
+if echo "${OS_NAME}" | grep -q "arm"; then
+    INSTANCE_TYPE="a1.large"
 else
-    instance_type="t3.medium"
+    INSTANCE_TYPE="t3.medium"
 fi
-if [[ $log == "debug" ]]; then
-    echo "instance_type = $instance_type"
+if [ "${LOG}" = "debug" ]; then
+    echo "INSTANCE_TYPE = ${INSTANCE_TYPE}"
 fi
 # Notify if the ami is packer generated during deploy
-if [[ $action == "deploy" ]]; then
-    if [[ -z $source_image_id ]]; then
-        echo "INFO: Unedited(non-packer) AMI used for $osname"
-        if [[ $osname == *"rhel"* ]]; then
+if [ "${ACTION}" = "deploy" ]; then
+    if [ -z "${SOURCE_IMAGE_ID}" ]; then
+        echo "INFO: Unedited(non-packer) AMI used for ${OS_NAME}"
+        if echo "${OS_NAME}" | grep -q "rhel"; then
             echo "     Kindly edit enable fips and disable network mgmt as needed manually"
         fi
-        if [[ $osname == *"OL"* ]]; then
+        if echo "${OS_NAME}" | grep -q "OL"; then
             echo "      Please run disable firewall/modify user_data steps manually"
         fi
     else
-        if [[ $source_image_id == *"ami"* ]]; then
-            echo "INFO: This AMI is packer generated from $source_image_id"
-            if [[ $osname == *"rhel"* || $osname == *"rocky"* ]]; then
+        if echo "${SOURCE_IMAGE_ID}" | grep -q "ami"; then
+            echo "INFO: This AMI is packer generated from ${SOURCE_IMAGE_ID}"
+            if echo "${OS_NAME}" | grep -q "rhel" || echo "${OS_NAME}" | grep -q "rocky"; then
                 echo "      Enable FIPS and Disable Network Management has been pre-run in the AMI for you"
             fi
-            if [[ $osname == *"OL"* ]]; then
+            if echo "${OS_NAME}" | grep -q "OL"; then
                 echo "      Disable Firewall and Modify user_data has been pre-run in the AMI for you"
             fi
         else
-            echo "Using $source_image_id"
+            echo "Using ${SOURCE_IMAGE_ID}"
         fi
     fi
 fi
 
 # Set some default values if they were not provided as args
 
-if [[ $action == "deploy" || $action == "get_running" ]]; then
-    if [[ -z $count ]]; then
+if [ "${ACTION}" = "deploy" ] || [ "${ACTION}" = "get_running" ]; then
+    if [ -z "${COUNT}" ]; then
         # Default count value to 4 ec2 instances
-        count=4
-        if [[ $log == "debug" ]]; then
-            echo "WARN: Setting count = $count"
+        COUNT=4
+        if [ "${LOG}" = "debug" ]; then
+            echo "WARN: Setting COUNT = ${COUNT}"
         fi
     fi
 
-    if [[ -z $volume_size ]]; then
+    if [ -z "${VOLUME_SIZE}" ]; then
         # Default volume_size to 30G for RKE2 setup
-        volume_size=30
-        if [[ $log == "debug" ]]; then
-            echo "WARN: Setting volume_size = $volume_size"
+        VOLUME_SIZE=30
+        if [ "${LOG}" = "debug" ]; then
+            echo "WARN: Setting VOLUME_SIZE = ${VOLUME_SIZE}"
         fi
     fi
-    if [[ -z $prefix ]]; then
-        if [[ -z $PREFIX ]]; then
+    if [ -z "${PREFIX_TAG}" ]; then
+         if [ -z "${PREFIX}" ]; then
             echo "FATAL: Either use -p option to set prefix or set env var/ export PREFIX to skip this option. Cannot proceed with deploy action without this. Exiting the script."
             exit 1
         fi
-        if [[ $log == "debug" ]]; then
-            echo "WARN: Setting prefix = $PREFIX  -> Environment var PREFIX value"
+        if [ "${LOG}" = "debug" ]; then
+            echo "WARN: Setting PREFIX_TAG = ${PREFIX}  -> Environment var PREFIX value"
         fi
-        prefix=$PREFIX
+        PREFIX_TAG=${PREFIX}
     fi
 fi
 
 
-if [[ -z $key_name ]]; then
-    if [[ -z $KEY_NAME ]]; then
+if [ -z "${KEY_NAME_VAR}" ]; then
+    if [ -z "$KEY_NAME" ]; then
         echo "FATAL: Either set -k value for key_name or set env var/export variable KEY_NAME to skip this option. Cannot proceed without this value. Exiting the script."
         exit 1
     fi
-    if [[ $log == "debug" ]]; then
-        echo "WARN: Setting key_name = $KEY_NAME -> Environement var KEY_NAME value"
+    if [ "${LOG}" = "debug" ]; then
+        echo "WARN: Setting KEY_NAME_VAR = $KEY_NAME -> Environement var KEY_NAME value"
     fi
-    key_name=$KEY_NAME
+    KEY_NAME_VAR=$KEY_NAME
 fi
 
-if [[ $action == "deploy" || $action == "get_running" ]]; then
-    if [[ -z $pem_file_path ]]; then
-        if [[ -z $PEM_FILE_PATH ]]; then
+if [ "${ACTION}" = "deploy" ] || [ "${ACTION}" = "get_running" ]; then
+    if [ -z "${PEM_FILE_PATH_VAR}" ]; then
+        if [ -z "$PEM_FILE_PATH" ]; then
             echo "FATAL: Either set -f value for pem_file_path or set env var/export PEM_FILE_PATH to skip this option. Cannot proceed without this value. Exiting the script."
             exit 1
         fi
-        if [[ $log == "debug" ]]; then
-            echo "WARN: Setting pem_file_path = $PEM_FILE_PATH -> Environment var PEM_FILE_PATH value"
+        if [ "${LOG}" = "debug" ]; then
+            echo "WARN: Setting PEM_FILE_PATH_VAR = $PEM_FILE_PATH -> Environment var PEM_FILE_PATH value"
         fi
-        pem_file_path=$PEM_FILE_PATH
+        PEM_FILE_PATH_VAR=$PEM_FILE_PATH
     fi
 fi
 
-if [[ $num_of_servers ]]; then
-    num_of_agents=$(($count-$num_of_servers))
+if [ "$NUM_OF_SERVERS" ]; then
+    NUM_OF_AGENTS=$((COUNT-NUM_OF_SERVERS))
 fi
 
 echo "*************************
-ACTION STAGE: $action
+ACTION STAGE: ${ACTION}
 *************************"
 
-case $action in
+case ${ACTION} in
     deploy)
-        echo "Deploying OS: $osname ImageID: $image_id SSH_User: $ssh_user" 
-        aws ec2 run-instances --image-id $image_id --instance-type $instance_type --count $count --key-name $key_name --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":$volume_size,\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"$prefix-$osname\"}]}]" > /dev/null
+        echo "Deploying OS: ${OS_NAME} ImageID: ${IMAGE_ID} SSH_USER: ${SSH_USER}" 
+        aws ec2 run-instances --image-id "${IMAGE_ID}" --instance-type ${INSTANCE_TYPE} --count "${COUNT}" --key-name "${KEY_NAME_VAR}" --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":${VOLUME_SIZE},\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"${PREFIX_TAG}-${OS_NAME}\"}]}]" > /dev/null
         sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
-        aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
-        # grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
-        grep PublicIp $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
-        while read -r line
+        aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
+        # grep PublicDns ${DEPLOYED_FILE_PATH} | grep -v "''" | awk '{print $2}' | uniq > ${PUBLIC_IPS_FILE_PATH}
+        grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
+        while read -r LINE
         do
-            echo "ssh -i \"$pem_file_path\" $ssh_user@$line"
-        done < $public_dns_file_path
-        cat $public_dns_file_path
-        rm $public_dns_file_path $deployed_file_path
+            echo "ssh -i \"${PEM_FILE_PATH_VAR}\" ${SSH_USER}@${LINE}"
+        done < "${PUBLIC_IPS_FILE_PATH}"
+
+        rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
         ;;
     get_running)
         # Running instance ssh cmd is output
-        echo "Getting setups for OS: $osname with ImageID: $image_id and SSH_User: $ssh_user"
-        aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $deployed_file_path
-        # grep PublicDns $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
-        grep PublicIp $deployed_file_path | grep -v "''" | awk '{print $2}' | uniq > $public_dns_file_path
-        while read -r line
+        echo "Getting setups for OS: ${OS_NAME} with ImageID: ${IMAGE_ID} and SSH_USER: ${SSH_USER}"
+        aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
+        # grep PublicDns ${DEPLOYED_FILE_PATH} | grep -v "''" | awk '{print $2}' | uniq > ${PUBLIC_IPS_FILE_PATH}
+        grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
+        while read -r LINE
         do
-            echo "ssh -i \"$pem_file_path\" $ssh_user@$line"
-        done < $public_dns_file_path
+            echo "ssh -i \"${PEM_FILE_PATH_VAR}\" ${SSH_USER}@${LINE}"
+        done < "${PUBLIC_IPS_FILE_PATH}"
 
-        cat $public_dns_file_path
-
-        while read -r line
+        while read -r LINE
         do
-            if [[ $num_of_servers == 0 ]]; then
-                echo "agent$num_of_agents=\"$line\""
-                num_of_agents=$((num_of_agents-1))
+            if [ "$NUM_OF_SERVERS" = 0 ]; then
+                echo "agent${NUM_OF_AGENTS}=\"${LINE}\""
+                NUM_OF_AGENTS=$((NUM_OF_AGENTS-1))
             else
-                echo "server$num_of_servers=\"$line\""
-                num_of_servers=$((num_of_servers-1))
+                echo "server$NUM_OF_SERVERS=\"${LINE}\""
+                NUM_OF_SERVERS=$((NUM_OF_SERVERS-1))
             fi
-        done < $public_dns_file_path
-        rm $public_dns_file_path $deployed_file_path
+        done < "${PUBLIC_IPS_FILE_PATH}"
+        rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
         ;;
     terminate)
-        if [[ $osname == "all" ]]; then
+        if [ "${OS_NAME}" = "all" ]; then
             echo "Initiate termination for all running instances"
-            aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=instance-state-name,Values="running" > $terminate_file_path
+            aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=instance-state-name,Values="running" > "${TERMINATE_FILE_PATH}"
         else
-            echo "Initiating termination for running ec2 instances with OS: $osname with ImageID: $image_id"
-            aws ec2 describe-instances --filters Name=key-name,Values=$key_name Name=image-id,Values=$image_id Name=instance-state-name,Values="running" > $terminate_file_path
+            echo "Initiating termination for running ec2 instances with OS: ${OS_NAME} with ImageID: ${IMAGE_ID}"
+            aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${TERMINATE_FILE_PATH}"
         fi
-        grep InstanceId $terminate_file_path | awk '{print $2}' > $instances_file_path
-        while read -r line
+        grep InstanceId "${TERMINATE_FILE_PATH}" | awk '{print $2}' > "${INSTANCES_FILE_PATH}"
+        while read -r LINE
         do
-            echo "Terminating instance id: $line"
-            aws ec2 terminate-instances --instance-ids $line > /dev/null
-        done < $instances_file_path
-        rm $instances_file_path $terminate_file_path
+            echo "Terminating instance id: ${LINE}"
+            aws ec2 terminate-instances --instance-ids "${LINE}" > /dev/null
+        done < "${INSTANCES_FILE_PATH}"
+        rm "${INSTANCES_FILE_PATH}" "${TERMINATE_FILE_PATH}"
         ;;
 esac
