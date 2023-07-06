@@ -371,10 +371,10 @@ case ${ACTION} in
         while read -r LINE
         do
             if [ "$NUM_OF_SERVERS" = 0 ]; then
-                echo "agent${NUM_OF_AGENTS}=\"${LINE}\""
+                echo "AGENT${NUM_OF_AGENTS}=\"${LINE}\""
                 NUM_OF_AGENTS=$((NUM_OF_AGENTS-1))
             else
-                echo "server$NUM_OF_SERVERS=\"${LINE}\""
+                echo "SERVER$NUM_OF_SERVERS=\"${LINE}\""
                 NUM_OF_SERVERS=$((NUM_OF_SERVERS-1))
             fi
         done < "${PUBLIC_IPS_FILE_PATH}"
