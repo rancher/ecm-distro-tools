@@ -174,8 +174,9 @@ case ${OS_NAME} in
         ;;
     OL9.1_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.2)
-        IMAGE_ID="ami-0c50bf6c5b057201a"
-        SOURCE_IMAGE_ID="ami-007822fffce54749b"
+        IMAGE_ID="ami-0d77b6b12ba00534b" # Esteban validated with this ami
+        # IMAGE_ID="ami-0c50bf6c5b057201a"
+        # SOURCE_IMAGE_ID="ami-007822fffce54749b"
         # IMAGE_ID="ami-0debd32745f38204f"  # packer generated from ProComputer. packer log: firewalld.service could not be found
         # SOURCE_IMAGE_ID="ami-0fee377e2c84d751b"
         # SSH_USER="ec2-user"
