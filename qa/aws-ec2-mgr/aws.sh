@@ -368,6 +368,13 @@ get_setup_vars () {
     done < "${PUBLIC_IPS_FILE_PATH}"
 }
 
+get_setup_info () {
+    get_ips
+    get_ssh_info
+    get_setup_vars
+    rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
+}
+
 
 echo "*************************
 ACTION STAGE: ${ACTION}
@@ -378,18 +385,12 @@ case "${ACTION}" in
         echo "Deploying OS: ${OS_NAME} ImageID: ${IMAGE_ID} SSH_USER: ${SSH_USER}" 
         aws ec2 run-instances --image-id "${IMAGE_ID}" --instance-type "${INSTANCE_TYPE}" --count "${COUNT}" --key-name "${KEY_NAME_VAR}" --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":${VOLUME_SIZE},\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"${PREFIX_TAG}-${OS_NAME}\"}]}]" > /dev/null
         sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
-        get_ips
-        get_ssh_info
-        get_setup_vars
-        rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
+        get_setup_info
         ;;
     get_running)
         # Running instance ssh cmd is output
         echo "Getting setups for OS: ${OS_NAME} with ImageID: ${IMAGE_ID} and SSH_USER: ${SSH_USER}"
-        get_ips
-        get_ssh_info
-        get_setup_vars
-        rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
+        get_setup_info
         ;;
     terminate)
         if [ "${OS_NAME}" = "all" ]; then
