@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/types"
 	"golang.org/x/oauth2"
@@ -227,10 +230,10 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
-	Repo     string `json:"repo"`
-	CommitID string `json:"commit_id"`
-	IssueID  uint   `json:"issue_id"`
-	Branches string `json:"branches"`
+	Repo     string   `json:"repo"`
+	Commits  []string `json:"commits"`
+	IssueID  uint     `json:"issue_id"`
+	Branches string   `json:"branches"`
 }
 
 // PerformBackport
@@ -267,6 +270,38 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		}
 		issues = append(issues, newIssue)
 		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
+	}
+
+	for _, branch := range backportBranches {
+		// we're assuming this code is called from the repository itself
+		r, err := git.PlainOpen(".")
+		if err != nil {
+			return nil, err
+		}
+
+		w, err := r.Worktree()
+		if err != nil {
+			return nil, err
+		}
+
+		coo := git.CheckoutOptions{
+			Branch: plumbing.NewBranchReferenceName(branch),
+		}
+		if err := w.Checkout(&coo); err != nil {
+			return nil, err
+		}
+
+		for _, commit := range pbo.Commits {
+			cmd := exec.Command("git", "cherry-pick", commit)
+			stdoutStderr, err := cmd.CombinedOutput()
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("%s\n", stdoutStderr)
+			if err := r.Push(&git.PushOptions{}); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return issues, nil
