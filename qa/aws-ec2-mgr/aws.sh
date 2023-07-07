@@ -334,50 +334,61 @@ if [ "${ACTION}" = "deploy" ] || [ "${ACTION}" = "get_running" ]; then
     fi
 fi
 
-if [ "$NUM_OF_SERVERS" ]; then
+if [ -z "${NUM_OF_SERVERS}" ]; then
+    NUM_OF_SERVERS=3
+fi
+
+if [ "${NUM_OF_SERVERS}" ]; then
     NUM_OF_AGENTS=$((COUNT-NUM_OF_SERVERS))
 fi
+
+
+get_ips () {
+    aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
+    grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
+}
+
+get_ssh_info () {
+    while read -r LINE
+    do
+        echo "ssh -i \"${PEM_FILE_PATH_VAR}\" ${SSH_USER}@${LINE}"
+    done < "${PUBLIC_IPS_FILE_PATH}"    
+}
+
+get_setup_vars () {
+    while read -r LINE
+    do
+        if [ "$NUM_OF_SERVERS" = 0 ]; then
+            echo "AGENT${NUM_OF_AGENTS}=\"${LINE}\""
+            NUM_OF_AGENTS=$((NUM_OF_AGENTS-1))
+        else
+            echo "SERVER$NUM_OF_SERVERS=\"${LINE}\""
+            NUM_OF_SERVERS=$((NUM_OF_SERVERS-1))
+        fi
+    done < "${PUBLIC_IPS_FILE_PATH}"
+}
+
 
 echo "*************************
 ACTION STAGE: ${ACTION}
 *************************"
 
-case ${ACTION} in
+case "${ACTION}" in
     deploy)
         echo "Deploying OS: ${OS_NAME} ImageID: ${IMAGE_ID} SSH_USER: ${SSH_USER}" 
-        aws ec2 run-instances --image-id "${IMAGE_ID}" --instance-type ${INSTANCE_TYPE} --count "${COUNT}" --key-name "${KEY_NAME_VAR}" --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":${VOLUME_SIZE},\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"${PREFIX_TAG}-${OS_NAME}\"}]}]" > /dev/null
+        aws ec2 run-instances --image-id "${IMAGE_ID}" --instance-type "${INSTANCE_TYPE}" --count "${COUNT}" --key-name "${KEY_NAME_VAR}" --security-group-ids sg-0e753fd5550206e55 --block-device-mappings "[{\"DeviceName\":\"/dev/sda1\",\"Ebs\":{\"VolumeSize\":${VOLUME_SIZE},\"DeleteOnTermination\":true}}]" --tag-specifications "[{\"ResourceType\": \"instance\", \"Tags\": [{\"Key\": \"Name\", \"Value\": \"${PREFIX_TAG}-${OS_NAME}\"}]}]" > /dev/null
         sleep 30  # To ensure the system is actually running by the time we use the ssh command output by this script.
-        aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
-        # grep PublicDns ${DEPLOYED_FILE_PATH} | grep -v "''" | awk '{print $2}' | uniq > ${PUBLIC_IPS_FILE_PATH}
-        grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
-        while read -r LINE
-        do
-            echo "ssh -i \"${PEM_FILE_PATH_VAR}\" ${SSH_USER}@${LINE}"
-        done < "${PUBLIC_IPS_FILE_PATH}"
-
+        get_ips
+        get_ssh_info
+        get_setup_vars
         rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
         ;;
     get_running)
         # Running instance ssh cmd is output
         echo "Getting setups for OS: ${OS_NAME} with ImageID: ${IMAGE_ID} and SSH_USER: ${SSH_USER}"
-        aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
-        # grep PublicDns ${DEPLOYED_FILE_PATH} | grep -v "''" | awk '{print $2}' | uniq > ${PUBLIC_IPS_FILE_PATH}
-        grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
-        while read -r LINE
-        do
-            echo "ssh -i \"${PEM_FILE_PATH_VAR}\" ${SSH_USER}@${LINE}"
-        done < "${PUBLIC_IPS_FILE_PATH}"
-
-        while read -r LINE
-        do
-            if [ "$NUM_OF_SERVERS" = 0 ]; then
-                echo "AGENT${NUM_OF_AGENTS}=\"${LINE}\""
-                NUM_OF_AGENTS=$((NUM_OF_AGENTS-1))
-            else
-                echo "SERVER$NUM_OF_SERVERS=\"${LINE}\""
-                NUM_OF_SERVERS=$((NUM_OF_SERVERS-1))
-            fi
-        done < "${PUBLIC_IPS_FILE_PATH}"
+        get_ips
+        get_ssh_info
+        get_setup_vars
         rm "${PUBLIC_IPS_FILE_PATH}" "${DEPLOYED_FILE_PATH}"
         ;;
     terminate)
