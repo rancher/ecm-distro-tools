@@ -274,7 +274,6 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 			return nil, err
 		}
 		issues = append(issues, newIssue)
-		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
 	}
 
 	// stop here if there are no commits given
