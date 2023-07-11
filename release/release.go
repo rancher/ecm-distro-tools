@@ -660,20 +660,6 @@ cat /var/lib/rancher/rke2/server/token
 | Cilium | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}}) | No |
 | Multus | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}}) | No |
 
-## Known Issues
-
-- [#1447](https://github.com/rancher/rke2/issues/1447) - When restoring RKE2 from backup to a new node, you should ensure that all pods are stopped following the initial restore:
-
-` + "```" + `bash
-curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_VERSION={{.Milestone}}
-rke2 server \
-  --cluster-reset \
-  --cluster-reset-restore-path=<PATH-TO-SNAPSHOT> --token <token used in the original cluster>
-rke2-killall.sh
-systemctl enable rke2-server
-systemctl start rke2-server
-` + "```" + `
-
 ## Helpful Links
 
 As always, we welcome and appreciate feedback from our community of users. Please feel free to:
