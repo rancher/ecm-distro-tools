@@ -34,14 +34,8 @@ Examples:
 	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
 `
 
-const (
-	issueTitle = "[%s] - %s"
-	issueBody  = "Backport fix for %s\n\n* #%d"
-)
-
 var (
 	vers      bool
-	debug     bool
 	repo      string
 	commitIDs string
 	issueID   uint
