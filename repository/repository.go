@@ -231,11 +231,10 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
-	Repo           string   `json:"repo"`
-	Commits        []string `json:"commits"`
-	IssueID        uint     `json:"issue_id"`
-	Branches       string   `json:"branches"`
-	PrivateKeyFile string   `json:"private_key_file"` // full path
+	Repo     string   `json:"repo"`
+	Commits  []string `json:"commits"`
+	IssueID  uint     `json:"issue_id"`
+	Branches string   `json:"branches"`
 }
 
 // PerformBackport creates backport issues, performs a cherry-pick of the
