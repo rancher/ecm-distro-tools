@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -230,10 +231,11 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
-	Repo     string   `json:"repo"`
-	Commits  []string `json:"commits"`
-	IssueID  uint     `json:"issue_id"`
-	Branches string   `json:"branches"`
+	Repo           string   `json:"repo"`
+	Commits        []string `json:"commits"`
+	IssueID        uint     `json:"issue_id"`
+	Branches       string   `json:"branches"`
+	PrivateKeyFile string   `json:"private_key_file"` // full path
 }
 
 // PerformBackport
@@ -272,23 +274,47 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
 	}
 
+	// we're assuming this code is called from the repository itself
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := git.PlainOpen(cwd)
+	if err != nil {
+		return nil, err
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return nil, err
+	}
+
 	for _, branch := range backportBranches {
-		// we're assuming this code is called from the repository itself
-		r, err := git.PlainOpen(".")
-		if err != nil {
-			return nil, err
-		}
-
-		w, err := r.Worktree()
-		if err != nil {
-			return nil, err
-		}
-
 		coo := git.CheckoutOptions{
-			Branch: plumbing.NewBranchReferenceName(branch),
+			Branch: plumbing.ReferenceName("refs/heads/" + branch),
 		}
 		if err := w.Checkout(&coo); err != nil {
+			return nil, errors.New("failed checkout: " + err.Error())
+		}
+
+		newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
+
+		headRef, err := r.Head()
+		if err != nil {
 			return nil, err
+		}
+
+		ref := plumbing.NewHashReference(plumbing.NewBranchReferenceName(newBranchName), headRef.Hash())
+		if err := r.Storer.SetReference(ref); err != nil {
+			return nil, err
+		}
+
+		coo = git.CheckoutOptions{
+			Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
+		}
+		if err := w.Checkout(&coo); err != nil {
+			return nil, errors.New("failed checkout: " + err.Error())
 		}
 
 		for _, commit := range pbo.Commits {
@@ -298,9 +324,13 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 				return nil, err
 			}
 			fmt.Printf("%s\n", stdoutStderr)
-			if err := r.Push(&git.PushOptions{}); err != nil {
+
+			cmd = exec.Command("git", "push", "origin", newBranchName)
+			stdoutStderr, err = cmd.CombinedOutput()
+			if err != nil {
 				return nil, err
 			}
+			fmt.Printf("%s\n", stdoutStderr)
 		}
 	}
 
