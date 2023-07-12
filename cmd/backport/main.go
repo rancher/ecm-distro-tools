@@ -78,11 +78,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	if commitIDs == "" {
-		fmt.Println("error: please provide a commits")
-		os.Exit(1)
+	var commits []string
+	if commitIDs != "" {
+		commits = strings.Split(commitIDs, ",")
 	}
-	commits := strings.Split(commitIDs, ",")
 
 	if issueID == 0 {
 		fmt.Println("error: please provide a valid issue id")

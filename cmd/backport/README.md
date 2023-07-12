@@ -1,5 +1,7 @@
 # backport
 
+The backport utility will create backport issues and perform a cherry-pick of the given commits to the given branches, if commits are provided on the CLI. If no commits are given, only the backport issues are created.
+
 ### Examples
 
 ```sh

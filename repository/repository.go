@@ -238,7 +238,8 @@ type PerformBackportOpts struct {
 	PrivateKeyFile string   `json:"private_key_file"` // full path
 }
 
-// PerformBackport
+// PerformBackport creates backport issues, performs a cherry-pick of the
+// given commit if it exists.
 func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBackportOpts) ([]*github.Issue, error) {
 	if !IsValidRepo(pbo.Repo) {
 		return nil, fmt.Errorf("invalid repo: %s", pbo.Repo)
@@ -272,6 +273,11 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		}
 		issues = append(issues, newIssue)
 		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
+	}
+
+	// stop here if there are no commits given
+	if len(pbo.Commits) == 0 {
+		return issues, nil
 	}
 
 	// we're assuming this code is called from the repository itself
