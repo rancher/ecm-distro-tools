@@ -25,7 +25,7 @@ Options:
     -v                   show version and exit
     -r repo              repository that should be used
     -i issue id          original issue id
-    -c commits           commits is being backported (comma seperated)
+    -c commits           commits to be backported (comma seperated)
     -b branch(es)        branches issue is being backported to
 
 Examples: 
