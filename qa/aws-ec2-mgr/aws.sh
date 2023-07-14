@@ -209,8 +209,9 @@ case ${OS_NAME} in
                 if [ "${LOG}" = "debug" ]; then
                     echo "WARN: Setting OS_NAME = ${OS_NAME}"
                 fi
-                # IMAGE_ID="ami-024e6efaf93d85776"
-                IMAGE_ID="ami-097a2df4ac947655f"
+                IMAGE_ID="ami-024e6efaf93d85776" # AWS EC2 console picks this latest x86 ami 
+                # IMAGE_ID="ami-097a2df4ac947655f" # RKE2 jenkins job uses this ami: https://jenkins.int.rancher.io/job/rke2-tests/view/cluster-creation/job/rke2_freeform_create_and_validate/build?delay=0sec
+                # IMAGE_ID="ami-0283a57753b18025b" # K3S jenkins job uses this ami: https://jenkins.int.rancher.io/job/rancher_qa/view/k3s/job/create_k3s_ha_cluster/build?delay=0sec
                 # IMAGE_ID="ami-0a695f0d95cefc163"  # previous image id used
                 SSH_USER="ubuntu"
                 INSTANCE_TYPE="t3.medium"
