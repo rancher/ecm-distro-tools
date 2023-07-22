@@ -534,7 +534,7 @@ cat /var/lib/rancher/rke2/server/token
 | Component       | Version                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | Kubernetes      | [{{.k8sVersion}}](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.majorMinor}}.md#{{.changeLogVersion}}) |
-| Etcd            | [{{.EtcdVersionRKE2}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionRKE2}})                       |
+| Etcd            | [{{.EtcdVersionRKE2}}](https://github.com/k3s-io/etcd/releases/tag/{{.EtcdVersionRKE2}})                            |
 {{- if eq .majorMinor "1.23"}}
 | Containerd      | [{{.ContainerdVersionGoMod}}](https://github.com/k3s-io/containerd/releases/tag/{{.ContainerdVersionGoMod}})                      |
 {{- else }}
@@ -542,16 +542,16 @@ cat /var/lib/rancher/rke2/server/token
 {{- end }}
 | Runc            | [{{.RuncVersionRKE2}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersionRKE2}})                              |
 | Metrics-server  | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}})                   |
-| CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                  |
-| Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                                  |
+| CoreDNS         | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}})                                |
+| Ingress-Nginx   | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}})                |
 | Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}})                         |
 
 ### Available CNIs
 | Component       | Version                                                                                                                                                                             | FIPS Compliant |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes            |
-| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                    | No             |
-| Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                      | No             |
+| Canal (Default) | [Flannel {{.FlannelVersionRKE2}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersionRKE2}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }})         | Yes            |
+| Calico          | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }})                                                                                                  | No             |
+| Cilium          | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}})                                                                                                                    | No             |
 | Multus          | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}})                                                                                                    | No             |
 
 ## Known Issues
