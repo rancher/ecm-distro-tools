@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rancher/ecm-distro-tools/repository"
 )
@@ -24,26 +25,21 @@ Options:
     -v                   show version and exit
     -r repo              repository that should be used
     -i issue id          original issue id
-    -c commit            commit id that is being backported
+    -c commits           commits to be backported (comma seperated)
     -b branch(es)        branches issue is being backported to
 
 Examples: 
     # generate 2 backport issues for k3s issue 1234
     %[2]s -r k3s -b "release-1.21,release-1.22" -i 1234 -c 1
+	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
 `
 
-const (
-	issueTitle = "[%s] - %s"
-	issueBody  = "Backport fix for %s\n\n* #%d"
-)
-
 var (
-	vers     bool
-	debug    bool
-	repo     string
-	commitID string
-	issueID  uint
-	branches string
+	vers      bool
+	repo      string
+	commitIDs string
+	issueID   uint
+	branches  string
 )
 
 func main() {
@@ -60,7 +56,7 @@ func main() {
 
 	flag.BoolVar(&vers, "v", false, "")
 	flag.StringVar(&repo, "r", "", "")
-	flag.StringVar(&commitID, "c", "", "")
+	flag.StringVar(&commitIDs, "c", "", "")
 	flag.UintVar(&issueID, "i", 0, "")
 	flag.StringVar(&branches, "b", "", "")
 	flag.Parse()
@@ -76,9 +72,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if commitID == "" {
-		fmt.Println("error: please provide a commit id")
-		os.Exit(1)
+	var commits []string
+	if commitIDs != "" {
+		commits = strings.Split(commitIDs, ",")
 	}
 
 	if issueID == 0 {
@@ -92,7 +88,7 @@ func main() {
 
 	pbo := repository.PerformBackportOpts{
 		Repo:     repo,
-		CommitID: commitID,
+		Commits:  commits,
 		IssueID:  issueID,
 		Branches: branches,
 	}

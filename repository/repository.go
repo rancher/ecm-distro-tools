@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/types"
 	"golang.org/x/oauth2"
@@ -227,13 +231,14 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
-	Repo     string `json:"repo"`
-	CommitID string `json:"commit_id"`
-	IssueID  uint   `json:"issue_id"`
-	Branches string `json:"branches"`
+	Repo     string   `json:"repo"`
+	Commits  []string `json:"commits"`
+	IssueID  uint     `json:"issue_id"`
+	Branches string   `json:"branches"`
 }
 
-// PerformBackport
+// PerformBackport creates backport issues, performs a cherry-pick of the
+// given commit if it exists.
 func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBackportOpts) ([]*github.Issue, error) {
 	if !IsValidRepo(pbo.Repo) {
 		return nil, fmt.Errorf("invalid repo: %s", pbo.Repo)
@@ -267,6 +272,71 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		}
 		issues = append(issues, newIssue)
 		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
+	}
+
+	// stop here if there are no commits given
+	if len(pbo.Commits) == 0 {
+		return issues, nil
+	}
+
+	// we're assuming this code is called from the repository itself
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := git.PlainOpen(cwd)
+	if err != nil {
+		return nil, err
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, branch := range backportBranches {
+		coo := git.CheckoutOptions{
+			Branch: plumbing.ReferenceName("refs/heads/" + branch),
+		}
+		if err := w.Checkout(&coo); err != nil {
+			return nil, errors.New("failed checkout: " + err.Error())
+		}
+
+		newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
+
+		headRef, err := r.Head()
+		if err != nil {
+			return nil, err
+		}
+
+		ref := plumbing.NewHashReference(plumbing.NewBranchReferenceName(newBranchName), headRef.Hash())
+		if err := r.Storer.SetReference(ref); err != nil {
+			return nil, err
+		}
+
+		coo = git.CheckoutOptions{
+			Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
+		}
+		if err := w.Checkout(&coo); err != nil {
+			return nil, errors.New("failed checkout: " + err.Error())
+		}
+
+		for _, commit := range pbo.Commits {
+			cmd := exec.Command("git", "cherry-pick", commit)
+			stdoutStderr, err := cmd.CombinedOutput()
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("%s\n", stdoutStderr)
+
+			cmd = exec.Command("git", "push", "origin", newBranchName)
+			stdoutStderr, err = cmd.CombinedOutput()
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("%s\n", stdoutStderr)
+		}
 	}
 
 	return issues, nil
