@@ -373,7 +373,13 @@ get_setup_vars () {
     while read -r LINE
     do
         if [ "${SERVER_COUNT}" = 0 ]; then
-            echo "AGENT${AGENT_COUNT}=\"${LINE}\""
+            if [ "${AGENT_COUNT}" -lt 1 ]; then
+                echo "SERVER3=\"${LINE}\""
+                SERVER_COUNT=2
+                AGENT_COUNT=$((COUNT-SERVER_COUNT))
+            else         
+                echo "AGENT${AGENT_COUNT}=\"${LINE}\""
+            fi
             AGENT_COUNT=$((AGENT_COUNT-1))
         else
             echo "SERVER${SERVER_COUNT}=\"${LINE}\""
