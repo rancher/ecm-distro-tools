@@ -40,6 +40,7 @@ do
                     AMI packer generated from ProComputer - use 'ec2-user' for ssh. Double check the firewall service.
                 *** Did not find arm ami's for Oracle Linux
                 Rocky: rocky8.6, rocky8.6_arm, rocky8.7 (packer edited), rocky8.7_arm, rock8.8, rocky8.8_arm, rocky9, rocky9.1, rocky9.1_arm, rocky9.2, rocky9.2_arm
+                Windows: win2022, win2019
             -p prefix: used to append to name tag the ec2 instance - you can also export PREFIX var to set as default value, if not using this option
             -k key_name: key-pair login name used from aws registry to login securely to your ec2 instances - export KEY_NAME var to set as default value, if not using this option
             -f pem_file_path: absolute file path of your .pem file - for ssh command to your ec2 instances - export PEM_FILE_PATH var to set as default value, if not using this option
@@ -198,6 +199,17 @@ case ${OS_NAME} in
     rocky9.1_arm) IMAGE_ID="ami-0fd23c283a54fb00d";;
     rocky9.2) IMAGE_ID="ami-0140491b434cb5296";;
     rocky9.2_arm) IMAGE_ID="ami-03a4cf1ef87c11545";;
+    win2022) 
+        IMAGE_ID="ami-09e14f3154e091177"
+        SSH_USER="Administrator"
+        VOLUME_SIZE=50
+        ;;
+    win2019) 
+        # IMAGE_ID="ami-0316af9949fb52ebf"
+        IMAGE_ID="ami-05a418fd6eb36fd5b"
+        SSH_USER="Administrator"
+        VOLUME_SIZE=50
+        ;;
 # Default value when any other os name was provided or was empty
     *)
         if [ "${OS_NAME}" ]; then
