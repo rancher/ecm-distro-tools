@@ -203,6 +203,7 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 }
 
 func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]string, string, error) {
+	disableGpgSigning := true
 	rebaseOut, err := r.gitRebaseOnto()
 	if err != nil {
 		return nil, "", err
@@ -213,7 +214,7 @@ func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]st
 	}
 
 	// setup gitconfig
-	gitconfigFile, err := r.setupGitArtifacts()
+	gitconfigFile, err := r.setupGitArtifacts(disableGpgSigning)
 	if err != nil {
 		return nil, "", err
 	}
@@ -349,12 +350,21 @@ func (r *Release) buildGoWrapper() (string, error) {
 	return wrapperImageTag, nil
 }
 
-func (r *Release) setupGitArtifacts() (string, error) {
+func (r *Release) setupGitArtifacts(disableGpg bool) (string, error) {
 	gitconfigFile := filepath.Join(r.Workspace, ".gitconfig")
 
 	// setting up username and email for tagging purposes
 	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", r.Email)
 	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", r.Handler)
+
+	// disable gpg signing direct in .gitconfig
+	if disableGpg {
+		if strings.Contains(gitconfigFileContent, "[commit]") {
+			gitconfigFileContent = strings.Replace(gitconfigFileContent, "gpgsign = true", "gpgsign = false", 1)
+		} else {
+			gitconfigFileContent += "[commit]\n\tgpgsign = false\n"
+		}
+	}
 
 	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
 		return "", err
@@ -440,7 +450,8 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
 	// here we can use go-git library or runCommand function
 	// I am using go-git library to enhance code quality
-	gitConfigFile, err := r.setupGitArtifacts()
+	disableGpgSigning := true
+	gitConfigFile, err := r.setupGitArtifacts(disableGpgSigning)
 	if err != nil {
 		return err
 	}
