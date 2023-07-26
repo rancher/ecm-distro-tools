@@ -450,7 +450,7 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
 	// here we can use go-git library or runCommand function
 	// I am using go-git library to enhance code quality
-	disableGpgSigning := true
+	var disableGpgSigning bool = true
 	gitConfigFile, err := r.setupGitArtifacts(disableGpgSigning)
 	if err != nil {
 		return err
