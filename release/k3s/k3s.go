@@ -203,7 +203,6 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 }
 
 func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]string, string, error) {
-	disableGpgSigning := true
 	rebaseOut, err := r.gitRebaseOnto()
 	if err != nil {
 		return nil, "", err
@@ -214,7 +213,7 @@ func (r *Release) RebaseAndTag(_ context.Context, ghClient *github.Client) ([]st
 	}
 
 	// setup gitconfig
-	gitconfigFile, err := r.setupGitArtifacts(disableGpgSigning)
+	gitconfigFile, err := r.setupGitArtifacts(true)
 	if err != nil {
 		return nil, "", err
 	}
@@ -450,8 +449,7 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
 	// here we can use go-git library or runCommand function
 	// I am using go-git library to enhance code quality
-	disableGpgSigning := true
-	gitConfigFile, err := r.setupGitArtifacts(disableGpgSigning)
+	gitConfigFile, err := r.setupGitArtifacts(true)
 	if err != nil {
 		return err
 	}
