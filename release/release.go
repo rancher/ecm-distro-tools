@@ -46,6 +46,7 @@ type rke2ReleaseNoteData struct {
 	FlannelVersion        string
 	CanalCalicoVersion    string
 	CalicoVersion         string
+	CalicoUrl             string
 	CiliumVersion         string
 	MultusVersion         string
 	ChangeLogData         changeLogData
@@ -227,8 +228,9 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
 	rd.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
 	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
-	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
+	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
+	rd.CalicoUrl = createCalicoURL(rd.CalicoVersion)
 
 	buf := bytes.NewBuffer(nil)
 	err := tmpl.ExecuteTemplate(buf, rke2Repo, rd)
@@ -532,7 +534,7 @@ func imageTagVersion(ImageName, repo, branchVersion string) string {
 func sqliteVersionBinding(sqliteVersion string) string {
 	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
 	const (
-		regex = `\"(.*)\"`
+		regex = `\"(*)\"`
 		word  = "SQLITE_VERSION"
 	)
 
@@ -542,6 +544,22 @@ func sqliteVersionBinding(sqliteVersion string) string {
 	}
 
 	return ""
+}
+
+func createCalicoURL(calicoVersion string) string {
+	const (
+		regex    = `\"(.*)\"`
+		notFound = "Page Not Found"
+	)
+
+	calicoArchiveURL := "https://projectcalico.docs.tigera.io/archive/" + calicoVersion + "/release-notes/#" + strings.Trim(calicoVersion, "")
+
+	submatch := findInURL(calicoArchiveURL, regex, notFound)
+	if len(submatch) > 1 {
+		return "https://docs.tigera.io/calico/latest/release-notes/#" + calicoVersion
+	}
+
+	return calicoArchiveURL
 }
 
 // findInURL will get and scan a url to find a slice submatch for all the words that matches a regex
@@ -656,7 +674,7 @@ cat /var/lib/rancher/rke2/server/token
 | Component | Version | FIPS Compliant |
 | --- | --- | --- |
 | Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes |
-| Calico | [{{.CalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CalicoVersion }}/release-notes/#{{ trimPeriods .CalicoVersion }}) | No |
+| Calico | [{{.CalicoVersion}}]({{.CalicoUrl}}) | No |
 | Cilium | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}}) | No |
 | Multus | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}}) | No |
 
