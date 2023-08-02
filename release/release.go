@@ -534,7 +534,7 @@ func imageTagVersion(ImageName, repo, branchVersion string) string {
 func sqliteVersionBinding(sqliteVersion string) string {
 	sqliteBindingURL := "https://raw.githubusercontent.com/mattn/go-sqlite3/" + sqliteVersion + "/sqlite3-binding.h"
 	const (
-		regex = `\"(*)\"`
+		regex = `\"(.*)\"`
 		word  = "SQLITE_VERSION"
 	)
 
@@ -555,7 +555,7 @@ func createCalicoURL(calicoVersion string) string {
 	calicoArchiveURL := "https://projectcalico.docs.tigera.io/archive/" + calicoVersion + "/release-notes/#" + strings.Trim(calicoVersion, "")
 
 	submatch := findInURL(calicoArchiveURL, regex, notFound)
-	if len(submatch) > 1 {
+	if len(submatch) > 1 || submatch == nil {
 		return "https://docs.tigera.io/calico/latest/release-notes/#" + calicoVersion
 	}
 
