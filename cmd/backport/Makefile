@@ -17,4 +17,4 @@ clean:
 
 .PHONY: image
 image: $(BINDIR)/$(BINARY)
-	docker build -t briandowns/$(BINARY):$(VERSION) .
+	docker build -t rancher/$(BINARY):$(VERSION) .

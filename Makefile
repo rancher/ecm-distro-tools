@@ -1,5 +1,5 @@
 .PHONY: all
-all: gen_release_notes gen_release_report backport standup k3s_release test_coverage
+all: gen_release_notes gen_release_report backport standup k3s_release test_coverage upstream_go_version
 
 .PHONY: gen_release_notes
 gen_release_notes:
@@ -23,6 +23,10 @@ standup:
 
 .PHONY: test_coverage
 test_coverage:
+	cd cmd/$@ && $(MAKE)
+
+.PHONY: upstream_go_version
+upstream_go_version:
 	cd cmd/$@ && $(MAKE)
 
 .PHONY: test
