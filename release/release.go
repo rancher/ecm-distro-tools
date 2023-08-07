@@ -556,13 +556,13 @@ func createCalicoURL(calicoVersion string) string {
 
 	var formattedVersion string
 
-	re := regexp.MustCompile(`^v(\d+\.\d+)(?:\.\d+)?$`)
+	versionRegex := regexp.MustCompile(`^v(\d+\.\d+)(?:\.\d+)?$`)
 
 	formattedVersion = calicoVersion
 
 	// Check if the version matches the pattern
-	if re.MatchString(calicoVersion) {
-		matches := re.FindStringSubmatch(calicoVersion)
+	if versionRegex.MatchString(calicoVersion) {
+		matches := versionRegex.FindStringSubmatch(calicoVersion)
 		if len(matches) == 2 {
 			formattedVersion = "v" + matches[1]
 		}
