@@ -554,7 +554,7 @@ func createCalicoURL(calicoVersion string) string {
 
 	calicoArchiveURL := "https://projectcalico.docs.tigera.io/archive/" + calicoVersion + "/release-notes/#" + strings.Trim(calicoVersion, "")
 
-	// check if exists content for archive url
+	// check if doesn't exists content for archive url
 	submatch := findInURL(calicoArchiveURL, regex, notFound)
 	if len(submatch) > 1 || submatch == nil {
 		return "https://docs.tigera.io/calico/latest/release-notes/#" + calicoVersion
