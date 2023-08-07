@@ -24,7 +24,7 @@ Env Variables:
 Options:
     -h                   help
     -v                   show version and exit
-    -b branch(es)        branches issue is being backported to
+    -b branch(es)        branches to retrieve Go version from (comma seperated)
 
 Examples: 
     # print out Go version for the given branches
