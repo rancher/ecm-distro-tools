@@ -13,6 +13,9 @@ The backport utility will create backport issues and perform a cherry-pick of th
 
 # Backport RKE2 change into release-1.20, release-1.21 and release-1.22
 ./backport -r rke2 -b 'release-1.20,release-1.21,release-1.22' -i 456 -c 'cd700d9a444df8f03b8ce88cb90261ed1bc49f27'
+
+# Backport K3s change into release-1.21 and release-1.22 and assign to given user.
+./backport -r k3s -b 'release-1.21,release-1.22' -i 123 -u susejsmith
 ```
 
 Or via Docker

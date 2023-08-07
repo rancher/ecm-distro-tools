@@ -27,12 +27,13 @@ Options:
     -i issue id          original issue id
     -c commits           commits to be backported (comma seperated)
     -b branch(es)        branches issue is being backported to
-    -u user			     user to assign new issues to (default: user assigned to orig. issue)
+    -u user              user to assign new issues to (default: user assigned to orig. issue)
 
 Examples: 
     # generate 2 backport issues for k3s issue 1234
     %[2]s -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
 	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
+	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3 -u susejsmith
 `
 
 var (
