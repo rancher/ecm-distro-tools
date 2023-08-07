@@ -45,6 +45,7 @@ type rke2ReleaseNoteData struct {
 	HelmControllerVersion string
 	FlannelVersion        string
 	CanalCalicoVersion    string
+	CanalCalicoUrl        string
 	CalicoVersion         string
 	CalicoUrl             string
 	CiliumVersion         string
@@ -223,6 +224,7 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
 	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
 	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
+	rd.CanalCalicoUrl = createCalicoURL(rd.CanalCalicoVersion)
 	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
 	rd.ContainerdVersion = containerdVersion
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
@@ -479,7 +481,7 @@ func buildScriptVersion(varName, repo, branchVersion string) string {
 	buildScriptURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/version.sh"
 
 	const regex = `(?P<version>v[\d\.]+(-k3s.\w*)?)`
-	submatch := findInURL(buildScriptURL, regex, varName)
+	submatch := findInURL(buildScriptURL, regex, varName, true)
 
 	if len(submatch) > 1 {
 		return submatch[1]
@@ -500,7 +502,7 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 
 	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
 
-	submatch := findInURL(dockerfileURL, regex, chartName)
+	submatch := findInURL(dockerfileURL, regex, chartName, true)
 	if len(submatch) > 1 {
 		return submatch[1]
 	}
@@ -518,7 +520,7 @@ func imageTagVersion(ImageName, repo, branchVersion string) string {
 	}
 
 	const regex = `:(.*)(-build.*)?`
-	submatch := findInURL(imageListURL, regex, ImageName)
+	submatch := findInURL(imageListURL, regex, ImageName, true)
 
 	if len(submatch) > 1 {
 		if strings.Contains(submatch[1], "-build") {
@@ -538,7 +540,7 @@ func sqliteVersionBinding(sqliteVersion string) string {
 		word  = "SQLITE_VERSION"
 	)
 
-	submatch := findInURL(sqliteBindingURL, regex, word)
+	submatch := findInURL(sqliteBindingURL, regex, word, true)
 	if len(submatch) > 1 {
 		return submatch[1]
 	}
@@ -552,12 +554,26 @@ func createCalicoURL(calicoVersion string) string {
 		notFound = "Page Not Found"
 	)
 
-	calicoArchiveURL := "https://projectcalico.docs.tigera.io/archive/" + calicoVersion + "/release-notes/#" + strings.Trim(calicoVersion, "")
+	var formattedVersion string
+
+	re := regexp.MustCompile(`^v(\d+\.\d+)(?:\.\d+)?$`)
+
+	formattedVersion = calicoVersion
+
+	// Check if the version matches the pattern
+	if re.MatchString(calicoVersion) {
+		matches := re.FindStringSubmatch(calicoVersion)
+		if len(matches) == 2 {
+			formattedVersion = "v" + matches[1]
+		}
+	}
+
+	calicoArchiveURL := "https://projectcalico.docs.tigera.io/archive/" + formattedVersion + "/release-notes/#" + strings.Trim(calicoVersion, "")
 
 	// check if doesn't exists content for archive url
-	submatch := findInURL(calicoArchiveURL, regex, notFound)
-	if len(submatch) > 1 || submatch == nil {
-		return "https://docs.tigera.io/calico/latest/release-notes/#" + calicoVersion
+	submatch := findInURL(calicoArchiveURL, regex, notFound, false)
+	if len(submatch) > 1 {
+		return "https://docs.tigera.io/calico/latest/release-notes/#" + formattedVersion
 	}
 
 	return calicoArchiveURL
@@ -565,7 +581,7 @@ func createCalicoURL(calicoVersion string) string {
 
 // findInURL will get and scan a url to find a slice submatch for all the words that matches a regex
 // if the regex is empty then it will return the lines in a file that matches the str
-func findInURL(url, regex, str string) []string {
+func findInURL(url, regex, str string, checkStatusCode bool) []string {
 	var submatch []string
 
 	resp, err := http.Get(url)
@@ -573,7 +589,8 @@ func findInURL(url, regex, str string) []string {
 		logrus.Debugf("failed to fetch url %s: %v", url, err)
 		return nil
 	}
-	if resp.StatusCode != http.StatusOK {
+
+	if checkStatusCode && resp.StatusCode != http.StatusOK {
 		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, url)
 		return nil
 	}
@@ -674,7 +691,7 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component | Version | FIPS Compliant |
 | --- | --- | --- |
-| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}](https://projectcalico.docs.tigera.io/archive/{{ majMin .CanalCalicoVersion }}/release-notes/#{{ trimPeriods .CanalCalicoVersion }}) | Yes |
+| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}]({{.CanalCalicoUrl}}) | Yes |
 | Calico | [{{.CalicoVersion}}]({{.CalicoUrl}}) | No |
 | Cilium | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}}) | No |
 | Multus | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}}) | No |
