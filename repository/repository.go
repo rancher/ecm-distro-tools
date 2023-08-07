@@ -202,7 +202,7 @@ type ChangeLog struct {
 }
 
 // CreateBackportIssues
-func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, repo, branch string, i *Issue) (*github.Issue, error) {
+func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, repo, branch, user string, i *Issue) (*github.Issue, error) {
 	org, err := OrgFromRepo(repo)
 	if err != nil {
 		return nil, err
@@ -212,7 +212,9 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	body := fmt.Sprintf(i.Body, origIssue.GetTitle(), *origIssue.Number)
 
 	var assignee *string
-	if origIssue.GetAssignee() != nil {
+	if user != "" {
+		assignee = types.StringPtr(user)
+	} else if origIssue.GetAssignee() != nil {
 		assignee = origIssue.GetAssignee().Login
 	} else {
 		assignee = types.StringPtr("")
@@ -235,6 +237,7 @@ type PerformBackportOpts struct {
 	Commits  []string `json:"commits"`
 	IssueID  uint     `json:"issue_id"`
 	Branches string   `json:"branches"`
+	User     string   `json:"user"`
 }
 
 // PerformBackport creates backport issues, performs a cherry-pick of the
@@ -266,12 +269,11 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 
 	issues := make([]*github.Issue, len(backportBranches))
 	for _, branch := range backportBranches {
-		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Repo, branch, &issue)
+		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Repo, branch, pbo.User, &issue)
 		if err != nil {
 			return nil, err
 		}
 		issues = append(issues, newIssue)
-		fmt.Println("Backport issue created: " + newIssue.GetHTMLURL())
 	}
 
 	// stop here if there are no commits given
