@@ -356,6 +356,13 @@ func (r *Release) setupGitArtifacts() (string, error) {
 	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", r.Email)
 	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", r.Handler)
 
+	// disable gpg signing direct in .gitconfig
+	if strings.Contains(gitconfigFileContent, "[commit]") {
+		gitconfigFileContent = strings.Replace(gitconfigFileContent, "gpgsign = true", "gpgsign = false", 1)
+	} else {
+		gitconfigFileContent += "[commit]\n\tgpgsign = false\n"
+	}
+
 	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
 		return "", err
 	}
