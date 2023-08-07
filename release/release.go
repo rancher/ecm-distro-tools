@@ -45,9 +45,9 @@ type rke2ReleaseNoteData struct {
 	HelmControllerVersion string
 	FlannelVersion        string
 	CanalCalicoVersion    string
-	CanalCalicoUrl        string
+	CanalCalicoURL        string
 	CalicoVersion         string
-	CalicoUrl             string
+	CalicoURL             string
 	CiliumVersion         string
 	MultusVersion         string
 	ChangeLogData         changeLogData
@@ -224,7 +224,7 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
 	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
 	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
-	rd.CanalCalicoUrl = createCalicoURL(rd.CanalCalicoVersion)
+	rd.CanalCalicoURL = createCalicoURL(rd.CanalCalicoVersion)
 	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
 	rd.ContainerdVersion = containerdVersion
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
@@ -232,7 +232,7 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
-	rd.CalicoUrl = createCalicoURL(rd.CalicoVersion)
+	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
 
 	buf := bytes.NewBuffer(nil)
 	err := tmpl.ExecuteTemplate(buf, rke2Repo, rd)
@@ -691,8 +691,8 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component | Version | FIPS Compliant |
 | --- | --- | --- |
-| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}]({{.CanalCalicoUrl}}) | Yes |
-| Calico | [{{.CalicoVersion}}]({{.CalicoUrl}}) | No |
+| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}]({{.CanalCalicoURL}}) | Yes |
+| Calico | [{{.CalicoVersion}}]({{.CalicoURL}}) | No |
 | Cilium | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}}) | No |
 | Multus | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}}) | No |
 
