@@ -415,7 +415,6 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	}
 
 	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git /home/go/.cache /home/go/src/kubernetes | ./tag.sh "+r.NewK8SVersion+"-k3s1")
-	// args := append(goWrapper, "tail", "-f", "/dev/null")
 
 	return runCommand(k8sDir, "docker", args...)
 }
