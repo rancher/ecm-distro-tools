@@ -20,7 +20,6 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -345,8 +344,6 @@ func (r *Release) buildGoWrapper() (string, error) {
 	devDockerfile = strings.ReplaceAll(devDockerfile, "%uid%", strconv.Itoa(os.Getuid()))
 	devDockerfile = strings.ReplaceAll(devDockerfile, "%gid%", strconv.Itoa(os.Getgid()))
 
-	logrus.Info(devDockerfile)
-
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
 	}
@@ -408,17 +405,17 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 		"-v",
 		k8sDir + ":" + containerK8sPath + ":rw",
 		"-v",
-		gopath + "/.cache:/home/go/.cache:rw",
+		gopath + "/.cache:" + containerGoCachePath + ":rw",
 		"-e",
 		"HOME=/home/go",
 		"-e",
-		"GOCACHE=/home/go/.cache",
+		"GOCACHE=" + containerGoCachePath,
 		"-w",
 		containerK8sPath,
 		wrapperImageTag,
 	}
 
-	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git /home/go/.cache "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
+	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git "+containerGoCachePath+" "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
 
 	return runCommand(k8sDir, "docker", args...)
 }
