@@ -381,6 +381,10 @@ func (r *Release) setupGitArtifacts() (string, error) {
 }
 
 func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, error) {
+	const (
+		containerK8sPath     = "/home/go/src/kubernetes"
+		containerGoCachePath = "/home/go/.cache"
+	)
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 
@@ -402,7 +406,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 		"-v",
 		gitConfigFile + ":/home/go/.gitconfig:rw",
 		"-v",
-		k8sDir + ":/home/go/src/kubernetes:rw",
+		k8sDir + ":" + containerK8sPath + ":rw",
 		"-v",
 		gopath + "/.cache:/home/go/.cache:rw",
 		"-e",
@@ -410,11 +414,11 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 		"-e",
 		"GOCACHE=/home/go/.cache",
 		"-w",
-		"/home/go/src/kubernetes",
+		containerK8sPath,
 		wrapperImageTag,
 	}
 
-	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git /home/go/.cache /home/go/src/kubernetes | ./tag.sh "+r.NewK8SVersion+"-k3s1")
+	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git /home/go/.cache "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
 
 	return runCommand(k8sDir, "docker", args...)
 }
