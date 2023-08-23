@@ -41,6 +41,10 @@ const (
 	dockerDevImage = `
 	FROM %goimage%
 	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk
+	ARG UID=%uid%
+	ARG GID=%gid%
+	RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
+	USER user
 	`
 
 	modifyScript = `
@@ -114,7 +118,7 @@ func NewRelease(configPath string) (*Release, error) {
 // SetupK8sRemotes will clone the kubernetes upstream repo and proceed with setting up remotes
 // for rancher and user's forks, then it will fetch branches and tags for all remotes
 func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) error {
-	k3sDir := filepath.Join(r.Workspace, "kubernetes")
+	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
 	if _, err := os.Stat(r.Workspace); err != nil {
 		if os.IsNotExist(err) {
@@ -127,14 +131,14 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	}
 
 	// clone the repo
-	repo, err := git.PlainClone(k3sDir, false, &git.CloneOptions{
+	repo, err := git.PlainClone(k8sDir, false, &git.CloneOptions{
 		URL:             k8sUpstreamURL,
 		Progress:        os.Stdout,
 		InsecureSkipTLS: true,
 	})
 	if err != nil {
 		if err == git.ErrRepositoryAlreadyExists {
-			repo, err = git.PlainOpen(k3sDir)
+			repo, err = git.PlainOpen(k8sDir)
 			if err != nil {
 				return err
 			}
@@ -337,6 +341,9 @@ func (r *Release) buildGoWrapper() (string, error) {
 	goImageVersion := fmt.Sprintf("golang:%s-alpine", goVersion)
 
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
+	devDockerfile = strings.ReplaceAll(devDockerfile, "%uid%", strconv.Itoa(os.Getuid()))
+	devDockerfile = strings.ReplaceAll(devDockerfile, "%gid%", strconv.Itoa(os.Getgid()))
+
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
 	}
@@ -371,6 +378,10 @@ func (r *Release) setupGitArtifacts() (string, error) {
 }
 
 func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, error) {
+	const (
+		containerK8sPath     = "/home/go/src/kubernetes"
+		containerGoCachePath = "/home/go/.cache"
+	)
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 
@@ -388,23 +399,23 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 		"-u",
 		uid + ":" + gid,
 		"-v",
-		gopath + ":/home/go",
+		gopath + ":/home/go:rw",
 		"-v",
-		gitConfigFile + ":/home/go/.gitconfig",
+		gitConfigFile + ":/home/go/.gitconfig:rw",
 		"-v",
-		k8sDir + ":/home/go/src/kubernetes",
+		k8sDir + ":" + containerK8sPath + ":rw",
 		"-v",
-		gopath + "/.cache:/home/go/.cache",
+		gopath + "/.cache:" + containerGoCachePath + ":rw",
 		"-e",
 		"HOME=/home/go",
 		"-e",
-		"GOCACHE=/home/go/src/kubernetes/.cache",
+		"GOCACHE=" + containerGoCachePath,
 		"-w",
-		"/home/go/src/kubernetes",
+		containerK8sPath,
 		wrapperImageTag,
 	}
 
-	args := append(goWrapper, "./tag.sh", r.NewK8SVersion+"-k3s1")
+	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git "+containerGoCachePath+" "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
 
 	return runCommand(k8sDir, "docker", args...)
 }
