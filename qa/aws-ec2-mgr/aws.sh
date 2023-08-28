@@ -76,11 +76,7 @@ TERMINATE_FILE_PATH="${PWD}/terminate"
 case ${OS_NAME} in
 # RHEL
     rhel9.2)
-
-        # IMAGE_ID="ami-024fe43f3e88e89b5"
-        # SOURCE_IMAGE_ID="ami-00bc24f98893a4bef"
         IMAGE_ID="ami-082bf7cc12db545b9"  # Enable FIPS, Disable NtwkMgr, Disable firewalld.service
-        # IMAGE_ID="ami-018682060296f1acb"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
         SOURCE_IMAGE_ID="ami-02b8534ff4b424939"
         ;;
     rhel9.2_arm)
@@ -88,11 +84,8 @@ case ${OS_NAME} in
         SOURCE_IMAGE_ID="ami-06df7225cc50ee1a3"
         ;;
     rhel9.1)
-        IMAGE_ID="ami-04c5820302c03d3ba"
-        SOURCE_IMAGE_ID="ami-045f72873d59547dc"
-        SSH_USER="cloud-user"
-        # IMAGE_ID="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
-        # SOURCE_IMAGE_ID="ami-0beb7639ce29e0148"
+        IMAGE_ID="ami-07045b44fb937da35"  # Packer generated ami running ami_rhel.json on the SOURCE_IMAGE_ID in us-east-2 region
+        SOURCE_IMAGE_ID="ami-0beb7639ce29e0148"
         ;;
     rhel9.1_arm) 
         IMAGE_ID="ami-022b0843d9926c2ea"
@@ -137,8 +130,7 @@ case ${OS_NAME} in
     ubuntu20.4_arm) IMAGE_ID="ami-0071e4b30f26879e2";;
 # Oracle Linux
 # Note: The AMIs from Tiov IT use 'cloud-user' as the ssh username
-# AMIs from ProComputer user ssh user 'ec2-user'. The packer generated from this AMI says: firewalld.service could not be found
-# TODO need to see what firewall service ProComputer AMIs are using, and fix them.
+# AMIs from ProComputer user ssh user 'ec2-user'.
 # 8.8 version alone is from ProComputer. The rest are from Tiov IT source image AMI
 # Could not find ARM version AMIs for Oracle Linux.
     OL8.6) 
@@ -153,7 +145,6 @@ case ${OS_NAME} in
     OL8.7_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL8.8)
         IMAGE_ID="ami-0e17d020894274cb7" # Disable firewall, UserGrowPart, Disable NtwkMgr were run
-        # IMAGE_ID="ami-0cd326a634acebf17"  # packer generated from ProComputer. packer log: firewalld.service could not be found 
         SOURCE_IMAGE_ID="ami-012cc9c259aba3097"
         SSH_USER="ec2-user"
         ;;
@@ -161,51 +152,69 @@ case ${OS_NAME} in
     OL9)
         IMAGE_ID="ami-0aa0d55ea757321b4"
         SOURCE_IMAGE_ID="ami-0b04c8dbeb20a9d8c"
-        # IMAGE_ID="ami-0787a0db6f5308066"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # SOURCE_IMAGE_ID="ami-0320e81c16ae2d4d4"
-        # SSH_USER="ec2-user"
         ;;
     OL9_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.1)
         IMAGE_ID="ami-01680e3ddcae57326"
         SOURCE_IMAGE_ID="ami-045f72873d59547dc"
-        # IMAGE_ID="ami-0e572f06bbf6a0049"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # SOURCE_IMAGE_ID="ami-0ca33870ec73abf78"
-        # SSH_USER="ec2-user"
         ;;
     OL9.1_arm) echo "Did not find an ami for this. Exiting." ; exit;;
     OL9.2)
         IMAGE_ID="ami-0d77b6b12ba00534b" # Esteban validated with this ami
-        # IMAGE_ID="ami-0c50bf6c5b057201a"
-        # SOURCE_IMAGE_ID="ami-007822fffce54749b"
-        # IMAGE_ID="ami-0debd32745f38204f"  # packer generated from ProComputer. packer log: firewalld.service could not be found
-        # SOURCE_IMAGE_ID="ami-0fee377e2c84d751b"
-        # SSH_USER="ec2-user"
         ;;
     OL9.2_arm) echo "Did not find an ami for this. Exiting." ; exit;;
 # Rocky Linux
-    rocky8.6) IMAGE_ID="ami-0072f50382eb71b1d";;
-    rocky8.6_arm) IMAGE_ID="ami-0c92c0d181d0cfa1e";;
+    rocky8.6)
+        IMAGE_ID="ami-006d2a5b22aa9e9fc"
+        SOURCE_IMAGE_ID="ami-0072f50382eb71b1d"
+        ;;
+    rocky8.6_arm)
+        IMAGE_ID="ami-08f944ff6db28e86b"
+        SOURCE_IMAGE_ID="ami-0c92c0d181d0cfa1e"
+        ;;
     rocky8.7)
         IMAGE_ID="ami-05ab2eb74c93eb441"  # Packer generated pre-existing ami
         SOURCE_IMAGE_ID="Pre existing packer image"
         ;;
-    rocky8.7_arm) IMAGE_ID="ami-0491a50679ee1bc89";;
-    rocky8.8) IMAGE_ID="ami-0425d70f0df70df0e";;
-    rocky8.8_arm) IMAGE_ID="ami-074e816b93be89812";;
-    rocky9) IMAGE_ID="ami-05d9eb66565e1792c";;
+    rocky8.7_arm)
+        IMAGE_ID="ami-0bee226738c0c344b"
+        SOURCE_IMAGE_ID="ami-0491a50679ee1bc89"
+        ;;
+    rocky8.8) 
+        IMAGE_ID="ami-03810928477057efd"
+        SOURCE_IMAGE_ID="ami-0425d70f0df70df0e"
+        ;;
+    rocky8.8_arm)
+        IMAGE_ID="ami-0dd4a429ade26e086"
+        SOURCE_IMAGE_ID="ami-074e816b93be89812"
+        ;;
+    rocky9)
+        IMAGE_ID="ami-0cb7c5a3350cf4aa8"
+        SOURCE_IMAGE_ID="ami-05d9eb66565e1792c"
+        ;;
     rocky9_arm) echo "Did not find an ami for this. Exiting." ; exit;;
-    rocky9.1) IMAGE_ID="ami-01778de3d921acbe9";;
-    rocky9.1_arm) IMAGE_ID="ami-0fd23c283a54fb00d";;
-    rocky9.2) IMAGE_ID="ami-0140491b434cb5296";;
-    rocky9.2_arm) IMAGE_ID="ami-03a4cf1ef87c11545";;
+    rocky9.1) 
+        IMAGE_ID="ami-05c54668bb1713e2c"
+        SOURCE_IMAGE_ID="ami-01778de3d921acbe9"
+        ;;
+    rocky9.1_arm)
+        IMAGE_ID="ami-0f2593bc37b58e08f"
+        SOURCE_IMAGE_ID="ami-0fd23c283a54fb00d"
+        ;;
+    rocky9.2)
+        IMAGE_ID="ami-0276dbdd7c20c3820"
+        SOURCE_IMAGE_ID="ami-0140491b434cb5296"
+        ;;
+    rocky9.2_arm) 
+        IMAGE_ID="ami-015f82b9489dd6dce"
+        SOURCE_IMAGE_ID="ami-03a4cf1ef87c11545"
+        ;;
     win2022) 
         IMAGE_ID="ami-09e14f3154e091177"
         SSH_USER="Administrator"
         VOLUME_SIZE=50
         ;;
-    win2019) 
-        # IMAGE_ID="ami-0316af9949fb52ebf"
+    win2019)
         IMAGE_ID="ami-05a418fd6eb36fd5b"
         SSH_USER="Administrator"
         VOLUME_SIZE=50
@@ -238,20 +247,16 @@ esac
 
 # Set SSH User based on os and if SSH_USER was not already assigned already
 if [ -z "${SSH_USER}" ]; then
-    if echo "${OS_NAME}" | grep -q "ubuntu" ; then
-        SSH_USER="ubuntu"
-    fi
-    if echo "${OS_NAME}" | grep -q "rocky"; then
-        SSH_USER="rocky"
-    fi
-    if echo "${OS_NAME}" | grep -q "OL"; then
+    case "${OS_NAME}" in
+        *"ubuntu"*) SSH_USER="ubuntu";;
+        *"rocky"*) SSH_USER="rocky";;
+        *"OL"*) 
         # Tiov IT AMIs and Packer AMIs generated from them use 'cloud-user'
-        # ProComputer AMIs user 'ec2-user' as the ssh username
-        SSH_USER="cloud-user"
-    fi
-    if [ -z "${SSH_USER}" ]; then
-        SSH_USER="ec2-user"
-    fi
+        # ProComputer AMIs user 'ec2-user' as the ssh username (explicitly set with image id - ex: OL8.8)
+            SSH_USER="cloud-user"
+            ;;
+        *) SSH_USER="ec2-user";;                        
+    esac
 fi
 if [ "${LOG}" = "debug" ]; then
     echo "SSH_USER = ${SSH_USER}"
