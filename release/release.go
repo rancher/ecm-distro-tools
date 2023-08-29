@@ -707,6 +707,7 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 const k3sReleaseNoteTemplate = `
 {{- define "k3s" -}}
 <!-- {{.Milestone}} -->
+
 This release updates Kubernetes to {{.K8sVersion}}, and fixes a number of issues.
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#changelog-since-{{.ChangeLogSince}}).
