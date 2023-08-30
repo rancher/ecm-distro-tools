@@ -390,7 +390,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 						inNote = false
 					}
 					if inNote && line != "" {
-						line = strings.Replace(line, "* ", "", 1)
+						line = strings.TrimPrefix(line, "* ")
 						releaseNote += line
 					}
 				}
