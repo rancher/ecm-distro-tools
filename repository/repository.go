@@ -393,6 +393,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 						releaseNote += line
 					}
 				}
+				releaseNote = strings.Replace(releaseNote, "*", "", 0)
 				releaseNote = strings.TrimSpace(releaseNote)
 				releaseNote = strings.ReplaceAll(releaseNote, "\r", "\n")
 			}
