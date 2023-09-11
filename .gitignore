@@ -35,6 +35,7 @@ cmd/standup/bin
 cmd/k3s_release/bin
 cmd/test_coverage/bin
 cmd/upstream_go_version/bin
+cmd/rancher_release/bin
 
 data/*
 
