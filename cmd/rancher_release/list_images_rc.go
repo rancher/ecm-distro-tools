@@ -10,7 +10,7 @@ import (
 
 func listImagesRCCommand() cli.Command {
 	return cli.Command{
-		Name:  "list-images-rc",
+		Name:  "list-nonmirrored-rc-images",
 		Usage: "list all non-mirrored images which are in rc form given a tag in a MD format",
 		Flags: []cli.Flag{
 			cli.StringFlag{
