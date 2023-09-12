@@ -18,7 +18,7 @@ const (
 )
 
 func ListRancherImagesRC(tag string) (string, error) {
-	imagesFile, err := getRancherImagesFile(tag)
+	imagesFile, err := rancherImages(tag)
 	if err != nil {
 		return "", err
 	}
