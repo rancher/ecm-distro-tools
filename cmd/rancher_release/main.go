@@ -23,7 +23,9 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rancher-release"
 	app.Usage = "Perform a Rancher release"
-	app.Commands = []cli.Command{}
+	app.Commands = []cli.Command{
+		listImagesRCCommand(),
+	}
 	app.Flags = rootFlags
 
 	if err := app.Run(os.Args); err != nil {
