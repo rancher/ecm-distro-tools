@@ -11,7 +11,7 @@ import (
 func listImagesRCCommand() cli.Command {
 	return cli.Command{
 		Name:   "list-images-rc",
-		Usage:  "list all images which are in rc form given a tag",
+		Usage:  "list all non-mirrored images which are in rc form given a tag in a MD format",
 		Flags:  []cli.Flag{
       cli.StringFlag{
         Name:   "tag",
