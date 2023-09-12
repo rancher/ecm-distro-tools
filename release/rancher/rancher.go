@@ -18,7 +18,8 @@ const (
 )
 
 func ListRancherImagesRC(tag string) (string, error) {
-	imagesFile, err := rancherImages(tag)
+	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
+	imagesFile, err := rancherImages(downloadURL)
 	if err != nil {
 		return "", err
 	}
@@ -56,11 +57,10 @@ func findRCNonMirroredImages(images string) ([]string, error) {
 	return rcImages, nil
 }
 
-func rancherImages(tag string) (string, error) {
+func rancherImages(imagesURL string) (string, error) {
 	httpClient := http.Client{Timeout: time.Second * 15}
-	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
-	logrus.Debug("downloading: " + downloadURL)
-	resp, err := httpClient.Get(downloadURL)
+	logrus.Debug("downloading: " + imagesURL)
+	resp, err := httpClient.Get(imagesURL)
 	if err != nil {
 		return "", err
 	}
