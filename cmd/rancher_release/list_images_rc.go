@@ -13,11 +13,11 @@ func listImagesRCCommand() cli.Command {
 		Name:   "list-images-rc",
 		Usage:  "list all non-mirrored images which are in rc form given a tag in a MD format",
 		Flags:  []cli.Flag{
-      cli.StringFlag{
-        Name:   "tag",
-        Usage:  "release tag to validate images",
+			cli.StringFlag{
+				Name:   "tag",
+				Usage:  "release tag to validate images",
 				Required: true,
-      },
+			},
     },
 		Action: listImagesRC,
 	}
