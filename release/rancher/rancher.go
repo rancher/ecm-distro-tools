@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -56,9 +57,10 @@ func findRCNonMirroredImages(imagesFile io.ReadCloser) ([]string, error) {
 }
 
 func getRancherImagesFile(tag string) (io.ReadCloser, error) {
+	httpClient := http.Client{Timeout: time.Second * 15}
 	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
 	logrus.Debug("downloading: " + downloadURL)
-	resp, err := http.Get(downloadURL)
+	resp, err := httpClient.Get(downloadURL)
 	if err != nil {
 		return nil, err
 	}
