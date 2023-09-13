@@ -73,15 +73,15 @@ echo "Found build number ${BUILD_NUMBER} for tag ${SOURCE_TAG}"
 if [ ${DRY_RUN} = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
     echo "${CMD}"
-elif
-    #drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}
+else
+    drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}
     BUILD_NUMBER=""
 fi
 
 echo "promoting Chart${SOURCE_TAG} to ${DESTINATION_TAG}"
 
 BUILD_NUMBER=$(drone build ls rancher/rancher --event tag --format "{{.Number}},{{.Ref}}"| grep ${SOURCE_TAG}$ |cut -d',' -f1|head -1)
-if [ ! -n ${BUILD_NUMBER} ];then
+if [ ! -n ${BUILD_NUMBER} ]; then
     echo "error: no build found for tag: ${SOURCE_TAG}"
     exit 1
 fi
@@ -89,8 +89,8 @@ fi
 if [ ${DRY_RUN} = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable"
     echo "${CMD}"
-elif
-    #drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable
+else
+    drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable
 fi
 
 exit 0
