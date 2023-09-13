@@ -70,7 +70,7 @@ until [ ${PAGE} -gt 100 ]; do
 done
 
 echo "Found build number ${BUILD_NUMBER} for tag ${SOURCE_TAG}"
-if [ ${DRY_RUN} = true ]; then
+if [ "${DRY_RUN}" = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
     echo "${CMD}"
 else
@@ -86,7 +86,7 @@ if [ ! -n "${BUILD_NUMBER}" ]; then
     exit 1
 fi
 
-if [ ${DRY_RUN} = true ]; then
+if [ "${DRY_RUN}" = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable"
     echo "${CMD}"
 else
