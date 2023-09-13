@@ -58,8 +58,8 @@ PAGE=1
 until [ ${PAGE} -gt 100 ]; do
     echo "finding build number for tag: ${SOURCE_TAG}"
 
-    BUILD_NUMBER=$(drone build ls rancher/rancher --page ${PAGE} --event tag --format "{{.Number}},{{.Ref}}"| grep ${SOURCE_TAG}$ |cut -d',' -f1|head -1)
-    if [ ! -n ${BUILD_NUMBER} ]; then
+    BUILD_NUMBER=$(drone build ls rancher/rancher --page ${PAGE} --event tag --format "{{.Number}},{{.Ref}}"| grep "${SOURCE_TAG}"$ |cut -d',' -f1|head -1)
+    if [ ! -n "${BUILD_NUMBER}" ]; then
         echo "error: no build found for tag: ${SOURCE_TAG}"
         exit 1
     fi
@@ -74,14 +74,14 @@ if [ ${DRY_RUN} = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
     echo "${CMD}"
 else
-    drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}
+    drone build promote rancher/rancher "${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
     BUILD_NUMBER=""
 fi
 
 echo "promoting Chart${SOURCE_TAG} to ${DESTINATION_TAG}"
 
-BUILD_NUMBER=$(drone build ls rancher/rancher --event tag --format "{{.Number}},{{.Ref}}"| grep ${SOURCE_TAG}$ |cut -d',' -f1|head -1)
-if [ ! -n ${BUILD_NUMBER} ]; then
+BUILD_NUMBER=$(drone build ls rancher/rancher --event tag --format "{{.Number}},{{.Ref}}"| grep "${SOURCE_TAG}"$ |cut -d',' -f1|head -1)
+if [ ! -n "${BUILD_NUMBER}" ]; then
     echo "error: no build found for tag: ${SOURCE_TAG}"
     exit 1
 fi
@@ -90,7 +90,7 @@ if [ ${DRY_RUN} = true ]; then
     CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable"
     echo "${CMD}"
 else
-    drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable
+    drone build promote rancher/rancher "${BUILD_NUMBER}" promote-stable
 fi
 
 exit 0
