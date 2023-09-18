@@ -59,15 +59,19 @@ until [ ${PAGE} -gt 100 ]; do
     echo "finding build number for tag: ${SOURCE_TAG}"
 
     BUILD_NUMBER=$(drone build ls rancher/rancher --page ${PAGE} --event tag --format "{{.Number}},{{.Ref}}"| grep "${SOURCE_TAG}"$ |cut -d',' -f1|head -1)
-    if [ ! -n "${BUILD_NUMBER}" ]; then
-        echo "error: no build found for tag: ${SOURCE_TAG}"
-        exit 1
+    if [ -n "${BUILD_NUMBER}" ]; then
+        break
     fi
     
     PAGE=$((PAGE+1))
 
     sleep 1
 done
+
+if [ ! -n "${BUILD_NUMBER}" ]; then
+    echo "error: no build found for tag: ${SOURCE_TAG}"
+    exit 1
+fi
 
 echo "Found build number ${BUILD_NUMBER} for tag ${SOURCE_TAG}"
 if [ "${DRY_RUN}" = true ]; then
@@ -76,6 +80,7 @@ if [ "${DRY_RUN}" = true ]; then
 else
     drone build promote rancher/rancher "${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
     BUILD_NUMBER=""
+    sleep 2
 fi
 
 echo "promoting Chart${SOURCE_TAG} to ${DESTINATION_TAG}"
