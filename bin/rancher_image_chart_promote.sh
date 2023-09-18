@@ -7,21 +7,16 @@ set -e
 usage() {
     echo "usage: $0 [h] <tag> <stable_or_latest>
     -h    show help
-    -d    dry run mode
 
 examples:
-    $0 v2.7.1 v2.8.3
-    $0 -d"
+    $0 v2.7.1 latest"
 }
 
-while getopts 'hd' c; do
+while getopts 'h' c; do
     case $c in
     h)
         usage
         exit 0
-    ;;
-    d)
-        DRY_RUN=true
     ;;
     *)
         usage
@@ -32,7 +27,7 @@ done
 
 has_drone
 
-if [ $# -ne 2 ]; then
+if [ $# -lt 2 ]; then
     echo "error: $0 <tag> <stable_or_latest>"
     exit 1
 fi
@@ -74,14 +69,10 @@ if [ ! -n "${BUILD_NUMBER}" ]; then
 fi
 
 echo "Found build number ${BUILD_NUMBER} for tag ${SOURCE_TAG}"
-if [ "${DRY_RUN}" = true ]; then
-    CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
-    echo "${CMD}"
-else
-    drone build promote rancher/rancher "${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
-    BUILD_NUMBER=""
-    sleep 2
-fi
+
+drone build promote rancher/rancher "${BUILD_NUMBER} promote-docker-image --param=SOURCE_TAG=${SOURCE_TAG} --param=DESTINATION_TAG=${DESTINATION_TAG}"
+BUILD_NUMBER=""
+sleep 2
 
 echo "promoting Chart${SOURCE_TAG} to ${DESTINATION_TAG}"
 
@@ -91,11 +82,6 @@ if [ ! -n "${BUILD_NUMBER}" ]; then
     exit 1
 fi
 
-if [ "${DRY_RUN}" = true ]; then
-    CMD="drone build promote rancher/rancher ${BUILD_NUMBER} promote-stable"
-    echo "${CMD}"
-else
-    drone build promote rancher/rancher "${BUILD_NUMBER}" promote-stable
-fi
+drone build promote rancher/rancher "${BUILD_NUMBER}" promote-stable
 
 exit 0
