@@ -23,10 +23,7 @@ func ListRancherImagesRC(tag string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rcImages, err := findRCNonMirroredImages(imagesFile)
-	if err != nil {
-		return "", err
-	}
+	rcImages := nonMirroredRCImages(imagesFile)
 
 	if len(rcImages) == 0 {
 		return "There are none non-mirrored images still in rc form for tag " + tag, nil
@@ -41,7 +38,7 @@ func ListRancherImagesRC(tag string) (string, error) {
 	return output, nil
 }
 
-func findRCNonMirroredImages(images string) ([]string, error) {
+func nonMirroredRCImages(images string) []string {
 	var rcImages []string
 
 	scanner := bufio.NewScanner(strings.NewReader(images))
@@ -54,7 +51,7 @@ func findRCNonMirroredImages(images string) ([]string, error) {
 			rcImages = append(rcImages, image)
 		}
 	}
-	return rcImages, nil
+	return rcImages
 }
 
 func rancherImages(imagesURL string) (string, error) {
@@ -66,9 +63,7 @@ func rancherImages(imagesURL string) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(
-			"failed to download rancher-images.txt file, expected status code 200, got: " + strconv.Itoa(resp.StatusCode),
-		)
+		return "", errors.New("failed to download rancher-images.txt file, expected status code 200, got: " + strconv.Itoa(resp.StatusCode))
 	}
 
 	images, err := io.ReadAll(resp.Body)
