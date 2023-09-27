@@ -65,11 +65,9 @@ func rancherImages(imagesURL string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", errors.New("failed to download rancher-images.txt file, expected status code 200, got: " + strconv.Itoa(resp.StatusCode))
 	}
-
 	images, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-
 	return string(images), nil
 }

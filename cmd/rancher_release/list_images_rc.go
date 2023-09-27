@@ -26,6 +26,7 @@ func listImagesRCCommand() cli.Command {
 func listImagesRC(c *cli.Context) error {
 	tag := c.String("tag")
 	logrus.Debug("tag: " + tag)
+
 	imagesRC, err := rancher.ListRancherImagesRC(tag)
 	if err != nil {
 		return err
