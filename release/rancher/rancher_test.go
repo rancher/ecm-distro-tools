@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFindRCNonMirroredImages(t *testing.T) {
+func TestNonMirroredRCImages(t *testing.T) {
 	images := "rancher/pushprox-proxy:v0.1.0-rancher2-proxy\nrancher/rancher-agent:v2.7.6-rc5\nrancher/rancher-csp-adapter:v2.0.2\nrancher/rancher-webhook:v0.3.5\nrancher/rancher:v2.7.6-rc5\nrancher/mirrored-rke-tools:v0.1.88-rc3"
 	exptectedRCImages := []string{"rancher/rancher-agent:v2.7.6-rc5", "rancher/rancher:v2.7.6-rc5"}
 	result := nonMirroredRCImages(images)
