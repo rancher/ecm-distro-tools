@@ -8,7 +8,7 @@ import (
 )
 
 func TestNonMirroredRCImages(t *testing.T) {
-	images := "rancher/pushprox-proxy:v0.1.0-rancher2-proxy\nrancher/rancher-agent:v2.7.6-rc5\nrancher/rancher-csp-adapter:v2.0.2\nrancher/rancher-webhook:v0.3.5\nrancher/rancher:v2.7.6-rc5\nrancher/mirrored-rke-tools:v0.1.88-rc3"
+	const images = "rancher/pushprox-proxy:v0.1.0-rancher2-proxy\nrancher/rancher-agent:v2.7.6-rc5\nrancher/rancher-csp-adapter:v2.0.2\nrancher/rancher-webhook:v0.3.5\nrancher/rancher:v2.7.6-rc5\nrancher/mirrored-rke-tools:v0.1.88-rc3"
 	exptectedRCImages := []string{"rancher/rancher-agent:v2.7.6-rc5", "rancher/rancher:v2.7.6-rc5"}
 	result := nonMirroredRCImages(images)
 	if reflect.DeepEqual(exptectedRCImages, result) != true {
@@ -17,7 +17,7 @@ func TestNonMirroredRCImages(t *testing.T) {
 }
 
 func TestRancherImages(t *testing.T) {
-	path := "/rancher/rancher/releases/download/v2.7.7-rc4/rancher-images.txt"
+	const path = "/rancher/rancher/releases/download/v2.7.7-rc4/rancher-images.txt"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != path {
 			t.Errorf(
@@ -40,7 +40,7 @@ func TestRancherImages(t *testing.T) {
 }
 
 func TestRancherHelmChartVersions(t *testing.T) {
-	path := "/server-charts/latest/index.yaml"
+	const path = "/server-charts/latest/index.yaml"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != path {
 			t.Errorf("Expected to request '%s', got: %s", path, r.URL.Path)
