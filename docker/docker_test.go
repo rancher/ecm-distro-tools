@@ -24,7 +24,7 @@ func TestDockerTag(t *testing.T) {
 	}))
 	defer server.Close()
 
-	images, err := dockerTag(context.TODO(), org, repo, tag, server.URL+path)
+	images, err := dockerTag(context.TODO(), org, repo, tag, server.URL)
 	if err != nil {
 		t.Error(err)
 	}

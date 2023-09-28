@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const registry = "https://hub.docker.com"
+const registryURL = "https://hub.docker.com"
 
 type DockerImage struct {
 	Architecture string    `json:"architecture"`
@@ -27,8 +27,7 @@ type DockerTag struct {
 
 // CheckImageArchs returns true if an image exists and has all the provided architectures
 func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string) (bool, error) {
-	url := registry + "/v2/repositories/" + org + "/" + repo + "/tags/" + tag
-	images, err := dockerTag(ctx, org, repo, tag, url)
+	images, err := dockerTag(ctx, org, repo, tag, registryURL)
 	if err != nil {
 		return false, err
 	}
@@ -44,7 +43,8 @@ func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string)
 
 // dockerTag returns a map whose keys are the architecture of each image
 // or an empty map if the tag is not found.
-func dockerTag(ctx context.Context, org, repo, tag, url string) (map[string]DockerImage, error) {
+func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[string]DockerImage, error) {
+	url := registryURL + "/v2/repositories/" + org + "/" + repo + "/tags/" + tag
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
