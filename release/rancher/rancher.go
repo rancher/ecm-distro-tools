@@ -84,8 +84,7 @@ func rancherImages(imagesURL string) (string, error) {
 	return string(images), nil
 }
 
-func CheckRancherDockerImage(tag string) error {
-	ctx := context.Background()
+func CheckRancherDockerImage(ctx context.Context, tag string) error {
 	org := "rancher"
 	repo := "rancher"
 	archs := []string{"amd64", "arm64", "s390x"}

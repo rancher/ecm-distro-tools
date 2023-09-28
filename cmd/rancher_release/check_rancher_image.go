@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -25,11 +27,8 @@ func checkRancherImage(c *cli.Context) error {
 	tag := c.String("tag")
 	logrus.Debug("tag: " + tag)
 
-	if err := rancher.CheckRancherDockerImage(tag); err != nil {
+	if err := rancher.CheckRancherDockerImage(context.Background(), tag); err != nil {
 		return err
 	}
-	if err := rancher.CheckHelmChartVersion(tag); err != nil {
-		return err
-	}
-	return nil
+	return rancher.CheckHelmChartVersion(tag)
 }
