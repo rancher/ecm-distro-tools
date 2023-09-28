@@ -38,3 +38,24 @@ func TestRancherImages(t *testing.T) {
 		t.Errorf("Expected 'images', got %s", result)
 	}
 }
+
+func TestRancherHelmChartVersions(t *testing.T) {
+	path := "/server-charts/latest/index.yaml"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != path {
+			t.Errorf("Expected to request '%s', got: %s", path, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{apiVersion: v1, entries: {rancher: [{appVersion: v2.7.7}, {appVersion: v2.7.6}]}}`))
+	}))
+	defer server.Close()
+
+	versions, err := rancherHelmChartVersions(server.URL + path)
+	if err != nil {
+		t.Error(err)
+	}
+	expectedVersions := []string{"v2.7.7", "v2.7.6"}
+	if !reflect.DeepEqual(expectedVersions, versions) {
+		t.Errorf("expected %v, got %v", expectedVersions, versions)
+	}
+}

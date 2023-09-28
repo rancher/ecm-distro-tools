@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const registry = "https://hub.docker.com"
@@ -30,11 +32,12 @@ func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string)
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("%+v", images)
 	for _, arch := range archs {
+		logrus.Info("checking " + arch)
 		if _, ok := images[arch]; !ok {
 			return false, errors.New("arch " + arch + "not found")
 		}
+		logrus.Info("passed, " + arch + " exists")
 	}
 	return true, nil
 }
@@ -52,7 +55,7 @@ func dockerTag(ctx context.Context, org, repo, tag, url string) (map[string]Dock
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+		return nil, fmt.Errorf("failed to find docker tag \"%s\", unexpected status code: %d", tag, res.StatusCode)
 	}
 	var dt DockerTag
 	if err := json.NewDecoder(res.Body).Decode(&dt); err != nil {
