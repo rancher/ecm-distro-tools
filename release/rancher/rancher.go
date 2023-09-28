@@ -84,10 +84,7 @@ func rancherImages(imagesURL string) (string, error) {
 	return string(images), nil
 }
 
-func CheckRancherDockerImage(ctx context.Context, tag string) error {
-	org := "rancher"
-	repo := "rancher"
-	archs := []string{"amd64", "arm64", "s390x"}
+func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
 	exists, err := docker.CheckImageArchs(ctx, org, repo, tag, archs)
 	if err != nil {
 		return err
@@ -103,7 +100,7 @@ func CheckHelmChartVersion(tag string) error {
 	if err != nil {
 		return err
 	}
-	foundVersion := false
+	var foundVersion bool
 	for _, version := range versions {
 		logrus.Debug("checking version " + version)
 		if tag == version {

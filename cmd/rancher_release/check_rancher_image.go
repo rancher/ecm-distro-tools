@@ -8,6 +8,11 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	rancherOrg  = "rancher"
+	rancherRepo = "rancher"
+)
+
 func checkRancherImageCommand() cli.Command {
 	return cli.Command{
 		Name:  "check-rancher-image",
@@ -26,8 +31,8 @@ func checkRancherImageCommand() cli.Command {
 func checkRancherImage(c *cli.Context) error {
 	tag := c.String("tag")
 	logrus.Debug("tag: " + tag)
-
-	if err := rancher.CheckRancherDockerImage(context.Background(), tag); err != nil {
+	rancherArchs := []string{"amd64", "arm64", "s390x"}
+	if err := rancher.CheckRancherDockerImage(context.Background(), rancherOrg, rancherRepo, tag, rancherArchs); err != nil {
 		return err
 	}
 	return rancher.CheckHelmChartVersion(tag)
