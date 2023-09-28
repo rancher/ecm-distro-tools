@@ -126,12 +126,8 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to download index.yaml file, expected status code 200, got: " + strconv.Itoa(resp.StatusCode))
 	}
-	index, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	var helmIndex HelmIndex
-	if err := yaml.Unmarshal(index, &helmIndex); err != nil {
+	if err := yaml.NewDecoder(resp.Body).Decode(&helmIndex); err != nil {
 		return nil, err
 	}
 	versions := make([]string, len(helmIndex.Entries.Rancher))
