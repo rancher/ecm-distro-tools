@@ -25,6 +25,7 @@ func main() {
 	app.Usage = "Perform a Rancher release"
 	app.Commands = []cli.Command{
 		listImagesRCCommand(),
+		checkRancherImageCommand(),
 	}
 	app.Flags = rootFlags
 

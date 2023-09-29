@@ -2,6 +2,7 @@ package rancher
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -9,13 +10,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rancher/ecm-distro-tools/docker"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 const (
-	rancherImagesBaseURL  = "https://github.com/rancher/rancher/releases/download/"
-	rancherImagesFileName = "/rancher-images.txt"
+	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
+	rancherImagesFileName    = "/rancher-images.txt"
+	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 )
+
+type HelmIndex struct {
+	Entries struct {
+		Rancher []struct {
+			AppVersion string `yaml:"appVersion"`
+		} `yaml:"rancher"`
+	} `yaml:"entries"`
+}
 
 func ListRancherImagesRC(tag string) (string, error) {
 	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
@@ -55,7 +68,7 @@ func nonMirroredRCImages(images string) []string {
 }
 
 func rancherImages(imagesURL string) (string, error) {
-	httpClient := http.Client{Timeout: time.Second * 15}
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	logrus.Debug("downloading: " + imagesURL)
 	resp, err := httpClient.Get(imagesURL)
 	if err != nil {
@@ -70,4 +83,50 @@ func rancherImages(imagesURL string) (string, error) {
 		return "", err
 	}
 	return string(images), nil
+}
+
+func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
+	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
+}
+
+func CheckHelmChartVersion(tag string) error {
+	versions, err := rancherHelmChartVersions(rancherHelmRepositoryURL)
+	if err != nil {
+		return err
+	}
+	var foundVersion bool
+	for _, version := range versions {
+		logrus.Debug("checking version " + version)
+		if tag == version {
+			logrus.Info("found chart for version " + version)
+			foundVersion = true
+			break
+		}
+	}
+	if !foundVersion {
+		return errors.New("failed to find chart for rancher app version " + tag)
+	}
+	return nil
+}
+
+func rancherHelmChartVersions(repoURL string) ([]string, error) {
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	logrus.Debug("downloading: " + repoURL)
+	resp, err := httpClient.Get(repoURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("failed to download index.yaml file, expected status code 200, got: " + strconv.Itoa(resp.StatusCode))
+	}
+	var helmIndex HelmIndex
+	if err := yaml.NewDecoder(resp.Body).Decode(&helmIndex); err != nil {
+		return nil, err
+	}
+	versions := make([]string, len(helmIndex.Entries.Rancher))
+	for i, entry := range helmIndex.Entries.Rancher {
+		versions[i] = entry.AppVersion
+	}
+	return versions, nil
 }
