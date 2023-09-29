@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rancher/ecm-distro-tools/docker"
-	httpx "github.com/rancher/ecm-distro-tools/http"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -68,7 +68,7 @@ func nonMirroredRCImages(images string) []string {
 }
 
 func rancherImages(imagesURL string) (string, error) {
-	httpClient := httpx.NewClient(time.Second * 15)
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	logrus.Debug("downloading: " + imagesURL)
 	resp, err := httpClient.Get(imagesURL)
 	if err != nil {
@@ -117,7 +117,7 @@ func CheckHelmChartVersion(tag string) error {
 }
 
 func rancherHelmChartVersions(repoURL string) ([]string, error) {
-	httpClient := httpx.NewClient(time.Second * 15)
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	logrus.Debug("downloading: " + repoURL)
 	resp, err := httpClient.Get(repoURL)
 	if err != nil {

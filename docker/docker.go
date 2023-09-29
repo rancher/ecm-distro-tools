@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	httpx "github.com/rancher/ecm-distro-tools/http"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +51,7 @@ func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[str
 	if err != nil {
 		return nil, err
 	}
-	httpClient := httpx.NewClient(time.Second * 15)
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
