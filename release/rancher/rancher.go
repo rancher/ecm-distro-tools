@@ -86,12 +86,9 @@ func rancherImages(imagesURL string) (string, error) {
 }
 
 func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	exists, err := docker.CheckImageArchs(ctx, org, repo, tag, archs)
+	err := docker.CheckImageArchs(ctx, org, repo, tag, archs)
 	if err != nil {
 		return err
-	}
-	if !exists {
-		return errors.New("image tag doesn't exist or doesn't have all architectures")
 	}
 	return nil
 }
