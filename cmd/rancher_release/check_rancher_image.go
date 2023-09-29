@@ -10,7 +10,7 @@ import (
 
 const (
 	rancherOrg  = "rancher"
-	rancherRepo = "rancher"
+	rancherRepo = rancherOrg
 )
 
 func checkRancherImageCommand() cli.Command {
