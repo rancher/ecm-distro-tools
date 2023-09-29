@@ -86,11 +86,7 @@ func rancherImages(imagesURL string) (string, error) {
 }
 
 func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	err := docker.CheckImageArchs(ctx, org, repo, tag, archs)
-	if err != nil {
-		return err
-	}
-	return nil
+	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
 }
 
 func CheckHelmChartVersion(tag string) error {
