@@ -16,8 +16,8 @@ runs:
       mkdir -p "$DOWNLOAD_DIR"
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
-      chmod +x $RUNNER_TEMP/*
-      ls -al $RUNNER_TEMP
+      chmod +x $DOWNLOAD_DIR/*
+      ls -al $DOWNLOAD_DIR
 branding:
   icon: terminal
   color: green
