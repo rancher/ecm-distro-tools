@@ -10,13 +10,13 @@ runs:
   steps:
   - shell: bash
     run: |
-      TAG="${{ inputs.tag }}"
+      TAG="${{ inputs.version }}"
       REPO="rancher/ecm-distro-tools"
       DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
       mkdir -p "$DOWNLOAD_DIR"
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
-      echo $DOWNLOAD_DIR
+      chmod +x $RUNNER_TEMP/*
 branding:
   icon: terminal
   color: green
