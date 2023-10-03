@@ -8,7 +8,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
-  - run: |
+  - shell: bash
+    run: |
       TAG="${{ inputs.tag }}"
       REPO="rancher/ecm-distro-tools"
       DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
