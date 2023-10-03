@@ -17,6 +17,7 @@ runs:
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
       chmod +x $RUNNER_TEMP/*
+      ls -al $RUNNER_TEMP
 branding:
   icon: terminal
   color: green
