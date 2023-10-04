@@ -19,10 +19,10 @@ runs:
 
       if [ $GH_AUTHENTICATED -eq 0 ]; then
         echo "is authenticated"
-        gh release download "$TAG" --repo my-org/my-repo --dir "$DOWNLOAD_DIR"
+        gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       else
         echo "not authenticated"
-        curl -s "https://api.github.com/repos/my-org/my-repo/releases/tags/$TAG" \
+        curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
           | jq -r '.assets[] | .browser_download_url' \
           | xargs -I {} curl -L -o "$DOWNLOAD_DIR/$(basename {})" {}
       fi
