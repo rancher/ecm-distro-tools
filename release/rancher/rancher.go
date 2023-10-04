@@ -191,6 +191,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, cu
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	if err := os.Chmod(scriptPath, 0755); err != nil {
 		return err
 	}
