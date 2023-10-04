@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	ecmGithub "github.com/rancher/ecm-distro-tools/github"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -28,7 +27,7 @@ func createRelease(c *cli.Context) error {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
 
-	client, err := ecmGithub.NewGithubClient(ctx, release.Token)
+	client, err := k3s.NewGithubClient(ctx, release.Token)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}

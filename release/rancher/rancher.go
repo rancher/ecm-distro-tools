@@ -16,8 +16,8 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
-	ecmGithub "github.com/rancher/ecm-distro-tools/github"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -204,10 +204,7 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 		return err
 	}
 
-	ghClient, err := ecmGithub.NewGithubClient(ctx, githubToken)
-	if err != nil {
-		return err
-	}
+	ghClient := repository.NewGithub(ctx, githubToken)
 
 	if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {
 		return err
@@ -218,17 +215,17 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, newKDMBranch, forkOwner string, ghClient *github.Client) error {
 	const repo = "rancher"
-	const org = "tashima42"
-
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return err
+	}
 	pull := &github.NewPullRequest{
 		Title:               github.String("Update KDM Branch to " + newKDMBranch),
 		Base:                github.String(rancherBaseBranch),
 		Head:                github.String(forkOwner + ":" + "kdm-set-" + newKDMBranch),
 		MaintainerCanModify: github.Bool(true),
 	}
-
-	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, org, repo, pull)
+	_, _, err = ghClient.PullRequests.Create(ctx, org, repo, pull)
 
 	return err
 }
