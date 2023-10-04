@@ -28,7 +28,7 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 
 	setKDMBranchReferencesScriptFile = "set-kdm-branch-references.sh"
-	setKDMBranchReferencesScript = `#!/bin/bash
+	setKDMBranchReferencesScript     = `#!/bin/bash
 set -x
 
 BRANCH_NAME=kdm-set-{{ .NewKDMBranch }}
