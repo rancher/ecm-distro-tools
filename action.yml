@@ -13,7 +13,19 @@ runs:
       REPO="rancher/ecm-distro-tools"
       DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
       mkdir -p "$DOWNLOAD_DIR"
-      gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
-      chmod +x "$DOWNLOAD_DIR/*"
+
+      GH_AUTHENTICATED=$(gh auth status >/dev/null 2>&1; echo $?)
+
+      if [ $GH_AUTHENTICATED -eq 0 ]; then
+        echo "is authenticated"
+        gh release download "$TAG" --repo my-org/my-repo --dir "$DOWNLOAD_DIR"
+      else
+        echo "not authenticated"
+        curl -s "https://api.github.com/repos/my-org/my-repo/releases/tags/$TAG" \
+          | jq -r '.assets[] | .browser_download_url' \
+          | xargs -I {} curl -L -o "$DOWNLOAD_DIR/$(basename {})" {}
+      fi
+
+      chmod +x "$DOWNLOAD_DIR/"*
       ls -al "$DOWNLOAD_DIR"
