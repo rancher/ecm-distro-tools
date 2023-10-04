@@ -32,6 +32,7 @@ const (
 set -x
 
 BRANCH_NAME=kdm-set-{{ .NewKDMBranch }}
+DRY_RUN={{ .DryRun }}
 
 cd {{ .RancherRepoDir }}
 git remote add upstream https://github.com/rancher/rancher.git
@@ -59,7 +60,9 @@ git add package/Dockerfile
 git add Dockerfile.dapper
 
 git commit --all --signoff -m "update kdm branch to {{ .NewKDMBranch }}"
-git push --set-upstream origin $BRANCH_NAME`
+if [ "$DRY_RUN" == false ]; then
+	git push --set-upstream origin $BRANCH_NAME
+fi`
 )
 
 type SetKDMBranchReferencesArgs struct {
@@ -67,6 +70,7 @@ type SetKDMBranchReferencesArgs struct {
 	CurrentKDMBranch  string
 	NewKDMBranch      string
 	RancherBaseBranch string
+	DryRun            bool
 }
 
 type HelmIndex struct {
@@ -178,7 +182,7 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR bool) error {
+func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
 	if _, err := os.Stat(rancherForkDir); err != nil {
 		return err
 	}
@@ -199,6 +203,7 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 		CurrentKDMBranch:  currentKDMBranch,
 		NewKDMBranch:      newKDMBranch,
 		RancherBaseBranch: rancherBaseBranch,
+		DryRun:            dryRun,
 	}
 	if err := tmpl.Execute(f, data); err != nil {
 		return err
@@ -207,7 +212,7 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 		return err
 	}
 
-	if createPR {
+	if createPR && !dryRun {
 		ghClient := repository.NewGithub(ctx, githubToken)
 
 		if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {

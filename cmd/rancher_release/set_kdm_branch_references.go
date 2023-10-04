@@ -43,6 +43,11 @@ func setKDMBranchReferencesCommand() cli.Command {
 				Usage:    "github username of the owner of the fork, only required if 'create-pr' is true",
 				Required: false,
 			},
+			cli.BoolFlag{
+				Name:     "dry-run",
+				Usage:    "the newly created branch won't be pushed to remote and the PR won't be created",
+				Required: false,
+			},
 		},
 		Action: setKDMBranchReferences,
 	}
@@ -56,6 +61,7 @@ func setKDMBranchReferences(c *cli.Context) error {
 	createPR := c.BoolT("create-pr")
 	forkOwner := c.String("fork-owner")
 	githubToken := os.Getenv("GITHUB_TOKEN")
+	dryRun := c.BoolT("dry-run")
 	if createPR {
 		if forkOwner == "" {
 			return errors.New("if 'create-pr' is true, fork-owner is required")
@@ -65,5 +71,5 @@ func setKDMBranchReferences(c *cli.Context) error {
 		}
 	}
 
-	return rancher.SetKDMBranchReferences(context.Background(), rancherForkDir, baseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken, createPR)
+	return rancher.SetKDMBranchReferences(context.Background(), rancherForkDir, baseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
 }
