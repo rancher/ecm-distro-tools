@@ -204,10 +204,12 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 		return err
 	}
 
-	ghClient := repository.NewGithub(ctx, githubToken)
+	if createPR {
+		ghClient := repository.NewGithub(ctx, githubToken)
 
-	if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {
-		return err
+		if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {
+			return err
+		}
 	}
 
 	return nil
