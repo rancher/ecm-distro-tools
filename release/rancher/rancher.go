@@ -49,6 +49,9 @@ elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
 	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentKDMBranch }}")/NewSetting("kdm-branch", "{{ .NewKDMBranch }}")/' pkg/settings/setting.go
 	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' package/Dockerfile
 	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' Dockerfile.dapper
+else
+	>&2 echo "$(uname) not supported yet"
+	exit 1
 fi
 
 git add pkg/settings/setting.go
