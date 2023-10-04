@@ -1,6 +1,5 @@
 name: 'Setup ecm-distro-tools'
 description: 'Installs ecm-distro-tools scripts to the PATH.'
-author: 'brooksn'
 inputs:
   version:
     description: 'The tag of the ecm-distro-tools release to install.'
@@ -14,6 +13,7 @@ runs:
       REPO="rancher/ecm-distro-tools"
       DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
       mkdir -p "$DOWNLOAD_DIR"
+      cp -r ./bin/* "$DOWNLOAD_DIR/
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
       chmod +x $DOWNLOAD_DIR/*
