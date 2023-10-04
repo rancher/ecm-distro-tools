@@ -22,9 +22,12 @@ runs:
         gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       else
         echo "not authenticated"
-        curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
-          | jq -r '.assets[] | .browser_download_url' \
-          | xargs -I {} curl -L -o "$DOWNLOAD_DIR/$(basename {})" {}
+        URLS=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
+          | jq -r '.assets[] | .browser_download_url')
+        echo "$URLS" | while read -r url; do
+          FILENAME=$(basename "$url")
+          curl -sS -L "$url" -o "$MY_DIRECTORY/$FILENAME"
+        done
       fi
 
       chmod +x "$DOWNLOAD_DIR/"*
