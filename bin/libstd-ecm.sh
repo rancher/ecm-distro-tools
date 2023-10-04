@@ -79,6 +79,11 @@ has_awk() {
     __cmd_check "${AWK}"
 }
 
+has_drone() {
+    DRONE="$(command -v drone)"
+    __cmd_check "${DRONE}"
+}
+
 # setup_verify_arch set arch and suffix,
 # fatal if architecture not supported.
 setup_verify_arch() {

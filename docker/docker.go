@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,20 +26,20 @@ type DockerTag struct {
 	Images []DockerImage `json:"images"`
 }
 
-// CheckImageArchs returns true if an image exists and has all the provided architectures
-func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string) (bool, error) {
+// CheckImageArchs checks if an image exists and has all the provided architectures
+func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string) error {
 	images, err := dockerTag(ctx, org, repo, tag, registryURL)
 	if err != nil {
-		return false, err
+		return err
 	}
 	for _, arch := range archs {
 		logrus.Info("checking " + arch)
 		if _, ok := images[arch]; !ok {
-			return false, errors.New("arch " + arch + "not found")
+			return errors.New("arch " + arch + "not found")
 		}
 		logrus.Info("passed, " + arch + " exists")
 	}
-	return true, nil
+	return nil
 }
 
 // dockerTag returns a map whose keys are the architecture of each image
@@ -49,7 +50,7 @@ func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[str
 	if err != nil {
 		return nil, err
 	}
-	httpClient := http.Client{Timeout: time.Second * 15}
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err

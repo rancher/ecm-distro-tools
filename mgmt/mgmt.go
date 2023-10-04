@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -385,13 +386,10 @@ const (
 	chartIndecURL   = "https://raw.githubusercontent.com/rancher/rke2-charts/main/index.yaml"
 )
 
-var client *http.Client
-
 func imageSourcesProc(ctx context.Context, client *http.Client, columnIndex int) ([]string, error) {
 	if client == nil {
-		client = &http.Client{
-			Timeout: time.Second * 30,
-		}
+		httpClient := ecmHTTP.NewClient(time.Second * 30)
+		client = &httpClient
 	}
 
 	req, err := http.NewRequest(http.MethodGet, imageSourcesURL, nil)
@@ -437,9 +435,8 @@ func RKE2Images(ctx context.Context, client *http.Client) ([]string, error) {
 // RKE2ChartsIndex
 func RKE2ChartsIndex(ctx context.Context, client *http.Client) (string, error) {
 	if client == nil {
-		client = &http.Client{
-			Timeout: time.Second * 30,
-		}
+		httpClient := ecmHTTP.NewClient(time.Second * 30)
+		client = &httpClient
 	}
 
 	req, err := http.NewRequest(http.MethodGet, chartIndecURL, nil)

@@ -17,6 +17,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmGithub "github.com/rancher/ecm-distro-tools/github"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -27,7 +28,6 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 
 	setKDMBranchReferencesScriptFile = "set-kdm-branch-references.sh"
-
 	setKDMBranchReferencesScript = `#!/bin/bash
 set -x
 
@@ -112,7 +112,7 @@ func nonMirroredRCImages(images string) []string {
 }
 
 func rancherImages(imagesURL string) (string, error) {
-	httpClient := http.Client{Timeout: time.Second * 15}
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	logrus.Debug("downloading: " + imagesURL)
 	resp, err := httpClient.Get(imagesURL)
 	if err != nil {
@@ -130,14 +130,7 @@ func rancherImages(imagesURL string) (string, error) {
 }
 
 func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	exists, err := docker.CheckImageArchs(ctx, org, repo, tag, archs)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return errors.New("image tag doesn't exist or doesn't have all architectures")
-	}
-	return nil
+	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
 }
 
 func CheckHelmChartVersion(tag string) error {
@@ -161,7 +154,7 @@ func CheckHelmChartVersion(tag string) error {
 }
 
 func rancherHelmChartVersions(repoURL string) ([]string, error) {
-	httpClient := http.Client{Timeout: time.Second * 15}
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	logrus.Debug("downloading: " + repoURL)
 	resp, err := httpClient.Get(repoURL)
 	if err != nil {
