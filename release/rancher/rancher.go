@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/docker"
-	ecmExec "github.com/rancher/ecm-distro-tools/exec"
+	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
@@ -27,7 +27,7 @@ const (
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 
-	setKDMBranchReferencesScriptFile = "set-kdm-branch-references.sh"
+	setKDMBranchReferencesScriptFile = "set_kdm_branch_references.sh"
 	setKDMBranchReferencesScript     = `#!/bin/bash
 set -x
 
@@ -38,8 +38,8 @@ cd {{ .RancherRepoDir }}
 git remote add upstream https://github.com/rancher/rancher.git
 git fetch upstream
 git stash
-git branch -D $BRANCH_NAME
-git checkout -B $BRANCH_NAME upstream/{{.RancherBaseBranch}}
+git branch -D ${BRANCH_NAME}
+git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
 git clean -xfd
 
 if [ "$(uname)" == "Darwin" ];then
@@ -60,8 +60,8 @@ git add package/Dockerfile
 git add Dockerfile.dapper
 
 git commit --all --signoff -m "update kdm branch to {{ .NewKDMBranch }}"
-if [ "$DRY_RUN" == false ]; then
-	git push --set-upstream origin $BRANCH_NAME
+if [ "${DRY_RUN}" == false ]; then
+	git push --set-upstream origin ${BRANCH_NAME}
 fi`
 )
 
@@ -182,11 +182,11 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
-	if _, err := os.Stat(rancherForkDir); err != nil {
+func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+	if _, err := os.Stat(forkPath); err != nil {
 		return err
 	}
-	scriptPath := filepath.Join(rancherForkDir, setKDMBranchReferencesScriptFile)
+	scriptPath := filepath.Join(forkPath, setKDMBranchReferencesScriptFile)
 	f, err := os.Create(scriptPath)
 	if err != nil {
 		return err
@@ -199,7 +199,7 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 		return err
 	}
 	data := SetKDMBranchReferencesArgs{
-		RancherRepoDir:    rancherForkDir,
+		RancherRepoDir:    forkPath,
 		CurrentKDMBranch:  currentKDMBranch,
 		NewKDMBranch:      newKDMBranch,
 		RancherBaseBranch: rancherBaseBranch,
@@ -208,7 +208,7 @@ func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBran
 	if err := tmpl.Execute(f, data); err != nil {
 		return err
 	}
-	if _, err := ecmExec.RunCommand(rancherForkDir, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
+	if _, err := exec.RunCommand(forkPath, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
 		return err
 	}
 

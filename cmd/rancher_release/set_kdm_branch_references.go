@@ -11,16 +11,16 @@ import (
 
 func setKDMBranchReferencesCommand() cli.Command {
 	return cli.Command{
-		Name:  "set-kdm-branch-references",
+		Name:  "set-kdm-branch-refs",
 		Usage: "set kdm branch references in files",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:     "rancher-fork-dir",
-				Usage:    "rancher repo fork directory",
+				Name:     "fork-path",
+				Usage:    "rancher repo fork directory path",
 				Required: true,
 			},
 			cli.StringFlag{
-				Name:     "rancher-base-branch",
+				Name:     "base-branch",
 				Usage:    "rancher branch to use as a base, e.g: release/v2.8",
 				Required: true,
 			},
@@ -54,8 +54,8 @@ func setKDMBranchReferencesCommand() cli.Command {
 }
 
 func setKDMBranchReferences(c *cli.Context) error {
-	rancherForkDir := c.String("rancher-fork-dir")
-	baseBranch := c.String("rancher-base-branch")
+	forkPath := c.String("fork-path")
+	baseBranch := c.String("base-branch")
 	currentKDMBranch := c.String("current-kdm-branch")
 	newKDMBranch := c.String("new-kdm-branch")
 	createPR := c.BoolT("create-pr")
@@ -64,12 +64,12 @@ func setKDMBranchReferences(c *cli.Context) error {
 	dryRun := c.BoolT("dry-run")
 	if createPR {
 		if forkOwner == "" {
-			return errors.New("if 'create-pr' is true, fork-owner is required")
+			return errors.New("'create-pr' requires 'fork-owner'")
 		}
 		if githubToken == "" {
-			return errors.New("if 'create-pr' is true, the 'GITHUB_TOKEN' env variable is required")
+			return errors.New("'create-pr' requires the 'GITHUB_TOKEN' env var")
 		}
 	}
 
-	return rancher.SetKDMBranchReferences(context.Background(), rancherForkDir, baseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
+	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
 }
