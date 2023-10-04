@@ -18,6 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
+	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
@@ -271,7 +272,7 @@ func (r *Release) gitRebaseOnto() (string, error) {
 	if err := cleanGitRepo(dir); err != nil {
 		return "", err
 	}
-	if _, err := runCommand(dir, "rm", "-rf", "_output"); err != nil {
+	if _, err := ecmExec.RunCommand(dir, "rm", "-rf", "_output"); err != nil {
 		return "", err
 	}
 
@@ -318,20 +319,6 @@ func (r *Release) goVersion() (string, error) {
 	return "", errors.New("can not find Go dependency")
 }
 
-func runCommand(dir, cmd string, args ...string) (string, error) {
-	command := exec.Command(cmd, args...)
-
-	var outb, errb bytes.Buffer
-	command.Stdout = &outb
-	command.Stderr = &errb
-	command.Dir = dir
-	if err := command.Run(); err != nil {
-		return "", errors.New(errb.String())
-	}
-
-	return outb.String(), nil
-}
-
 func (r *Release) buildGoWrapper() (string, error) {
 	goVersion, err := r.goVersion()
 	if err != nil {
@@ -349,7 +336,7 @@ func (r *Release) buildGoWrapper() (string, error) {
 	}
 
 	wrapperImageTag := goImageVersion + "-dev"
-	if _, err := runCommand(r.Workspace, "docker", "build", "-t", wrapperImageTag, "."); err != nil {
+	if _, err := ecmExec.RunCommand(r.Workspace, "docker", "build", "-t", wrapperImageTag, "."); err != nil {
 		return "", err
 	}
 
@@ -385,7 +372,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 
-	gopath, err := runCommand(r.Workspace, "go", "env", "GOPATH")
+	gopath, err := ecmExec.RunCommand(r.Workspace, "go", "env", "GOPATH")
 	if err != nil {
 		return "", err
 	}
@@ -417,7 +404,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 
 	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git "+containerGoCachePath+" "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
 
-	return runCommand(k8sDir, "docker", args...)
+	return ecmExec.RunCommand(k8sDir, "docker", args...)
 }
 
 func tagPushLines(out string) []string {
@@ -456,7 +443,7 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 }
 
 func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
-	// here we can use go-git library or runCommand function
+	// here we can use go-git library or ecmExec.RunCommand function
 	// I am using go-git library to enhance code quality
 	gitConfigFile, err := r.setupGitArtifacts()
 	if err != nil {
@@ -560,7 +547,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 		return err
 	}
 
-	if _, err := runCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
+	if _, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
 		return err
 	}
 
@@ -652,15 +639,15 @@ func (r *Release) removeExistingTags() error {
 }
 
 func cleanGitRepo(dir string) error {
-	if _, err := runCommand(dir, "rm", "-rf", "_output"); err != nil {
+	if _, err := ecmExec.RunCommand(dir, "rm", "-rf", "_output"); err != nil {
 		return err
 	}
 
-	if _, err := runCommand(dir, "git", "clean", "-xfd"); err != nil {
+	if _, err := ecmExec.RunCommand(dir, "git", "clean", "-xfd"); err != nil {
 		return err
 	}
 
-	if _, err := runCommand(dir, "git", "checkout", "."); err != nil {
+	if _, err := ecmExec.RunCommand(dir, "git", "checkout", "."); err != nil {
 		return err
 	}
 

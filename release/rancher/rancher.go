@@ -6,11 +6,15 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/rancher/ecm-distro-tools/docker"
+	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -19,7 +23,46 @@ const (
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
+
+	setKDMBranchReferencesScriptFile = "set-kdm-branch-references.sh"
+
+	setKDMBranchReferencesScript = `#!/bin/bash
+set -x
+
+BRANCH_NAME=kdm-set-{{ .NewKDMBranch }}
+
+cd {{ .RancherRepoDir }}
+git remote add upstream https://github.com/rancher/rancher.git
+git fetch upstream
+git stash
+git branch -D $BRANCH_NAME
+git checkout -B $BRANCH_NAME upstream/{{.RancherBaseBranch}}
+git clean -xfd
+
+if [ "$(uname)" == "Darwin" ];then
+	sed -i '' 's/NewSetting(\"kdm-branch\", \"{{ .CurrentKDMBranch }}\")/NewSetting(\"kdm-branch\", \"{{ .NewKDMBranch }}\")/' pkg/settings/setting.go
+	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' package/Dockerfile
+	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' Dockerfile.dapper
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then 
+	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentKDMBranch }}")/NewSetting("kdm-branch", "{{ .NewKDMBranch }}")/' pkg/settings/setting.go
+	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' package/Dockerfile
+	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' Dockerfile.dapper
+fi
+
+git add pkg/settings/setting.go
+git add package/Dockerfile
+git add Dockerfile.dapper
+
+git commit --all --signoff -m "update kdm branch to {{ .NewKDMBranch }}"
+git push --set-upstream origin $BRANCH_NAME`
 )
+
+type SetKDMBranchReferencesArgs struct {
+	RancherRepoDir    string
+	CurrentKDMBranch  string
+	NewKDMBranch      string
+	RancherBaseBranch string
+}
 
 type HelmIndex struct {
 	Entries struct {
@@ -135,4 +178,45 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 		versions[i] = entry.AppVersion
 	}
 	return versions, nil
+}
+
+func SetKDMBranchReferences(rancherRepoDir, rancherBaseBranch, currentKDMBranch, newKDMBranch string) error {
+	logrus.Info("oi")
+	if _, err := os.Stat(rancherRepoDir); err != nil {
+		return err
+	}
+
+	logrus.Info("1")
+	scriptPath := filepath.Join(rancherRepoDir, setKDMBranchReferencesScriptFile)
+	f, err := os.Create(scriptPath)
+	if err != nil {
+		return err
+	}
+	logrus.Info("2")
+	if err := os.Chmod(scriptPath, 0755); err != nil {
+		return err
+	}
+	logrus.Info("3")
+	tmpl, err := template.New(setKDMBranchReferencesScriptFile).Parse(setKDMBranchReferencesScript)
+	if err != nil {
+		return err
+	}
+	logrus.Info("4")
+	data := SetKDMBranchReferencesArgs{
+		RancherRepoDir:    rancherRepoDir,
+		CurrentKDMBranch:  currentKDMBranch,
+		NewKDMBranch:      newKDMBranch,
+		RancherBaseBranch: rancherBaseBranch,
+	}
+	logrus.Info("5")
+	if err := tmpl.Execute(f, data); err != nil {
+		return err
+	}
+
+	logrus.Info("6")
+	if _, err := ecmExec.RunCommand(rancherRepoDir, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
+		return err
+	}
+
+	return nil
 }
