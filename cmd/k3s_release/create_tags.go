@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ecmGithub "github.com/rancher/ecm-distro-tools/github"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -30,7 +31,7 @@ func createTags(c *cli.Context) error {
 		logrus.Fatalf("config file: %v", err)
 	}
 
-	client, err := k3s.NewGithubClient(ctx, release.Token)
+	client, err := ecmGithub.NewGithubClient(ctx, release.Token)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}

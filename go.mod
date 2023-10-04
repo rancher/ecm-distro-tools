@@ -17,6 +17,7 @@ require (
 
 require (
 	github.com/MetalBlueberry/go-plotly v0.4.0
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/urfave/cli v1.22.9
 	gopkg.in/yaml.v2 v2.4.0
 )

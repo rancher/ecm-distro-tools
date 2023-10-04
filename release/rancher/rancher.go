@@ -13,8 +13,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
+	ecmGithub "github.com/rancher/ecm-distro-tools/github"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -180,43 +182,60 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(rancherRepoDir, rancherBaseBranch, currentKDMBranch, newKDMBranch string) error {
-	logrus.Info("oi")
-	if _, err := os.Stat(rancherRepoDir); err != nil {
+func SetKDMBranchReferences(ctx context.Context, rancherForkDir, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR bool) error {
+	if _, err := os.Stat(rancherForkDir); err != nil {
 		return err
 	}
-
-	logrus.Info("1")
-	scriptPath := filepath.Join(rancherRepoDir, setKDMBranchReferencesScriptFile)
+	scriptPath := filepath.Join(rancherForkDir, setKDMBranchReferencesScriptFile)
 	f, err := os.Create(scriptPath)
 	if err != nil {
 		return err
 	}
-	logrus.Info("2")
 	if err := os.Chmod(scriptPath, 0755); err != nil {
 		return err
 	}
-	logrus.Info("3")
 	tmpl, err := template.New(setKDMBranchReferencesScriptFile).Parse(setKDMBranchReferencesScript)
 	if err != nil {
 		return err
 	}
-	logrus.Info("4")
 	data := SetKDMBranchReferencesArgs{
-		RancherRepoDir:    rancherRepoDir,
+		RancherRepoDir:    rancherForkDir,
 		CurrentKDMBranch:  currentKDMBranch,
 		NewKDMBranch:      newKDMBranch,
 		RancherBaseBranch: rancherBaseBranch,
 	}
-	logrus.Info("5")
 	if err := tmpl.Execute(f, data); err != nil {
 		return err
 	}
+	if _, err := ecmExec.RunCommand(rancherForkDir, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
+		return err
+	}
 
-	logrus.Info("6")
-	if _, err := ecmExec.RunCommand(rancherRepoDir, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
+	ghClient, err := ecmGithub.NewGithubClient(ctx, githubToken)
+	if err != nil {
+		return err
+	}
+
+	if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func createPRFromRancher(ctx context.Context, rancherBaseBranch, newKDMBranch, forkOwner string, ghClient *github.Client) error {
+	const repo = "rancher"
+	const org = "tashima42"
+
+	pull := &github.NewPullRequest{
+		Title:               github.String("Update KDM Branch to " + newKDMBranch),
+		Base:                github.String(rancherBaseBranch),
+		Head:                github.String(forkOwner + ":" + "kdm-set-" + newKDMBranch),
+		MaintainerCanModify: github.Bool(true),
+	}
+
+	// creating a pr from your fork branch
+	_, _, err := ghClient.PullRequests.Create(ctx, org, repo, pull)
+
+	return err
 }

@@ -570,14 +570,6 @@ func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) 
 	return err
 }
 
-func NewGithubClient(ctx context.Context, token string) (*github.Client, error) {
-	if token == "" {
-		return nil, errors.New("error: github token required")
-	}
-
-	return repository.NewGithub(ctx, token), nil
-}
-
 func (r *Release) TagsCreated(_ context.Context) (bool, error) {
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8SVersion)
 
