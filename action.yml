@@ -17,7 +17,7 @@ runs:
       ls -al "${{ github.action_path }}"
       echo "${{ github.action_path }}"
       ls -al "$BIN_DIR"
-      cp -r "$BIN_DIR/*" "$DOWNLOAD_DIR/"
+      cp -r "$BIN_DIR/"* "$DOWNLOAD_DIR/"
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
       chmod +x "$DOWNLOAD_DIR/*"
