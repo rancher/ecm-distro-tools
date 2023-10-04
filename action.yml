@@ -14,11 +14,11 @@ runs:
       DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
       BIN_DIR="${{ github.action_path }}/bin"
       mkdir -p "$DOWNLOAD_DIR"
+      ls -al .
+      echo "${{ github.action_path }}"
+      ls -al "${{ github.action_path }}"
       cp -r "$BIN_DIR/*" "$DOWNLOAD_DIR/"
       gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
       chmod +x "$DOWNLOAD_DIR/*"
       ls -al "$DOWNLOAD_DIR"
-branding:
-  icon: terminal
-  color: green
