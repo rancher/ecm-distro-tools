@@ -26,7 +26,7 @@ runs:
           | jq -r '.assets[] | .browser_download_url')
         echo "$URLS" | while read -r url; do
           FILENAME=$(basename "$url")
-          curl -sS -L "$url" -o "$MY_DIRECTORY/$FILENAME"
+          curl -sS -L "$url" -o "$DOWNLOAD_DIR/$FILENAME"
         done
       fi
 
