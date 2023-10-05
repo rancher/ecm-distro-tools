@@ -27,6 +27,7 @@ func main() {
 		listImagesRCCommand(),
 		checkRancherImageCommand(),
 		setKDMBranchReferencesCommand(),
+		setChartsBranchReferencesCommand(),
 	}
 	app.Flags = rootFlags
 
