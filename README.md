@@ -104,6 +104,30 @@ docker run --rm -it --env GITHUB_TOKEN=<TOKEN> rancher/ecm-distro-tools tag_rke2
 
 See seperate [documentation](./docs/test_pad.md) for test-pad tool.
 
+## GitHub action
+
+This repository provides the "Setup ecm-distro-tools" GitHub action. 
+It downloads the assets belonging to the specified release to a temporary directory,
+and adds the directory to the `PATH`.
+
+### Usage
+
+The action can be run on ubuntu-latest runners. 
+The `version` parameter is required.
+Providing the GH_TOKEN environment variable is recommended to avoid rate limiting by the GitHub API.
+
+```yaml
+steps:
+- name: setup ecm-distro-tools
+  uses: rancher/ecm-distro-tools
+  with:
+    version: v0.23.0
+  env:
+    GH_TOKEN: ${{ github.token }}
+- name: release notes
+    run: gen_release_notes -h
+```
+
 ## Contributing
 
 We welcome additions to this repo and are excited to keep expanding its functionality.

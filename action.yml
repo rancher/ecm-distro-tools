@@ -1,0 +1,34 @@
+name: 'Setup ecm-distro-tools'
+description: 'Installs ecm-distro-tools scripts to the PATH.'
+inputs:
+  version:
+    description: 'The tag of the ecm-distro-tools release to install.'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+  - shell: bash
+    run: |
+      TAG="${{ inputs.version }}"
+      REPO="rancher/ecm-distro-tools"
+      DOWNLOAD_DIR="$RUNNER_TEMP/ecm-distro-tools"
+      mkdir -p "$DOWNLOAD_DIR"
+      echo "$DOWNLOAD_DIR" >> "$GITHUB_PATH"
+
+      GH_AUTHENTICATED=$(gh auth status >/dev/null 2>&1; echo $?)
+
+      if [ "$GH_AUTHENTICATED" -eq 0 ]; then
+        echo "is authenticated"
+        gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
+      else
+        echo "not authenticated"
+        URLS=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG" \
+          | jq -r '.assets[] | .browser_download_url')
+        echo "$URLS" | while read -r url; do
+          FILENAME=$(basename "$url")
+          curl -sS -L "$url" -o "$DOWNLOAD_DIR/$FILENAME"
+        done
+      fi
+
+      chmod +x "$DOWNLOAD_DIR/"*
+      ls -al "$DOWNLOAD_DIR"
