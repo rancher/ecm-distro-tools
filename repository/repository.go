@@ -318,7 +318,6 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 			return nil, err
 		}
 
-		fmt.Println("XXX - branch: " + newBranchName)
 		coo = git.CheckoutOptions{
 			Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
 		}
