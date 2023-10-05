@@ -2,6 +2,8 @@
 
 The backport utility will create backport issues and perform a cherry-pick of the given commits to the given branches, if commits are provided on the CLI. If no commits are given, only the backport issues are created.
 
+If a commit is provided, `backport` assumes you're running from the repository the operation is related to. This is simply to avoid having to guess or figure out where you store your code on your local system.
+
 ### Examples
 
 ```sh
@@ -18,11 +20,6 @@ The backport utility will create backport issues and perform a cherry-pick of th
 ./backport -r k3s -b 'release-1.21,release-1.22' -i 123 -u susejsmith
 ```
 
-Or via Docker
-
-```sh
-docker run --rm -it rancher/ecm-distro-tools backport:v0.1.0 backport
-```
 
 ## Contributions
 

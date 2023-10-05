@@ -1,5 +1,7 @@
+include cmd/Makefile
+
 .PHONY: all
-all: gen_release_notes gen_release_report backport standup k3s_release rancher_release test_coverage upstream_go_version
+all: $(BINARIES)
 
 .PHONY: gen_release_notes
 gen_release_notes:
@@ -40,3 +42,20 @@ test:
 .PHONY: build-image
 build-image:
 	docker build -t rancher/ecm-distro-tools:$(shell git rev-parse HEAD) .
+
+.PHONY: package-binaries
+package-binaries:
+	@$(eval export BIN_FILES = $(shell ls bin/))
+
+	cd bin                                       && \
+	tar cvf ../ecm-distro-tools.tar $(BIN_FILES) && \
+	cd ../
+
+	for binary in $(BINARIES); do \
+		cd cmd/$${binary}/bin                   && \
+		tar rvf ../../../ecm-distro-tools.tar * && \
+		cd ../../../;                              \
+	done
+
+	gzip < ecm-distro-tools.tar > ecm-distro-tools.tgz && \
+	rm -f ecm-distro-tools.tar

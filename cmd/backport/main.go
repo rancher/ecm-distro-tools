@@ -18,6 +18,7 @@ var (
 
 const usage = `version: %s
 Usage: %[2]s [-r repo] [-b branches] [-i issue]
+
 Env Variables:
     GITHUB_TOKEN         user token for posting issues
 Options:
@@ -34,6 +35,9 @@ Examples:
     %[2]s -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
 	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
 	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3 -u susejsmith
+
+Note: if a commit is provided, %[2]s utility needs to be ran from either
+	  the RKE2 or k3s directory.
 `
 
 var (
