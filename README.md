@@ -114,6 +114,7 @@ and adds the directory to the `PATH`.
 
 The action can be run on ubuntu-latest runners. 
 The `version` parameter is required.
+Providing the GH_TOKEN environment variable is recommended to avoid rate limiting by the GitHub API.
 
 ```yaml
 steps:
