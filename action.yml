@@ -17,7 +17,7 @@ runs:
 
       GH_AUTHENTICATED=$(gh auth status >/dev/null 2>&1; echo $?)
 
-      if [ $GH_AUTHENTICATED -eq 0 ]; then
+      if [ "$GH_AUTHENTICATED" -eq 0 ]; then
         echo "is authenticated"
         gh release download "$TAG" --repo "$REPO" --dir "$DOWNLOAD_DIR"
       else
