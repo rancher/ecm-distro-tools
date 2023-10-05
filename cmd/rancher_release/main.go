@@ -26,6 +26,7 @@ func main() {
 	app.Commands = []cli.Command{
 		listImagesRCCommand(),
 		checkRancherImageCommand(),
+		setKDMBranchReferencesCommand(),
 	}
 	app.Flags = rootFlags
 

@@ -6,12 +6,18 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/docker"
+	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -20,7 +26,52 @@ const (
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
+
+	setKDMBranchReferencesScriptFile = "set_kdm_branch_references.sh"
+	setKDMBranchReferencesScript     = `#!/bin/bash
+set -x
+
+BRANCH_NAME=kdm-set-{{ .NewKDMBranch }}
+DRY_RUN={{ .DryRun }}
+
+cd {{ .RancherRepoDir }}
+git remote add upstream https://github.com/rancher/rancher.git
+git fetch upstream
+git stash
+git branch -D ${BRANCH_NAME}
+git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
+git clean -xfd
+
+if [ "$(uname)" == "Darwin" ];then
+	sed -i '' 's/NewSetting(\"kdm-branch\", \"{{ .CurrentKDMBranch }}\")/NewSetting(\"kdm-branch\", \"{{ .NewKDMBranch }}\")/' pkg/settings/setting.go
+	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' package/Dockerfile
+	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' Dockerfile.dapper
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then 
+	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentKDMBranch }}")/NewSetting("kdm-branch", "{{ .NewKDMBranch }}")/' pkg/settings/setting.go
+	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' package/Dockerfile
+	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentKDMBranch }}/CATTLE_KDM_BRANCH={{ .NewKDMBranch }}/' Dockerfile.dapper
+else
+	>&2 echo "$(uname) not supported yet"
+	exit 1
+fi
+
+git add pkg/settings/setting.go
+git add package/Dockerfile
+git add Dockerfile.dapper
+
+git commit --all --signoff -m "update kdm branch to {{ .NewKDMBranch }}"
+if [ "${DRY_RUN}" == false ]; then
+	git push --set-upstream origin ${BRANCH_NAME}
+fi`
 )
+
+type SetKDMBranchReferencesArgs struct {
+	RancherRepoDir    string
+	CurrentKDMBranch  string
+	NewKDMBranch      string
+	RancherBaseBranch string
+	DryRun            bool
+}
 
 type HelmIndex struct {
 	Entries struct {
@@ -129,4 +180,63 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 		versions[i] = entry.AppVersion
 	}
 	return versions, nil
+}
+
+func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+	if _, err := os.Stat(forkPath); err != nil {
+		return err
+	}
+	scriptPath := filepath.Join(forkPath, setKDMBranchReferencesScriptFile)
+	f, err := os.Create(scriptPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := os.Chmod(scriptPath, 0755); err != nil {
+		return err
+	}
+	tmpl, err := template.New(setKDMBranchReferencesScriptFile).Parse(setKDMBranchReferencesScript)
+	if err != nil {
+		return err
+	}
+	data := SetKDMBranchReferencesArgs{
+		RancherRepoDir:    forkPath,
+		CurrentKDMBranch:  currentKDMBranch,
+		NewKDMBranch:      newKDMBranch,
+		RancherBaseBranch: rancherBaseBranch,
+		DryRun:            dryRun,
+	}
+	if err := tmpl.Execute(f, data); err != nil {
+		return err
+	}
+	if _, err := exec.RunCommand(forkPath, "bash", "./"+setKDMBranchReferencesScriptFile); err != nil {
+		return err
+	}
+
+	if createPR && !dryRun {
+		ghClient := repository.NewGithub(ctx, githubToken)
+
+		if err := createPRFromRancher(ctx, rancherBaseBranch, newKDMBranch, forkOwner, ghClient); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createPRFromRancher(ctx context.Context, rancherBaseBranch, newKDMBranch, forkOwner string, ghClient *github.Client) error {
+	const repo = "rancher"
+	org, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		return err
+	}
+	pull := &github.NewPullRequest{
+		Title:               github.String("Update KDM Branch to " + newKDMBranch),
+		Base:                github.String(rancherBaseBranch),
+		Head:                github.String(forkOwner + ":" + "kdm-set-" + newKDMBranch),
+		MaintainerCanModify: github.Bool(true),
+	}
+	_, _, err = ghClient.PullRequests.Create(ctx, org, repo, pull)
+
+	return err
 }
