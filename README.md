@@ -18,6 +18,20 @@ To compile the container image locally:
 docker build . -t rancher/ecm-distro-tools
 ```
 
+## Installation
+
+The easiest way to install a single utility is to go to the release page, choose the release you want, and download the utility for your operation system and architecture.
+
+### Install Script
+
+To install all executables and shell libraries, run the install script as follows:
+
+```sh
+install.sh v0.24.0
+```
+
+This will download all binaries and shell libraries and install them to `/usr/local/bin/ecm-distro-tools`. You'll need to add that directory to your path after installation.
+
 ## Utility Index
 
 The following is a non-exausitve list of the utilities included in this repository and their corresponding usage.
