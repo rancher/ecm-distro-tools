@@ -22,10 +22,6 @@ setup_arch() {
         ARCH=arm64
         SUFFIX=$(uname -s | tr '[:upper:]' '[:lower:]')-${ARCH}
         ;;
-    s390x)
-        ARCH=s390x
-        SUFFIX=$(uname -s | tr '[:upper:]' '[:lower:]')-${ARCH}
-        ;;
     *)
         fatal "unsupported architecture ${ARCH}"
         ;;
@@ -57,7 +53,6 @@ verify_downloader() {
         return 1
     fi
 
-    # Set verified executable as our downloader program and return success
     DOWNLOADER=${cmd}
     return 0
 }

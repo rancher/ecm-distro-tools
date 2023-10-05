@@ -44,7 +44,7 @@ build-image:
 	docker build -t rancher/ecm-distro-tools:$(shell git rev-parse HEAD) .
 
 .PHONY: package-binaries
-package-binaries:
+package-binaries: # add dependency
 	@$(eval export BIN_FILES = $(shell ls bin/))
 
 	cd bin                                       && \

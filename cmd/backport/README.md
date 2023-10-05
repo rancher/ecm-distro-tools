@@ -20,7 +20,6 @@ If a commit is provided, `backport` assumes you're running from the repository t
 ./backport -r k3s -b 'release-1.21,release-1.22' -i 123 -u susejsmith
 ```
 
-
 ## Contributions
 
 * File Issue with details of the problem, feature request, etc.

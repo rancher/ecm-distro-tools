@@ -5,20 +5,14 @@ The upstream_go_version prints out the version of Go used for a given branch of 
 ### Examples
 
 ```sh
-./upstream_go_version -b 'release-1.26'
+upstream_go_version -b 'release-1.26'
 release-1.26: 1.20.6
 ```
 
 ```sh
-./upstream_go_version -b 'release-1.25,release-1.26'
+upstream_go_version -b 'release-1.25,release-1.26'
 release-1.25: 1.20.6
 release-1.26: 1.20.6
-```
-
-Or via Docker
-
-```sh
-docker run --rm -it rancher/upstream_go_version:v0.1.0 -b 'release-1.25,release-1.26'
 ```
 
 ## Contributions
