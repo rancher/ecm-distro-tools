@@ -76,7 +76,7 @@ download() {
 
 # download_tarball downloads the tarbal for the given version.
 download_tarball() {
-    TARBALL_URL="${REPO_RELEASE_URL}/download/${RELASE_VERSION}/ecm-distro-tools.${SUFFIX}.tar.gz"
+    TARBALL_URL="${REPO_RELEASE_URL}/download/${RELEASE_VERSION}/ecm-distro-tools.${SUFFIX}.tar.gz"
 
     echo "downloading tarball from ${TARBALL_URL}"
     
@@ -96,9 +96,9 @@ install_binaries() {
         echo "error: release version required"
         exit 1
     fi
-    RELASE_VERSION=$1
+    RELEASE_VERSION=$1
 
-    echo "Installing ECM Distro Tools: ${RELASE_VERSION}"
+    echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"
 
     setup_tmp
     setup_arch
