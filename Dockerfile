@@ -20,6 +20,7 @@ RUN cd ./cmd/backport && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_notes && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_report && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/k3s_release && make LDFLAGS="-linkmode=external"
+RUN cd ./cmd/semv && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/standup && make
 ARG ETCD_VERSION=v3.5.7
 ARG GH_VERSION=2.23.0

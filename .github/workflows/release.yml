@@ -38,6 +38,7 @@ jobs:
             ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release
             ${{ github.workspace }}/cmd/standup/bin/standup
             ${{ github.workspace }}/cmd/test_coverage/bin/test_coverage
+            ${{ github.workspace }}/cmd/semv/bin/semv
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:
