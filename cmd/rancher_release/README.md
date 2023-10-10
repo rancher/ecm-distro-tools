@@ -50,7 +50,7 @@ Updates Rancher KDM branch references in:
 | `current-kdm-branch`, `c` | Current KDM branch used in the files listed above.                                                                                                                                            | TRUE         |
 | `new-kdm-branch`, `n`     | KDM branch to replace the current.                                                                                                                                                            | TRUE         |
 | `create-pr`, `p`          | if true, will try to create a PR against the `base-branch` in rancher/rancher, may fail if your GitHub token doesn’t have the required permission. Requires a GITHUB_TOKEN env var to be set. | FALSE        |
-| `fork-owner               | GitHub Username of the owner of the rancher fork used in `rancher-fork`.                                                                                                                      | FALSE        |
+| `fork-owner`, `o`         | GitHub Username of the owner of the rancher fork used in `rancher-fork`.                                                                                                                      | FALSE        |
 | `dry-run`, `r`            | Changes will not be pushed to remote and the PR will not be created.                                                                                                                          | FALSE        |
 
 **Examples**
