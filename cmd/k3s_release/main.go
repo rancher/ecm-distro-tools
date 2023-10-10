@@ -4,16 +4,16 @@ import (
 	"os"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var rootFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:   "config",
-		Usage:  "Specify release config file",
-		EnvVar: "RELEASE_CONFIG",
+	&cli.StringFlag{
+		Name:    "config",
+		Usage:   "Specify release config file",
+		EnvVars: []string{"RELEASE_CONFIG"},
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "debug",
 		Usage: "Debug mode",
 	},
@@ -23,7 +23,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "k3s-release"
 	app.Usage = "Perform a k3s release"
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		createTagsCommand(),
 		pushTagsCommand(),
 		modifyK3SCommand(),

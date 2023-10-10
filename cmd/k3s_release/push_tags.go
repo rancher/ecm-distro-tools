@@ -5,15 +5,15 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
 	k3sRemote = "k3s-io"
 )
 
-func pushTagsCommand() cli.Command {
-	return cli.Command{
+func pushTagsCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "push-tags",
 		Usage:  "Push tags to speicifc remote",
 		Flags:  rootFlags,

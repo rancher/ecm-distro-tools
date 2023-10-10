@@ -5,11 +5,11 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func tagRCReleaseCommand() cli.Command {
-	return cli.Command{
+func tagRCReleaseCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "tag-rc-release",
 		Usage:  "tag rc release for k3s repo",
 		Flags:  rootFlags,
