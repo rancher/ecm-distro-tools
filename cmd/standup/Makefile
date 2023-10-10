@@ -13,9 +13,9 @@ LINUX_MAPPAGE_LOC = $(PREFIX)/man/man8
 
 $(BINDIR)/$(BINARY): $(BINDIR) clean
 ifeq ($(UNAME_S),FreeBSD)
-	$(CC) main.c $(CFLAGS) -o $@ $(LDFLAGS) -I$(PREFIX)/include -L$(PREFIX)/lib
+	$(CC) main.c $(CFLAGS) -o $@-freebsd-amd64 $(LDFLAGS) -I$(PREFIX)/include -L$(PREFIX)/lib
 else ifeq ($(UNAME_S),Linux)
-	$(CC) main.c -static $(CFLAGS) -o $@ $(LDFLAGS)
+	$(CC) main.c -static $(CFLAGS) -o $@-linux-amd64 $(LDFLAGS)
 else
 	$(CC) main.c $(CFLAGS) -o $@ $(LDFLAGS)
 endif

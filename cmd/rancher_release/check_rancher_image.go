@@ -5,7 +5,7 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -13,13 +13,14 @@ const (
 	rancherRepo = rancherOrg
 )
 
-func checkRancherImageCommand() cli.Command {
-	return cli.Command{
+func checkRancherImageCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "check-rancher-image",
 		Usage: "check if rancher helm charts and docker images exist for a given image tag",
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     "tag",
+				Aliases:  []string{"t"},
 				Usage:    "release tag to validate image",
 				Required: true,
 			},
