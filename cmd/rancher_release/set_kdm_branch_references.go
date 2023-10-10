@@ -16,35 +16,42 @@ func setKDMBranchReferencesCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "fork-path",
+				Aliases:  []string{"f"},
 				Usage:    "rancher repo fork directory path",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "base-branch",
+				Aliases:  []string{"b"},
 				Usage:    "rancher branch to use as a base, e.g: release/v2.8",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "current-kdm-branch",
+				Aliases:  []string{"c"},
 				Usage:    "current kdm branch set in the repo",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "new-kdm-branch",
+				Aliases:  []string{"n"},
 				Usage:    "kdm branch to be replaced in the repo",
 				Required: true,
 			},
 			&cli.BoolFlag{
-				Name:  "create-pr",
-				Usage: "if true, a PR will be created from your fork to the rancher repo base branch and a variable 'GITHUB_TOKEN' must be exported",
+				Name:    "create-pr",
+				Aliases: []string{"p"},
+				Usage:   "if true, a PR will be created from your fork to the rancher repo base branch and a variable 'GITHUB_TOKEN' must be exported",
 			},
 			&cli.StringFlag{
 				Name:     "fork-owner",
+				Aliases:  []string{"o"},
 				Usage:    "github username of the owner of the fork, only required if 'create-pr' is true",
 				Required: false,
 			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
+				Aliases:  []string{"r"},
 				Usage:    "the newly created branch won't be pushed to remote and the PR won't be created",
 				Required: false,
 			},

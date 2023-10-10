@@ -15,6 +15,7 @@ func listImagesRCCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "tag",
+				Aliases:  []string{"t"},
 				Usage:    "release tag to validate images",
 				Required: true,
 			},

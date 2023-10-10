@@ -20,6 +20,7 @@ func checkRancherImageCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "tag",
+				Aliases:  []string{"t"},
 				Usage:    "release tag to validate image",
 				Required: true,
 			},

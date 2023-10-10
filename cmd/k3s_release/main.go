@@ -10,12 +10,14 @@ import (
 var rootFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:    "config",
+		Aliases: []string{"c"},
 		Usage:   "Specify release config file",
 		EnvVars: []string{"RELEASE_CONFIG"},
 	},
 	&cli.BoolFlag{
-		Name:  "debug",
-		Usage: "Debug mode",
+		Name:    "debug",
+		Aliases: []string{"d"},
+		Usage:   "Debug mode",
 	},
 }
 

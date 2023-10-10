@@ -10,10 +10,10 @@ import (
 
 func tagRCReleaseCommand() *cli.Command {
 	return &cli.Command{
-		Name:   "tag-rc-release",
-		Usage:  "tag rc release for k3s repo",
-		Flags:  rootFlags,
-		Action: createRCRelease,
+		Name:    "tag-rc-release",
+		Usage:   "tag rc release for k3s repo",
+		Flags:   rootFlags,
+		Action:  createRCRelease,
 	}
 }
 
