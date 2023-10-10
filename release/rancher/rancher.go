@@ -6,11 +6,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/google/go-github/v39/github"
@@ -213,7 +210,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, cu
 	}
 	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 
-	if err := executeTemplateAndRunScript(forkPath, setKDMBranchReferencesScriptFileName, script, data); err != nil {
+	if err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data); err != nil {
 		return err
 	}
 
@@ -239,7 +236,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 		BranchName:        branchName,
 	}
 	script := cloneCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
-	if err := executeTemplateAndRunScript(forkPath, setChartReferencesScriptFileName, script, data); err != nil {
+	if err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data); err != nil {
 		return err
 	}
 
@@ -269,30 +266,4 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	_, _, err = ghClient.PullRequests.Create(ctx, org, repo, pull)
 
 	return err
-}
-
-func executeTemplateAndRunScript(path, fileName, script string, args SetBranchReferencesArgs) error {
-	if _, err := os.Stat(path); err != nil {
-		return err
-	}
-	scriptPath := filepath.Join(path, fileName)
-	f, err := os.Create(scriptPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := os.Chmod(scriptPath, 0755); err != nil {
-		return err
-	}
-	tmpl, err := template.New(script).Parse(script)
-	if err != nil {
-		return err
-	}
-	if err := tmpl.Execute(f, args); err != nil {
-		return err
-	}
-	if _, err := exec.RunCommand(path, "bash", "./"+fileName); err != nil {
-		return err
-	}
-	return nil
 }
