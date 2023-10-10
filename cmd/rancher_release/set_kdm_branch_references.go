@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/urfave/cli/v2"
@@ -49,6 +48,13 @@ func setKDMBranchReferencesCommand() *cli.Command {
 				Usage:    "github username of the owner of the fork, only required if 'create-pr' is true",
 				Required: false,
 			},
+			&cli.StringFlag{
+				Name:     "github-token",
+				Aliases:  []string{"g"},
+				Usage:    "github token",
+				EnvVars:  []string{"GITHUB_TOKEN"},
+				Required: false,
+			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
 				Aliases:  []string{"r"},
@@ -67,7 +73,7 @@ func setKDMBranchReferences(c *cli.Context) error {
 	newKDMBranch := c.String("new-kdm-branch")
 	createPR := c.Bool("create-pr")
 	forkOwner := c.String("fork-owner")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	githubToken := c.String("github-token")
 	dryRun := c.Bool("dry-run")
 	if createPR {
 		if forkOwner == "" {
