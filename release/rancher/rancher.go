@@ -25,51 +25,63 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 
 	setKDMBranchReferencesScriptFileName = "set_kdm_branch_references.sh"
-	setChartReferencesScriptFileName     = `set_chart_references_script.sh`
+	setChartReferencesScriptFileName     = `set_chart_references.sh`
 	cloneCheckoutRancherScript           = `#!/bin/bash
-set -x
+set -e
 
 BRANCH_NAME={{ .BranchName }}
 DRY_RUN={{ .DryRun }}
 
 cd {{ .RancherRepoPath }}
-git remote add upstream https://github.com/rancher/rancher.git
+git remote -v | grep -w upstream || git remote add upstream https://github.com/rancher/rancher.git
 git fetch upstream
 git stash
 git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
 git clean -xfd`
 	setKDMBranchReferencesScript = `
-if [ "$(uname)" == "Darwin" ];then
+OS=$(uname -s)
+case ${OS} in
+Darwin)
 	sed -i '' 's/NewSetting(\"kdm-branch\", \"{{ .CurrentBranch }}\")/NewSetting(\"kdm-branch\", \"{{ .NewBranch }}\")/' pkg/settings/setting.go
 	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
-elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then 
+	;;
+Linux)
 	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentBranch }}")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
 	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
-else
-	>&2 echo "$(uname) not supported yet"
+	;;
+*)
+	>&2 echo "$(OS) not supported yet"
 	exit 1
+	;;
+esac
 fi
 git add pkg/settings/setting.go
 git add package/Dockerfile
 git add Dockerfile.dapper
 git commit --all --signoff -m "update kdm branch to {{ .NewBranch }}"`
 	setChartBranchReferencesScript = `
-if [ "$(uname)" == "Darwin" ];then
+OS=$(uname -s)
+case ${OS} in
+Darwin)
 	sed -i '' 's/NewSetting(\"chart-default-branch\", \"{{ .CurrentBranch }}\")/NewSetting(\"chart-default-branch\", \"{{ .NewBranch }}\")/' pkg/settings/setting.go
 	sed -i '' 's/SYSTEM_CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i '' 's/CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i '' 's/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .CurrentBranch }}"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
-elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then 
+	;;
+Linux)
 	sed -i 's/NewSetting("chart-default-branch", "{{ .CurrentBranch }}")/NewSetting("chart-default-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
 	sed -i 's/SYSTEM_CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i 's/CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
 	sed -i 's/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .CurrentBranch }}"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
-else
-	>&2 echo "$(uname) not supported yet"
+	;;
+*)
+	>&2 echo "$(OS) not supported yet"
 	exit 1
-fi
+	;;
+esac
+
 git add pkg/settings/setting.go
 git add package/Dockerfile
 git add scripts/package-env
