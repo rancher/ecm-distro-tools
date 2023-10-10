@@ -88,8 +88,8 @@ type SetBranchReferencesArgs struct {
 	CurrentBranch     string
 	NewBranch         string
 	RancherBaseBranch string
-	DryRun            bool
 	BranchName        string
+	DryRun            bool
 }
 
 type HelmIndex struct {
