@@ -42,6 +42,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "test-coverage"
 	app.Usage = "Generate coverage report for E2E/Integration tests"
+	app.UseShortOptionHandling = true
 	app.Flags = rootFlags
 	app.Action = coverage
 	err := app.Run(os.Args)

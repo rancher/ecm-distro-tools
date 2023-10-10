@@ -25,6 +25,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rancher-release"
 	app.Usage = "Perform a Rancher release"
+	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
 		listImagesRCCommand(),
 		checkRancherImageCommand(),
