@@ -26,7 +26,7 @@ const (
 
 	setKDMBranchReferencesScriptFileName = "set_kdm_branch_references.sh"
 	setChartReferencesScriptFileName     = `set_chart_references.sh`
-	cloneCheckoutRancherScript           = `#!/bin/bash
+	cloneCheckoutRancherScript           = `#!/bin/sh
 set -e
 
 BRANCH_NAME={{ .BranchName }}
@@ -87,7 +87,7 @@ git add package/Dockerfile
 git add scripts/package-env
 git commit --all --signoff -m "update chart branch references to {{ .NewBranch }}"`
 	pushChangesScript = `
-if [ "${DRY_RUN}" == false ]; then
+if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
 fi`
 )
