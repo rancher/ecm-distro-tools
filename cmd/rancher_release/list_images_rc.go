@@ -5,16 +5,17 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func listImagesRCCommand() cli.Command {
-	return cli.Command{
+func listImagesRCCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "list-nonmirrored-rc-images",
 		Usage: "list all non-mirrored images which are in rc form given a tag in a MD format",
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     "tag",
+				Aliases:  []string{"t"},
 				Usage:    "release tag to validate images",
 				Required: true,
 			},

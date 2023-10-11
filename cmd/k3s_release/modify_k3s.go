@@ -5,11 +5,11 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func modifyK3SCommand() cli.Command {
-	return cli.Command{
+func modifyK3SCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "modify-k3s",
 		Usage:  "Modify k3s go.mod with the updated tags and create a new PR",
 		Flags:  rootFlags,

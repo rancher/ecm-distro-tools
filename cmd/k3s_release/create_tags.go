@@ -8,11 +8,11 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func createTagsCommand() cli.Command {
-	return cli.Command{
+func createTagsCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "create-tags",
 		Usage:  "Create tags from kubernetes repo",
 		Flags:  rootFlags,
