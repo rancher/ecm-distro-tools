@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release/semver"
-
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/urfave/cli"
 )
