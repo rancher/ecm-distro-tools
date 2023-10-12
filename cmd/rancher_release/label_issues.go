@@ -4,26 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release/semver"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func labelIssuesCommand() cli.Command {
-	return cli.Command{
+func labelIssuesCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "label-issues",
 		Usage: "label issues",
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
+				Name:     "github-token",
+				Aliases:  []string{"g"},
+				Usage:    "github token",
+				EnvVars:  []string{"GITHUB_TOKEN"},
+				Required: false,
+			},
+			&cli.StringFlag{
 				Name:     "tag",
 				Usage:    "release tag to validate images",
 				Required: true,
 			},
-
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:     "dry-run",
 				Usage:    "the newly created branch won't be pushed to remote and the PR won't be created",
 				Required: false,
@@ -38,8 +43,8 @@ func labelIssuesCommand() cli.Command {
 func labelIssuesWaitingForRC(c *cli.Context) error {
 	ctx := context.Background()
 	tag := c.String("tag")
-	dryRun := c.BoolT("dry-run")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	dryRun := c.Bool("dry-run")
+	githubToken := c.String("github-token")
 	repo := "rancher"
 	org := "rancher"
 	oldTag := "[zube]: Waiting for RC"
