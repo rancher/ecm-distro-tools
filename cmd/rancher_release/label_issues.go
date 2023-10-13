@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/release/semver"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/urfave/cli/v2"
 )
@@ -14,7 +14,7 @@ import (
 func labelIssuesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "label-issues",
-		Usage: "label issues",
+		Usage: "relabels 'Waiting for RC' issues with 'To Test' and adds a comment",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "github-token",
@@ -25,12 +25,14 @@ func labelIssuesCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "tag",
-				Usage:    "release tag to validate images",
+				Aliases:  []string{"t"},
+				Usage:    "release candidate tag",
 				Required: true,
 			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
-				Usage:    "the newly created branch won't be pushed to remote and the PR won't be created",
+				Aliases:  []string{"r"},
+				Usage:    "list matching issues and new labels without updating",
 				Required: false,
 			},
 		},
@@ -53,11 +55,11 @@ func labelIssuesWaitingForRC(c *cli.Context) error {
 	if tag == "" {
 		return errors.New("'tag' must be set")
 	}
-	version, err := semver.ParseVersion(tag)
+	version, err := semver.NewVersion(tag)
 	if err != nil {
 		return err
 	}
-	if version.Prerelease == "" {
+	if version.Prerelease() == "" {
 		return errors.New("'tag' must be a prerelease")
 	}
 
@@ -81,15 +83,11 @@ func labelIssuesWaitingForRC(c *cli.Context) error {
 			if issue.Milestone == nil {
 				continue
 			}
-			pattern, err := semver.ParsePattern(*issue.Milestone.Title)
+			pattern, err := semver.NewConstraint(*issue.Milestone.Title)
 			if err != nil {
 				return err
 			}
-			ok, err := pattern.Test(version)
-			if err != nil {
-				return err
-			}
-			if ok {
+			if pattern.Check(version) {
 				issues = append(issues, issue)
 			}
 		}

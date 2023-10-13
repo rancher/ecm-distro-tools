@@ -4,29 +4,35 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"html/template"
 	"os"
 	"strings"
+	"text/tabwriter"
 
-	"github.com/rancher/ecm-distro-tools/release/semver"
+	"github.com/Masterminds/semver/v3"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )
+
+var version string
 
 func Format(v *semver.Version, format string) (string, error) {
 	switch {
 	case format == "":
-		str := fmt.Sprintf(
-			"Version: %s\nMajor: %d\nMinor: %d\nPatch: %d\nPrerelease: %s\nBuild: %s\n",
-			v.Version,
-			v.Major,
-			v.Minor,
-			v.Patch,
-			v.Prerelease,
-			v.Build,
-		)
-		return str, nil
+	case format == "table":
+		var buffer bytes.Buffer
+		w := tabwriter.NewWriter(&buffer, 0, 0, 2, ' ', tabwriter.TabIndent)
+		fmt.Fprintln(w, "Major\tMinor\tPatch\tPrerelease\tMetadata")
+		fmt.Fprintf(w, "%d\t%d\t%d\t%s\t%s\t\n",
+			v.Major(),
+			v.Minor(),
+			v.Patch(),
+			v.Prerelease(),
+			v.Metadata())
+		w.Flush()
+		return buffer.String(), nil
 	case format == "json":
 		jsonData, err := json.MarshalIndent(v, "", "  ")
 		if err != nil {
@@ -54,12 +60,6 @@ func Format(v *semver.Version, format string) (string, error) {
 	return "", errors.New("invalid output format")
 }
 
-var (
-	name    string
-	version string
-	gitSHA  string
-)
-
 const usage = `version: %s
 Usage: %[2]s [-test] [-parse]
 Options:
@@ -76,64 +76,93 @@ Examples:
 `
 
 func main() {
-	flag.Usage = func() {
-		w := os.Stderr
-		for _, arg := range os.Args {
-			if arg == "-h" {
-				w = os.Stdout
-				break
-			}
-		}
-		fmt.Fprintf(w, usage, version, name)
+	app := &cli.App{
+		Name:                   "semv",
+		UseShortOptionHandling: true,
+		Version:                version,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "lang",
+				Value: "english",
+				Usage: "language for the greeting",
+			},
+		},
+		Commands: []*cli.Command{
+			parseCommand(),
+			testCommand(),
+		},
 	}
 
-	var vers bool
-	var parseArg, patternArg, testArg, formatArg string
+	if err := app.Run(os.Args); err != nil {
+		logrus.Fatal(err)
+	}
+}
 
-	flag.BoolVar(&vers, "v", false, "")
-	flag.StringVar(&parseArg, "parse", "", "Perform parse")
-	flag.StringVar(&patternArg, "pattern", "", "Perform test")
-	flag.StringVar(&testArg, "test", "", "Perform test")
-	flag.StringVar(&formatArg, "o", "", "Output format")
+func testCommand() *cli.Command {
+	return &cli.Command{
+		Name:   "test if a semantic version conforms to a pattern",
+		Usage:  "test [constraint] [version]",
+		Action: test,
+	}
+}
 
-	flag.Parse()
+func parseCommand() *cli.Command {
+	return &cli.Command{
+		Name: "parse a semantic version",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "output",
+				Aliases:  []string{"o"},
+				Usage:    "Output format (table|json|yaml|name|go-template)",
+				Required: false,
+			},
+		},
+		Action: parse,
+	}
+}
 
-	if vers {
-		fmt.Fprintf(os.Stdout, "version: %s - git sha: %s\n", version, gitSHA)
-		return
+func test(c *cli.Context) error {
+	if c.Args().Get(0) == "" {
+		return errors.New("constraint and version are required")
+	}
+	if c.Args().Get(1) == "" {
+		return errors.New("version is required")
+	}
+	if c.Args().Get(2) != "" {
+		return errors.New("too many arguments")
 	}
 
-	if testArg != "" {
-		if patternArg == "" || parseArg != "" {
-			fmt.Println("Invalid arguments. Usage:" + name + " -pattern <pattern> -test <version>")
-			os.Exit(1)
-		}
+	constraint, err := semver.NewConstraint(c.Args().Get(0))
+	if err != nil {
+		return err
+	}
+	version, err := semver.NewVersion(c.Args().Get(1))
+	if err != nil {
+		return err
+	}
+	if constraint.Check(version) {
+		os.Exit(0)
+	} else {
+		os.Exit(1)
+	}
+	return nil
+}
 
-		pattern, err := semver.ParsePattern(patternArg)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		version, err := semver.ParseVersion(testArg)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		pattern.Test(version)
+func parse(c *cli.Context) error {
+	if c.Args().Get(0) == "" {
+		return errors.New("version is required")
+	}
+	format := c.String("format")
+
+	v, err := semver.NewVersion(c.Args().Get(0))
+	if err != nil {
+		return err
+	}
+	result, err := Format(v, format)
+	if err != nil {
+		return err
 	}
 
-	if parseArg != "" {
-		version, err := semver.ParseVersion(parseArg)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		result, err := Format(version, formatArg)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		fmt.Print(result)
-	}
+	fmt.Print(result)
+	return nil
 }
