@@ -20,8 +20,7 @@ var version string
 
 func Format(v *semver.Version, format string) (string, error) {
 	switch {
-	case format == "":
-	case format == "table":
+	case format == "" || format == "table":
 		var buffer bytes.Buffer
 		w := tabwriter.NewWriter(&buffer, 0, 0, 2, ' ', tabwriter.TabIndent)
 		fmt.Fprintln(w, "Major\tMinor\tPatch\tPrerelease\tMetadata")
@@ -80,13 +79,6 @@ func main() {
 		Name:                   "semv",
 		UseShortOptionHandling: true,
 		Version:                version,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "lang",
-				Value: "english",
-				Usage: "language for the greeting",
-			},
-		},
 		Commands: []*cli.Command{
 			parseCommand(),
 			testCommand(),
@@ -108,7 +100,8 @@ func testCommand() *cli.Command {
 
 func parseCommand() *cli.Command {
 	return &cli.Command{
-		Name: "parse a semantic version",
+		Name:  "parse",
+		Usage: "parse a semantic version",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "output",
