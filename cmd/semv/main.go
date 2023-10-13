@@ -18,47 +18,6 @@ import (
 
 var version string
 
-func format(v *semver.Version, format string) (string, error) {
-	switch {
-	case format == "" || format == "table":
-		var buffer bytes.Buffer
-		w := tabwriter.NewWriter(&buffer, 0, 0, 2, ' ', tabwriter.TabIndent)
-		fmt.Fprintln(w, "Major\tMinor\tPatch\tPrerelease\tMetadata")
-		fmt.Fprintf(w, "%d\t%d\t%d\t%s\t%s\t\n",
-			v.Major(),
-			v.Minor(),
-			v.Patch(),
-			v.Prerelease(),
-			v.Metadata())
-		w.Flush()
-		return buffer.String(), nil
-	case format == "json":
-		jsonData, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			return "", err
-		}
-		return string(jsonData), nil
-	case format == "yaml":
-		yml, err := yaml.Marshal(v)
-		if err != nil {
-			return "", err
-		}
-		return string(yml), nil
-	case strings.HasPrefix(format, "go-template="):
-		goTemplate := strings.TrimPrefix(format, "go-template=")
-		tmpl, err := template.New("output").Parse(goTemplate)
-		if err != nil {
-			return "", err
-		}
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, v); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
-	}
-	return "", errors.New("invalid output format")
-}
-
 func main() {
 	app := &cli.App{
 		Name:                   "semv",
@@ -130,17 +89,55 @@ func parse(c *cli.Context) error {
 	if c.Args().Get(0) == "" {
 		return errors.New("version is required")
 	}
-	format := c.String("format")
-
 	v, err := semver.NewVersion(c.Args().Get(0))
 	if err != nil {
 		return err
 	}
-	result, err := Format(v, format)
+	result, err := format(v, c.String("format"))
 	if err != nil {
 		return err
 	}
-
 	fmt.Print(result)
 	return nil
+}
+
+func format(v *semver.Version, f string) (string, error) {
+	switch {
+	case f == "" || f == "table":
+		var buffer bytes.Buffer
+		w := tabwriter.NewWriter(&buffer, 0, 0, 2, ' ', tabwriter.TabIndent)
+		fmt.Fprintln(w, "Major\tMinor\tPatch\tPrerelease\tMetadata")
+		fmt.Fprintf(w, "%d\t%d\t%d\t%s\t%s\t\n",
+			v.Major(),
+			v.Minor(),
+			v.Patch(),
+			v.Prerelease(),
+			v.Metadata())
+		w.Flush()
+		return buffer.String(), nil
+	case f == "json":
+		jsonData, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		return string(jsonData), nil
+	case f == "yaml":
+		yml, err := yaml.Marshal(v)
+		if err != nil {
+			return "", err
+		}
+		return string(yml), nil
+	case strings.HasPrefix(f, "go-template="):
+		goTemplate := strings.TrimPrefix(f, "go-template=")
+		tmpl, err := template.New("output").Parse(goTemplate)
+		if err != nil {
+			return "", err
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, v); err != nil {
+			return "", err
+		}
+		return buf.String(), nil
+	}
+	return "", errors.New("invalid output format")
 }
