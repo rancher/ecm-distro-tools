@@ -18,7 +18,7 @@ import (
 
 var version string
 
-func Format(v *semver.Version, format string) (string, error) {
+func format(v *semver.Version, format string) (string, error) {
 	switch {
 	case format == "" || format == "table":
 		var buffer bytes.Buffer

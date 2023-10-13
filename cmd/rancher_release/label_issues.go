@@ -47,10 +47,10 @@ func labelIssuesWaitingForRC(c *cli.Context) error {
 	tag := c.String("tag")
 	dryRun := c.Bool("dry-run")
 	githubToken := c.String("github-token")
-	repo := "rancher"
-	org := "rancher"
-	oldTag := "[zube]: Waiting for RC"
-	newTag := "[zube]: To Test"
+	const repo = "rancher"
+	const org = "rancher"
+	const oldTag = "[zube]: Waiting for RC"
+	const newTag = "[zube]: To Test"
 
 	if tag == "" {
 		return errors.New("'tag' must be set")
