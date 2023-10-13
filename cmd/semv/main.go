@@ -92,7 +92,7 @@ func main() {
 
 func testCommand() *cli.Command {
 	return &cli.Command{
-		Name:   "test if a semantic version conforms to a pattern",
+		Name:   "test",
 		Usage:  "test [constraint] [version]",
 		Action: test,
 	}
