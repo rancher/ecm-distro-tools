@@ -59,21 +59,6 @@ func Format(v *semver.Version, format string) (string, error) {
 	return "", errors.New("invalid output format")
 }
 
-const usage = `version: %s
-Usage: %[2]s [-test] [-parse]
-Options:
-    -h            help
-    -v            show version and exit
-    -test         test a complete version against a semantic version pattern
-    -parse        parse a semantic version
-
-Examples: 
-    # parse
-    %[2]s -parse v1.2.3-rc1 -o go-template="{{.Major}}.{{.Minor}}.{{.Patch}}{{.Prerelease}}"
-    #test
-    %[2]s -pattern v1.x -test v1.2.3
-`
-
 func main() {
 	app := &cli.App{
 		Name:                   "semv",
