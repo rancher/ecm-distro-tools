@@ -3,7 +3,10 @@ package exec
 import (
 	"bytes"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"text/template"
 )
 
 func RunCommand(dir, cmd string, args ...string) (string, error) {
@@ -18,4 +21,30 @@ func RunCommand(dir, cmd string, args ...string) (string, error) {
 	}
 
 	return outb.String(), nil
+}
+
+func RunTemplatedScript(path, fileName, script string, args interface{}) error {
+	if _, err := os.Stat(path); err != nil {
+		return err
+	}
+	scriptPath := filepath.Join(path, fileName)
+	f, err := os.Create(scriptPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := os.Chmod(scriptPath, 0755); err != nil {
+		return err
+	}
+	tmpl, err := template.New(script).Parse(script)
+	if err != nil {
+		return err
+	}
+	if err := tmpl.Execute(f, args); err != nil {
+		return err
+	}
+	if _, err := RunCommand(path, "bash", "./"+fileName); err != nil {
+		return err
+	}
+	return nil
 }
