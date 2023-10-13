@@ -1,3 +1,5 @@
+include ../Makefile
+
 GO = go
 
 BINDIR := bin
@@ -9,7 +11,11 @@ override LDFLAGS += -X main.gitSHA=$(GIT_SHA) -X main.version=$(VERSION) -X main
 TAGS              = "netgo osusergo no_stage static_build"
 
 $(BINDIR)/$(BINARY): clean
-	CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v  -ldflags "$(LDFLAGS)" -o $@
+	for arch in $(ARCHS); do \
+		for os in $(OSs); do \
+			$(GO_COMPILE) ; \
+		done; \
+	done
 
 .PHONY: clean
 clean:
