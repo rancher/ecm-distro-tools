@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,6 +16,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/types"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -21,6 +25,8 @@ const (
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
+	ghContentURL       = "https://raw.githubusercontent.com"
+	baseURLGHApi       = "https://api.github.com"
 )
 
 // repoToOrg associates repo to org.
@@ -456,3 +462,78 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 `
+
+// Partial Body from commit api, fell free to add more fields if needed
+type Author struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Date  string `json:"date"`
+}
+
+type Commit struct {
+	Author    Author `json:"author"`
+	Committer Author `json:"committer"`
+	Message   string `json:"message"`
+	URL       string `json:"url"`
+}
+
+type CommitResponse struct {
+	SHA         string `json:"sha"`
+	NodeID      string `json:"node_id"`
+	Commit      Commit `json:"commit"`
+	URL         string `json:"url"`
+	HTMLURL     string `json:"html_url"`
+	CommentsURL string `json:"comments_url"`
+}
+
+func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commit, error) {
+	apiUrl := fmt.Sprintf(baseURLGHApi+"/repos/%s/%s/commits/%s", owner, repo, commitHash)
+
+	response, err := httpClient.Get(apiUrl)
+	if err != nil {
+		logrus.Debug("Error making request:", err)
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		logrus.Debug("Failed to fetch commit information. Status code:", response.StatusCode)
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		logrus.Debug("Error reading response body:", err)
+		return nil, err
+	}
+
+	var commitResponse CommitResponse
+
+	err = json.Unmarshal([]byte(data), &commitResponse)
+	if err != nil {
+		logrus.Debug("Error unmarshaling JSON:", err)
+		return nil, err
+	}
+
+	return &commitResponse.Commit, nil
+}
+
+func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpClient *http.Client) ([]byte, error) {
+	rawURL := fmt.Sprintf(ghContentURL+"/%s/%s/%s/%s", owner, repo, commitHash, filePath)
+
+	response, err := http.Get(rawURL)
+	if err != nil {
+		logrus.Debug("Error fetching raw file:", err)
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		logrus.Debug("Failed to fetch raw file. Status code:", response.StatusCode)
+		return nil, err
+	}
+
+	data, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		logrus.Debug("Error reading response body:", err)
+		return nil, err
+	}
+	return data, nil
+}
