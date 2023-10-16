@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	goDevURL           = "https://go.dev/dl/?mode=json"
-	githubApiURL       = "https://api.github.com/"
+	goDevURL           = "https://go.dev/"
+	goDevJSONPath      = "dl/?mode=json"
 	imageBuildBaseRepo = "image-build-base"
 )
 
@@ -30,7 +30,7 @@ type GithubRelease struct {
 }
 
 func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
-	versions, err := goVersions(goDevURL)
+	versions, err := goVersions(goDevURL + goDevJSONPath)
 	if err != nil {
 		return err
 	}
