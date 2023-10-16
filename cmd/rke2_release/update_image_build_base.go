@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/rancher/ecm-distro-tools/release/rke2"
+	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,5 +30,7 @@ func imageBuildBaseRelease(c *cli.Context) error {
 	if token == "" {
 		return errors.New("env var GITHUB_TOKEN is required")
 	}
-	return rke2.ImageBuildBaseRelease(context.Background(), token)
+	ctx := context.Background()
+	ghClient := repository.NewGithub(ctx, token)
+	return rke2.ImageBuildBaseRelease(ctx, ghClient)
 }

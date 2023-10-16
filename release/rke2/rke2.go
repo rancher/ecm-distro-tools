@@ -29,12 +29,11 @@ type GithubRelease struct {
 	Name string `json:"name"`
 }
 
-func ImageBuildBaseRelease(ctx context.Context, githubToken string) error {
+func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
 	versions, err := goVersions(goDevURL)
 	if err != nil {
 		return err
 	}
-	ghClient := repository.NewGithub(ctx, githubToken)
 	imageBuildBaseOrg, err := repository.OrgFromRepo(imageBuildBaseRepo)
 	if err != nil {
 		return err
