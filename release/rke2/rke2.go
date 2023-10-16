@@ -25,7 +25,7 @@ type goVersionRecord struct {
 	Stable  bool   `json:"stable"`
 }
 
-type GithubRelease struct {
+type githubRelease struct {
 	Name string `json:"name"`
 }
 
