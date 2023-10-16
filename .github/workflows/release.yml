@@ -1,15 +1,15 @@
 name: ECM Distro Tools Release
 on:
-  push:
-    tags:
-      - "v*"
+ push:
+   tags:
+     - "v*"
 jobs:
   release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout 
         uses: actions/checkout@v4
       - name: Build ECM Distro Tools
         run: |
@@ -19,7 +19,7 @@ jobs:
         uses: SierraSoftworks/gh-releases@v1.0.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          overwrite: "true"
+          overwrite: 'true'
           files: |
             ${{ github.workspace }}/bin/bootstrap_hash
             ${{ github.workspace }}/bin/check_for_k8s_release
