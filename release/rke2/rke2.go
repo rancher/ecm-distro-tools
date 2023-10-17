@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	goDevURL           = "https://go.dev/"
-	goDevJSONPath      = "dl/?mode=json"
+	goDevURL           = "https://go.dev/dl/?mode=json"
 	imageBuildBaseRepo = "image-build-base"
 )
 
@@ -25,12 +24,8 @@ type goVersionRecord struct {
 	Stable  bool   `json:"stable"`
 }
 
-type githubRelease struct {
-	Name string `json:"name"`
-}
-
 func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
-	versions, err := goVersions(goDevURL + goDevJSONPath)
+	versions, err := goVersions(goDevURL)
 	if err != nil {
 		return err
 	}
