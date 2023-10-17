@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +91,10 @@ git commit --all --signoff -m "update chart branch references to {{ .NewBranch }
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
 fi`
+	partialFinalRCCommitMessage = "last commit for final rc"
+	releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
+	rancherRepo                 = "rancher"
+	rancherOrg                  = rancherRepo
 )
 
 type SetBranchReferencesArgs struct {
@@ -264,8 +269,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 }
 
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchName, forkOwner string, ghClient *github.Client) error {
-	const repo = "rancher"
-	org, err := repository.OrgFromRepo(repo)
+	org, err := repository.OrgFromRepo(rancherRepo)
 	if err != nil {
 		return err
 	}
@@ -275,7 +279,61 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 		Head:                github.String(forkOwner + ":" + branchName),
 		MaintainerCanModify: github.Bool(true),
 	}
-	_, _, err = ghClient.PullRequests.Create(ctx, org, repo, pull)
+	_, _, err = ghClient.PullRequests.Create(ctx, org, rancherRepo, pull)
 
 	return err
+}
+
+func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) error {
+	var matchCommitMessage bool
+	var existsReleaseTitle bool
+	var badFiles bool
+
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
+
+	if repo == "" {
+		repo = rancherRepo
+	}
+	if commitHash != "" {
+		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
+		if err != nil {
+			return err
+		}
+		matchCommitMessage = strings.Contains(commitData.Message, partialFinalRCCommitMessage)
+
+	}
+	if releaseTitle != "" {
+		innerExistsReleaseTitle, err := regexp.MatchString(releaseTitleRegex, releaseTitle)
+		if err != nil {
+			return err
+		}
+		existsReleaseTitle = innerExistsReleaseTitle
+	}
+
+	if matchCommitMessage || existsReleaseTitle {
+		for _, filePath := range strings.Split(files, ",") {
+			content, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
+			if err != nil {
+				return err
+			}
+
+			if regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`).Match(content) {
+				badFiles = true
+				logrus.Info("error: " + filePath + " contains dev dependencies")
+			}
+			if regexp.MustCompile(`-rc[0-9]+`).Match(content) {
+				badFiles = true
+				logrus.Info("error: " + filePath + " contains rc tags")
+			}
+		}
+		if badFiles {
+			return errors.New("Check failed, some files don't match the expected dependencies for a final release candidate")
+		}
+
+		logrus.Info("Check completed successfully")
+		return nil
+	}
+
+	logrus.Info("Skipped check")
+	return nil
 }
