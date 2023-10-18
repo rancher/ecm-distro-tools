@@ -38,6 +38,7 @@ jobs:
             ${{ github.workspace }}/cmd/gen_release_notes/bin/*
             ${{ github.workspace }}/cmd/k3s_release/bin/*
             ${{ github.workspace }}/cmd/rancher_release/bin/*
+            ${{ github.workspace }}/cmd/rke2_release/bin/*
             ${{ github.workspace }}/cmd/standup/bin/*
             ${{ github.workspace }}/cmd/test_coverage/bin/*
             ${{ github.workspace }}/cmd/upstream_go_version/bin/*

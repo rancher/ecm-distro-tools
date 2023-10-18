@@ -19,6 +19,10 @@ k3s_release:
 rancher_release:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: rke2_release
+rke2_release:
+	cd cmd/$@ && $(MAKE)
+
 .PHONY: backport
 backport:
 	cd cmd/$@ && $(MAKE)

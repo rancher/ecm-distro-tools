@@ -28,14 +28,7 @@ _testmain.go
 .idea
 *.iml
 
-cmd/gen_release_report/bin
-cmd/gen_release_notes/bin
-cmd/backport/bin
-cmd/standup/bin
-cmd/k3s_release/bin
-cmd/test_coverage/bin
-cmd/upstream_go_version/bin
-cmd/rancher_release/bin
+cmd/*/bin
 
 data/*
 
