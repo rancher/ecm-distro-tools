@@ -70,6 +70,12 @@ jobs:
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-freebsd-arm64
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-linux-amd64
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-linux-arm64
+            ${{ github.workspace }}/cmd/semv/bin/semv-darwin-amd64
+            ${{ github.workspace }}/cmd/semv/bin/semv-darwin-arm64
+            ${{ github.workspace }}/cmd/semv/bin/semv-freebsd-amd64
+            ${{ github.workspace }}/cmd/semv/bin/semv-freebsd-arm64
+            ${{ github.workspace }}/cmd/semv/bin/semv-linux-amd64
+            ${{ github.workspace }}/cmd/semv/bin/semv-linux-arm64
             ${{ github.workspace }}/cmd/test_coverage/bin/test_coverage-darwin-amd64
             ${{ github.workspace }}/cmd/test_coverage/bin/test_coverage-darwin-arm64
             ${{ github.workspace }}/cmd/test_coverage/bin/test_coverage-freebsd-amd64
