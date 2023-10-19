@@ -17,7 +17,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "commit",
 				Aliases:  []string{"c"},
 				Usage:    "last commit for a final rc",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "release-title",
@@ -29,7 +29,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "org",
 				Aliases:  []string{"o"},
 				Usage:    "organization name",
-				Required: false,
+				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "repo",
@@ -41,7 +41,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "files",
 				Aliases:  []string{"f"},
 				Usage:    "files to be checked",
-				Required: false,
+				Required: true,
 			},
 		},
 		Action: checkRancherRCDeps,
