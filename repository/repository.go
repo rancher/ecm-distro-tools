@@ -32,9 +32,10 @@ const (
 
 // repoToOrg associates repo to org.
 var repoToOrg = map[string]string{
-	"rke2":    "rancher",
-	"k3s":     "k3s-io",
-	"rancher": "rancher",
+	"rke2":             "rancher",
+	"k3s":              "k3s-io",
+	"rancher":          "rancher",
+	"image-build-base": "rancher",
 }
 
 // stripBackportTag returns a string with a prefix backport tag removed

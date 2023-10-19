@@ -18,7 +18,7 @@ Results are printed in MD, and can be pasted into Slack, but formatting is trick
 **Examples**
 
 ```
-rancher_release list-nonmirrored-rc-images --tag v2.6
+rancher_release list-nonmirrored-rc-images --tag v2.8.0-rc1
 ```
 
 ### check-rancher-image
@@ -32,7 +32,7 @@ Checks if there’s an available Helm Chart and Docker images for amd64, arm and
 **Examples**
 
 ```
-rancher_release check-rancher-image --tag v2.6
+rancher_release check-rancher-image --tag v2.8.0-rc1
 ```
 
 ### set-kdm-branch-refs
@@ -101,6 +101,22 @@ export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-charts-branch-refs -f $GOPATH/src/github.com/{YOUR_USERNAME}/rancher -b release/v2.8 -c dev-v2.8 -n dev-v2.9 -p -o {YOUR_USERNAME}
 ```
+
+### label-issues
+
+Given a release candidate, updates each GitHub issue belonging to its milestone with the tag `[zube]: To Test` and adds a comment with the prerelease version to test.
+
+**Examples**
+
+```sh
+rancher_release label-issues -t v2.8.1-rc1 --dry-run
+# Updating 2 issues
+# #1 Issue one (v2.8.x)
+#   [Waiting for RC] -> [To Test] 
+# #2 Issue two (v2.8.x)
+#   [Waiting for RC] -> [To Test] 
+```
+
 
 ## Contributions
 

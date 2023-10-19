@@ -23,16 +23,11 @@ var rootFlags = []cli.Flag{
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "rancher-release"
-	app.Usage = "Perform a Rancher release"
+	app.Name = "rke2-release"
+	app.Usage = "Perform a rke2 release"
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
-		listImagesRCCommand(),
-		checkRancherImageCommand(),
-		setKDMBranchReferencesCommand(),
-		setChartsBranchReferencesCommand(),
-		checkRancherRCDepsCommand(),
-		labelIssuesCommand(),
+		imageBuildBaseReleaseCommand(),
 	}
 	app.Flags = rootFlags
 
