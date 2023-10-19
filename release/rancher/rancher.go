@@ -56,7 +56,6 @@ Linux)
 	exit 1
 	;;
 esac
-fi
 git add pkg/settings/setting.go
 git add package/Dockerfile
 git add Dockerfile.dapper
