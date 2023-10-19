@@ -18,7 +18,7 @@ Results are printed in MD, and can be pasted into Slack, but formatting is trick
 **Examples**
 
 ```
-rancher_release list-nonmirrored-rc-images --tag v2.6
+rancher_release list-nonmirrored-rc-images --tag v2.8.0-rc1
 ```
 
 ### check-rancher-image
@@ -32,7 +32,7 @@ Checks if there’s an available Helm Chart and Docker images for amd64, arm and
 **Examples**
 
 ```
-rancher_release check-rancher-image --tag v2.6
+rancher_release check-rancher-image --tag v2.8.0-rc1
 ```
 
 ### set-kdm-branch-refs
