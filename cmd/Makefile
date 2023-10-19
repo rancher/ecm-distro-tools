@@ -3,3 +3,4 @@ ARCHS = amd64 arm64
 OSs = linux darwin freebsd
 
 GO_COMPILE = CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v -ldflags "$(LDFLAGS)" -o $@-$${os}-$${arch}
+GEN_HASH = sha256sum $@-$${os}-$${arch} >> $(BINDIR)/sha256sums-$(BINARY).txt
