@@ -331,13 +331,13 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 			}
 		}
 		if badFiles {
-			return errors.New("Check failed, some files don't match the expected dependencies for a final release candidate")
+			return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 		}
 
-		logrus.Info("Check completed successfully")
+		logrus.Info("check completed successfully")
 		return nil
 	}
 
-	logrus.Info("Skipped check")
+	logrus.Info("skipped check")
 	return nil
 }

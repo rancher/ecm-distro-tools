@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -495,12 +496,11 @@ func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commi
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		logrus.Debug("Failed to fetch commit information. Status code:", response.StatusCode)
-		return nil, err
+		return nil, errors.New("failed to fetch commit information. status code: " + strconv.Itoa(response.StatusCode))
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		logrus.Debug("Error reading response body:", err)
+		logrus.Debug("error reading response body:", err)
 		return nil, err
 	}
 
@@ -508,7 +508,7 @@ func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commi
 
 	err = json.Unmarshal([]byte(data), &commitResponse)
 	if err != nil {
-		logrus.Debug("Error unmarshaling JSON:", err)
+		logrus.Debug("error unmarshaling JSON:", err)
 		return nil, err
 	}
 
@@ -520,17 +520,16 @@ func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpCl
 
 	response, err := http.Get(rawURL)
 	if err != nil {
-		logrus.Debug("Error fetching raw file:", err)
+		logrus.Debug("error fetching raw file:", err)
 		return nil, err
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		logrus.Debug("Failed to fetch raw file. Status code:", response.StatusCode)
-		return nil, err
+		return nil, errors.New("failed to fetch raw file. status code: " + strconv.Itoa(response.StatusCode))
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		logrus.Debug("Error reading response body:", err)
+		logrus.Debug("error reading response body:", err)
 		return nil, err
 	}
 
