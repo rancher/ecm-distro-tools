@@ -45,13 +45,14 @@ func testCommand() *cli.Command {
 func parseCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "parse",
-		Usage: "parse a semantic version",
+		Usage: "parse [version]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "output",
-				Aliases:  []string{"o"},
-				Usage:    "Output format (table|json|yaml|name|go-template)",
-				Required: false,
+				Name:        "output",
+				Aliases:     []string{"o"},
+				Usage:       "Output `format` (table|json|yaml|name|go-template)",
+				DefaultText: "table",
+				Required:    false,
 			},
 		},
 		Action: parse,
@@ -59,16 +60,9 @@ func parseCommand() *cli.Command {
 }
 
 func test(c *cli.Context) error {
-	if c.Args().Get(0) == "" {
-		return errors.New("constraint and version are required")
+	if c.Args().Len() != 2 {
+		return errors.New("invalid number of arguments")
 	}
-	if c.Args().Get(1) == "" {
-		return errors.New("version is required")
-	}
-	if c.Args().Get(2) != "" {
-		return errors.New("too many arguments")
-	}
-
 	constraint, err := semver.NewConstraint(c.Args().Get(0))
 	if err != nil {
 		return err
@@ -86,14 +80,14 @@ func test(c *cli.Context) error {
 }
 
 func parse(c *cli.Context) error {
-	if c.Args().Get(0) == "" {
-		return errors.New("version is required")
+	if c.Args().Len() != 1 {
+		return errors.New("invalid number of arguments")
 	}
 	v, err := semver.NewVersion(c.Args().Get(0))
 	if err != nil {
 		return err
 	}
-	result, err := format(v, c.String("format"))
+	result, err := format(v, c.String("output"))
 	if err != nil {
 		return err
 	}
@@ -102,27 +96,40 @@ func parse(c *cli.Context) error {
 }
 
 func format(v *semver.Version, f string) (string, error) {
+	data := struct {
+		Major      uint64 `json:"major" yaml:"major"`
+		Minor      uint64 `json:"minor" yaml:"minor"`
+		Patch      uint64 `json:"patch" yaml:"patch"`
+		Prerelease string `json:"prerelease" yaml:"prerelease"`
+		Metadata   string `json:"metadata" yaml:"metadata"`
+	}{
+		Major:      v.Major(),
+		Minor:      v.Minor(),
+		Patch:      v.Patch(),
+		Prerelease: v.Prerelease(),
+		Metadata:   v.Metadata(),
+	}
 	switch {
 	case f == "" || f == "table":
 		var buffer bytes.Buffer
 		w := tabwriter.NewWriter(&buffer, 0, 0, 2, ' ', tabwriter.TabIndent)
 		fmt.Fprintln(w, "Major\tMinor\tPatch\tPrerelease\tMetadata")
 		fmt.Fprintf(w, "%d\t%d\t%d\t%s\t%s\t\n",
-			v.Major(),
-			v.Minor(),
-			v.Patch(),
-			v.Prerelease(),
-			v.Metadata())
+			data.Major,
+			data.Minor,
+			data.Patch,
+			data.Prerelease,
+			data.Metadata)
 		w.Flush()
 		return buffer.String(), nil
 	case f == "json":
-		jsonData, err := json.MarshalIndent(v, "", "  ")
+		jsonData, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
 			return "", err
 		}
 		return string(jsonData), nil
 	case f == "yaml":
-		yml, err := yaml.Marshal(v)
+		yml, err := yaml.Marshal(data)
 		if err != nil {
 			return "", err
 		}
@@ -134,7 +141,7 @@ func format(v *semver.Version, f string) (string, error) {
 			return "", err
 		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, v); err != nil {
+		if err := tmpl.Execute(&buf, data); err != nil {
 			return "", err
 		}
 		return buf.String(), nil

@@ -1,19 +1,19 @@
 # semv
 
-Parse, test and compare semantic versions
+`semv` provides subcommands to parse a semantic version, and to test if a version conforms to a semantic version constraint.
 
 ### Examples
 
 ```sh
-semv -test v1.1.x v1.1.1-rc1
+PRERELEASE=$(./bin/semv-darwin-amd64 parse --output go-template="{{ .Prerelease }}" v1.2.3)
+if [ -n "$PRERELEASE" ]; then
+  echo "Prerelease: $PRERELEASE"
+fi
+
 ```
 
 ```sh
-semv -is-prerelease v1.1.1-rc1
-```
-
-```sh
-semv -parse v1.1.1-rc1 -o 
+semv test v1.1 v1.1.1
 ```
 
 ## Contributions
