@@ -47,20 +47,24 @@ func labelIssuesWaitingForRC(c *cli.Context) error {
 	tag := c.String("tag")
 	dryRun := c.Bool("dry-run")
 	githubToken := c.String("github-token")
-	const repo = "rancher"
 	const org = "rancher"
+	const repo = "rancher"
 	const oldTag = "[zube]: Waiting for RC"
 	const newTag = "[zube]: To Test"
 
 	if tag == "" {
 		return errors.New("'tag' must be set")
 	}
-	version, err := semver.NewVersion(tag)
+	v, err := semver.NewVersion(tag)
 	if err != nil {
 		return err
 	}
-	if version.Prerelease() == "" {
+	if v.Prerelease() == "" {
 		return errors.New("'tag' must be a prerelease")
+	}
+	v, err = semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()))
+	if err != nil {
+		return err
 	}
 
 	if githubToken == "" {
@@ -87,7 +91,7 @@ func labelIssuesWaitingForRC(c *cli.Context) error {
 			if err != nil {
 				return err
 			}
-			if pattern.Check(version) {
+			if pattern.Check(v) {
 				issues = append(issues, issue)
 			}
 		}
