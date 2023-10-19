@@ -463,7 +463,6 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] PJM: Close the milestone in GitHub.
 `
 
-// Partial Body from commit api, fell free to add more fields if needed
 type Author struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
@@ -529,11 +528,11 @@ func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpCl
 		logrus.Debug("Failed to fetch raw file. Status code:", response.StatusCode)
 		return nil, err
 	}
-
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		logrus.Debug("Error reading response body:", err)
 		return nil, err
 	}
+
 	return data, nil
 }

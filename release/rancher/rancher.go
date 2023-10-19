@@ -285,9 +285,13 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 }
 
 func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) error {
-	var matchCommitMessage bool
-	var existsReleaseTitle bool
-	var badFiles bool
+	var (
+		devDependencyPattern = regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
+		rcTagPattern         = regexp.MustCompile(`-rc[0-9]+`)
+		matchCommitMessage   bool
+		existsReleaseTitle   bool
+		badFiles             bool
+	)
 
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 
@@ -317,11 +321,11 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 				return err
 			}
 
-			if regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`).Match(content) {
+			if devDependencyPattern.Match(content) {
 				badFiles = true
 				logrus.Info("error: " + filePath + " contains dev dependencies")
 			}
-			if regexp.MustCompile(`-rc[0-9]+`).Match(content) {
+			if rcTagPattern.Match(content) {
 				badFiles = true
 				logrus.Info("error: " + filePath + " contains rc tags")
 			}

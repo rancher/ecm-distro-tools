@@ -1,15 +1,10 @@
 package rancher
 
 import (
-	"errors"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNonMirroredRCImages(t *testing.T) {
@@ -63,49 +58,4 @@ func TestRancherHelmChartVersions(t *testing.T) {
 	if !reflect.DeepEqual(expectedVersions, versions) {
 		t.Errorf("expected %v, got %v", expectedVersions, versions)
 	}
-}
-
-func TestCheckRancherFinalRCDeps(t *testing.T) {
-	org := "testOrg"
-	repo := "testRepo"
-	commitHash := "testHash"
-	releaseTitle := "Pre-release v2.7.1-rc1"
-	files := "file1,file2"
-
-	t.Run("Valid CheckRancherFinalRCDeps", func(t *testing.T) {
-		httpClient := &MockHTTPClient{Response: "dev-v2.7.1"}
-		err := CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files, &httpClient)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Invalid CheckRancherFinalRCDeps with Dev Dependency", func(t *testing.T) {
-		httpClient := &MockHTTPClient{Response: "dev-v3.0"}
-		err := CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files, &httpClient)
-		expectedError := errors.New("Check failed, some files don't match the expected dependencies for a final release candidate")
-		assert.EqualError(t, err, expectedError.Error())
-	})
-
-	t.Run("Invalid CheckRancherFinalRCDeps with RC Tag", func(t *testing.T) {
-		httpClient := &MockHTTPClient{Response: "-rc1"}
-		err := CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files, &httpClient)
-		expectedError := errors.New("Check failed, some files don't match the expected dependencies for a final release candidate")
-		assert.EqualError(t, err, expectedError.Error())
-	})
-
-	t.Run("Skipped CheckRancherFinalRCDeps", func(t *testing.T) {
-		httpClient := &MockHTTPClient{Response: "dev-v2.7.1"}
-		err := CheckRancherFinalRCDeps("", "", "", "", "", &httpClient)
-		assert.NoError(t, err)
-	})
-}
-
-type MockHTTPClient struct {
-	Response string
-}
-
-func (c *MockHTTPClient) Get(url string) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: 200,
-		Body:       ioutil.NopCloser(strings.NewReader(c.Response)),
-	}, nil
 }

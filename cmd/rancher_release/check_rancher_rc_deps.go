@@ -11,7 +11,7 @@ import (
 func checkRancherRCDepsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "check-rancher-rc-deps",
-		Usage: "check if rancher commit contains the necessary values for a final rc",
+		Usage: "check if the Rancher version specified by the commit does not contain development dependencies and rc tags",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "commit",
@@ -28,13 +28,13 @@ func checkRancherRCDepsCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:     "org",
 				Aliases:  []string{"o"},
-				Usage:    "organization name, e.g rancher,suse",
+				Usage:    "organization name",
 				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "repo",
 				Aliases:  []string{"r"},
-				Usage:    "repository from process",
+				Usage:    "rancher repository from process",
 				Required: false,
 			},
 			&cli.StringFlag{
@@ -55,16 +55,17 @@ func checkRancherRCDeps(c *cli.Context) error {
 	rcRepo := c.String("repo")
 	rcFiles := c.String("files")
 
-	if rcFiles == "" {
-		return errors.New("'files' is required, e.g  --files Dockerfile.dapper,go.mod ")
-	}
 	if rcCommit == "" && rcReleaseTitle == "" {
 		return errors.New("'commit' or 'release-title' are required")
+	}
+	if rcFiles == "" {
+		return errors.New("'files' is required, e.g, --files Dockerfile.dapper,go.mod")
 	}
 	if rcOrg == "" {
 		return errors.New("'org' is required")
 	}
-	logrus.Debug("commit: " + rcCommit)
+	logrus.Debugf("organization: %s, repository: %s, commit: %s, release title: %s, files: %s",
+		rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
 
 	return rancher.CheckRancherFinalRCDeps(rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
 }
