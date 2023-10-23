@@ -13,7 +13,8 @@ TAGS              = "netgo osusergo no_stage static_build"
 $(BINDIR)/$(BINARY): clean
 	for arch in $(ARCHS); do \
 		for os in $(OSs); do \
-			$(GO_COMPILE) ; \
+			$(GO_COMPILE); \
+			$(GEN_HASH); \
 		done; \
 	done
 
