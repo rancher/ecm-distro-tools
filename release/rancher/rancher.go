@@ -297,6 +297,9 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 	if repo == "" {
 		repo = rancherRepo
 	}
+	if org == "" {
+		org = rancherOrg
+	}
 	if commitHash != "" {
 		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
 		if err != nil {

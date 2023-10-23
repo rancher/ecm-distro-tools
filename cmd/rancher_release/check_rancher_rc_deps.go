@@ -11,7 +11,7 @@ import (
 func checkRancherRCDepsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "check-rancher-rc-deps",
-		Usage: "check if the Rancher version specified by the commit does not contain development dependencies and rc tags",
+		Usage: "check if the Rancher version specified by the commit or pre-release title does not contain development dependencies and rc tags",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "commit",
@@ -29,7 +29,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "org",
 				Aliases:  []string{"o"},
 				Usage:    "organization name",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "repo",
@@ -60,9 +60,6 @@ func checkRancherRCDeps(c *cli.Context) error {
 	}
 	if rcFiles == "" {
 		return errors.New("'files' is required, e.g, --files Dockerfile.dapper,go.mod")
-	}
-	if rcOrg == "" {
-		return errors.New("'org' is required")
 	}
 	logrus.Debugf("organization: %s, repository: %s, commit: %s, release title: %s, files: %s",
 		rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
