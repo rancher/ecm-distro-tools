@@ -80,7 +80,7 @@ func setKDMBranchReferences(c *cli.Context) error {
 	}
 	baseBranch := c.String("base-branch")
 	if baseBranch == "" {
-		baseBranch, err := currentBranch(forkPath)
+		baseBranch, err = currentBranch(forkPath)
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,6 @@ func setKDMBranchReferences(c *cli.Context) error {
 			return errors.New("'create-pr' requires the 'GITHUB_TOKEN' env var")
 		}
 	}
-
 	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
 }
 

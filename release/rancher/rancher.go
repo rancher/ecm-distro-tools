@@ -42,14 +42,14 @@ git clean -xfd`
 OS=$(uname -s)
 case ${OS} in
 Darwin)
-	sed -i '' 's/NewSetting(\"kdm-branch\", \"{{ .CurrentBranch }}\")/NewSetting(\"kdm-branch\", \"{{ .NewBranch }}\")/' pkg/settings/setting.go
-	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
+	sed -i '' 's/NewSetting("kdm-branch", ".*")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i '' 's/ARG\ CATTLE_KDM_BRANCH=.*$/ARG\ CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i '' 's/CATTLE_KDM_BRANCH=.*$/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
 	;;
 Linux)
-	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentBranch }}")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
-	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
+	sed -i 's/NewSetting("kdm-branch", ".*")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i 's/ARG\ CATTLE_KDM_BRANCH=.*$/ARG\ CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i 's/CATTLE_KDM_BRANCH=.*$/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -209,11 +209,10 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
 	branchName := "kdm-set-" + newKDMBranch
 	data := SetBranchReferencesArgs{
 		RancherRepoPath:   forkPath,
-		CurrentBranch:     currentKDMBranch,
 		NewBranch:         newKDMBranch,
 		RancherBaseBranch: rancherBaseBranch,
 		DryRun:            dryRun,
@@ -221,18 +220,24 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, cu
 	}
 	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 
+	logrus.Info("running update files and apply updates script...")
 	if err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data); err != nil {
 		return err
 	}
 
-	if createPR && !dryRun {
+	if createPR {
+		prName := "Update KDM to " + newKDMBranch
+		logrus.Info("creating PR: " + prName)
+		if dryRun {
+			logrus.Info("dry run, PR will not be created")
+			return nil
+		}
 		ghClient := repository.NewGithub(ctx, githubToken)
 
-		if err := createPRFromRancher(ctx, rancherBaseBranch, "Update KDM to "+newKDMBranch, branchName, forkOwner, ghClient); err != nil {
+		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, forkOwner, ghClient); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
