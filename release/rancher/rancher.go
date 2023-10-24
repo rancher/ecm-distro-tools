@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/docker"
 	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -161,10 +160,6 @@ func rancherImages(imagesURL string) (string, error) {
 		return "", err
 	}
 	return string(images), nil
-}
-
-func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
 }
 
 func CheckHelmChartVersion(tag string) error {
