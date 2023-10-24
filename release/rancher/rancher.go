@@ -169,7 +169,7 @@ func CheckHelmChartVersion(tag string) error {
 	}
 	var foundVersion bool
 	for _, version := range versions {
-		logrus.Debug("checking version " + version)
+		logrus.Info("checking version " + version)
 		if tag == version {
 			logrus.Info("found chart for version " + version)
 			foundVersion = true
@@ -184,7 +184,7 @@ func CheckHelmChartVersion(tag string) error {
 
 func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
-	logrus.Debug("downloading: " + repoURL)
+	logrus.Info("downloading: " + repoURL)
 	resp, err := httpClient.Get(repoURL)
 	if err != nil {
 		return nil, err
