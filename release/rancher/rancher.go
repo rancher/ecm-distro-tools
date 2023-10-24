@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/docker"
 	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -163,10 +162,6 @@ func rancherImages(imagesURL string) (string, error) {
 	return string(images), nil
 }
 
-func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
-}
-
 func CheckHelmChartVersion(tag string) error {
 	versions, err := rancherHelmChartVersions(rancherHelmRepositoryURL)
 	if err != nil {
@@ -174,7 +169,7 @@ func CheckHelmChartVersion(tag string) error {
 	}
 	var foundVersion bool
 	for _, version := range versions {
-		logrus.Debug("checking version " + version)
+		logrus.Info("checking version " + version)
 		if tag == version {
 			logrus.Info("found chart for version " + version)
 			foundVersion = true
@@ -189,7 +184,7 @@ func CheckHelmChartVersion(tag string) error {
 
 func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
-	logrus.Debug("downloading: " + repoURL)
+	logrus.Info("downloading: " + repoURL)
 	resp, err := httpClient.Get(repoURL)
 	if err != nil {
 		return nil, err
