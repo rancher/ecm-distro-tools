@@ -36,9 +36,16 @@ cd {{ .RancherRepoPath }}
 git remote -v | grep -w upstream || git remote add upstream https://github.com/rancher/rancher.git
 git fetch upstream
 git stash
+if [ 'git branch --list ${BRANCH_NAME}' ]
+then
+   echo "Branch name ${BRANCH_NAME} already exists, deleting"
+   git branch -D ${BRANCH_NAME}
+fi
 git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
 git clean -xfd`
 	setKDMBranchReferencesScript = `
+echo "Current set KDM Branch: $(cat Dockerfile.dapper | grep CATTLE_KDM_BRANCH)"
+
 OS=$(uname -s)
 case ${OS} in
 Darwin)
@@ -218,12 +225,14 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 		DryRun:            dryRun,
 		BranchName:        branchName,
 	}
-	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 
+	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 	logrus.Info("running update files and apply updates script...")
-	if err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data); err != nil {
+	output, err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data)
+	if err != nil {
 		return err
 	}
+	logrus.Info(output)
 
 	if createPR {
 		prName := "Update KDM to " + newKDMBranch
@@ -252,7 +261,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 		BranchName:        branchName,
 	}
 	script := cloneCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
-	if err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data); err != nil {
+	if _, err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data); err != nil {
 		return err
 	}
 
