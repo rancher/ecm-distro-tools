@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"strconv"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,19 +20,13 @@ func setChartsBranchReferencesCommand() *cli.Command {
 				Name:     "fork-path",
 				Aliases:  []string{"f"},
 				Usage:    "rancher repo fork directory path",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "base-branch",
 				Aliases:  []string{"b"},
 				Usage:    "rancher branch to use as a base, e.g: release/v2.8",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "current-charts-branch",
-				Aliases:  []string{"c"},
-				Usage:    "current branch set for charts in the repo",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "new-charts-branch",
@@ -43,8 +40,8 @@ func setChartsBranchReferencesCommand() *cli.Command {
 				Usage:   "if true, a PR will be created from your fork to the rancher repo base branch and a variable 'GITHUB_TOKEN' must be exported",
 			},
 			&cli.StringFlag{
-				Name:     "fork-owner",
-				Aliases:  []string{"o"},
+				Name:     "github-user",
+				Aliases:  []string{"u"},
 				Usage:    "github username of the owner of the fork, only required if 'create-pr' is true",
 				Required: false,
 			},
@@ -68,21 +65,43 @@ func setChartsBranchReferencesCommand() *cli.Command {
 
 func setChartBranchReferences(c *cli.Context) error {
 	forkPath := c.String("fork-path")
+	if forkPath == "" {
+		forkPath, err = os.Getwd()
+		if err != nil {
+			return err
+		}
+		logrus.Info("fork path: " + forkPath)
+		if err := isGitRepo(forkPath); err != nil {
+			return err
+		}
+	}
 	baseBranch := c.String("base-branch")
-	currentBranch := c.String("current-charts-branch")
+	if baseBranch == "" {
+		baseBranch, err = currentBranch(forkPath)
+		if err != nil {
+			return err
+		}
+		logrus.Info("base branch: " + baseBranch)
+	}
 	newBranch := c.String("new-charts-branch")
-	createPR := c.Bool("create-pr")
-	forkOwner := c.String("fork-owner")
+	logrus.Info("new Branch: " + newBranch)
+	githubUser := c.String("github-user")
 	githubToken := c.String("github-token")
 	dryRun := c.Bool("dry-run")
+	logrus.Info("dry run: " + strconv.FormatBool(dryRun))
+	createPR := c.Bool("create-pr")
+	logrus.Info("create PR: " + strconv.FormatBool(createPR))
 	if createPR {
-		if forkOwner == "" {
-			return errors.New("'create-pr' requires 'fork-owner'")
+		if githubUser == "" {
+			if githubUser, err = gitRepoOwner(forkPath); err != nil {
+				return err
+			}
+			logrus.Info("github username: ", githubUser)
 		}
 		if githubToken == "" {
 			return errors.New("'create-pr' requires the 'GITHUB_TOKEN' env var")
 		}
 	}
 
-	return rancher.SetChartBranchReferences(context.Background(), forkPath, baseBranch, currentBranch, newBranch, forkOwner, githubToken, createPR, dryRun)
+	return rancher.SetChartBranchReferences(context.Background(), forkPath, baseBranch, newBranch, githubUser, githubToken, createPR, dryRun)
 }
