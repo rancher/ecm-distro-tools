@@ -42,8 +42,8 @@ func setKDMBranchReferencesCommand() *cli.Command {
 				Usage:   "if true, a PR will be created from your fork to the rancher repo base branch and a variable 'GITHUB_TOKEN' must be exported",
 			},
 			&cli.StringFlag{
-				Name:     "fork-owner",
-				Aliases:  []string{"o"},
+				Name:     "github-username",
+				Aliases:  []string{"u"},
 				Usage:    "github username of the owner of the fork, only required if 'create-pr' is true",
 				Required: false,
 			},
@@ -88,24 +88,24 @@ func setKDMBranchReferences(c *cli.Context) error {
 	}
 	newKDMBranch := c.String("new-kdm-branch")
 	logrus.Info("new KDM Branch: " + newKDMBranch)
-	forkOwner := c.String("fork-owner")
+	githubUsername := c.String("github-username")
 	githubToken := c.String("github-token")
 	dryRun := c.Bool("dry-run")
 	logrus.Info("dry run: " + strconv.FormatBool(dryRun))
 	createPR := c.Bool("create-pr")
 	logrus.Info("create PR: " + strconv.FormatBool(createPR))
 	if createPR {
-		if forkOwner == "" {
-			if forkOwner, err = gitRepoOwner(forkPath); err != nil {
+		if githubUsername == "" {
+			if githubUsername, err = gitRepoOwner(forkPath); err != nil {
 				return err
 			}
-			logrus.Info("fork owner: ", forkOwner)
+			logrus.Info("github username: ", githubUsername)
 		}
 		if githubToken == "" {
 			return errors.New("'create-pr' requires the 'GITHUB_TOKEN' env var")
 		}
 	}
-	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
+	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, newKDMBranch, githubUsername, githubToken, createPR, dryRun)
 }
 
 func gitRepoOwner(path string) (string, error) {
