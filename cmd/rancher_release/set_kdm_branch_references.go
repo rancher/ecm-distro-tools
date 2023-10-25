@@ -138,15 +138,13 @@ func gitOriginURL(path string) (string, error) {
 func repoOwnerHTTPS(URL string) string {
 	// https://github.com/rancher/rancher.git
 	ownerAndRepo := strings.Split(URL, ".com/")[1]
-	owner := strings.Split(ownerAndRepo, "/")[0]
-	return owner
+	return strings.Split(ownerAndRepo, "/")[0]
 }
 
 func repoOwnerSSH(URL string) string {
 	// git@github.com:rancher/rancher.git
 	ownerAndRepo := strings.Split(URL, ":")[1]
-	owner := strings.Split(ownerAndRepo, "/")[0]
-	return owner
+	return strings.Split(ownerAndRepo, "/")[0]
 }
 
 func isGitRepo(path string) error {
