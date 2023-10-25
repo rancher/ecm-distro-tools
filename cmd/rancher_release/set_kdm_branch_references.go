@@ -13,6 +13,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var err error
+
 func setKDMBranchReferencesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "set-kdm-branch-refs",
@@ -66,7 +68,6 @@ func setKDMBranchReferencesCommand() *cli.Command {
 }
 
 func setKDMBranchReferences(c *cli.Context) error {
-	var err error
 	forkPath := c.String("fork-path")
 	if forkPath == "" {
 		forkPath, err = os.Getwd()
