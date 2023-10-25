@@ -216,7 +216,7 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newKDMBranch, githubUsername, githubToken string, createPR, dryRun bool) error {
+func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newKDMBranch, githubUser, githubToken string, createPR, dryRun bool) error {
 	branchName := "kdm-set-" + newKDMBranch
 	data := SetBranchReferencesArgs{
 		RancherRepoPath:   forkPath,
@@ -243,7 +243,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 		}
 		ghClient := repository.NewGithub(ctx, githubToken)
 
-		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, githubUsername, ghClient); err != nil {
+		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, githubUser, ghClient); err != nil {
 			return err
 		}
 	}

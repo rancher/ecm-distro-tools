@@ -45,14 +45,14 @@ Updates Rancher KDM branch references in:
 
 Non-required flags can be automatically set, if you are inside your rancher fork. ⚠️ If you decide to run this way, please double check your branch and directory ⚠️
 
-| **Flag**               | **Description**                                                                                                                                                                               | **Required** |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `fork-path`, `f`       | Path for your fork of rancher/rancher. Default is the currenty directory you are running the command in.                                                                                      | FALSE        |
-| `base-branch`, `b`     | The branch you want to update with the new KDM branch. Default is the current branch in your repo.                                                                                            | FALSE        |
-| `new-kdm-branch`, `n`  | KDM branch to replace the current.                                                                                                                                                            | TRUE         |
-| `create-pr`, `p`       | if true, will try to create a PR against the `base-branch` in rancher/rancher, may fail if your GitHub token doesn’t have the required permission. Requires a GITHUB_TOKEN env var to be set. | FALSE        |
-| `github-username`, `u` | GitHub Username of the owner of the rancher fork used in `rancher-fork`. Default is the username of the `origin` remote                                                                       | FALSE        |
-| `dry-run`, `r`         | Changes will not be pushed to remote and the PR will not be created.                                                                                                                          | FALSE        |
+| **Flag**              | **Description**                                                                                                                                                                               | **Required** |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `fork-path`, `f`      | Path for your fork of rancher/rancher. Default is the currenty directory you are running the command in.                                                                                      | FALSE        |
+| `base-branch`, `b`    | The branch you want to update with the new KDM branch. Default is the current branch in your repo.                                                                                            | FALSE        |
+| `new-kdm-branch`, `n` | KDM branch to replace the current.                                                                                                                                                            | TRUE         |
+| `create-pr`, `p`      | if true, will try to create a PR against the `base-branch` in rancher/rancher, may fail if your GitHub token doesn’t have the required permission. Requires a GITHUB_TOKEN env var to be set. | FALSE        |
+| `github-user`, `u`    | GitHub Username of the owner of the rancher fork used in `rancher-fork`. Default is the username of the `origin` remote                                                                       | FALSE        |
+| `dry-run`, `r`        | Changes will not be pushed to remote and the PR will not be created.                                                                                                                          | FALSE        |
 
 **Examples**
 
