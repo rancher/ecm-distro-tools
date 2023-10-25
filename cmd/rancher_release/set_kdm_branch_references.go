@@ -69,7 +69,7 @@ func setKDMBranchReferences(c *cli.Context) error {
 	var err error
 	forkPath := c.String("fork-path")
 	if forkPath == "" {
-		forkPath, err = cmdPath()
+		forkPath, err = os.Getwd()
 		if err != nil {
 			return err
 		}
@@ -106,14 +106,6 @@ func setKDMBranchReferences(c *cli.Context) error {
 		}
 	}
 	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, newKDMBranch, forkOwner, githubToken, createPR, dryRun)
-}
-
-func cmdPath() (string, error) {
-	path, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 func gitRepoOwner(path string) (string, error) {
