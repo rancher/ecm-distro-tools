@@ -135,15 +135,15 @@ func gitOriginURL(path string) (string, error) {
 	return strings.TrimSpace(result), nil
 }
 
-func repoOwnerHTTPS(URL string) string {
+func repoOwnerHTTPS(url string) string {
 	// https://github.com/rancher/rancher.git
-	ownerAndRepo := strings.Split(URL, ".com/")[1]
+	ownerAndRepo := strings.Split(url, ".com/")[1]
 	return strings.Split(ownerAndRepo, "/")[0]
 }
 
-func repoOwnerSSH(URL string) string {
+func repoOwnerSSH(url string) string {
 	// git@github.com:rancher/rancher.git
-	ownerAndRepo := strings.Split(URL, ":")[1]
+	ownerAndRepo := strings.Split(url, ":")[1]
 	return strings.Split(ownerAndRepo, "/")[0]
 }
 
