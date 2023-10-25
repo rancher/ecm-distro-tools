@@ -44,7 +44,8 @@ fi
 git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
 git clean -xfd`
 	setKDMBranchReferencesScript = `
-echo "Current set KDM Branch: $(cat Dockerfile.dapper | grep CATTLE_KDM_BRANCH)"
+echo "\nCurrent set KDM Branch: $(cat Dockerfile.dapper | grep CATTLE_KDM_BRANCH)"
+echo "\nUpdating\n    - pkg/settings/setting.go\n    - package/Dockerfile\n    - Dockerfile.dapper"
 
 OS=$(uname -s)
 case ${OS} in
