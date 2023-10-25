@@ -31,7 +31,7 @@ func setChartsBranchReferencesCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:     "new-charts-branch",
 				Aliases:  []string{"n"},
-				Usage:    "branch to be replaced in charts in the repo",
+				Usage:    "new branch to replace the current",
 				Required: true,
 			},
 			&cli.BoolFlag{
