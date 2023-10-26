@@ -240,9 +240,10 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 
 	if createPR {
 		prName := "Update KDM to " + newKDMBranch
-		logrus.Info("creating PR: " + prName)
+		logrus.Info("creating PR")
 		if dryRun {
 			logrus.Info("dry run, PR will not be created")
+			logrus.Info("PR:\n  Name: " + prName + "\n  From: " + githubUser + ":" + branchName + "\n  To rancher:" + rancherBaseBranch)
 			return nil
 		}
 		ghClient := repository.NewGithub(ctx, githubToken)
@@ -254,7 +255,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 	return nil
 }
 
-func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newBranch, githubUser, githubToken string, createPR, dryRun bool) error {
 	branchName := "charts-set-" + newBranch
 	data := SetBranchReferencesArgs{
 		RancherRepoPath:   forkPath,
@@ -273,14 +274,15 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 
 	if createPR {
 		prName := "Update charts branch references to " + newBranch
-		logrus.Info("creating PR: " + prName)
+		logrus.Info("creating PR")
 		if dryRun {
 			logrus.Info("dry run, PR will not be created")
+			logrus.Info("PR:\n  Name: " + prName + "\n  From: " + githubUser + ":" + branchName + "\n  To rancher:" + rancherBaseBranch)
 			return nil
 		}
 		ghClient := repository.NewGithub(ctx, githubToken)
 
-		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, forkOwner, ghClient); err != nil {
+		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, githubUser, ghClient); err != nil {
 			return err
 		}
 	}
