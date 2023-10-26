@@ -21,7 +21,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "release-title",
-				Aliases:  []string{"rt"},
+				Aliases:  []string{"t"},
 				Usage:    "release title from a given release process",
 				Required: false,
 			},
@@ -34,7 +34,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:     "repo",
 				Aliases:  []string{"r"},
-				Usage:    "rancher repository from process",
+				Usage:    "rancher repository",
 				Required: false,
 			},
 			&cli.StringFlag{

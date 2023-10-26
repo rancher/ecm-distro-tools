@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -90,10 +91,11 @@ git commit --all --signoff -m "update chart branch references to {{ .NewBranch }
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
 fi`
-	partialFinalRCCommitMessage = "last commit for final rc"
-	releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
-	rancherRepo                 = "rancher"
-	rancherOrg                  = rancherRepo
+)
+
+const (
+	rancherRepo = "rancher"
+	rancherOrg  = rancherRepo
 )
 
 type SetBranchReferencesArgs struct {
@@ -284,13 +286,18 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 }
 
 func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) error {
-	var (
-		devDependencyPattern = regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
-		rcTagPattern         = regexp.MustCompile(`-rc[0-9]+`)
-		matchCommitMessage   bool
-		existsReleaseTitle   bool
-		badFiles             bool
+	const (
+		releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
+		partialFinalRCCommitMessage = "last commit for final rc"
 	)
+	var (
+		matchCommitMessage bool
+		existsReleaseTitle bool
+		badFiles           bool
+	)
+
+	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
+	rcTagPattern := regexp.MustCompile(`-rc[0-9]+`)
 
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 
@@ -323,13 +330,28 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 				return err
 			}
 
-			if devDependencyPattern.Match(content) {
-				badFiles = true
-				logrus.Info("error: " + filePath + " contains dev dependencies")
+			scanner := bufio.NewScanner(strings.NewReader(string(content)))
+			lineNum := 1
+
+			for scanner.Scan() {
+				line := scanner.Text()
+				lineByte := []byte(line)
+
+				if devDependencyPattern.Match(lineByte) {
+					badFiles = true
+					logMessage := fmt.Sprintf("error: %s contains dev dependencies (line %d) - %s", filePath, lineNum, line)
+					logrus.Info(logMessage)
+				}
+				if rcTagPattern.Match(lineByte) {
+					badFiles = true
+					logMessage := fmt.Sprintf("error: %s contains rc tags (line %d) - %s", filePath, lineNum, line)
+					logrus.Info(logMessage)
+				}
+
+				lineNum++
 			}
-			if rcTagPattern.Match(content) {
-				badFiles = true
-				logrus.Info("error: " + filePath + " contains rc tags")
+			if err := scanner.Err(); err != nil {
+				return err
 			}
 		}
 		if badFiles {
