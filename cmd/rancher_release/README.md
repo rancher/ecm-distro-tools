@@ -43,7 +43,7 @@ Updates Rancher KDM branch references in:
 - `package/Dockerfile`
 - `Dockerfile.dapper`
 
-Non-required flags can be automatically set, if you are inside your rancher fork. ⚠️ If you decide to run this way, please double check your branch and directory ⚠️
+Optional flags can be automatically set if you are inside your rancher fork. ⚠️ If you decide to run this way, please double check your branch and directory ⚠️
 
 | **Flag**              | **Description**                                                                                                                                                                               | **Required** |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
