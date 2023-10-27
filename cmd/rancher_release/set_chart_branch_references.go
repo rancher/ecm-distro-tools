@@ -64,6 +64,7 @@ func setChartsBranchReferencesCommand() *cli.Command {
 }
 
 func setChartBranchReferences(c *cli.Context) error {
+	var err error
 	forkPath := c.String("fork-path")
 	if forkPath == "" {
 		forkPath, err = os.Getwd()
