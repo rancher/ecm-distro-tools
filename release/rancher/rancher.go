@@ -360,7 +360,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 		}
 
-		output += "check completed successfully \n"
+		output += "check completed successfully"
 		return output, nil
 	}
 
