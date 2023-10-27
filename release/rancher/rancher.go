@@ -334,17 +334,17 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 			lineNum := 1
 
 			for scanner.Scan() {
-				line := scanner.Text()
+				line := strings.TrimSpace(scanner.Text())
 				lineByte := []byte(line)
 
 				if devDependencyPattern.Match(lineByte) {
 					badFiles = true
-					logMessage := fmt.Sprintf("error: %s contains dev dependencies (line %d) - %s", filePath, lineNum, line)
+					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains dev dependencies", filePath, lineNum, line)
 					logrus.Info(logMessage)
 				}
 				if rcTagPattern.Match(lineByte) {
 					badFiles = true
-					logMessage := fmt.Sprintf("error: %s contains rc tags (line %d) - %s", filePath, lineNum, line)
+					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains rc tags", filePath, lineNum, line)
 					logrus.Info(logMessage)
 				}
 

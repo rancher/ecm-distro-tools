@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -27,7 +28,7 @@ const (
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
 	ghContentURL       = "https://raw.githubusercontent.com"
-	baseURLGHApi       = "https://api.github.com"
+	ghAPIURL           = "https://api.github.com"
 )
 
 // repoToOrg associates repo to org.
@@ -488,7 +489,9 @@ type CommitResponse struct {
 }
 
 func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commit, error) {
-	apiUrl := fmt.Sprintf(baseURLGHApi+"/repos/%s/%s/commits/%s", owner, repo, commitHash)
+	var commitResponseMutex sync.Mutex
+
+	apiUrl := fmt.Sprintf(ghAPIURL+"/repos/%s/%s/commits/%s", owner, repo, commitHash)
 
 	response, err := httpClient.Get(apiUrl)
 	if err != nil {
@@ -499,15 +502,12 @@ func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commi
 	if response.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to fetch commit information. status code: " + strconv.Itoa(response.StatusCode))
 	}
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		logrus.Debug("error reading response body:", err)
-		return nil, err
-	}
 
 	var commitResponse CommitResponse
 
-	err = json.Unmarshal([]byte(data), &commitResponse)
+	commitResponseMutex.Lock()
+	err = json.NewDecoder(response.Body).Decode(&commitResponse)
+	commitResponseMutex.Unlock()
 	if err != nil {
 		logrus.Debug("error unmarshaling JSON:", err)
 		return nil, err
