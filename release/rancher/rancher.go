@@ -285,7 +285,7 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	return err
 }
 
-func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) error {
+func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) (string, error) {
 	const (
 		releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
 		partialFinalRCCommitMessage = "last commit for final rc"
@@ -294,6 +294,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 		matchCommitMessage bool
 		existsReleaseTitle bool
 		badFiles           bool
+		output             string
 	)
 
 	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
@@ -310,7 +311,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 	if commitHash != "" {
 		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
 		if err != nil {
-			return err
+			return "", err
 		}
 		matchCommitMessage = strings.Contains(commitData.Message, partialFinalRCCommitMessage)
 
@@ -318,7 +319,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 	if releaseTitle != "" {
 		innerExistsReleaseTitle, err := regexp.MatchString(releaseTitleRegex, releaseTitle)
 		if err != nil {
-			return err
+			return "", err
 		}
 		existsReleaseTitle = innerExistsReleaseTitle
 	}
@@ -327,7 +328,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 		for _, filePath := range strings.Split(files, ",") {
 			content, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			scanner := bufio.NewScanner(strings.NewReader(string(content)))
@@ -340,28 +341,29 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 				if devDependencyPattern.Match(lineByte) {
 					badFiles = true
 					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains dev dependencies", filePath, lineNum, line)
-					logrus.Info(logMessage)
+					output += logMessage + "\n"
 				}
 				if rcTagPattern.Match(lineByte) {
 					badFiles = true
 					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains rc tags", filePath, lineNum, line)
-					logrus.Info(logMessage)
+					output += logMessage + "\n"
 				}
 
 				lineNum++
 			}
 			if err := scanner.Err(); err != nil {
-				return err
+				return "", err
 			}
 		}
 		if badFiles {
-			return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
+			fmt.Println(output)
+			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 		}
 
-		logrus.Info("check completed successfully")
-		return nil
+		output += "check completed successfully" + "\n"
+		return output, nil
 	}
 
-	logrus.Info("skipped check")
-	return nil
+	output += "skipped check"
+	return output, nil
 }

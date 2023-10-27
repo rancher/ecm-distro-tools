@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
@@ -64,5 +65,12 @@ func checkRancherRCDeps(c *cli.Context) error {
 	logrus.Debugf("organization: %s, repository: %s, commit: %s, release title: %s, files: %s",
 		rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
 
-	return rancher.CheckRancherFinalRCDeps(rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
+	output, err := rancher.CheckRancherFinalRCDeps(rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(output)
+
+	return nil
 }

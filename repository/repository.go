@@ -18,7 +18,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/types"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -495,7 +494,6 @@ func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commi
 
 	response, err := httpClient.Get(apiUrl)
 	if err != nil {
-		logrus.Debug("Error making request:", err)
 		return nil, err
 	}
 	defer response.Body.Close()
@@ -509,7 +507,6 @@ func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commi
 	err = json.NewDecoder(response.Body).Decode(&commitResponse)
 	commitResponseMutex.Unlock()
 	if err != nil {
-		logrus.Debug("error unmarshaling JSON:", err)
 		return nil, err
 	}
 
@@ -521,7 +518,6 @@ func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpCl
 
 	response, err := http.Get(rawURL)
 	if err != nil {
-		logrus.Debug("error fetching raw file:", err)
 		return nil, err
 	}
 	defer response.Body.Close()
@@ -530,7 +526,6 @@ func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpCl
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		logrus.Debug("error reading response body:", err)
 		return nil, err
 	}
 
