@@ -64,24 +64,25 @@ func setChartsBranchReferencesCommand() *cli.Command {
 }
 
 func setChartBranchReferences(c *cli.Context) error {
-	var err error
 	forkPath := c.String("fork-path")
 	if forkPath == "" {
-		forkPath, err = os.Getwd()
+		fp, err := os.Getwd()
 		if err != nil {
 			return err
 		}
-		logrus.Info("fork path: " + forkPath)
+		logrus.Info("fork path: " + fp)
 		if err := isGitRepo(forkPath); err != nil {
 			return err
 		}
+		forkPath = fp
 	}
 	baseBranch := c.String("base-branch")
 	if baseBranch == "" {
-		baseBranch, err = currentBranch(forkPath)
+		bb, err := currentBranch(forkPath)
 		if err != nil {
 			return err
 		}
+		baseBranch = bb
 		logrus.Info("base branch: " + baseBranch)
 	}
 	newBranch := c.String("new-charts-branch")
@@ -94,9 +95,11 @@ func setChartBranchReferences(c *cli.Context) error {
 	logrus.Info("create PR: " + strconv.FormatBool(createPR))
 	if createPR {
 		if githubUser == "" {
-			if githubUser, err = gitRepoOwner(forkPath); err != nil {
+			gu, err := gitRepoOwner(forkPath)
+			if err != nil {
 				return err
 			}
+			githubUser = gu
 			logrus.Info("github username: ", githubUser)
 		}
 		if githubToken == "" {
@@ -104,5 +107,14 @@ func setChartBranchReferences(c *cli.Context) error {
 		}
 	}
 
-	return rancher.SetChartBranchReferences(context.Background(), forkPath, baseBranch, newBranch, githubUser, githubToken, createPR, dryRun)
+	return rancher.SetChartBranchReferences(
+		context.Background(),
+		forkPath,
+		baseBranch,
+		newBranch,
+		githubUser,
+		githubToken,
+		createPR,
+		dryRun,
+	)
 }

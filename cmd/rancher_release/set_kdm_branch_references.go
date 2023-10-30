@@ -66,24 +66,25 @@ func setKDMBranchReferencesCommand() *cli.Command {
 }
 
 func setKDMBranchReferences(c *cli.Context) error {
-	var err error
 	forkPath := c.String("fork-path")
 	if forkPath == "" {
-		forkPath, err = os.Getwd()
+		fp, err := os.Getwd()
 		if err != nil {
 			return err
 		}
-		logrus.Info("fork path: " + forkPath)
+		logrus.Info("fork path: " + fp)
 		if err := isGitRepo(forkPath); err != nil {
 			return err
 		}
+		forkPath = fp
 	}
 	baseBranch := c.String("base-branch")
 	if baseBranch == "" {
-		baseBranch, err = currentBranch(forkPath)
+		bb, err := currentBranch(forkPath)
 		if err != nil {
 			return err
 		}
+		baseBranch = bb
 		logrus.Info("base branch: " + baseBranch)
 	}
 	newKDMBranch := c.String("new-kdm-branch")
@@ -96,16 +97,27 @@ func setKDMBranchReferences(c *cli.Context) error {
 	logrus.Info("create PR: " + strconv.FormatBool(createPR))
 	if createPR {
 		if githubUser == "" {
-			if githubUser, err = gitRepoOwner(forkPath); err != nil {
+			gu, err := gitRepoOwner(forkPath)
+			if err != nil {
 				return err
 			}
+			githubUser = gu
 			logrus.Info("github username: ", githubUser)
 		}
 		if githubToken == "" {
 			return errors.New("'create-pr' requires the 'GITHUB_TOKEN' env var")
 		}
 	}
-	return rancher.SetKDMBranchReferences(context.Background(), forkPath, baseBranch, newKDMBranch, githubUser, githubToken, createPR, dryRun)
+	return rancher.SetKDMBranchReferences(
+		context.Background(),
+		forkPath,
+		baseBranch,
+		newKDMBranch,
+		githubUser,
+		githubToken,
+		createPR,
+		dryRun,
+	)
 }
 
 func gitRepoOwner(path string) (string, error) {
