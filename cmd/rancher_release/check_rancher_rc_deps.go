@@ -44,6 +44,12 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Usage:    "files to be checked",
 				Required: true,
 			},
+			&cli.BoolFlag{
+				Name:     "template",
+				Aliases:  []string{"m"},
+				Usage:    "export as MD template",
+				Required: false,
+			},
 		},
 		Action: checkRancherRCDeps,
 	}
@@ -55,6 +61,7 @@ func checkRancherRCDeps(c *cli.Context) error {
 	rcOrg := c.String("org")
 	rcRepo := c.String("repo")
 	rcFiles := c.String("files")
+	toTemplate := c.String("template")
 
 	if rcCommit == "" && rcReleaseTitle == "" {
 		return errors.New("'commit' or 'release-title' are required")
