@@ -45,9 +45,9 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Required: true,
 			},
 			&cli.BoolFlag{
-				Name:     "template",
-				Aliases:  []string{"m"},
-				Usage:    "export as MD template",
+				Name:     "for-ci",
+				Aliases:  []string{"p"},
+				Usage:    "instead export a md template run a check raising a error if contains rc tags and dev deps",
 				Required: false,
 			},
 		},
@@ -61,7 +61,7 @@ func checkRancherRCDeps(c *cli.Context) error {
 	rcOrg := c.String("org")
 	rcRepo := c.String("repo")
 	rcFiles := c.String("files")
-	toTemplate := c.String("template")
+	forCi := c.Bool("for-ci")
 
 	if rcCommit == "" && rcReleaseTitle == "" {
 		return errors.New("'commit' or 'release-title' are required")
@@ -72,7 +72,7 @@ func checkRancherRCDeps(c *cli.Context) error {
 	logrus.Debugf("organization: %s, repository: %s, commit: %s, release title: %s, files: %s",
 		rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
 
-	output, err := rancher.CheckRancherFinalRCDeps(rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
+	output, err := rancher.CheckRancherRCDeps(forCi, rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
 	if err != nil {
 		return err
 	}

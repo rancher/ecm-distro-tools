@@ -2,14 +2,17 @@ package rancher
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/google/go-github/v39/github"
@@ -285,7 +288,22 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	return err
 }
 
-func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) (string, error) {
+type LineContent struct {
+	Line    int
+	File    string
+	Content string
+	Tag     string
+}
+
+type Content struct {
+	RancherImages  []LineContent
+	FilesWithRC    []LineContent
+	MinFilesWithRC []LineContent
+	FilesWithDev   []LineContent
+	ChartsKDM      []LineContent
+}
+
+func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files string) (string, error) {
 	const (
 		releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
 		partialFinalRCCommitMessage = "last commit for final rc"
@@ -295,6 +313,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 		existsReleaseTitle bool
 		badFiles           bool
 		output             string
+		content            Content
 	)
 
 	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
@@ -308,6 +327,7 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 	if org == "" {
 		org = rancherOrg
 	}
+
 	if commitHash != "" {
 		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
 		if err != nil {
@@ -324,29 +344,46 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 		existsReleaseTitle = innerExistsReleaseTitle
 	}
 
+	err := writeRancherImagesDeps(&content)
+	if err != err {
+		return "", err
+	}
+
 	if matchCommitMessage || existsReleaseTitle {
 		for _, filePath := range strings.Split(files, ",") {
-			content, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
+			repoContent, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
 			if err != nil {
 				return "", err
 			}
 
-			scanner := bufio.NewScanner(strings.NewReader(string(content)))
+			scanner := bufio.NewScanner(strings.NewReader(string(repoContent)))
 			lineNum := 1
 
 			for scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
 				lineByte := []byte(line)
 
+				writeMinVersionComponentsFromDockerfile(&content, lineNum, line, filePath)
+
 				if devDependencyPattern.Match(lineByte) {
 					badFiles = true
-					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains dev dependencies", filePath, lineNum, line)
-					output += logMessage + "\n"
+					lineContent := LineContent{
+						File:    filePath,
+						Line:    lineNum,
+						Content: line,
+						Tag:     "-rc",
+					}
+					content.FilesWithRC = append(content.FilesWithRC, lineContent)
 				}
 				if rcTagPattern.Match(lineByte) {
 					badFiles = true
-					logMessage := fmt.Sprintf("file: %s, line: %d, content: '%s' contains rc tags", filePath, lineNum, line)
-					output += logMessage + "\n"
+					lineContent := LineContent{
+						File:    filePath,
+						Line:    lineNum,
+						Content: line,
+						Tag:     "dev-",
+					}
+					content.FilesWithDev = append(content.FilesWithDev, lineContent)
 				}
 
 				lineNum++
@@ -355,15 +392,121 @@ func CheckRancherFinalRCDeps(org, repo, commitHash, releaseTitle, files string) 
 				return "", err
 			}
 		}
-		if badFiles {
-			fmt.Println(output)
+		if forCi && badFiles {
 			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 		}
 
-		output += "check completed successfully"
-		return output, nil
+		tmpl := template.New("rancher-release-rc-dev-deps")
+		tmpl = template.Must(tmpl.Parse(checkRCDevDeps))
+		buff := bytes.NewBuffer(nil)
+		err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
+		if err != nil {
+			return "", err
+		}
+
+		return buff.String(), nil
 	}
 
 	output += "skipped check"
 	return output, nil
 }
+
+func writeRancherImagesDeps(content *Content) error {
+	imageFiles := []string{"./bin/rancher-images.txt", "./bin/rancher-windows-images.txt"}
+
+	for _, file := range imageFiles {
+		lines, err := readLines(file)
+		if err != nil {
+			fmt.Println("Error reading file:", err)
+			return err
+		}
+		lineNumber := 1
+		for _, line := range lines {
+			var lineContent LineContent
+			if strings.Contains(line, "-rc") {
+				lineContent = LineContent{
+					Line:    lineNumber,
+					File:    line,
+					Content: "",
+					Tag:     "-rc",
+				}
+			}
+			if strings.Contains(line, "dev-") {
+				lineContent = LineContent{Line: lineNumber, File: line, Content: "", Tag: "dev-"}
+			}
+			content.RancherImages = append(content.RancherImages, lineContent)
+		}
+	}
+	return nil
+}
+
+func writeMinVersionComponentsFromDockerfile(content *Content, lineNumber int, line, filePath string) {
+	if strings.Contains(filePath, "./package/Dockerfile") {
+		matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
+		if len(matches) == 2 && strings.Contains(line, "-rc") {
+			lineContent := LineContent{Line: lineNumber, File: filePath, Content: line, Tag: "min"}
+			content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
+		}
+	}
+}
+
+func readLines(filePath string) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
+const checkRCDevDeps = `{{- define "componentsFile" -}}
+# Images with -rc
+{{range .Content.RancherImages}}
+* {{ .File }}
+{{- end}}
+
+rancher/backup-restore-operator v4.0.0-rc1
+rancher/fleet v0.9.0-rc.5
+rancher/fleet-agent v0.9.0-rc.5
+rancher/rancher v2.8.0-rc3
+rancher/rancher-agent v2.8.0-rc3
+rancher/system-agent v0.3.4-rc1-suc
+
+# Components with -rc
+{{range .Content.FilesWithRC}}
+* {{ .Line }} {{ .Tag }}
+{{- end}}
+
+LI_VERSION v2.8.0-rc1
+RANCHER_WEBHOOK_VERSION 103.0.0+up0.4.0-rc9
+AKS-OPERATOR v1.2.0-rc4
+DYNAMICLISTENER v0.3.6-rc3-deadlock-fix-revert
+EKS-OPERATOR v1.3.0-rc3
+GKE-OPERATOR v1.2.0-rc2
+RKE v1.5.0-rc5
+DASHBOARD_UI_VERSION v2.8.0-rc3
+FLEET_VERSION 103.1.0+up0.9.0-rc.5
+SYSTEM_AGENT_VERSION v0.3.4-rc1
+UI_VERSION 2.8.0-rc3
+RKE v1.5.0-rc9
+
+# Min version components with -rc
+{{range .Content.MinFilesWithRC}}
+{{ .Line }} {{ .Tag }}
+{{- end}}
+
+CSP_ADAPTER_MIN_VERSION 103.0.0+up3.0.0-rc1
+FLEET_MIN_VERSION 103.1.0+up0.9.0-rc.3
+
+# Components with dev-
+{{range .Content.FilesWithRC}}
+* {{ .Line }} {{ .Tag }}
+{{- end}}
+
+{{ end }}`
