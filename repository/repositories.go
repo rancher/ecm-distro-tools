@@ -65,7 +65,7 @@ var RKE2Adjacent = []string{
 
 const ownerRepoSeparattor = "/"
 
-func splitOwnerRepo(ownerRepo string) (string, string, error) {
+func SplitOwnerRepo(ownerRepo string) (string, string, error) {
 	if !strings.Contains(ownerRepo, ownerRepoSeparattor) {
 		return "", "", errors.New("invalid format")
 	}
