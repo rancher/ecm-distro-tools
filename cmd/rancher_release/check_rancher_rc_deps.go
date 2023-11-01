@@ -47,7 +47,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:     "for-ci",
 				Aliases:  []string{"p"},
-				Usage:    "instead export a md template run a check raising a error if contains rc tags and dev deps",
+				Usage:    "export a md template also check raising a error if contains rc tags and dev deps",
 				Required: false,
 			},
 		},

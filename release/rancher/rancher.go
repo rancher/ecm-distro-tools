@@ -288,19 +288,17 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	return err
 }
 
-type LineContent struct {
+type ContentLine struct {
 	Line    int
 	File    string
 	Content string
-	Tag     string
 }
 
 type Content struct {
-	RancherImages  []LineContent
-	FilesWithRC    []LineContent
-	MinFilesWithRC []LineContent
-	FilesWithDev   []LineContent
-	ChartsKDM      []LineContent
+	RancherImages  []ContentLine
+	FilesWithRC    []ContentLine
+	MinFilesWithRC []ContentLine
+	FilesWithDev   []ContentLine
 }
 
 func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files string) (string, error) {
@@ -312,7 +310,6 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 		matchCommitMessage bool
 		existsReleaseTitle bool
 		badFiles           bool
-		output             string
 		content            Content
 	)
 
@@ -344,8 +341,9 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 		existsReleaseTitle = innerExistsReleaseTitle
 	}
 
+	//should return data if executed in rancher project root path
 	err := writeRancherImagesDeps(&content)
-	if err != err {
+	if err != nil {
 		return "", err
 	}
 
@@ -367,33 +365,19 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 
 				if devDependencyPattern.Match(lineByte) {
 					badFiles = true
-					lineContent := LineContent{
-						File:    filePath,
-						Line:    lineNum,
-						Content: line,
-						Tag:     "-rc",
-					}
+					lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 					content.FilesWithRC = append(content.FilesWithRC, lineContent)
 				}
 				if rcTagPattern.Match(lineByte) {
 					badFiles = true
-					lineContent := LineContent{
-						File:    filePath,
-						Line:    lineNum,
-						Content: line,
-						Tag:     "dev-",
-					}
+					lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 					content.FilesWithDev = append(content.FilesWithDev, lineContent)
 				}
-
 				lineNum++
 			}
 			if err := scanner.Err(); err != nil {
 				return "", err
 			}
-		}
-		if forCi && badFiles {
-			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 		}
 
 		tmpl := template.New("rancher-release-rc-dev-deps")
@@ -403,12 +387,17 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 		if err != nil {
 			return "", err
 		}
+		output := buff.String()
 
-		return buff.String(), nil
+		if forCi && badFiles {
+			fmt.Println(output)
+			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
+		}
+
+		return output, nil
 	}
 
-	output += "skipped check"
-	return output, nil
+	return "skipped check", nil
 }
 
 func writeRancherImagesDeps(content *Content) error {
@@ -417,37 +406,34 @@ func writeRancherImagesDeps(content *Content) error {
 	for _, file := range imageFiles {
 		lines, err := readLines(file)
 		if err != nil {
-			fmt.Println("Error reading file:", err)
-			return err
+			continue
 		}
 		lineNumber := 1
 		for _, line := range lines {
-			var lineContent LineContent
-			if strings.Contains(line, "-rc") {
-				lineContent = LineContent{
-					Line:    lineNumber,
-					File:    line,
-					Content: "",
-					Tag:     "-rc",
-				}
+			if strings.Contains(line, "-rc") || strings.Contains(line, "dev-") {
+				lineContent := ContentLine{Line: lineNumber, File: file, Content: formatContentLine(line)}
+				content.RancherImages = append(content.RancherImages, lineContent)
 			}
-			if strings.Contains(line, "dev-") {
-				lineContent = LineContent{Line: lineNumber, File: line, Content: "", Tag: "dev-"}
-			}
-			content.RancherImages = append(content.RancherImages, lineContent)
+			lineNumber++
 		}
 	}
 	return nil
 }
 
 func writeMinVersionComponentsFromDockerfile(content *Content, lineNumber int, line, filePath string) {
-	if strings.Contains(filePath, "./package/Dockerfile") {
+	if strings.Contains(filePath, "/package/Dockerfile") {
 		matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
 		if len(matches) == 2 && strings.Contains(line, "-rc") {
-			lineContent := LineContent{Line: lineNumber, File: filePath, Content: line, Tag: "min"}
+			lineContent := ContentLine{Line: lineNumber, File: filePath, Content: formatContentLine(line)}
 			content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
 		}
 	}
+}
+
+func formatContentLine(line string) string {
+	re := regexp.MustCompile(`\s+`)
+	line = re.ReplaceAllString(line, " ")
+	return strings.TrimSpace(line)
 }
 
 func readLines(filePath string) ([]string, error) {
@@ -466,47 +452,25 @@ func readLines(filePath string) ([]string, error) {
 }
 
 const checkRCDevDeps = `{{- define "componentsFile" -}}
+{{- if .RancherImages }}
 # Images with -rc
-{{range .Content.RancherImages}}
-* {{ .File }}
+{{range .RancherImages}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
-
-rancher/backup-restore-operator v4.0.0-rc1
-rancher/fleet v0.9.0-rc.5
-rancher/fleet-agent v0.9.0-rc.5
-rancher/rancher v2.8.0-rc3
-rancher/rancher-agent v2.8.0-rc3
-rancher/system-agent v0.3.4-rc1-suc
+{{- end}}
 
 # Components with -rc
-{{range .Content.FilesWithRC}}
-* {{ .Line }} {{ .Tag }}
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
-
-LI_VERSION v2.8.0-rc1
-RANCHER_WEBHOOK_VERSION 103.0.0+up0.4.0-rc9
-AKS-OPERATOR v1.2.0-rc4
-DYNAMICLISTENER v0.3.6-rc3-deadlock-fix-revert
-EKS-OPERATOR v1.3.0-rc3
-GKE-OPERATOR v1.2.0-rc2
-RKE v1.5.0-rc5
-DASHBOARD_UI_VERSION v2.8.0-rc3
-FLEET_VERSION 103.1.0+up0.9.0-rc.5
-SYSTEM_AGENT_VERSION v0.3.4-rc1
-UI_VERSION 2.8.0-rc3
-RKE v1.5.0-rc9
 
 # Min version components with -rc
-{{range .Content.MinFilesWithRC}}
-{{ .Line }} {{ .Tag }}
+{{range .MinFilesWithRC}}
+* {{ .Content }}
 {{- end}}
-
-CSP_ADAPTER_MIN_VERSION 103.0.0+up3.0.0-rc1
-FLEET_MIN_VERSION 103.1.0+up0.9.0-rc.3
 
 # Components with dev-
-{{range .Content.FilesWithRC}}
-* {{ .Line }} {{ .Tag }}
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
-
 {{ end }}`
