@@ -23,20 +23,13 @@ const (
 	httpTimeout        = time.Second * 10
 )
 
-// repoToOrg associates repo to org.
-var repoToOrg = map[string]string{
-	"rke2":             "rancher",
-	"k3s":              "k3s-io",
-	"rancher":          "rancher",
-	"image-build-base": "rancher",
-}
-
 // stripBackportTag returns a string with a prefix backport tag removed
 func stripBackportTag(s string) string {
 	if strings.Contains(s, "Release") || strings.Contains(s, "release") && strings.Contains(s, "[") || strings.Contains(s, "]") {
 		s = strings.Split(s, "]")[1]
 	}
 	s = strings.Trim(s, " ")
+
 	return s
 }
 
@@ -50,6 +43,7 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	token := &oauth2.Token{
 		AccessToken: t.AccessToken,
 	}
+
 	return token, nil
 }
 
@@ -65,32 +59,9 @@ func NewGithub(ctx context.Context, token string) *github.Client {
 	return github.NewClient(oauthClient)
 }
 
-// OrgFromRepo gets the Github organization that the
-// given repository is in or returns an error if
-// it is not found.
-func OrgFromRepo(repo string) (string, error) {
-	if repo, ok := repoToOrg[repo]; ok {
-		return repo, nil
-	}
-
-	return "", errors.New("repo not found: " + repo)
-}
-
-// IsValidRepo determines if the given
-// repository is valid for this program
-// to operate against.
-func IsValidRepo(repo string) bool {
-	for r := range repoToOrg {
-		if repo == r {
-			return true
-		}
-	}
-
-	return false
-}
-
 // CreateReleaseOpts
 type CreateReleaseOpts struct {
+	Owner        string `json:"owner"`
 	Repo         string `json:"repo"`
 	Name         string `json:"name"`
 	Prerelease   bool   `json:"pre_release"`
@@ -100,27 +71,42 @@ type CreateReleaseOpts struct {
 }
 
 // ListReleases
-func ListReleases(ctx context.Context, client *github.Client, repo string) ([]*github.RepositoryRelease, error) {
-	org, err := OrgFromRepo(repo)
+func ListReleases(ctx context.Context, client *github.Client, owner, repo string) ([]*github.RepositoryRelease, error) {
+	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	releases, _, err := client.Repositories.ListReleases(ctx, org, repo, &github.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
+
 	return releases, nil
+}
+
+// ListTags
+func ListTags(ctx context.Context, client *github.Client, owner, repo string) ([]*github.RepositoryTag, error) {
+	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, nil
+}
+
+func LatestTag(ctx context.Context, client *github.Client, owner, repo string) (*github.RepositoryTag, error) {
+	tags, err := ListTags(ctx, client, owner, repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tags) == 0 {
+		return nil, nil
+	}
+
+	return tags[0], nil
 }
 
 // CreateRelease
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
 	if cro == nil {
 		return nil, errors.New("CreateReleaseOpts cannot be nil")
-	}
-
-	org, err := OrgFromRepo(cro.Repo)
-	if err != nil {
-		return nil, err
 	}
 
 	rr := github.RepositoryRelease{
@@ -135,7 +121,8 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		rr.Body = &cro.ReleaseNotes
 		rr.GenerateReleaseNotes = &genReleaseNotes
 	}
-	release, _, err := client.Repositories.CreateRelease(ctx, org, cro.Repo, &rr)
+
+	release, _, err := client.Repositories.CreateRelease(ctx, cro.Owner, cro.Repo, &rr)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +132,7 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 
 // CreateReleaseIssueOpts
 type CreateReleaseIssueOpts struct {
+	Owner   string
 	Repo    string
 	Release string
 	Captain string
@@ -152,11 +140,6 @@ type CreateReleaseIssueOpts struct {
 
 // CreateReleaseIssue
 func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateReleaseIssueOpts) (*github.Issue, error) {
-	org, err := OrgFromRepo(cri.Repo)
-	if err != nil {
-		return nil, err
-	}
-
 	body := fmt.Sprintf(cutRKE2ReleaseIssue, cri.Release, cri.Release)
 	ir := github.IssueRequest{
 		Title:    types.StringPtr("Cut " + cri.Release),
@@ -164,7 +147,8 @@ func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateR
 		Assignee: types.StringPtr(cri.Captain),
 		State:    types.StringPtr("open"),
 	}
-	issue, _, err := client.Issues.Create(ctx, org, cri.Repo, &ir)
+
+	issue, _, err := client.Issues.Create(ctx, cri.Owner, cri.Repo, &ir)
 	if err != nil {
 		return nil, err
 	}
@@ -173,13 +157,8 @@ func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateR
 }
 
 // RetrieveOriginalIssue
-func RetrieveOriginalIssue(ctx context.Context, client *github.Client, repo string, issueID uint) (*github.Issue, error) {
-	org, err := OrgFromRepo(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	issue, _, err := client.Issues.Get(ctx, org, repo, int(issueID))
+func RetrieveOriginalIssue(ctx context.Context, client *github.Client, owner, repo string, issueID uint) (*github.Issue, error) {
+	issue, _, err := client.Issues.Get(ctx, owner, repo, int(issueID))
 	if err != nil {
 		return nil, err
 	}
@@ -204,12 +183,7 @@ type ChangeLog struct {
 }
 
 // CreateBackportIssues
-func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, repo, branch, user string, i *Issue) (*github.Issue, error) {
-	org, err := OrgFromRepo(repo)
-	if err != nil {
-		return nil, err
-	}
-
+func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, owner, repo, branch, user string, i *Issue) (*github.Issue, error) {
 	title := fmt.Sprintf(i.Title, strings.Title(branch), origIssue.GetTitle())
 	body := fmt.Sprintf(i.Body, origIssue.GetTitle(), *origIssue.Number)
 
@@ -221,7 +195,7 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	} else {
 		assignee = types.StringPtr("")
 	}
-	issue, _, err := client.Issues.Create(ctx, org, repo, &github.IssueRequest{
+	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
 		Title:    github.String(title),
 		Body:     github.String(body),
 		Assignee: assignee,
@@ -235,6 +209,7 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
+	Owner    string   `json:"owner"`
 	Repo     string   `json:"repo"`
 	Commits  []string `json:"commits"`
 	IssueID  uint     `json:"issue_id"`
@@ -245,10 +220,6 @@ type PerformBackportOpts struct {
 // PerformBackport creates backport issues, performs a cherry-pick of the
 // given commit if it exists.
 func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBackportOpts) ([]*github.Issue, error) {
-	if !IsValidRepo(pbo.Repo) {
-		return nil, fmt.Errorf("invalid repo: %s", pbo.Repo)
-	}
-
 	const (
 		issueTitle = "[%s] - %s"
 		issueBody  = "Backport fix for %s\n\n* #%d"
@@ -259,7 +230,7 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		return nil, errors.New("no branches specified")
 	}
 
-	origIssue, err := RetrieveOriginalIssue(ctx, client, pbo.Repo, pbo.IssueID)
+	origIssue, err := RetrieveOriginalIssue(ctx, client, pbo.Owner, pbo.Repo, pbo.IssueID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +242,7 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 
 	issues := make([]*github.Issue, len(backportBranches))
 	for _, branch := range backportBranches {
-		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Repo, branch, pbo.User, &issue)
+		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
 		if err != nil {
 			return nil, err
 		}
@@ -348,13 +319,8 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 
 // RetrieveChangeLogContents gets the relevant changes
 // for the given release, formats, and returns them.
-func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo, prevMilestone, milestone string) ([]ChangeLog, error) {
-	org, err := OrgFromRepo(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	comp, _, err := client.Repositories.CompareCommits(ctx, org, repo, prevMilestone, milestone, &github.ListOptions{})
+func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner, repo, prevMilestone, milestone string) ([]ChangeLog, error) {
+	comp, _, err := client.Repositories.CompareCommits(ctx, owner, repo, prevMilestone, milestone, &github.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +333,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, repo,
 			continue
 		}
 
-		prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, org, repo, sha, &github.PullRequestListOptions{})
+		prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, sha, &github.PullRequestListOptions{})
 		if err != nil {
 			return nil, err
 		}

@@ -16,10 +16,23 @@ Checks if new Golang versions are available and creates new releases in `rancher
 
 **Examples**
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rke2_release image-build-base-release
+```
+
+```sh
+rke2_release components -l all
+image-build-base                            |v1.21.3b1
+image-build-calico                          |v3.26.1-build20231009
+image-build-cni-plugins                     |v1.2.0-build20231009
+...
+```
+
+```sh
+rke2_release components -l image-build-k8s-metrics-server
+image-build-k8s-metrics-server|v0.6.3-build20231009
 ```
 
 ## Contributions

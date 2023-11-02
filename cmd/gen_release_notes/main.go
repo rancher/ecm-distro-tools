@@ -22,17 +22,19 @@ Usage: %[2]s [-r repo] [-m milestone] [-p prev milestone]
 Options:
     -h                   help
     -v                   show version and exit
+	-o                   repository owner/org
     -r repo              repository that should be used
     -m milestone         milestone to be used
     -p prev milestone    previous milestone
     -d                   enable debug logs
 Examples:
     # generate release notes for RKE2 for milestone v1.21.5
-    %[2]s -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1
+    %[2]s -o rancher -r rke2 -m v1.21.5+rke2r1 -p v1.21.4+rke2r1
 `
 
 var (
 	vers          bool
+	owner         string
 	repo          string
 	milestone     string
 	prevMilestone string
@@ -53,6 +55,7 @@ func main() {
 
 	flag.BoolVar(&vers, "v", false, "")
 	flag.BoolVar(&debug, "d", false, "")
+	flag.StringVar(&owner, "o", "", "")
 	flag.StringVar(&repo, "r", "", "")
 	flag.StringVar(&milestone, "m", "", "")
 	flag.StringVar(&prevMilestone, "p", "", "")
@@ -73,8 +76,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if !repository.IsValidRepo(repo) {
-		fmt.Println("error: please provide a valid repository")
+	if owner == "" {
+		fmt.Println("error: owner flag required")
+		os.Exit(1)
+	}
+
+	if repo == "" {
+		fmt.Println("error: repo flag required")
 		os.Exit(1)
 	}
 
@@ -86,7 +94,7 @@ func main() {
 	ctx := context.Background()
 	client := repository.NewGithub(ctx, ghToken)
 
-	notes, err := release.GenReleaseNotes(ctx, repo, milestone, prevMilestone, client)
+	notes, err := release.GenReleaseNotes(ctx, owner, repo, milestone, prevMilestone, client)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
