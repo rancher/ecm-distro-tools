@@ -15,9 +15,46 @@ import (
 )
 
 const (
-	goDevURL           = "https://go.dev/dl/?mode=json"
-	imageBuildBaseRepo = "image-build-base"
+	goDevURL               = "https://go.dev/dl/?mode=json"
+	imageBuildBaseRepo     = "image-build-base"
+	updateImageBuildScript = `#!/bin/sh
+set -e
+REPO_NAME={{ .RepoName }}
+REPO_ORG={{ .RepoOrg }}
+DRY_RUN={{ .DryRun }}
+BRANCH_NAME={{ .BranchName }}
+CLONE_DIR=/tmp/${REPO_NAME}
+echo "repo name: ${REPO_NAME}"
+echo "org name: ${REPO_ORG}"
+echo "dry run: ${DRY_RUN}"
+
+echo "cloning ${REPO_ORG}/${REPO_NAME} into ${CLONE_DIR}"
+git clone git@github.com:${REPO_ORG}/${REPO_NAME}.git ${CLONE_DIR}
+echo "navigating to the repo dir"
+cd ${CLONE_DIR}
+echo "creating local branch"
+git checkout -B ${BRANCH_NAME} origin/main
+git clean -xfd
+`
 )
+
+var imageBuildRepos map[string]bool = map[string]bool{
+	"image-build-dns-nodecache":                    true,
+	"image-build-k8s-metrics-server":               true,
+	"image-build-sriov-cni":                        true,
+	"image-build-ib-sriov-cni":                     true,
+	"image-build-sriov-network-device-plugin":      true,
+	"image-build-sriov-network-resources-injector": true,
+	"image-build-calico":                           true,
+	"image-build-cni-plugins":                      true,
+	"image-build-whereabouts":                      true,
+	"image-build-flannel":                          true,
+	"image-build-etcd":                             true,
+	"image-build-containerd":                       true,
+	"image-build-runc":                             true,
+	"image-build-multus":                           true,
+	"image-build-rke2-cloud-provider":              true,
+}
 
 type goVersionRecord struct {
 	Version string `json:"version"`
@@ -85,4 +122,11 @@ func goVersions(goDevURL string) ([]goVersionRecord, error) {
 		return nil, err
 	}
 	return versions, nil
+}
+
+func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo string) error {
+	if _, ok := imageBuildRepos[repo]; !ok {
+		return errors.New("invalid repo, please review the `imageBuildRepos` map")
+	}
+	return nil
 }

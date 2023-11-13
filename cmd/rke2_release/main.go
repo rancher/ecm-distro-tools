@@ -29,6 +29,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		imageBuildBaseReleaseCommand(),
 		componentsCommand(),
+		updateImageBuildCommand(),
 	}
 	app.Flags = rootFlags
 
