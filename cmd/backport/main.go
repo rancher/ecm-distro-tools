@@ -47,6 +47,7 @@ var (
 	issueID   uint
 	branches  string
 	user      string
+	owner     string
 )
 
 func main() {
@@ -67,6 +68,7 @@ func main() {
 	flag.UintVar(&issueID, "i", 0, "")
 	flag.StringVar(&branches, "b", "", "")
 	flag.StringVar(&user, "u", "", "")
+	flag.StringVar(&owner, "o", "", "")
 	flag.Parse()
 
 	if vers {
@@ -100,6 +102,7 @@ func main() {
 		IssueID:  issueID,
 		Branches: branches,
 		User:     user,
+		Owner:    owner,
 	}
 	issues, err := repository.PerformBackport(ctx, client, &pbo)
 	if err != nil {
