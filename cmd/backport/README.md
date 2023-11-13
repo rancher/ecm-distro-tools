@@ -8,7 +8,7 @@ If a commit is provided, `backport` assumes you're running from the repository t
 
 ```sh
 # Backport K3s change into release-1.21 and release-1.22. Only create the backport issues.
-./backport -o rancher -r k3s -b 'release-1.21,release-1.22' -i 123
+./backport -o k3s-io -r k3s -b 'release-1.21,release-1.22' -i 123
 
 # Backport K3s change into release-1.21 and release-1.22. Creates the backport issues and cherry-picks the given commit id.
 ./backport -o k3s-io -r k3s -b 'release-1.21,release-1.22' -i 123 -c '181210f8f9c779c26da1d9b2075bde0127302ee0'
