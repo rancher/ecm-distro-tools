@@ -42,6 +42,7 @@ Note: if a commit is provided, %[2]s utility needs to be ran from either
 
 var (
 	vers      bool
+	owner     string
 	repo      string
 	commitIDs string
 	issueID   uint
@@ -62,6 +63,7 @@ func main() {
 	}
 
 	flag.BoolVar(&vers, "v", false, "")
+	flag.StringVar(&owner, "o", "", "")
 	flag.StringVar(&repo, "r", "", "")
 	flag.StringVar(&commitIDs, "c", "", "")
 	flag.UintVar(&issueID, "i", 0, "")
@@ -95,6 +97,7 @@ func main() {
 	client := repository.NewGithub(ctx, ghToken)
 
 	pbo := repository.PerformBackportOpts{
+		Owner:    owner,
 		Repo:     repo,
 		Commits:  commits,
 		IssueID:  issueID,
