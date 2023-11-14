@@ -55,15 +55,18 @@ build-image:
 package-binaries: $(BINARIES)
 	@$(eval export BIN_FILES = $(shell ls bin/))
 
-	cd bin                                       && \
-	tar cvf ../ecm-distro-tools.tar $(BIN_FILES) && \
-	cd ../
-
-	for binary in $<; do \
-		cd cmd/$${binary}/bin                   && \
-		tar rvf ../../../ecm-distro-tools.tar * && \
-		cd ../../../;                              \
+	for arch in $(ARCHS); do \
+		for os in $(OSs); do \
+			SUFFIX=$${os}-$${arch}; \
+			cd bin && \
+			tar cvf ../ecm-distro-tools.$${SUFFIX}.tar $(BIN_FILES) && \
+			cd ../; \
+			for binary in $(BINARIES); do \
+				cd cmd/$${binary}/bin && \
+				tar rvf ../../../ecm-distro-tools.$${SUFFIX}.tar $${binary}-$${SUFFIX} && \
+				cd ../../../; \
+			done; \
+			gzip < ecm-distro-tools.$${SUFFIX}.tar > ecm-distro-tools.$${SUFFIX}.tar.gz && \
+			rm -f ecm-distro-tools.$${SUFFIX}.tar; \
+		done; \
 	done
-
-	gzip < ecm-distro-tools.tar > ecm-distro-tools.tgz && \
-	rm -f ecm-distro-tools.tar

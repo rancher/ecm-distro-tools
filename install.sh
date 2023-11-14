@@ -6,7 +6,7 @@ TMP_DIR=""
 REPO_NAME="ecm-distro-tools"
 REPO_URL="https://github.com/rancher/${REPO_NAME}"
 REPO_RELEASE_URL="${REPO_URL}/releases"
-INSTALL_DIR="/usr/local/bin/ecm-distro-tools"
+INSTALL_DIR="$HOME/.local/bin/ecm-distro-tools"
 SUFFIX=""
 DOWNLOADER=""
 
@@ -31,14 +31,12 @@ setup_arch() {
 # setup_tmp creates a temporary directory and cleans up when done.
 setup_tmp() {
     TMP_DIR=$(mktemp -d -t ecm-distro-tools-install.XXXXXXXXXX)
-    TMP_HASH=${TMP_DIR}/ecm-distro-tools.hash
-    TMP_BIN=${TMP_DIR}/ecm-distro-tools.bin
     cleanup() {
         code=$?
         set +e
         trap - EXIT
-        rm -rf ${TMP_DIR}
-        exit $code
+        rm -rf "${TMP_DIR}"
+        exit "$code"
     }
     trap cleanup INT EXIT
 }
@@ -61,7 +59,7 @@ verify_downloader() {
 download() {
     case "${DOWNLOADER}" in
     *curl)
-        curl -o "$1" -fsSL "$2"
+        cd "$1" && { curl -fsSLO "$2" ; cd -; }
     ;;
     *wget)
         wget -qO "$1" "$2"
@@ -80,15 +78,23 @@ download_tarball() {
 
     echo "downloading tarball from ${TARBALL_URL}"
     
-    download "${TMP_DIR}" "$1"
+    download "${TMP_DIR}" "${TARBALL_URL}"
 }
 
 # install_binaries installs the binaries from the downloaded tar.
 install_binaries() {
     cd "${TMP_DIR}"
-    tar zxvf "${TMP_DIR}/$1"
-    
-    find . -type f -name "*.${SUFFIX} -exec cp {} ${INSTALL_DIR}" \;
+    tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
+    rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
+    mkdir -p "${INSTALL_DIR}"
+
+    for f in * ; do
+      file_name="${f}"
+      if echo "${f}" | grep -q "${SUFFIX}"; then
+        file_name=${file_name%"-${SUFFIX}"}
+      fi
+      cp "${TMP_DIR}/${f}" "${INSTALL_DIR}/${file_name}"
+    done
 }
 
 { # main
@@ -104,13 +110,10 @@ install_binaries() {
     setup_arch
 
     verify_downloader curl || verify_downloader wget || fatal "error: cannot find curl or wget"
-    download_tarball "${RELEASE_TARBALL}"
-    install_binaries "${RELEASE_TARBALL}"
+    download_tarball
+    install_binaries
 
-    printf "Run command to access tools:\n\nPATH=%s:%s" "${PATH}" "${INSTALL_DIR}"
+    printf "Run command to access tools:\n\nPATH=%s:%s\n\n" "${PATH}" "${INSTALL_DIR}"
 
     exit 0
 }
-
-
-
