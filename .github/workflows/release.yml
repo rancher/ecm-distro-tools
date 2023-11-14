@@ -15,6 +15,7 @@ jobs:
         run: |
           make all
           make test
+          make package-binaries
       - name: Publish Binaries
         uses: SierraSoftworks/gh-releases@v1.0.7
         with:
@@ -97,8 +98,12 @@ jobs:
             ${{ github.workspace }}/cmd/upstream_go_version/bin/upstream_go_version-linux-amd64
             ${{ github.workspace }}/cmd/upstream_go_version/bin/upstream_go_version-linux-arm64
             ${{ github.workspace }}/cmd/upstream_go_version/bin/sha256sums-upstream_go_version.txt
-            ${{ github.workspace }}/cmd/standup/bin/standup
-            ${{ github.workspace }}/ecm-distro-tools.tgz
+            ${{ github.workspace }}/ecm-distro-tools.darwin-amd64.tar.gz
+            ${{ github.workspace }}/ecm-distro-tools.darwin-arm64.tar.gz
+            ${{ github.workspace }}/ecm-distro-tools.linux-amd64.tar.gz
+            ${{ github.workspace }}/ecm-distro-tools.linux-arm64.tar.gz
+            ${{ github.workspace }}/ecm-distro-tools.freebsd-amd64.tar.gz
+            ${{ github.workspace }}/ecm-distro-tools.freebsd-arm64.tar.gz
       - name: Docker Hub Login
         uses: docker/login-action@v2
         with:

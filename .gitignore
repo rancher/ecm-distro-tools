@@ -41,3 +41,7 @@ data/*
 .DS_Store
 
 .vscode
+
+# build artifacts
+*.tar
+*.tar.gz
