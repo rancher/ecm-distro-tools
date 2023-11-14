@@ -87,7 +87,14 @@ install_binaries() {
     tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
     rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
     mkdir -p "${INSTALL_DIR}"
-    cp -a "${TMP_DIR}/." "${INSTALL_DIR}"
+    for f in * ; do
+      file_name="${f}"
+      if [[ $f == *"-${SUFFIX}" ]]; then
+        file_name=${file_name%"-${SUFFIX}"}
+      fi
+
+      cp "${TMP_DIR}/${f}" "${INSTALL_DIR}/${file_name}"
+    done
 }
 
 { # main
