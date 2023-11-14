@@ -107,6 +107,30 @@ if [ "${DRY_RUN}" = false ]; then
 fi`
 )
 
+const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
+{{- if .RancherImages }}
+# Images with -rc
+{{range .RancherImages}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+{{- end}}
+
+# Components with -rc
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Min version components with -rc
+{{range .MinFilesWithRC}}
+* {{ .Content }}
+{{- end}}
+
+# Components with dev-
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+{{ end }}`
+
 const (
 	rancherRepo = "rancher"
 	rancherOrg  = rancherRepo
@@ -363,7 +387,7 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 	}
 
 	//should return data if executed in rancher project root path
-	err := writeRancherImagesDeps(&content)
+	err := writeRancherImagesDeps(&content, rcTagPattern)
 	if err != nil {
 		return "", err
 	}
@@ -379,15 +403,22 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 			lineNum := 1
 
 			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				lineByte := []byte(line)
-
-				writeMinVersionComponentsFromDockerfile(&content, lineNum, line, filePath)
+				lineByte, line := formatLineByte(scanner.Text())
 
 				if devDependencyPattern.Match(lineByte) {
 					badFiles = true
 					lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 					content.FilesWithRC = append(content.FilesWithRC, lineContent)
+				}
+				if strings.Contains(filePath, "/package/Dockerfile") {
+					if !strings.Contains(line, "_VERSION") {
+						continue
+					}
+					matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
+					if len(matches) == 2 && strings.Contains(line, "-rc") {
+						lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
+						content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
+					}
 				}
 				if rcTagPattern.Match(lineByte) {
 					badFiles = true
@@ -402,7 +433,7 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 		}
 
 		tmpl := template.New("rancher-release-rc-dev-deps")
-		tmpl = template.Must(tmpl.Parse(checkRCDevDeps))
+		tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
 		buff := bytes.NewBuffer(nil)
 		err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
 		if err != nil {
@@ -421,34 +452,33 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 	return "skipped check", nil
 }
 
-func writeRancherImagesDeps(content *Content) error {
+func writeRancherImagesDeps(content *Content, rcTagPattern *regexp.Regexp) error {
+	// files below were generated in build time into rancher path
 	imageFiles := []string{"./bin/rancher-images.txt", "./bin/rancher-windows-images.txt"}
 
 	for _, file := range imageFiles {
-		lines, err := readLines(file)
+		filePath, err := os.Open(file)
 		if err != nil {
 			continue
 		}
+		defer filePath.Close()
+
+		scanner := bufio.NewScanner(filePath)
 		lineNumber := 1
-		for _, line := range lines {
-			if strings.Contains(line, "-rc") || strings.Contains(line, "dev-") {
+		for scanner.Scan() {
+			lineByte, line := formatLineByte(scanner.Text())
+
+			if rcTagPattern.Match(lineByte) {
 				lineContent := ContentLine{Line: lineNumber, File: file, Content: formatContentLine(line)}
 				content.RancherImages = append(content.RancherImages, lineContent)
 			}
 			lineNumber++
 		}
-	}
-	return nil
-}
-
-func writeMinVersionComponentsFromDockerfile(content *Content, lineNumber int, line, filePath string) {
-	if strings.Contains(filePath, "/package/Dockerfile") {
-		matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
-		if len(matches) == 2 && strings.Contains(line, "-rc") {
-			lineContent := ContentLine{Line: lineNumber, File: filePath, Content: formatContentLine(line)}
-			content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
+		if err := scanner.Err(); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 func formatContentLine(line string) string {
@@ -457,41 +487,7 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func readLines(filePath string) ([]string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
+func formatLineByte(line string) ([]byte, string) {
+	line = strings.TrimSpace(line)
+	return []byte(line), line
 }
-
-const checkRCDevDeps = `{{- define "componentsFile" -}}
-{{- if .RancherImages }}
-# Images with -rc
-{{range .RancherImages}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-{{- end}}
-
-# Components with -rc
-{{range .FilesWithRC}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-
-# Min version components with -rc
-{{range .MinFilesWithRC}}
-* {{ .Content }}
-{{- end}}
-
-# Components with dev-
-{{range .FilesWithRC}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-{{ end }}`
