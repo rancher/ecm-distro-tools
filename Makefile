@@ -54,7 +54,6 @@ build-image:
 .PHONY: package-binaries
 package-binaries: $(BINARIES)
 	@$(eval export BIN_FILES = $(shell ls bin/))
-	STANDUP_BIN="standup"
 
 	for arch in $(ARCHS); do \
 		for os in $(OSs); do \
