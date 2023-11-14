@@ -20,7 +20,6 @@ RUN cd ./cmd/backport && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_notes && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/gen_release_report && make LDFLAGS="-linkmode=external"
 RUN cd ./cmd/k3s_release && make LDFLAGS="-linkmode=external"
-RUN cd ./cmd/standup && make
 ARG ETCD_VERSION=v3.5.7
 ARG GH_VERSION=2.23.0
 ARG YQ_VERSION=v4.30.8
@@ -58,7 +57,6 @@ COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_note
 COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
-COPY --from=builder /ecm-distro-tools/cmd/standup/bin/standup /usr/local/bin
 COPY --from=builder /ecm-distro-tools/cmd/test_coverage/bin/test_coverage /usr/local/bin
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
 COPY --from=builder /usr/local/bin/trivy /usr/local/bin
