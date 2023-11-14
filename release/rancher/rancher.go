@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/docker"
 	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -36,25 +35,37 @@ set -e
 
 BRANCH_NAME={{ .BranchName }}
 DRY_RUN={{ .DryRun }}
+echo "branch name: ${BRANCH_NAME}"
+echo "dry run: ${DRY_RUN}"
 
+echo "navigating into the rancher repo"
 cd {{ .RancherRepoPath }}
+echo "adding upstream remote if not exists"
 git remote -v | grep -w upstream || git remote add upstream https://github.com/rancher/rancher.git
+echo "fetching upstream"
 git fetch upstream
+echo "stashing local changes"
 git stash
+echo "if local branch already exists, delete it"
+git branch -D ${BRANCH_NAME} &>/dev/null || true
+echo "creating local branch"
 git checkout -B ${BRANCH_NAME} upstream/{{.RancherBaseBranch}}
 git clean -xfd`
 	setKDMBranchReferencesScript = `
+echo "\nCurrent set KDM Branch: $(cat Dockerfile.dapper | grep CATTLE_KDM_BRANCH)"
+echo "\nUpdating\n    - pkg/settings/setting.go\n    - package/Dockerfile\n    - Dockerfile.dapper"
+
 OS=$(uname -s)
 case ${OS} in
 Darwin)
-	sed -i '' 's/NewSetting(\"kdm-branch\", \"{{ .CurrentBranch }}\")/NewSetting(\"kdm-branch\", \"{{ .NewBranch }}\")/' pkg/settings/setting.go
-	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i '' 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
+	sed -i '' 's/NewSetting("kdm-branch", ".*")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i '' 's/ARG\ CATTLE_KDM_BRANCH=.*$/ARG\ CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i '' 's/CATTLE_KDM_BRANCH=.*$/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
 	;;
 Linux)
-	sed -i 's/NewSetting("kdm-branch", "{{ .CurrentBranch }}")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
-	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i 's/CATTLE_KDM_BRANCH={{ .CurrentBranch }}/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
+	sed -i 's/NewSetting("kdm-branch", ".*")/NewSetting("kdm-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i 's/ARG\ CATTLE_KDM_BRANCH=.*$/ARG\ CATTLE_KDM_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i 's/CATTLE_KDM_BRANCH=.*$/CATTLE_KDM_BRANCH={{ .NewBranch }}/' Dockerfile.dapper
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -69,16 +80,16 @@ git commit --all --signoff -m "update kdm branch to {{ .NewBranch }}"`
 OS=$(uname -s)
 case ${OS} in
 Darwin)
-	sed -i '' 's/NewSetting(\"chart-default-branch\", \"{{ .CurrentBranch }}\")/NewSetting(\"chart-default-branch\", \"{{ .NewBranch }}\")/' pkg/settings/setting.go
-	sed -i '' 's/SYSTEM_CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i '' 's/CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i '' 's/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .CurrentBranch }}"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
+	sed -i '' 's/NewSetting("chart-default-branch", ".*")/NewSetting("chart-default-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i '' 's/ARG\ SYSTEM_CHART_DEFAULT_BRANCH=.*$/ARG\ SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i '' 's/ARG\ CHART_DEFAULT_BRANCH=.*$/ARG\ CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i '' 's/{SYSTEM_CHART_DEFAULT_BRANCH:-".*"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
 	;;
 Linux)
-	sed -i 's/NewSetting("chart-default-branch", "{{ .CurrentBranch }}")/NewSetting("chart-default-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
-	sed -i 's/SYSTEM_CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i 's/CHART_DEFAULT_BRANCH={{ .CurrentBranch }}/CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
-	sed -i 's/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .CurrentBranch }}"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
+	sed -i 's/NewSetting("chart-default-branch", ".*")/NewSetting("chart-default-branch", "{{ .NewBranch }}")/' pkg/settings/setting.go
+	sed -i 's/ARG\ SYSTEM_CHART_DEFAULT_BRANCH=.*$/ARG\ SYSTEM_CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i 's/ARG\ CHART_DEFAULT_BRANCH=.*$/ARG\ CHART_DEFAULT_BRANCH={{ .NewBranch }}/' package/Dockerfile
+	sed -i 's/{SYSTEM_CHART_DEFAULT_BRANCH:-".*"}/{SYSTEM_CHART_DEFAULT_BRANCH:-"{{ .NewBranch }}"}/' scripts/package-env
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -103,7 +114,6 @@ const (
 
 type SetBranchReferencesArgs struct {
 	RancherRepoPath   string
-	CurrentBranch     string
 	NewBranch         string
 	RancherBaseBranch string
 	BranchName        string
@@ -173,10 +183,6 @@ func rancherImages(imagesURL string) (string, error) {
 	return string(images), nil
 }
 
-func CheckRancherDockerImage(ctx context.Context, org, repo, tag string, archs []string) error {
-	return docker.CheckImageArchs(ctx, org, repo, tag, archs)
-}
-
 func CheckHelmChartVersion(tag string) error {
 	versions, err := rancherHelmChartVersions(rancherHelmRepositoryURL)
 	if err != nil {
@@ -184,7 +190,7 @@ func CheckHelmChartVersion(tag string) error {
 	}
 	var foundVersion bool
 	for _, version := range versions {
-		logrus.Debug("checking version " + version)
+		logrus.Info("checking version " + version)
 		if tag == version {
 			logrus.Info("found chart for version " + version)
 			foundVersion = true
@@ -199,7 +205,7 @@ func CheckHelmChartVersion(tag string) error {
 
 func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
-	logrus.Debug("downloading: " + repoURL)
+	logrus.Info("downloading: " + repoURL)
 	resp, err := httpClient.Get(repoURL)
 	if err != nil {
 		return nil, err
@@ -219,52 +225,69 @@ func rancherHelmChartVersions(repoURL string) ([]string, error) {
 	return versions, nil
 }
 
-func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, currentKDMBranch, newKDMBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newKDMBranch, githubUser, githubToken string, createPR, dryRun bool) error {
 	branchName := "kdm-set-" + newKDMBranch
 	data := SetBranchReferencesArgs{
 		RancherRepoPath:   forkPath,
-		CurrentBranch:     currentKDMBranch,
 		NewBranch:         newKDMBranch,
 		RancherBaseBranch: rancherBaseBranch,
 		DryRun:            dryRun,
 		BranchName:        branchName,
 	}
-	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 
-	if err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data); err != nil {
+	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
+	logrus.Info("running update files and apply updates script...")
+	output, err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data)
+	if err != nil {
 		return err
 	}
+	logrus.Info(output)
 
-	if createPR && !dryRun {
+	if createPR {
+		prName := "Update KDM to " + newKDMBranch
+		logrus.Info("creating PR")
+		if dryRun {
+			logrus.Info("dry run, PR will not be created")
+			logrus.Info("PR:\n  Name: " + prName + "\n  From: " + githubUser + ":" + branchName + "\n  To rancher:" + rancherBaseBranch)
+			return nil
+		}
 		ghClient := repository.NewGithub(ctx, githubToken)
 
-		if err := createPRFromRancher(ctx, rancherBaseBranch, "Update KDM to "+newKDMBranch, branchName, forkOwner, ghClient); err != nil {
+		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, githubUser, ghClient); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, currentBranch, newBranch, forkOwner, githubToken string, createPR, dryRun bool) error {
+func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, newBranch, githubUser, githubToken string, createPR, dryRun bool) error {
 	branchName := "charts-set-" + newBranch
 	data := SetBranchReferencesArgs{
 		RancherRepoPath:   forkPath,
-		CurrentBranch:     currentBranch,
 		NewBranch:         newBranch,
 		RancherBaseBranch: rancherBaseBranch,
 		DryRun:            dryRun,
 		BranchName:        branchName,
 	}
 	script := cloneCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
-	if err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data); err != nil {
+	logrus.Info("running update files script")
+	output, err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data)
+	if err != nil {
 		return err
 	}
+	logrus.Info(output)
 
-	if createPR && !dryRun {
+	if createPR {
+		prName := "Update charts branch references to " + newBranch
+		logrus.Info("creating PR")
+		if dryRun {
+			logrus.Info("dry run, PR will not be created")
+			logrus.Info("PR:\n  Name: " + prName + "\n  From: " + githubUser + ":" + branchName + "\n  To rancher:" + rancherBaseBranch)
+			return nil
+		}
 		ghClient := repository.NewGithub(ctx, githubToken)
 
-		if err := createPRFromRancher(ctx, rancherBaseBranch, "Update charts branch references to "+newBranch, branchName, forkOwner, ghClient); err != nil {
+		if err := createPRFromRancher(ctx, rancherBaseBranch, prName, branchName, githubUser, ghClient); err != nil {
 			return err
 		}
 	}
@@ -273,17 +296,15 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 }
 
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchName, forkOwner string, ghClient *github.Client) error {
-	org, err := repository.OrgFromRepo(rancherRepo)
-	if err != nil {
-		return err
-	}
+
 	pull := &github.NewPullRequest{
 		Title:               github.String(title),
 		Base:                github.String(rancherBaseBranch),
 		Head:                github.String(forkOwner + ":" + branchName),
 		MaintainerCanModify: github.Bool(true),
 	}
-	_, _, err = ghClient.PullRequests.Create(ctx, org, rancherRepo, pull)
+
+	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", "rancher", pull)
 
 	return err
 }

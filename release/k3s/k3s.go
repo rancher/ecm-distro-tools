@@ -658,10 +658,12 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 	rcNum := 1
 	name := r.NewK8SClient + "+" + r.NewK3SVersion
 	oldName := r.OldK8SVersion + "+" + r.OldK8SVersion
+
 	for {
 		if rc {
 			name = r.NewK8SVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewK3SVersion
 		}
+
 		opts := &repository.CreateReleaseOpts{
 			Repo:         k3sRepo,
 			Name:         name,
@@ -670,27 +672,36 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 			Draft:        !rc,
 			ReleaseNotes: "",
 		}
+
 		if !rc {
-			latestRc, err := release.LatestRC(ctx, k3sRepo, r.NewK8SVersion, client)
-			buff, err := release.GenReleaseNotes(ctx, k3sRepo, latestRc, oldName, client)
+			latestRc, err := release.LatestRC(ctx, "k3s-io", k3sRepo, r.NewK8SVersion, client)
+			if err != nil {
+				return err
+			}
+
+			buff, err := release.GenReleaseNotes(ctx, "k3s-io", k3sRepo, latestRc, oldName, client)
 			if err != nil {
 				return err
 			}
 			opts.ReleaseNotes = buff.String()
 		}
-		_, err := repository.CreateRelease(ctx, client, opts)
-		if err != nil {
+
+		if _, err := repository.CreateRelease(ctx, client, opts); err != nil {
 			githubErr := err.(*github.ErrorResponse)
 			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
 				if !rc {
 					return err
 				}
+
 				rcNum += 1
 				continue
 			}
+
 			return err
 		}
+
 		break
 	}
+
 	return nil
 }

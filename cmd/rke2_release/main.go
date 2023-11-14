@@ -28,6 +28,7 @@ func main() {
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
 		imageBuildBaseReleaseCommand(),
+		componentsCommand(),
 	}
 	app.Flags = rootFlags
 

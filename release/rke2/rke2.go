@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/go-github/v39/github"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
-	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,10 +28,7 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
 	if err != nil {
 		return err
 	}
-	imageBuildBaseOrg, err := repository.OrgFromRepo(imageBuildBaseRepo)
-	if err != nil {
-		return err
-	}
+
 	for _, version := range versions {
 		logrus.Info("version: " + version.Version)
 		if !version.Stable {
@@ -41,13 +37,13 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
 		}
 		v := "v" + strings.Split(version.Version, "go")[1] + "b1"
 		logrus.Info("stripped version: " + v)
-		_, _, err := ghClient.Repositories.GetReleaseByTag(ctx, imageBuildBaseOrg, imageBuildBaseRepo, v)
+		_, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, v)
 		if err == nil {
 			logrus.Info("release " + v + " already exists")
 			continue
 		}
 		logrus.Info("release " + v + " doesn't exists, creating release")
-		_, _, err = ghClient.Repositories.CreateRelease(ctx, imageBuildBaseOrg, imageBuildBaseRepo, &github.RepositoryRelease{
+		_, _, err = ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, &github.RepositoryRelease{
 			TagName:    github.String(v),
 			Name:       github.String(v),
 			Prerelease: github.Bool(false),

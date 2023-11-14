@@ -52,14 +52,14 @@ build-image:
 	docker build -t rancher/ecm-distro-tools:$(shell git rev-parse HEAD) .
 
 .PHONY: package-binaries
-package-binaries: # add dependency
+package-binaries: $(BINARIES)
 	@$(eval export BIN_FILES = $(shell ls bin/))
 
 	cd bin                                       && \
 	tar cvf ../ecm-distro-tools.tar $(BIN_FILES) && \
 	cd ../
 
-	for binary in $(BINARIES); do \
+	for binary in $<; do \
 		cd cmd/$${binary}/bin                   && \
 		tar rvf ../../../ecm-distro-tools.tar * && \
 		cd ../../../;                              \

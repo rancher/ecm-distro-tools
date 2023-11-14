@@ -102,7 +102,7 @@ func capitalize(s string) string {
 
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
-func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
+func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
 	funcMap := template.FuncMap{
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
@@ -113,7 +113,7 @@ func GenReleaseNotes(ctx context.Context, repo, milestone, prevMilestone string,
 	tmpl := template.New(templateName).Funcs(funcMap)
 	tmpl = template.Must(tmpl.Parse(changelogTemplate))
 
-	content, err := repository.RetrieveChangeLogContents(ctx, client, repo, prevMilestone, milestone)
+	content, err := repository.RetrieveChangeLogContents(ctx, client, owner, repo, prevMilestone, milestone)
 	if err != nil {
 		return nil, err
 	}
@@ -294,14 +294,9 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 // VerifyAssets checks the number of assets for the
 // given release and indicates if the expected number has
 // been met.
-func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags []string) (map[string]bool, error) {
+func VerifyAssets(ctx context.Context, client *github.Client, owner, repo string, tags []string) (map[string]bool, error) {
 	if len(tags) == 0 {
 		return nil, errors.New("no tags provided")
-	}
-
-	org, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		return nil, err
 	}
 
 	releases := make(map[string]bool, len(tags))
@@ -317,7 +312,7 @@ func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags 
 			continue
 		}
 
-		release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+		release, _, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, tag)
 		if err != nil {
 			switch err := err.(type) {
 			case *github.ErrorResponse:
@@ -348,17 +343,12 @@ func VerifyAssets(ctx context.Context, client *github.Client, repo string, tags 
 }
 
 // ListAssets gets all assets associated with the given release.
-func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([]*github.ReleaseAsset, error) {
-	org, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		return nil, err
-	}
-
+func ListAssets(ctx context.Context, client *github.Client, owner, repo, tag string) ([]*github.ReleaseAsset, error) {
 	if tag == "" {
 		return nil, errors.New("invalid tag provided")
 	}
 
-	release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+	release, _, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, tag)
 	if err != nil {
 		switch err := err.(type) {
 		case *github.ErrorResponse:
@@ -374,17 +364,12 @@ func ListAssets(ctx context.Context, client *github.Client, repo, tag string) ([
 }
 
 // DeleteAssetsByRelease deletes all release assets for the given release tag.
-func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag string) error {
-	org, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		return err
-	}
-
+func DeleteAssetsByRelease(ctx context.Context, client *github.Client, owner, repo, tag string) error {
 	if tag == "" {
 		return errors.New("invalid tag provided")
 	}
 
-	release, _, err := client.Repositories.GetReleaseByTag(ctx, org, repo, tag)
+	release, _, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, tag)
 	if err != nil {
 		switch err := err.(type) {
 		case *github.ErrorResponse:
@@ -397,7 +382,7 @@ func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag
 	}
 
 	for _, asset := range release.Assets {
-		if _, err := client.Repositories.DeleteReleaseAsset(ctx, org, repo, asset.GetID()); err != nil {
+		if _, err := client.Repositories.DeleteReleaseAsset(ctx, owner, repo, asset.GetID()); err != nil {
 			return err
 		}
 	}
@@ -406,17 +391,12 @@ func DeleteAssetsByRelease(ctx context.Context, client *github.Client, repo, tag
 }
 
 // DeleteAssetByID deletes the release asset associated with the given ID.
-func DeleteAssetByID(ctx context.Context, client *github.Client, repo, tag string, id int64) error {
-	org, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		return err
-	}
-
+func DeleteAssetByID(ctx context.Context, client *github.Client, owner, repo, tag string, id int64) error {
 	if tag == "" {
 		return errors.New("invalid tag provided")
 	}
 
-	if _, err := client.Repositories.DeleteReleaseAsset(ctx, org, repo, id); err != nil {
+	if _, err := client.Repositories.DeleteReleaseAsset(ctx, owner, repo, id); err != nil {
 		return err
 	}
 
@@ -622,13 +602,10 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 }
 
 // LatestRC will get the latest rc created for the k8s version in either rke2 or k3s
-func LatestRC(ctx context.Context, repo, k8sVersion string, client *github.Client) (string, error) {
+func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *github.Client) (string, error) {
 	var rcs []*github.RepositoryRelease
-	org, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		return "", err
-	}
-	allReleases, _, err := client.Repositories.ListReleases(ctx, org, repo, &github.ListOptions{})
+
+	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
 		return "", err
 	}
