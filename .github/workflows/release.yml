@@ -74,7 +74,7 @@ jobs:
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-freebsd-amd64
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-freebsd-arm64
             ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-linux-amd64
-            ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-linux-arm64\
+            ${{ github.workspace }}/cmd/rke2_release/bin/rke2_release-linux-arm64
             ${{ github.workspace }}/cmd/rke2_release/bin/sha256sums-rke2_release.txt
             ${{ github.workspace }}/cmd/semv/bin/semv-darwin-amd64
             ${{ github.workspace }}/cmd/semv/bin/semv-darwin-arm64
