@@ -85,14 +85,10 @@ download_tarball() {
 
 # install_binaries installs the binaries from the downloaded tar.
 install_binaries() {
-    echo "install binaries"
     cd "${TMP_DIR}"
     tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
-    echo "deleting tarball"
     rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
-    echo "creating install dir if not exists"
     mkdir -p ${INSTALL_DIR}
-    echo "copying binaries to install dir"
     cp -a ${TMP_DIR}/. ${INSTALL_DIR}
 }
 
