@@ -27,10 +27,6 @@ rke2_release:
 backport:
 	cd cmd/$@ && $(MAKE)
 
-.PHONY: standup
-standup:
-	cd cmd/$@ && $(MAKE)
-
 .PHONY: test_coverage
 test_coverage:
 	cd cmd/$@ && $(MAKE)
