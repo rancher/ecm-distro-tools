@@ -346,14 +346,10 @@ type Content struct {
 	FilesWithDev   []ContentLine
 }
 
-func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files string) (string, error) {
-	const (
-		releaseTitleRegex           = `^Pre-release v2\.7\.[0-9]{1,100}-rc[1-9][0-9]{0,1}$`
-		partialFinalRCCommitMessage = "last commit for final rc"
-	)
+func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
+	const partialFinalRCCommitMessage = "commit for final rc"
 	var (
 		matchCommitMessage bool
-		existsReleaseTitle bool
 		badFiles           bool
 		content            Content
 	)
@@ -369,87 +365,74 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, releaseTitle, files s
 	if org == "" {
 		org = rancherOrg
 	}
-
 	if commitHash != "" {
 		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
 		if err != nil {
-			return "", err
+			return err
 		}
 		matchCommitMessage = strings.Contains(commitData.Message, partialFinalRCCommitMessage)
-
-	}
-	if releaseTitle != "" {
-		innerExistsReleaseTitle, err := regexp.MatchString(releaseTitleRegex, releaseTitle)
-		if err != nil {
-			return "", err
-		}
-		existsReleaseTitle = innerExistsReleaseTitle
 	}
 
 	//should return data if executed in rancher project root path
 	err := writeRancherImagesDeps(&content, rcTagPattern)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	if matchCommitMessage || existsReleaseTitle {
-		for _, filePath := range strings.Split(files, ",") {
-			repoContent, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
-			if err != nil {
-				return "", err
-			}
-
-			scanner := bufio.NewScanner(strings.NewReader(string(repoContent)))
-			lineNum := 1
-
-			for scanner.Scan() {
-				lineByte, line := formatLineByte(scanner.Text())
-
-				if devDependencyPattern.Match(lineByte) {
-					badFiles = true
-					lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
-					content.FilesWithRC = append(content.FilesWithRC, lineContent)
-				}
-				if strings.Contains(filePath, "/package/Dockerfile") {
-					if !strings.Contains(line, "_VERSION") {
-						continue
-					}
-					matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
-					if len(matches) == 2 && strings.Contains(line, "-rc") {
-						lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
-						content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
-					}
-				}
-				if rcTagPattern.Match(lineByte) {
-					badFiles = true
-					lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
-					content.FilesWithDev = append(content.FilesWithDev, lineContent)
-				}
-				lineNum++
-			}
-			if err := scanner.Err(); err != nil {
-				return "", err
-			}
-		}
-
-		tmpl := template.New("rancher-release-rc-dev-deps")
-		tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
-		buff := bytes.NewBuffer(nil)
-		err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
+	for _, filePath := range strings.Split(files, ",") {
+		repoContent, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
 		if err != nil {
-			return "", err
-		}
-		output := buff.String()
-
-		if forCi && badFiles {
-			fmt.Println(output)
-			return "", errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
+			return err
 		}
 
-		return output, nil
+		scanner := bufio.NewScanner(strings.NewReader(string(repoContent)))
+		lineNum := 1
+
+		for scanner.Scan() {
+			lineByte, line := formatLineByte(scanner.Text())
+
+			if devDependencyPattern.Match(lineByte) {
+				badFiles = true
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				content.FilesWithRC = append(content.FilesWithRC, lineContent)
+			}
+			if strings.Contains(filePath, "/package/Dockerfile") {
+				if !strings.Contains(line, "_VERSION") {
+					continue
+				}
+				matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
+				if len(matches) == 2 && strings.Contains(line, "-rc") {
+					lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
+					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
+				}
+			}
+			if rcTagPattern.Match(lineByte) {
+				badFiles = true
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				content.FilesWithDev = append(content.FilesWithDev, lineContent)
+			}
+			lineNum++
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
 	}
 
-	return "skipped check", nil
+	tmpl := template.New("rancher-release-rc-dev-deps")
+	tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
+	buff := bytes.NewBuffer(nil)
+	err = tmpl.ExecuteTemplate(buff, "componentsFile", content)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(buff.String())
+
+	if forCi && matchCommitMessage && badFiles {
+		return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
+	}
+
+	return nil
 }
 
 func writeRancherImagesDeps(content *Content, rcTagPattern *regexp.Regexp) error {

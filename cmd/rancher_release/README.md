@@ -142,6 +142,70 @@ rancher_release label-issues -t v2.8.1-rc1 --dry-run
 #   [Waiting for RC] -> [To Test]
 ```
 
+### check-rancher-rc-deps
+
+This command checks Rancher by the commit hash in the selected files, verifying if they contain 'rc' and 'dev' dependencies. It generates an MD-formatted file print that can be used as a release description. If necessary, the command can generate an error if these dependencies are found, ideal for use in CI pipelines. When executed in the root of the Rancher project, it checks the `rancher-images.txt` and `rancher-windows-images.txt` files.
+
+The pattern of files to be checked includes:
+- `pkg/settings/setting.go`
+- `package/Dockerfile`
+- `scripts/package-env`
+- `Dockerfile.dapper`
+- `go.mod`
+- `pkg/apis/go.mod`
+- `pkg/client/go.mod`
+
+| **Flag**         | **Description**                                                                                       | **Required** |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
+| `commit`, `c`    | Required commit to find the Rancher project reference that will be executed                            | TRUE         |
+| `org`, `o`       | Reference organization of the commit                                                                   | FALSE        |
+| `repo`, `r`      | Reference repository of the commit                                                                     | FALSE        |
+| `files`, `f`     | List of files to be checked by the command, they are mandatory                                         | TRUE         |
+| `for-ci`, `p`    | With this flag, it's possible to return an error if any of the files contain 'rc' tags or 'dev' dependencies, ideal for use in integration pipelines | FALSE        |
+
+**Examples**
+
+```
+rancher_release check-rancher-rc-deps -c <HASH_COMMIT> -f Dockerfile.dapper,go.mod,/package/Dockerfile,/pkg/apis/go.mod,/pkg/settings/setting.go,/scripts/package-env
+```
+
+```
+# Images with -rc
+
+* rancher/backup-restore-operator v4.0.0-rc1 (./bin/rancher-images.txt, line 1)
+* rancher/rancher v2.8.0-rc3 (./bin/rancher-windows-images.txt, line 1)
+* rancher/rancher-agent v2.8.0-rc3 (./bin/rancher-windows-images.txt, line 2)
+* rancher/system-agent v0.3.4-rc1-suc (./bin/rancher-windows-images.txt, line 3)
+
+# Components with -rc
+
+* ENV CATTLE_KDM_BRANCH=dev-v2.8 (Dockerfile.dapper, line 16)
+* ARG SYSTEM_CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* ARG CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* ARG CATTLE_KDM_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* KDMBranch = NewSetting("kdm-branch", "dev-v2.8") (/pkg/settings/setting.go, line 84)
+* ChartDefaultBranch = NewSetting("chart-default-branch", "dev-v2.8") (/pkg/settings/setting.go, line 116)
+* SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 5)
+* CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 7)
+
+# Min version components with -rc
+
+* ENV CATTLE_FLEET_MIN_VERSION=103.1.0+up0.9.0-rc.3
+* ENV CATTLE_CSP_ADAPTER_MIN_VERSION=103.0.0+up3.0.0-rc1
+
+# Components with dev-
+
+* ENV CATTLE_KDM_BRANCH=dev-v2.8 (Dockerfile.dapper, line 16)
+* ARG SYSTEM_CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* ARG CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* ARG CATTLE_KDM_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* KDMBranch = NewSetting("kdm-branch", "dev-v2.8") (/pkg/settings/setting.go, line 84)
+* ChartDefaultBranch = NewSetting("chart-default-branch", "dev-v2.8") (/pkg/settings/setting.go, line 116)
+* SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 5)
+* CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 7)
+
+```
+
 ## Contributions
 
 - File Issue with details of the problem, feature request, etc.

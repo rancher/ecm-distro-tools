@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
@@ -18,12 +17,6 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "commit",
 				Aliases:  []string{"c"},
 				Usage:    "last commit for a final rc",
-				Required: false,
-			},
-			&cli.StringFlag{
-				Name:     "release-title",
-				Aliases:  []string{"t"},
-				Usage:    "release title from a given release process",
 				Required: false,
 			},
 			&cli.StringFlag{
@@ -56,28 +49,24 @@ func checkRancherRCDepsCommand() *cli.Command {
 }
 
 func checkRancherRCDeps(c *cli.Context) error {
-	rcReleaseTitle := c.String("release-title")
 	rcCommit := c.String("commit")
 	rcOrg := c.String("org")
 	rcRepo := c.String("repo")
 	rcFiles := c.String("files")
 	forCi := c.Bool("for-ci")
 
-	if rcCommit == "" && rcReleaseTitle == "" {
-		return errors.New("'commit' or 'release-title' are required")
+	if rcCommit == "" {
+		return errors.New("'commit hash' are required")
 	}
 	if rcFiles == "" {
 		return errors.New("'files' is required, e.g, --files Dockerfile.dapper,go.mod")
 	}
-	logrus.Debugf("organization: %s, repository: %s, commit: %s, release title: %s, files: %s",
-		rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
+	logrus.Debugf("organization: %s, repository: %s, commit: %s, files: %s",
+		rcOrg, rcRepo, rcCommit, rcFiles)
 
-	output, err := rancher.CheckRancherRCDeps(forCi, rcOrg, rcRepo, rcCommit, rcReleaseTitle, rcFiles)
+	err := rancher.CheckRancherRCDeps(forCi, rcOrg, rcRepo, rcCommit, rcFiles)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(output)
-
 	return nil
 }
