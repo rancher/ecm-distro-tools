@@ -320,14 +320,12 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 }
 
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchName, forkOwner string, ghClient *github.Client) error {
-
 	pull := &github.NewPullRequest{
 		Title:               github.String(title),
 		Base:                github.String(rancherBaseBranch),
 		Head:                github.String(forkOwner + ":" + branchName),
 		MaintainerCanModify: github.Bool(true),
 	}
-
 	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", "rancher", pull)
 
 	return err
