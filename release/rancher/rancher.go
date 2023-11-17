@@ -125,8 +125,13 @@ const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
 * {{ .Content }}
 {{- end}}
 
-# Components with dev-
-{{range .FilesWithRC}}
+# KDM References with dev branch
+{{range .KDMWithDev}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Chart References with dev branch
+{{range .ChartsWithDev}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
@@ -341,7 +346,9 @@ type Content struct {
 	RancherImages  []ContentLine
 	FilesWithRC    []ContentLine
 	MinFilesWithRC []ContentLine
-	FilesWithDev   []ContentLine
+	ChartsWithDev  []ContentLine
+	KDMWithDev     []ContentLine
+	WithDev        []ContentLine
 }
 
 func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
@@ -384,7 +391,13 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
 			if devDependencyPattern.Match(lineByte) {
 				badFiles = true
 				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
-				content.FilesWithRC = append(content.FilesWithRC, lineContent)
+				lineContentLower := strings.ToLower(lineContent.Content)
+				if strings.Contains(lineContentLower, "chart") {
+					content.ChartsWithDev = append(content.ChartsWithDev, lineContent)
+				}
+				if strings.Contains(lineContentLower, "kdm") {
+					content.KDMWithDev = append(content.KDMWithDev, lineContent)
+				}
 			}
 			if strings.Contains(filePath, "/package/Dockerfile") {
 				if !strings.Contains(line, "_VERSION") {
@@ -399,7 +412,7 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
 			if rcTagPattern.Match(lineByte) {
 				badFiles = true
 				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
-				content.FilesWithDev = append(content.FilesWithDev, lineContent)
+				content.FilesWithRC = append(content.FilesWithRC, lineContent)
 			}
 			lineNum++
 		}
