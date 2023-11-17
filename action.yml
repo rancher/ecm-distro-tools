@@ -17,5 +17,5 @@ runs:
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
       chmod +x "${INSTALL_SCRIPT_PATH}" 
       ${INSTALL_SCRIPT_PATH} ${TAG}
-      export PATH="${INSTALL_DIR}:$PATH"
+      echo "${INSTALL_DIR}" >> "${GITHUB_PATH}"
       ls -al "$INSTALL_DIR"
