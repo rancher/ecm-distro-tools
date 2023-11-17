@@ -58,9 +58,11 @@ OS=$(uname -s)
 case ${OS} in
 Darwin)
 	sed -i '' "s/hardened-build-base:${CURRENT_TAG}/hardened-build-base:${NEW_TAG}/" Dockerfile
+	sed -i '' "s/hardened-build-base:${CURRENT_TAG}/hardened-build-base:${NEW_TAG}/" .drone.yml
 	;;
 Linux)
 	sed -i "s/hardened-build-base:${CURRENT_TAG}/hardened-build-base:${NEW_TAG}/" Dockerfile
+	sed -i "s/hardened-build-base:${CURRENT_TAG}/hardened-build-base:${NEW_TAG}/" .drone.yml
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -68,6 +70,7 @@ Linux)
 	;;
 esac
 git add Dockerfile
+git add .drone.yml
 git commit -m "update hardened-build-base to ${NEW_TAG}"
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
