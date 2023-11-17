@@ -348,7 +348,6 @@ type Content struct {
 	MinFilesWithRC []ContentLine
 	ChartsWithDev  []ContentLine
 	KDMWithDev     []ContentLine
-	WithDev        []ContentLine
 }
 
 func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {

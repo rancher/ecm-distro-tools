@@ -25,7 +25,6 @@ const (
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
 	ghContentURL       = "https://raw.githubusercontent.com"
-	ghAPIURL           = "https://api.github.com"
 )
 
 // stripBackportTag returns a string with a prefix backport tag removed
