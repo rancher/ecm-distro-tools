@@ -22,7 +22,7 @@ const (
 	updateImageBuildScript         = `#!/bin/sh
 set -e
 REPO_NAME={{ .RepoName }}
-REPO_ORG={{ .RepoOrg }}
+REPO_ORG={{ .RepoOwner }}
 DRY_RUN={{ .DryRun }}
 CLONE_DIR={{ .CloneDir }}
 NEW_TAG={{ .NewTag }}
@@ -161,7 +161,7 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	if _, ok := imageBuildRepos[repo]; !ok {
 		return errors.New("invalid repo, please review the `imageBuildRepos` map")
 	}
-	newTag, err := latestTag(ctx, ghClient, owner, repo)
+	newTag, err := latestTag(ctx, ghClient, "rancher", "image-build-base")
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 		CloneDir:   cloneDir,
 		NewTag:     newTag,
 	}
-	output, err := exec.RunTemplatedScript(cloneDir, updateImageBuildScriptFileName, updateImageBuildScript, data)
+	output, err := exec.RunTemplatedScript("/tmp", updateImageBuildScriptFileName, updateImageBuildScript, data)
 	if err != nil {
 		return err
 	}
@@ -182,11 +182,12 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	if createPR {
 		prName := "Update hardened build base to " + newTag
 		logrus.Info("preparing PR")
+		logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To rancher:master")
 		if dryRun {
 			logrus.Info("dry run, PR will not be created")
-			logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To rancher:master")
 			return nil
 		}
+		logrus.Info("creating pr")
 		if err := createPRFromRancher(ctx, ghClient, prName, branchName, owner, repo); err != nil {
 			return err
 		}
