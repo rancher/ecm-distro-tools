@@ -7,10 +7,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-  - shell: bash
+  - env:
+      INSTALL_SCRIPT_TAG: ${{ github.action_ref }} 
+    shell: bash
     run: |
       INSTALL_SCRIPT_PATH="${RUNNER_TEMP}/install.sh"
-      INSTALL_SCRIPT_TAG=${{ github.action_ref }}
       TAG="${{ inputs.version }}"
       DOWNLOAD_DIR=$HOME/.local/bin/ecm-distro-tools
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
