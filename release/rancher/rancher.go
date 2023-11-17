@@ -345,7 +345,6 @@ type Content struct {
 }
 
 func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
-	const partialFinalRCCommitMessage = "commit for final rc"
 	var (
 		matchCommitMessage bool
 		badFiles           bool
@@ -362,13 +361,6 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
 	}
 	if org == "" {
 		org = rancherOrg
-	}
-	if commitHash != "" {
-		commitData, err := repository.CommitInfo(org, repo, commitHash, &httpClient)
-		if err != nil {
-			return err
-		}
-		matchCommitMessage = strings.Contains(commitData.Message, partialFinalRCCommitMessage)
 	}
 
 	//should return data if executed in rancher project root path
