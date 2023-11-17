@@ -13,8 +13,9 @@ runs:
     run: |
       INSTALL_SCRIPT_PATH="${RUNNER_TEMP}/install.sh"
       TAG="${{ inputs.version }}"
-      DOWNLOAD_DIR=$HOME/.local/bin/ecm-distro-tools
+      INSTALL_DIR=$HOME/.local/bin/ecm-distro-tools
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
       chmod +x "${INSTALL_SCRIPT_PATH}" 
       ${INSTALL_SCRIPT_PATH} ${TAG}
-      ls -al "$DOWNLOAD_DIR"
+      export PATH="${INSTALL_DIR}:$PATH"
+      ls -al "$INSTALL_DIR"
