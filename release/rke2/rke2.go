@@ -16,28 +16,40 @@ import (
 )
 
 const (
-	goDevURL                       = "https://go.dev/dl/?mode=json"
-	imageBuildBaseRepo             = "image-build-base"
-	updateImageBuildScriptFileName = "update_image_build_base.sh"
-	updateImageBuildScript         = `#!/bin/sh
+	goDevURL                          = "https://go.dev/dl/?mode=json"
+	imageBuildBaseRepo                = "image-build-base"
+	cloneImageBuildScriptFileName     = "clone_image_build.sh"
+	getHardenedBuildTagScriptFileName = "get_hardened_build_tag.sh"
+	updateImageBuildScriptFileName    = "update_image_build_base.sh"
+	cloneImageBuildScript             = `#!/bin/sh
 set -e
 REPO_NAME={{ .RepoName }}
-REPO_ORG={{ .RepoOwner }}
-DRY_RUN={{ .DryRun }}
+REPO_OWNER={{ .RepoOwner }}
 CLONE_DIR={{ .CloneDir }}
-NEW_TAG={{ .NewTag }}
-BRANCH_NAME={{ .BranchName }}
 echo "repo name: ${REPO_NAME}"
-echo "org name: ${REPO_ORG}"
+echo "org name: ${REPO_OWNER}"
+echo "cloning ${REPO_OWNER}/${REPO_NAME} into ${CLONE_DIR}"
+git clone "git@github.com:${REPO_OWNER}/${REPO_NAME}.git" "${CLONE_DIR}"
+`
+	getHardenedBuildTagScript = `#!/bin/sh
+set -e
+CLONE_DIR={{ .CloneDir }}
+cd "${CLONE_DIR}"
+grep -o -e "hardened-build-base:.*$" Dockerfile
+`
+	updateImageBuildScript = `#!/bin/sh
+set -e
+DRY_RUN={{ .DryRun }}
+NEW_TAG={{ .NewTag }}
+CLONE_DIR={{ .CloneDir }}
+BRANCH_NAME={{ .BranchName }}
+CURRENT_TAG={{ .CurrentTag }}
 echo "dry run: ${DRY_RUN}"
 echo "current tag: ${CURRENT_TAG}"
 echo "branch name: ${BRANCH_NAME}"
 
-echo "cloning ${REPO_ORG}/${REPO_NAME} into ${CLONE_DIR}"
-git clone "git@github.com:${REPO_ORG}/${REPO_NAME}.git" "${CLONE_DIR}"
 echo "navigating to the repo dir"
 cd "${CLONE_DIR}"
-CURRENT_TAG=$(cat .hardened-build-base-version)
 echo "new tag: ${NEW_TAG}"
 echo "creating local branch"
 git checkout -B "${BRANCH_NAME}" master
@@ -69,6 +81,7 @@ type UpdateImageBuildArgs struct {
 	DryRun     bool
 	CloneDir   string
 	NewTag     string
+	CurrentTag string
 }
 
 var imageBuildRepos map[string]bool = map[string]bool{
@@ -157,7 +170,7 @@ func goVersions(goDevURL string) ([]goVersionRecord, error) {
 	return versions, nil
 }
 
-func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner, cloneDir string, dryRun, createPR bool) error {
+func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner, cloneDir, workingDir string, dryRun, createPR bool) error {
 	if _, ok := imageBuildRepos[repo]; !ok {
 		return errors.New("invalid repo, please review the `imageBuildRepos` map")
 	}
@@ -174,11 +187,23 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 		CloneDir:   cloneDir,
 		NewTag:     newTag,
 	}
-	output, err := exec.RunTemplatedScript("/tmp", updateImageBuildScriptFileName, updateImageBuildScript, data)
+	cloneOutput, err := exec.RunTemplatedScript(workingDir, cloneImageBuildScriptFileName, cloneImageBuildScript, data)
 	if err != nil {
 		return err
 	}
-	logrus.Info(output)
+	logrus.Info(cloneOutput)
+	currentTagOutput, err := exec.RunTemplatedScript(workingDir, getHardenedBuildTagScriptFileName, getHardenedBuildTagScript, data)
+	if err != nil {
+		return err
+	}
+	logrus.Info(currentTagOutput)
+	currentTag := strings.TrimPrefix(strings.TrimSpace(currentTagOutput), "hardened-build-base:")
+	data.CurrentTag = currentTag
+	updateFilesOutput, err := exec.RunTemplatedScript(workingDir, updateImageBuildScriptFileName, updateImageBuildScript, data)
+	if err != nil {
+		return err
+	}
+	logrus.Info(updateFilesOutput)
 	if createPR {
 		prName := "Update hardened build base to " + newTag
 		logrus.Info("preparing PR")

@@ -35,6 +35,11 @@ func updateImageBuildCommand() *cli.Command {
 				Aliases:  []string{"c"},
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:     "working-dir",
+				Aliases:  []string{"w"},
+				Required: true,
+			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
 				Aliases:  []string{"d"},
@@ -58,9 +63,10 @@ func updateImageBuild(c *cli.Context) error {
 	repo := c.String("repo")
 	owner := c.String("owner")
 	cloneDir := c.String("clone-dir")
+	workingDir := c.String("working-dir")
 	dryRun := c.Bool("dry-run")
 	createPR := c.Bool("create-pr")
 	ctx := context.Background()
 	ghClient := repository.NewGithub(ctx, token)
-	return rke2.UpdateImageBuild(ctx, ghClient, repo, owner, cloneDir, dryRun, createPR)
+	return rke2.UpdateImageBuild(ctx, ghClient, repo, owner, cloneDir, workingDir, dryRun, createPR)
 }
