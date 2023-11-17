@@ -17,7 +17,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "commit",
 				Aliases:  []string{"c"},
 				Usage:    "last commit for a final rc",
-				Required: false,
+				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "org",
@@ -40,7 +40,7 @@ func checkRancherRCDepsCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:     "for-ci",
 				Aliases:  []string{"p"},
-				Usage:    "export a md template also check raising a error if contains rc tags and dev deps",
+				Usage:    "export a md template also check raising an error if contains rc tags and dev deps",
 				Required: false,
 			},
 		},

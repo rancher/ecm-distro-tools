@@ -170,40 +170,42 @@ rancher_release check-rancher-rc-deps -c <HASH_COMMIT> -f Dockerfile.dapper,go.m
 ```
 
 ```
-# Images with -rc
-
-* rancher/backup-restore-operator v4.0.0-rc1 (./bin/rancher-images.txt, line 1)
-* rancher/rancher v2.8.0-rc3 (./bin/rancher-windows-images.txt, line 1)
-* rancher/rancher-agent v2.8.0-rc3 (./bin/rancher-windows-images.txt, line 2)
-* rancher/system-agent v0.3.4-rc1-suc (./bin/rancher-windows-images.txt, line 3)
-
 # Components with -rc
 
-* ENV CATTLE_KDM_BRANCH=dev-v2.8 (Dockerfile.dapper, line 16)
-* ARG SYSTEM_CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
-* ARG CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
-* ARG CATTLE_KDM_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
-* KDMBranch = NewSetting("kdm-branch", "dev-v2.8") (/pkg/settings/setting.go, line 84)
-* ChartDefaultBranch = NewSetting("chart-default-branch", "dev-v2.8") (/pkg/settings/setting.go, line 116)
-* SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 5)
-* CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 7)
+* github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.1.0-rc2 // needed for containers/image/v5 (go.mod, line 15)
+* github.com/rancher/aks-operator v1.2.0-rc4 (go.mod, line 111)
+* github.com/rancher/dynamiclistener v0.3.6-rc3-deadlock-fix-revert (go.mod, line 114)
+* github.com/rancher/eks-operator v1.3.0-rc3 (go.mod, line 115)
+* github.com/rancher/gke-operator v1.2.0-rc2 (go.mod, line 117)
+* github.com/rancher/rke v1.5.0-rc5 (go.mod, line 124)
+* github.com/opencontainers/image-spec v1.1.0-rc3 // indirect (go.mod, line 370)
+* ENV CATTLE_RANCHER_WEBHOOK_VERSION=103.0.0+up0.4.0-rc9 (/package/Dockerfile, line 26)
+* ENV CATTLE_CSP_ADAPTER_MIN_VERSION=103.0.0+up3.0.0-rc1 (/package/Dockerfile, line 27)
+* ENV CATTLE_CLI_VERSION v2.8.0-rc1 (/package/Dockerfile, line 48)
+* github.com/rancher/aks-operator v1.2.0-rc4 (/pkg/apis/go.mod, line 11)
+* github.com/rancher/eks-operator v1.3.0-rc3 (/pkg/apis/go.mod, line 12)
+* github.com/rancher/gke-operator v1.2.0-rc2 (/pkg/apis/go.mod, line 14)
+* github.com/rancher/rke v1.5.0-rc5 (/pkg/apis/go.mod, line 16)
+* ShellImage = NewSetting("shell-image", "rancher/shell:v0.1.21-rc1") (/pkg/settings/setting.go, line 121)
 
 # Min version components with -rc
 
 * ENV CATTLE_FLEET_MIN_VERSION=103.1.0+up0.9.0-rc.3
 * ENV CATTLE_CSP_ADAPTER_MIN_VERSION=103.0.0+up3.0.0-rc1
 
-# Components with dev-
+# KDM References with dev branch
 
 * ENV CATTLE_KDM_BRANCH=dev-v2.8 (Dockerfile.dapper, line 16)
-* ARG SYSTEM_CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
-* ARG CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
 * ARG CATTLE_KDM_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
 * KDMBranch = NewSetting("kdm-branch", "dev-v2.8") (/pkg/settings/setting.go, line 84)
+
+# Chart References with dev branch
+
+* ARG SYSTEM_CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
+* ARG CHART_DEFAULT_BRANCH=dev-v2.8 (/package/Dockerfile, line 1)
 * ChartDefaultBranch = NewSetting("chart-default-branch", "dev-v2.8") (/pkg/settings/setting.go, line 116)
 * SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 5)
 * CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH:-"dev-v2.8"} (/scripts/package-env, line 7)
-
 ```
 
 ## Contributions

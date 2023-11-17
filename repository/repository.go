@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +10,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -430,54 +428,6 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 `
-
-type Author struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Date  string `json:"date"`
-}
-
-type Commit struct {
-	Author    Author `json:"author"`
-	Committer Author `json:"committer"`
-	Message   string `json:"message"`
-	URL       string `json:"url"`
-}
-
-type CommitResponse struct {
-	SHA         string `json:"sha"`
-	NodeID      string `json:"node_id"`
-	Commit      Commit `json:"commit"`
-	URL         string `json:"url"`
-	HTMLURL     string `json:"html_url"`
-	CommentsURL string `json:"comments_url"`
-}
-
-func CommitInfo(owner, repo, commitHash string, httpClient *http.Client) (*Commit, error) {
-	var commitResponseMutex sync.Mutex
-
-	apiUrl := fmt.Sprintf(ghAPIURL+"/repos/%s/%s/commits/%s", owner, repo, commitHash)
-
-	response, err := httpClient.Get(apiUrl)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to fetch commit information. status code: " + strconv.Itoa(response.StatusCode))
-	}
-
-	var commitResponse CommitResponse
-
-	commitResponseMutex.Lock()
-	err = json.NewDecoder(response.Body).Decode(&commitResponse)
-	commitResponseMutex.Unlock()
-	if err != nil {
-		return nil, err
-	}
-
-	return &commitResponse.Commit, nil
-}
 
 func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpClient *http.Client) ([]byte, error) {
 	rawURL := fmt.Sprintf(ghContentURL+"/%s/%s/%s/%s", owner, repo, commitHash, filePath)
