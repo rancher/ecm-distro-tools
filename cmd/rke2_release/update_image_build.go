@@ -25,6 +25,26 @@ func updateImageBuildCommand() *cli.Command {
 				Aliases:  []string{"r"},
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:     "owner",
+				Aliases:  []string{"o"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "clone-dir",
+				Aliases:  []string{"c"},
+				Required: true,
+			},
+			&cli.BoolFlag{
+				Name:     "dry-run",
+				Aliases:  []string{"d"},
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "create-pr",
+				Aliases:  []string{"p"},
+				Required: false,
+			},
 		},
 		Action: updateImageBuild,
 	}
@@ -36,7 +56,11 @@ func updateImageBuild(c *cli.Context) error {
 		return errors.New("env var GITHUB_TOKEN is required")
 	}
 	repo := c.String("repo")
+	owner := c.String("owner")
+	cloneDir := c.String("clone-dir")
+	dryRun := c.Bool("dry-run")
+	createPR := c.Bool("create-pr")
 	ctx := context.Background()
 	ghClient := repository.NewGithub(ctx, token)
-	return rke2.UpdateImageBuild(ctx, ghClient, repo)
+	return rke2.UpdateImageBuild(ctx, ghClient, repo, owner, cloneDir, dryRun, createPR)
 }
