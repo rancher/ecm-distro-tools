@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/docker"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
 )
@@ -23,7 +24,7 @@ type goVersionRecord struct {
 	Stable  bool   `json:"stable"`
 }
 
-func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
+func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, alpineVersion string, dryRun bool) error {
 	versions, err := goVersions(goDevURL)
 	if err != nil {
 		return err
@@ -35,23 +36,36 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client) error {
 			logrus.Info("version " + version.Version + " is not stable")
 			continue
 		}
-		v := "v" + strings.Split(version.Version, "go")[1] + "b1"
-		logrus.Info("stripped version: " + v)
-		_, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, v)
+		version := strings.Split(version.Version, "go")[1]
+		alpineTag := version + "-alpine" + alpineVersion
+
+		err := docker.CheckImageArchs(ctx, "library", "golang", alpineTag, []string{"amd64", "arm64", "s390x"})
+		if err != nil {
+			return err
+		}
+
+		imageBuildBaseTag := "v" + version + "b1"
+		logrus.Info("stripped version: " + imageBuildBaseTag)
+		_, _, err = ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, imageBuildBaseTag)
 		if err == nil {
-			logrus.Info("release " + v + " already exists")
+			logrus.Info("release " + imageBuildBaseTag + " already exists")
 			continue
 		}
-		logrus.Info("release " + v + " doesn't exists, creating release")
+		logrus.Info("release " + imageBuildBaseTag + " doesn't exists, creating release")
+		if dryRun {
+			logrus.Info("dry run, release won't be created")
+			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
+			return nil
+		}
 		_, _, err = ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, &github.RepositoryRelease{
-			TagName:    github.String(v),
-			Name:       github.String(v),
+			TagName:    github.String(imageBuildBaseTag),
+			Name:       github.String(imageBuildBaseTag),
 			Prerelease: github.Bool(false),
 		})
 		if err != nil {
 			return err
 		}
-		logrus.Info("created release for version: " + v)
+		logrus.Info("created release for version: " + imageBuildBaseTag)
 	}
 	return nil
 }
