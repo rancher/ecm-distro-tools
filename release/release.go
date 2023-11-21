@@ -683,7 +683,6 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *githu
 
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file
 func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
-
 	chartVersionsURL := "https://raw.githubusercontent.com/rancher/rke2/" + branchVersion + "/charts/" + rke2ChartsVersionsFile
 
 	client := httpecm.NewClient(DefaultTimeout)
@@ -697,13 +696,6 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, err)
 		return nil, err
 	}
-
-	// b, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	logrus.Debugf("read body error: %v", err)
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
 
 	var c charts
 	decoder := yaml.NewDecoder(resp.Body)
