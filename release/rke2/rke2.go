@@ -39,15 +39,13 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, alpineV
 		version := strings.Split(version.Version, "go")[1]
 		alpineTag := version + "-alpine" + alpineVersion
 
-		err := docker.CheckImageArchs(ctx, "library", "golang", alpineTag, []string{"amd64", "arm64", "s390x"})
-		if err != nil {
+		if err := docker.CheckImageArchs(ctx, "library", "golang", alpineTag, []string{"amd64", "arm64", "s390x"}); err != nil {
 			return err
 		}
 
 		imageBuildBaseTag := "v" + version + "b1"
 		logrus.Info("stripped version: " + imageBuildBaseTag)
-		_, _, err = ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, imageBuildBaseTag)
-		if err == nil {
+		if _, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, imageBuildBaseTag); err == nil {
 			logrus.Info("release " + imageBuildBaseTag + " already exists")
 			continue
 		}
@@ -57,7 +55,7 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, alpineV
 			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
 			return nil
 		}
-		_, _, err = ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, &github.RepositoryRelease{
+		_, _, err := ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, &github.RepositoryRelease{
 			TagName:    github.String(imageBuildBaseTag),
 			Name:       github.String(imageBuildBaseTag),
 			Prerelease: github.Bool(false),
