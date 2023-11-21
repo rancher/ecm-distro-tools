@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -13,7 +12,10 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"time"
 	"unicode"
+
+	httpecm "github.com/rancher/ecm-distro-tools/http"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -28,6 +30,7 @@ const (
 	rke2Repo               = "rke2"
 	alternateVersion       = "1.23"
 	rke2ChartsVersionsFile = "chart_versions.yaml"
+	DefaultTimeout         = 30 * time.Second
 )
 
 type charts struct {
@@ -271,29 +274,28 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
 
 	// get charts versions
-	chartsMap, err := rke2ChartsVersion(milestone)
+	chartsData, err := rke2ChartsVersion(milestone)
 	if err != nil {
 		return nil, err
 	}
 
-	rd.CiliumChartVersion = chartsMap["rke2-cilium.yaml"].Version
-	rd.CanalChartVersion = chartsMap["rke2-canal.yaml"].Version
-	rd.CalicoChartVersion = chartsMap["rke2-calico.yaml"].Version
-	rd.CalicoCRDChartVersion = chartsMap["rke2-calico-crd.yaml"].Version
-	rd.CoreDNSChartVersion = chartsMap["rke2-coredns.yaml"].Version
-	rd.IngressNginxChartVersion = chartsMap["rke2-ingress-nginx.yaml"].Version
-	rd.MetricsServerChartVersion = chartsMap["rke2-metrics-server.yaml"].Version
-	rd.VsphereCSIChartVersion = chartsMap["rancher-vsphere-csi.yaml"].Version
-	rd.VsphereCPIChartVersion = chartsMap["rancher-vsphere-cpi.yaml"].Version
-	rd.HarvesterCloudProviderChartVersion = chartsMap["harvester-cloud-provider.yaml"].Version
-	rd.HarvesterCSIDriverChartVersion = chartsMap["harvester-csi-driver.yaml"].Version
-	rd.SnapshotControllerChartVersion = chartsMap["rke2-snapshot-controller.yaml"].Version
-	rd.SnapshotControllerCRDChartVersion = chartsMap["rke2-snapshot-controller-crd.yaml"].Version
-	rd.SnapshotValidationWebhookChartVersion = chartsMap["rke2-snapshot-validation-webhook.yaml"].Version
+	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
+	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
+	rd.CalicoChartVersion = chartsData["rke2-calico.yaml"].Version
+	rd.CalicoCRDChartVersion = chartsData["rke2-calico-crd.yaml"].Version
+	rd.CoreDNSChartVersion = chartsData["rke2-coredns.yaml"].Version
+	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
+	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
+	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
+	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
+	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
+	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
+	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
+	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
+	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
 
 	buf := bytes.NewBuffer(nil)
-	err = tmpl.ExecuteTemplate(buf, rke2Repo, rd)
-	if err != nil {
+	if err := tmpl.ExecuteTemplate(buf, rke2Repo, rd); err != nil {
 		return nil, err
 	}
 	return buf, nil
@@ -682,10 +684,10 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *githu
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file
 func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 
-	chartsMap := make(map[string]chart)
-	c := charts{}
 	chartVersionsURL := "https://raw.githubusercontent.com/rancher/rke2/" + branchVersion + "/charts/" + rke2ChartsVersionsFile
-	resp, err := http.Get(chartVersionsURL)
+
+	client := httpecm.NewClient(DefaultTimeout)
+	resp, err := client.Get(chartVersionsURL)
 	if err != nil {
 		logrus.Debugf("failed to fetch url %s: %v", chartVersionsURL, err)
 		return nil, err
@@ -696,21 +698,24 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 		return nil, err
 	}
 
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Debugf("read body error: %v", err)
-		return nil, err
-	}
-	defer resp.Body.Close()
+	// b, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	logrus.Debugf("read body error: %v", err)
+	// 	return nil, err
+	// }
+	// defer resp.Body.Close()
 
-	if err := yaml.Unmarshal(b, &c); err != nil {
+	var c charts
+	decoder := yaml.NewDecoder(resp.Body)
+	if err := decoder.Decode(&c); err != nil {
 		return nil, err
 	}
+	chartsData := make(map[string]chart, len(c.Charts))
 	for _, chart := range c.Charts {
-		chartsMap[filepath.Base(chart.Filename)] = chart
+		chartsData[filepath.Base(chart.Filename)] = chart
 	}
 
-	return chartsMap, nil
+	return chartsData, nil
 }
 
 var changelogTemplate = `
