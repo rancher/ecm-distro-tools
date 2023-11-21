@@ -7,24 +7,41 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"text/template"
+	"time"
 	"unicode"
+
+	httpecm "github.com/rancher/ecm-distro-tools/http"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	k3sRepo          = "k3s"
-	rke2Repo         = "rke2"
-	alternateVersion = "1.23"
+	k3sRepo                = "k3s"
+	rke2Repo               = "rke2"
+	alternateVersion       = "1.23"
+	rke2ChartsVersionsFile = "chart_versions.yaml"
+	DefaultTimeout         = 30 * time.Second
 )
+
+type charts struct {
+	Charts []chart `yaml:"charts"`
+}
+
+type chart struct {
+	Version   string `yaml:"version"`
+	Filename  string `yaml:"filename"`
+	Bootstrap bool   `yaml:"bootstrap"`
+}
 
 type changeLogData struct {
 	PrevMilestone string
@@ -51,6 +68,21 @@ type rke2ReleaseNoteData struct {
 	CiliumVersion         string
 	MultusVersion         string
 	ChangeLogData         changeLogData
+
+	CiliumChartVersion                    string
+	CanalChartVersion                     string
+	CalicoChartVersion                    string
+	CalicoCRDChartVersion                 string
+	CoreDNSChartVersion                   string
+	IngressNginxChartVersion              string
+	MetricsServerChartVersion             string
+	VsphereCSIChartVersion                string
+	VsphereCPIChartVersion                string
+	HarvesterCloudProviderChartVersion    string
+	HarvesterCSIDriverChartVersion        string
+	SnapshotControllerChartVersion        string
+	SnapshotControllerCRDChartVersion     string
+	SnapshotValidationWebhookChartVersion string
 }
 
 type k3sReleaseNoteData struct {
@@ -130,7 +162,14 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 	k8sVersion := strings.Split(milestoneNoRC, "+")[0]
 	markdownVersion := strings.Replace(k8sVersion, ".", "", -1)
 	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
-	majorMinor := tmp[0] + "." + tmp[1]
+	var majorMinor string
+	if len(tmp) > 1 {
+		majorMinor = tmp[0] + "." + tmp[1]
+	} else {
+		// for master branch
+		majorMinor = tmp[0]
+	}
+
 	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
@@ -228,15 +267,35 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
 	rd.ContainerdVersion = containerdVersion
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
-	rd.IngressNginxVersion = dockerfileVersion("rke2-ingress-nginx", rke2Repo, milestone)
+	rd.IngressNginxVersion = imageTagVersion("nginx-ingress-controller", rke2Repo, milestone)
 	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
 	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
 
-	buf := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buf, rke2Repo, rd)
+	// get charts versions
+	chartsData, err := rke2ChartsVersion(milestone)
 	if err != nil {
+		return nil, err
+	}
+
+	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
+	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
+	rd.CalicoChartVersion = chartsData["rke2-calico.yaml"].Version
+	rd.CalicoCRDChartVersion = chartsData["rke2-calico-crd.yaml"].Version
+	rd.CoreDNSChartVersion = chartsData["rke2-coredns.yaml"].Version
+	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
+	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
+	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
+	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
+	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
+	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
+	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
+	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
+	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
+
+	buf := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(buf, rke2Repo, rd); err != nil {
 		return nil, err
 	}
 	return buf, nil
@@ -622,6 +681,35 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *githu
 
 }
 
+// rke2ChartVersion will return the version of the rke2 chart from the chart versions file
+func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
+	chartVersionsURL := "https://raw.githubusercontent.com/rancher/rke2/" + branchVersion + "/charts/" + rke2ChartsVersionsFile
+
+	client := httpecm.NewClient(DefaultTimeout)
+	resp, err := client.Get(chartVersionsURL)
+	if err != nil {
+		logrus.Debugf("failed to fetch url %s: %v", chartVersionsURL, err)
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, err)
+		return nil, err
+	}
+
+	var c charts
+	decoder := yaml.NewDecoder(resp.Body)
+	if err := decoder.Decode(&c); err != nil {
+		return nil, err
+	}
+	chartsData := make(map[string]chart, len(c.Charts))
+	for _, chart := range c.Charts {
+		chartsData[filepath.Base(chart.Filename)] = chart
+	}
+
+	return chartsData, nil
+}
+
 var changelogTemplate = `
 {{- define "changelog" -}}
 ## Changes since {{.ChangeLogData.PrevMilestone}}:
@@ -653,6 +741,26 @@ cat /var/lib/rancher/rke2/server/token
 
 {{ template "changelog" . }}
 
+
+## Charts Versions
+| Component | Version |
+| --- | --- |
+| rke2-cilium | [{{.CiliumChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-cilium/rke2-cilium-{{.CiliumChartVersion}}.tgz) |
+| rke2-canal | [{{.CanalChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-canal/rke2-canal-{{.CanalChartVersion}}.tgz) |
+| rke2-calico | [{{.CalicoChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-calico/rke2-calico-{{.CalicoChartVersion}}.tgz) |
+| rke2-calico-crd | [{{.CalicoCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-calico/rke2-calico-crd-{{.CalicoCRDChartVersion}}.tgz) |
+| rke2-coredns | [{{.CoreDNSChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-coredns/rke2-coredns-{{.CoreDNSChartVersion}}.tgz) |
+| rke2-ingress-nginx | [{{.IngressNginxChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-ingress-nginx/rke2-ingress-nginx-{{.IngressNginxChartVersion}}.tgz) |
+| rke2-metrics-server | [{{.MetricsServerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-metrics-server/rke2-metrics-server-{{.MetricsServerChartVersion}}.tgz) |
+| rancher-vsphere-csi | [{{.VsphereCSIChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rancher-vsphere-csi/rancher-vsphere-csi-{{.VsphereCSIChartVersion}}.tgz) |
+| rancher-vsphere-cpi | [{{.VsphereCPIChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rancher-vsphere-cpi/rancher-vsphere-cpi-{{.VsphereCPIChartVersion}}.tgz) |
+| harvester-cloud-provider | [{{.HarvesterCloudProviderChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-cloud-provider-{{.HarvesterCloudProviderChartVersion}}.tgz) |
+| harvester-csi-driver | [{{.HarvesterCSIDriverChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-csi-driver-{{.HarvesterCSIDriverChartVersion}}.tgz) |
+| rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
+| rke2-snapshot-controller-crd | [{{.SnapshotControllerCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-crd-{{.SnapshotControllerCRDChartVersion}}.tgz) |
+| rke2-snapshot-validation-webhook | [{{.SnapshotValidationWebhookChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-validation-webhook/rke2-snapshot-validation-webhook-{{.SnapshotValidationWebhookChartVersion}}.tgz) |
+
+
 ## Packaged Component Versions
 | Component | Version |
 | --- | --- |
@@ -662,7 +770,7 @@ cat /var/lib/rancher/rke2/server/token
 | Runc | [{{.RuncVersion}}](https://github.com/opencontainers/runc/releases/tag/{{.RuncVersion}}) |
 | Metrics-server | [{{.MetricsServerVersion}}](https://github.com/kubernetes-sigs/metrics-server/releases/tag/{{.MetricsServerVersion}}) |
 | CoreDNS | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}}) |
-| Ingress-Nginx | [{{.IngressNginxVersion}}](https://github.com/kubernetes/ingress-nginx/releases/tag/helm-chart-{{.IngressNginxVersion}}) |
+| Ingress-Nginx | [{{.IngressNginxVersion}}](https://github.com/rancher/ingress-nginx/releases/tag/{{.IngressNginxVersion}}) |
 | Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
 
 ### Available CNIs
