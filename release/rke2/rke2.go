@@ -55,12 +55,12 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, alpineV
 			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
 			return nil
 		}
-		_, _, err := ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, &github.RepositoryRelease{
+		release := &github.RepositoryRelease{
 			TagName:    github.String(imageBuildBaseTag),
 			Name:       github.String(imageBuildBaseTag),
 			Prerelease: github.Bool(false),
-		})
-		if err != nil {
+		}
+		if _, _, err := ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, release); err != nil {
 			return err
 		}
 		logrus.Info("created release for version: " + imageBuildBaseTag)
