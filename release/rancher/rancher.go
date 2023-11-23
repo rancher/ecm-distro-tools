@@ -108,11 +108,9 @@ fi`
 )
 
 const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
-{{- if .RancherImages }}
 # Images with -rc
 {{range .RancherImages}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
 {{- end}}
 
 # Components with -rc
@@ -135,11 +133,6 @@ const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
-
-const (
-	rancherRepo = "rancher"
-	rancherOrg  = rancherRepo
-)
 
 type SetBranchReferencesArgs struct {
 	RancherRepoPath   string
@@ -350,51 +343,51 @@ type Content struct {
 	KDMWithDev     []ContentLine
 }
 
-func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
+func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commitHash, files string) error {
 	var (
-		matchCommitMessage bool
-		badFiles           bool
-		content            Content
+		content  Content
+		badFiles bool
 	)
 
 	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
 	rcTagPattern := regexp.MustCompile(`-rc[0-9]+`)
 
-	httpClient := ecmHTTP.NewClient(time.Second * 15)
-
-	if repo == "" {
-		repo = rancherRepo
-	}
-	if org == "" {
-		org = rancherOrg
-	}
-
-	//should return data if executed in rancher project root path
-	err := writeRancherImagesDeps(&content, rcTagPattern)
-	if err != nil {
-		return err
-	}
+	ghClient := repository.NewGithub(ctx, "")
 
 	for _, filePath := range strings.Split(files, ",") {
-		repoContent, err := repository.ContentByFileNameAndCommit(org, repo, commitHash, filePath, &httpClient)
-		if err != nil {
-			return err
+		var scanner *bufio.Scanner
+		if local {
+			content, err := contentLocal(filePath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					logrus.Debugf("file '%s' not found, skipping...", filePath)
+					continue
+				}
+				return err
+			}
+			defer content.Close()
+			scanner = bufio.NewScanner(content)
+		} else {
+			content, err := contentRemote(ctx, ghClient, org, repo, commitHash, filePath)
+			if err != nil {
+				return err
+			}
+			scanner = bufio.NewScanner(strings.NewReader(content))
 		}
 
-		scanner := bufio.NewScanner(strings.NewReader(string(repoContent)))
 		lineNum := 1
 
 		for scanner.Scan() {
-			lineByte, line := formatLineByte(scanner.Text())
-
-			if devDependencyPattern.Match(lineByte) {
-				badFiles = true
+			line := scanner.Text()
+			if devDependencyPattern.MatchString(line) {
 				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				lineContentLower := strings.ToLower(lineContent.Content)
 				if strings.Contains(lineContentLower, "chart") {
+					badFiles = true
 					content.ChartsWithDev = append(content.ChartsWithDev, lineContent)
 				}
 				if strings.Contains(lineContentLower, "kdm") {
+					badFiles = true
 					content.KDMWithDev = append(content.KDMWithDev, lineContent)
 				}
 			}
@@ -404,11 +397,12 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
 				}
 				matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
 				if len(matches) == 2 && strings.Contains(line, "-rc") {
+					badFiles = true
 					lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
 					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
 				}
 			}
-			if rcTagPattern.Match(lineByte) {
+			if rcTagPattern.MatchString(line) {
 				badFiles = true
 				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				content.FilesWithRC = append(content.FilesWithRC, lineContent)
@@ -423,56 +417,42 @@ func CheckRancherRCDeps(forCi bool, org, repo, commitHash, files string) error {
 	tmpl := template.New("rancher-release-rc-dev-deps")
 	tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
 	buff := bytes.NewBuffer(nil)
-	err = tmpl.ExecuteTemplate(buff, "componentsFile", content)
+	err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println(buff.String())
 
-	if forCi && matchCommitMessage && badFiles {
+	if forCi && badFiles {
 		return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
 	}
 
 	return nil
 }
 
-func writeRancherImagesDeps(content *Content, rcTagPattern *regexp.Regexp) error {
-	// files below were generated in build time into rancher path
-	imageFiles := []string{"./bin/rancher-images.txt", "./bin/rancher-windows-images.txt"}
-
-	for _, file := range imageFiles {
-		filePath, err := os.Open(file)
-		if err != nil {
-			continue
-		}
-		defer filePath.Close()
-
-		scanner := bufio.NewScanner(filePath)
-		lineNumber := 1
-		for scanner.Scan() {
-			lineByte, line := formatLineByte(scanner.Text())
-
-			if rcTagPattern.Match(lineByte) {
-				lineContent := ContentLine{Line: lineNumber, File: file, Content: formatContentLine(line)}
-				content.RancherImages = append(content.RancherImages, lineContent)
-			}
-			lineNumber++
-		}
-		if err := scanner.Err(); err != nil {
-			return err
-		}
+func contentLocal(filePath string) (*os.File, error) {
+	repoContent, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return repoContent, nil
+}
+
+func contentRemote(ctx context.Context, ghClient *github.Client, org, repo, commitHash, filePath string) (string, error) {
+	content, _, _, err := ghClient.Repositories.GetContents(ctx, org, repo, filePath, &github.RepositoryContentGetOptions{Ref: commitHash})
+	if err != nil {
+		return "", err
+	}
+	decodedContent, err := content.GetContent()
+	if err != nil {
+		return "", err
+	}
+	return decodedContent, nil
 }
 
 func formatContentLine(line string) string {
 	re := regexp.MustCompile(`\s+`)
 	line = re.ReplaceAllString(line, " ")
 	return strings.TrimSpace(line)
-}
-
-func formatLineByte(line string) ([]byte, string) {
-	line = strings.TrimSpace(line)
-	return []byte(line), line
 }

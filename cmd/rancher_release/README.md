@@ -144,7 +144,7 @@ rancher_release label-issues -t v2.8.1-rc1 --dry-run
 
 ### check-rancher-rc-deps
 
-This command checks Rancher by the commit hash in the selected files, verifying if they contain 'rc' and 'dev' dependencies. It generates an MD-formatted file print that can be used as a release description. If necessary, the command can generate an error if these dependencies are found, ideal for use in CI pipelines. When executed in the root of the Rancher project, it checks the `rancher-images.txt` and `rancher-windows-images.txt` files.
+This command checks Rancher verifying if contains 'rc' and 'dev' dependencies for some files, this command could be used locally or remotely by commit hash. It generates an MD-formatted file print that can be used as a release description. If necessary, the command can generate an error if these dependencies are found, ideal for use in CI pipelines. 
 
 The pattern of files to be checked includes:
 - `pkg/settings/setting.go`
@@ -157,14 +157,18 @@ The pattern of files to be checked includes:
 
 | **Flag**         | **Description**                                                                                       | **Required** |
 | ---------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
-| `commit`, `c`    | Required commit to find the Rancher project reference that will be executed                            | TRUE         |
-| `org`, `o`       | Reference organization of the commit                                                                   | FALSE        |
-| `repo`, `r`      | Reference repository of the commit                                                                     | FALSE        |
-| `files`, `f`     | List of files to be checked by the command, they are mandatory                                         | TRUE         |
+| `commit`, `c`    | Commit used to get all files during the check, required for remote execution                           | FALSE         |
+| `org`, `o`       | Reference organization of the commit, as default `rancher`                                                                                                                            | FALSE        |
+| `repo`, `r`      | Reference repository of the commit, as default `rancher`                                                                     | FALSE        |
+| `files`, `f`     | List of files to be checked by the command, required for remote execution                                   | TRUE         |
 | `for-ci`, `p`    | With this flag, it's possible to return an error if any of the files contain 'rc' tags or 'dev' dependencies, ideal for use in integration pipelines | FALSE        |
 
 **Examples**
-
+LOCAL
+```
+rancher_release check-rancher-rc-deps
+```
+REMOTE
 ```
 rancher_release check-rancher-rc-deps -c <HASH_COMMIT> -f Dockerfile.dapper,go.mod,/package/Dockerfile,/pkg/apis/go.mod,/pkg/settings/setting.go,/scripts/package-env
 ```

@@ -54,6 +54,10 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 // NewGithub creates a value of type github.Client pointer
 // with the given context and Github token.
 func NewGithub(ctx context.Context, token string) *github.Client {
+	if token == "" {
+		return github.NewClient(nil)
+	}
+
 	ts := TokenSource{
 		AccessToken: token,
 	}

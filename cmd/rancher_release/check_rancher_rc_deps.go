@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -17,25 +18,27 @@ func checkRancherRCDepsCommand() *cli.Command {
 				Name:     "commit",
 				Aliases:  []string{"c"},
 				Usage:    "last commit for a final rc",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "org",
 				Aliases:  []string{"o"},
 				Usage:    "organization name",
 				Required: false,
+				Value:    "rancher",
 			},
 			&cli.StringFlag{
 				Name:     "repo",
 				Aliases:  []string{"r"},
 				Usage:    "rancher repository",
 				Required: false,
+				Value:    "rancher",
 			},
 			&cli.StringFlag{
 				Name:     "files",
 				Aliases:  []string{"f"},
-				Usage:    "files to be checked",
-				Required: true,
+				Usage:    "files to be checked if remotely",
+				Required: false,
 			},
 			&cli.BoolFlag{
 				Name:     "for-ci",
@@ -49,6 +52,10 @@ func checkRancherRCDepsCommand() *cli.Command {
 }
 
 func checkRancherRCDeps(c *cli.Context) error {
+	const files = "/bin/rancher-images.txt,/bin/rancher-windows-images.txt,Dockerfile.dapper,go.mod,/package/Dockerfile,/pkg/apis/go.mod,/pkg/settings/setting.go,/scripts/package-env"
+
+	var local bool
+
 	rcCommit := c.String("commit")
 	rcOrg := c.String("org")
 	rcRepo := c.String("repo")
@@ -56,15 +63,19 @@ func checkRancherRCDeps(c *cli.Context) error {
 	forCi := c.Bool("for-ci")
 
 	if rcCommit == "" {
-		return errors.New("'commit hash' are required")
+		if rcFiles != "" {
+			return errors.New("'commit hash' are required for remote operation")
+		}
 	}
 	if rcFiles == "" {
-		return errors.New("'files' is required, e.g, --files Dockerfile.dapper,go.mod")
+		rcFiles = files
+		local = true
 	}
+
 	logrus.Debugf("organization: %s, repository: %s, commit: %s, files: %s",
 		rcOrg, rcRepo, rcCommit, rcFiles)
 
-	err := rancher.CheckRancherRCDeps(forCi, rcOrg, rcRepo, rcCommit, rcFiles)
+	err := rancher.CheckRancherRCDeps(context.Background(), local, forCi, rcOrg, rcRepo, rcCommit, rcFiles)
 	if err != nil {
 		return err
 	}
