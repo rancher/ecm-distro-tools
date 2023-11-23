@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -431,22 +428,3 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 `
-
-func ContentByFileNameAndCommit(owner, repo, commitHash, filePath string, httpClient *http.Client) ([]byte, error) {
-	rawURL := fmt.Sprintf(ghContentURL+"/%s/%s/%s/%s", owner, repo, commitHash, filePath)
-
-	response, err := http.Get(rawURL)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to fetch raw file. status code: " + strconv.Itoa(response.StatusCode))
-	}
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
