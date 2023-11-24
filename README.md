@@ -62,9 +62,9 @@ Providing the GH_TOKEN environment variable is recommended to avoid rate limitin
 ```yaml
 steps:
   - name: setup ecm-distro-tools
-    uses: rancher/ecm-distro-tools@v0.24.1
+    uses: rancher/ecm-distro-tools@v0.27.0
     with:
-      version: v0.24.1
+      version: v0.27.0
     env:
       GH_TOKEN: ${{ github.token }}
   - name: release notes
