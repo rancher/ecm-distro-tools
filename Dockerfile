@@ -53,11 +53,15 @@ RUN zypper update -y && \
         awk             \
         net-tools    && \
     zypper clean --all
-COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_notes /usr/local/bin
-COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report /usr/local/bin
-COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release /usr/local/bin
-COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport /usr/local/bin
-COPY --from=builder /ecm-distro-tools/cmd/test_coverage/bin/test_coverage /usr/local/bin
+COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport-linux-amd64 /usr/local/bin/backport
+COPY --from=builder /ecm-distro-tools/cmd/gen_release_notes/bin/gen_release_notes-linux-amd64 /usr/local/bin/gen_release_notes
+COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report-linux-amd64 /usr/local/bin/gen_release_report
+COPY --from=builder /ecm-distro-tools/cmd/k3s_release/bin/k3s_release-linux-amd64 /usr/local/bin/k3s_release
+COPY --from=builder /ecm-distro-tools/cmd/rancher_release/bin/rancher_release-linux-amd64 /usr/local/bin/rancher_release
+COPY --from=builder /ecm-distro-tools/cmd/rke2_release/bin/rke2_release-linux-amd64 /usr/local/bin/rke2_release
+COPY --from=builder /ecm-distro-tools/cmd/semv/bin/semv-linux-amd64 /usr/local/bin/semv
+COPY --from=builder /ecm-distro-tools/cmd/test_coverage/bin/test_coverage-linux-amd64 /usr/local/bin/test_coverage
+COPY --from=builder /ecm-distro-tools/cmd/upstream_go_version/bin/upstream_go_version-linux-amd64 /usr/local/bin/upstream_go_version
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
 COPY --from=builder /usr/local/bin/trivy /usr/local/bin
 COPY --from=builder /usr/local/bin/gh /usr/local/bin
