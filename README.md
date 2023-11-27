@@ -4,7 +4,7 @@ ECM Distro Tools is a collection of utilities that provide for easier administra
 
 ## Building
 
-There's a mix of code in this repository. The shell scripts and shell libraries reside in the `bin` directory and are ready to use. The Go programs are rooted in the `cmd` directory and need to be compiled. 
+There's a mix of code in this repository. The shell scripts and shell libraries reside in the `bin` directory and are ready to use. The Go programs are rooted in the `cmd` directory and need to be compiled.
 
 To compile the programs run the following in the root of the project:
 
@@ -49,26 +49,26 @@ All utilities comes with help output.
 
 ## GitHub action
 
-This repository provides the "Setup ecm-distro-tools" GitHub action. 
+This repository provides the "Setup ecm-distro-tools" GitHub action.
 It downloads the assets belonging to the specified release to a temporary directory,
 and adds the directory to the `PATH`.
 
 ### Usage
 
-The action can be run on ubuntu-latest runners. 
+The action can be run on ubuntu-latest runners.
 The `version` parameter is required.
 Providing the GH_TOKEN environment variable is recommended to avoid rate limiting by the GitHub API.
 
 ```yaml
 steps:
-- name: setup ecm-distro-tools
-  uses: rancher/ecm-distro-tools@v0.24.1
-  with:
-    version: v0.24.1
-  env:
-    GH_TOKEN: ${{ github.token }}
-- name: release notes
-  run: gen_release_notes -h
+  - name: setup ecm-distro-tools
+    uses: rancher/ecm-distro-tools@v0.27.0
+    with:
+      version: v0.27.0
+    env:
+      GH_TOKEN: ${{ github.token }}
+  - name: release notes
+    run: gen_release_notes -h
 ```
 
 ## Contributing
@@ -79,9 +79,9 @@ To contribute, please do the following:
 
 ### Features and Bugs
 
-* Open an issue explaining the feature(s) / bug(s) you are looking to add/fix.
-* Fork the repo, create a branch, push your changes, and open a pull request.
-* Request review
+- Open an issue explaining the feature(s) / bug(s) you are looking to add/fix.
+- Fork the repo, create a branch, push your changes, and open a pull request.
+- Request review
 
 ## Development
 
@@ -95,12 +95,31 @@ When a new utility is added or an API is changed, documentation needs to be upda
 
 #### Go
 
-* Go code additions are expected to have been linted, vetted, and fmt'd prior to pushing the code. 
-* Prefer the standard library over 3rd party libraries when possible
+- Go code additions are expected to have been linted, vetted, and fmt'd prior to pushing the code.
+- Prefer the standard library over 3rd party libraries when possible
 
 #### Shell
 
-* Shell scripts are expected to be POSIX compliant, avoiding specific shell features for portability. We are currently using `shellcheck` to perform these checks and validations.
+- Shell scripts are expected to be POSIX compliant, avoiding specific shell features for portability. We are currently using `shellcheck` to perform these checks and validations.
+
+#### Building
+
+When building locally, you may want to build just for your ARCH and OS. To do so, you can use one of the two methods below:
+
+Using this method, you can set these variables in `.bashrc` or `.zshrc` to make it easier to alaways build for your ARCH and OS.
+Just be aware that if you do this, you'll need to unset them if you want to build for all ARCHs and OSs.
+
+```sh
+export ARCHS=amd64
+export OSs=linux
+make all
+```
+
+Using this method, you'll need to set the variables each time you want to build just for your ARCH and OS.
+
+```sh
+make ARCHS=amd64 OSs=linux all
+```
 
 ## License
 
