@@ -7,7 +7,6 @@
     // List of ports that you want to preview
     // "forwardPorts": [1234, 5678],
     // Script to run to bootstrap the app when the space is created
-    "postCreateCommand": "make all",
     "extensions": [
         "github.vscode-pull-request-github",
         "ms-azuretools.vscode-docker",
