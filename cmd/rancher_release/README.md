@@ -160,7 +160,7 @@ The pattern of files to be checked includes:
 | `commit`, `c`    | Commit used to get all files during the check, required for remote execution                           | FALSE         |
 | `org`, `o`       | Reference organization of the commit, as default `rancher`                                                                                                                            | FALSE        |
 | `repo`, `r`      | Reference repository of the commit, as default `rancher`                                                                     | FALSE        |
-| `files`, `f`     | List of files to be checked by the command, required for remote execution                                   | TRUE         |
+| `files`, `f`     | List of files to be checked by the command                                   | FALSE         |
 | `for-ci`, `p`    | With this flag, it's possible to return an error if any of the files contain 'rc' tags or 'dev' dependencies, ideal for use in integration pipelines | FALSE        |
 
 **Examples**

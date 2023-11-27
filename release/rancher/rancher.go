@@ -357,7 +357,7 @@ func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commi
 	for _, filePath := range strings.Split(files, ",") {
 		var scanner *bufio.Scanner
 		if local {
-			content, err := contentLocal(filePath)
+			content, err := contentLocal("./" + filePath)
 			if err != nil {
 				if os.IsNotExist(err) {
 					logrus.Debugf("file '%s' not found, skipping...", filePath)
@@ -368,6 +368,9 @@ func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commi
 			defer content.Close()
 			scanner = bufio.NewScanner(content)
 		} else {
+			if strings.Contains(filePath, "bin") {
+				continue
+			}
 			content, err := contentRemote(ctx, ghClient, org, repo, commitHash, filePath)
 			if err != nil {
 				return err
@@ -392,11 +395,7 @@ func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commi
 				}
 			}
 			if strings.Contains(filePath, "/package/Dockerfile") {
-				if !strings.Contains(line, "_VERSION") {
-					continue
-				}
-				matches := regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).FindStringSubmatch(line)
-				if len(matches) == 2 && strings.Contains(line, "-rc") {
+				if regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).MatchString(line) && strings.Contains(line, "-rc") {
 					badFiles = true
 					lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
 					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)

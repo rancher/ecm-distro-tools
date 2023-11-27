@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/sirupsen/logrus"
@@ -62,13 +61,10 @@ func checkRancherRCDeps(c *cli.Context) error {
 	rcFiles := c.String("files")
 	forCi := c.Bool("for-ci")
 
-	if rcCommit == "" {
-		if rcFiles != "" {
-			return errors.New("'commit hash' are required for remote operation")
-		}
-	}
 	if rcFiles == "" {
 		rcFiles = files
+	}
+	if rcCommit == "" {
 		local = true
 	}
 
