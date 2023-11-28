@@ -20,10 +20,13 @@ import (
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
 )
 
 const (
+	rancherOrg               = "rancher"
+	rancherRepo              = rancherOrg
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
@@ -315,6 +318,41 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	}
 
 	return nil
+}
+
+func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch string, generalAvailability, ignoreDraft bool) error {
+	logrus.Info("validating tag semver format")
+	if !semver.IsValid(tag) {
+		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
+	}
+	logrus.Info("getting remote branch information from rancher/rancher")
+	branch, _, err := ghClient.Repositories.GetBranch(ctx, rancherOrg, rancherRepo, remoteBranch, true)
+	if err != nil {
+		return err
+	}
+	logrus.Info("the latest commit on branch " + remoteBranch + "is: " + *branch.Commit.SHA)
+	logrus.Info("creating release ")
+	releaseBody := "" // TODO: generate the release body using the script
+	createAsDraft := !ignoreDraft
+	createAsPrerelease := !generalAvailability
+	ghClient.Repositories.CreateRelease(ctx, rancherOrg, rancherRepo, &github.RepositoryRelease{
+		TagName:              github.String(tag),
+		Name:                 github.String(rancherReleaseName(generalAvailability, tag)),
+		Body:                 github.String(releaseBody),
+		Draft:                &createAsDraft,
+		Prerelease:           &createAsPrerelease,
+		GenerateReleaseNotes: github.Bool(false),
+	})
+	return nil
+}
+
+func rancherReleaseName(generalAvailability bool, tag string) string {
+	releaseName := ""
+	if !generalAvailability {
+		releaseName += "Pre-release "
+	}
+	releaseName += tag
+	return releaseName
 }
 
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchName, forkOwner string, ghClient *github.Client) error {
