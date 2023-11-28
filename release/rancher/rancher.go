@@ -120,8 +120,8 @@ const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
 
 # Min version components with -rc
 {{range .MinFilesWithRC}}
-* {{ .Content }}
-{{- end}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}} 
 
 # KDM References with dev branch
 {{range .KDMWithDev}}
@@ -382,6 +382,12 @@ func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commi
 
 		for scanner.Scan() {
 			line := scanner.Text()
+			if strings.Contains(filePath, "bin/rancher") {
+				badFiles = true
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				content.RancherImages = append(content.RancherImages, lineContent)
+				continue
+			}
 			if devDependencyPattern.MatchString(line) {
 				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				lineContentLower := strings.ToLower(lineContent.Content)
