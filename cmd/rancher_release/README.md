@@ -174,6 +174,15 @@ rancher_release check-rancher-rc-deps -c <HASH_COMMIT> -f Dockerfile.dapper,go.m
 ```
 
 ```
+# Images with -rc
+
+* rancher/backup-restore-operator v4.0.0-rc1 (/bin/rancher-images.txt, line 1)
+* rancher/fleet v0.9.0-rc.5 (/bin/rancher-images.txt, line 1)
+* rancher/fleet-agent v0.9.0-rc.5 (/bin/rancher-images.txt, line 1)
+* rancher/rancher v2.8.0-rc3 (/bin/rancher-windows-images.txt, line 1)
+* rancher/rancher-agent v2.8.0-rc3 (/bin/rancher-windows-images.txt, line 1)
+* rancher/system-agent v0.3.4-rc1-suc (/bin/rancher-windows-images.txt, line 1)
+
 # Components with -rc
 
 * github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.1.0-rc2 // needed for containers/image/v5 (go.mod, line 15)
