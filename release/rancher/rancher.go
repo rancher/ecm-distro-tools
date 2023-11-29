@@ -2,12 +2,17 @@ package rancher
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/google/go-github/v39/github"
@@ -101,6 +106,33 @@ if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
 fi`
 )
+
+const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
+# Images with -rc
+{{range .RancherImages}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Components with -rc
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Min version components with -rc
+{{range .MinFilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}} 
+
+# KDM References with dev branch
+{{range .KDMWithDev}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Chart References with dev branch
+{{range .ChartsWithDev}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+{{ end }}`
 
 type SetBranchReferencesArgs struct {
 	RancherRepoPath   string
@@ -295,4 +327,137 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", "rancher", pull)
 
 	return err
+}
+
+type ContentLine struct {
+	Line    int
+	File    string
+	Content string
+}
+
+type Content struct {
+	RancherImages  []ContentLine
+	FilesWithRC    []ContentLine
+	MinFilesWithRC []ContentLine
+	ChartsWithDev  []ContentLine
+	KDMWithDev     []ContentLine
+}
+
+func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commitHash, files string) error {
+	var (
+		content  Content
+		badFiles bool
+	)
+
+	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
+	rcTagPattern := regexp.MustCompile(`-rc[0-9]+`)
+
+	ghClient := repository.NewGithub(ctx, "")
+
+	for _, filePath := range strings.Split(files, ",") {
+		var scanner *bufio.Scanner
+		if local {
+			content, err := contentLocal("./" + filePath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					logrus.Debugf("file '%s' not found, skipping...", filePath)
+					continue
+				}
+				return err
+			}
+			defer content.Close()
+			scanner = bufio.NewScanner(content)
+		} else {
+			if strings.Contains(filePath, "bin") {
+				continue
+			}
+			content, err := contentRemote(ctx, ghClient, org, repo, commitHash, filePath)
+			if err != nil {
+				return err
+			}
+			scanner = bufio.NewScanner(strings.NewReader(content))
+		}
+
+		lineNum := 1
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.Contains(filePath, "bin/rancher") {
+				badFiles = true
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				content.RancherImages = append(content.RancherImages, lineContent)
+				continue
+			}
+			if devDependencyPattern.MatchString(line) {
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				lineContentLower := strings.ToLower(lineContent.Content)
+				if strings.Contains(lineContentLower, "chart") {
+					badFiles = true
+					content.ChartsWithDev = append(content.ChartsWithDev, lineContent)
+				}
+				if strings.Contains(lineContentLower, "kdm") {
+					badFiles = true
+					content.KDMWithDev = append(content.KDMWithDev, lineContent)
+				}
+			}
+			if strings.Contains(filePath, "/package/Dockerfile") {
+				if regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).MatchString(line) && strings.Contains(line, "-rc") {
+					badFiles = true
+					lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
+					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
+				}
+			}
+			if rcTagPattern.MatchString(line) {
+				badFiles = true
+				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				content.FilesWithRC = append(content.FilesWithRC, lineContent)
+			}
+			lineNum++
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+	}
+
+	tmpl := template.New("rancher-release-rc-dev-deps")
+	tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
+	buff := bytes.NewBuffer(nil)
+	err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(buff.String())
+
+	if forCi && badFiles {
+		return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
+	}
+
+	return nil
+}
+
+func contentLocal(filePath string) (*os.File, error) {
+	repoContent, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return repoContent, nil
+}
+
+func contentRemote(ctx context.Context, ghClient *github.Client, org, repo, commitHash, filePath string) (string, error) {
+	content, _, _, err := ghClient.Repositories.GetContents(ctx, org, repo, filePath, &github.RepositoryContentGetOptions{Ref: commitHash})
+	if err != nil {
+		return "", err
+	}
+	decodedContent, err := content.GetContent()
+	if err != nil {
+		return "", err
+	}
+	return decodedContent, nil
+}
+
+func formatContentLine(line string) string {
+	re := regexp.MustCompile(`\s+`)
+	line = re.ReplaceAllString(line, " ")
+	return strings.TrimSpace(line)
 }

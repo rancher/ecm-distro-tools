@@ -21,6 +21,7 @@ const (
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
+	ghContentURL       = "https://raw.githubusercontent.com"
 )
 
 // stripBackportTag returns a string with a prefix backport tag removed
@@ -50,6 +51,10 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 // NewGithub creates a value of type github.Client pointer
 // with the given context and Github token.
 func NewGithub(ctx context.Context, token string) *github.Client {
+	if token == "" {
+		return github.NewClient(nil)
+	}
+
 	ts := TokenSource{
 		AccessToken: token,
 	}
