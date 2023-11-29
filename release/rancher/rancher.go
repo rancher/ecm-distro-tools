@@ -145,13 +145,6 @@ type SetBranchReferencesArgs struct {
 	DryRun            bool
 }
 
-type RunComponentsFileArgs struct {
-	RepoName  string
-	RepoOwner string
-	RepoPath  string
-	Branch    string
-}
-
 type HelmIndex struct {
 	Entries struct {
 		Rancher []struct {
