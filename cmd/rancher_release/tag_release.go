@@ -53,7 +53,7 @@ func tagReleaseCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:     "ignore-draft",
 				Aliases:  []string{"d"},
-				Usage:    "by default, the release will be created as a draft, so you can verify all information is correct before unmarking it",
+				Usage:    "by default, the release will be created as a draft, so you can verify all information is correct before publishing it",
 				Required: false,
 			},
 			&cli.BoolFlag{
