@@ -1,6 +1,7 @@
 package rancher
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -57,5 +58,20 @@ func TestRancherHelmChartVersions(t *testing.T) {
 	expectedVersions := []string{"v2.7.7", "v2.7.6"}
 	if !reflect.DeepEqual(expectedVersions, versions) {
 		t.Errorf("expected %v, got %v", expectedVersions, versions)
+	}
+}
+
+func TestRancherReleaseName(t *testing.T) {
+	const tag = "v2.8.0"
+	const expectedGAReleaseName = tag
+	const expectedPreReleaseName = "Pre-release " + tag
+
+	gaReleaseName := rancherReleaseName(true, tag)
+	if expectedGAReleaseName != gaReleaseName {
+		t.Error(errors.New("expected GA release name to be '" + expectedGAReleaseName + "' got '" + gaReleaseName + "' instead"))
+	}
+	preReleaseName := rancherReleaseName(false, tag)
+	if expectedPreReleaseName != preReleaseName {
+		t.Error(errors.New("expected GA release name to be '" + expectedPreReleaseName + "' got '" + preReleaseName + "' instead"))
 	}
 }
