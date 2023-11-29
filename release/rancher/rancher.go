@@ -189,6 +189,20 @@ type HelmIndex struct {
 	} `yaml:"entries"`
 }
 
+type ContentLine struct {
+	Line    int
+	File    string
+	Content string
+}
+
+type Content struct {
+	RancherImages  []ContentLine
+	FilesWithRC    []ContentLine
+	MinFilesWithRC []ContentLine
+	ChartsWithDev  []ContentLine
+	KDMWithDev     []ContentLine
+}
+
 func ListRancherImagesRC(tag string) (string, error) {
 	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
 	imagesFile, err := rancherImages(downloadURL)
@@ -411,20 +425,6 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", "rancher", pull)
 
 	return err
-}
-
-type ContentLine struct {
-	Line    int
-	File    string
-	Content string
-}
-
-type Content struct {
-	RancherImages  []ContentLine
-	FilesWithRC    []ContentLine
-	MinFilesWithRC []ContentLine
-	ChartsWithDev  []ContentLine
-	KDMWithDev     []ContentLine
 }
 
 func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commitHash, files string) error {
