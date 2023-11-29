@@ -135,7 +135,7 @@ git fetch
 echo "switch to branch ${BRANCH}"
 git switch "${BRANCH}"
 echo "pulling latests changes"
-git pull
+git pull origin "${BRANCH}"
 ./scripts/create-components-file.sh`
 )
 
