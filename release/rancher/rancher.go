@@ -9,10 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-<<<<<<< HEAD
 	"regexp"
-=======
->>>>>>> 7bf8fcd (add release body generation with rancher/rancher)
 	"strconv"
 	"strings"
 	"text/template"
