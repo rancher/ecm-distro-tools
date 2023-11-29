@@ -38,12 +38,6 @@ func tagReleaseCommand() *cli.Command {
 				Value:    "rancher",
 				Required: false,
 			},
-			&cli.StringFlag{
-				Name:     "repo-path",
-				Aliases:  []string{"p"},
-				Usage:    "rancher repo path, if not provided the repo will be cloned at /tmp/rancher",
-				Required: false,
-			},
 			&cli.BoolFlag{
 				Name:     "general-availability",
 				Aliases:  []string{"a"},
@@ -72,11 +66,10 @@ func tagRelease(c *cli.Context) error {
 	tag := c.String("tag")
 	remoteBranch := c.String("remote-branch")
 	repoOwner := c.String("repo-owner")
-	repoPath := c.String("repo-path")
 	generalAvailability := c.Bool("general-availability")
 	ignoreDraft := c.Bool("ignore-draft")
 	dryRun := c.Bool("dry-run")
 	ctx := context.Background()
 	ghClient := repository.NewGithub(ctx, token)
-	return rancher.TagRancherRelease(ctx, ghClient, tag, remoteBranch, repoOwner, repoPath, generalAvailability, ignoreDraft, dryRun)
+	return rancher.TagRancherRelease(ctx, ghClient, tag, remoteBranch, repoOwner, generalAvailability, ignoreDraft, dryRun)
 }

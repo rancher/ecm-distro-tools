@@ -140,7 +140,6 @@ If you are running this locally, you'll need to generate a GitHub Token, use the
 | `tag`, `t`       | The tag that you want to create.                                                                                         | TRUE        |
 | `remote-branch`, `b` | The branch which you want to create the tag against.                                                                                                                                                            | TRUE         |
 | `repo-owner`, `o`         | Username of the rancher repo owner. Default is `rancher`, only customize this for testing purposes. | FALSE        |
-| `repo-path`, `p`       | If you already have the rancher repo cloned in your computer, it will be used to run the components script. Before running, your local changes will be stashed. If this isn't provided, the rancher repo will be cloned at `/tmp/rancher`                                                                       | FALSE        |
 | `general-availability`, `a`         | By default, the release will be created as a pre-release, before setting this as true, make sure it absolutely needs to be a GA release. | FALSE        |
 | `ignore-draft`, `d`         | By default, the release will be created as a draft, so you can verify everything is correct before publishing it. | FALSE        |
 | `dry-run`, `r`           | The release will not be created, just logged.                                                                                                                          | FALSE        |
@@ -156,7 +155,7 @@ rancher_release tag-release --tag v2.8.0-rc1 --remote-branch release/v2.8 --dry-
 ```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
-rancher_release tag-release --tag v2.8.0-rc1 --remote-branch release/v2.8 --repo-owner tashima42 --repo-path $HOME/code/tashima42/rancher --dry-run
+rancher_release tag-release --tag v2.8.0-rc1 --remote-branch release/v2.8 --repo-owner tashima42 --dry-run
 ```
 
 ```sh

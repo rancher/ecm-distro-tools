@@ -33,8 +33,6 @@ const (
 
 	setKDMBranchReferencesScriptFileName = "set_kdm_branch_references.sh"
 	setChartReferencesScriptFileName     = `set_chart_references.sh`
-	runComponentsFileScriptFileName      = `run_components_file.sh`
-	scriptsWorkingDir                    = `/tmp`
 	navigateCheckoutRancherScript        = `#!/bin/sh
 set -e
 
@@ -110,33 +108,6 @@ git commit --all --signoff -m "update chart branch references to {{ .NewBranch }
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin ${BRANCH_NAME}
 fi`
-	cloneRancherRunComponentsFileScript = `#!/bin/sh
-set -e
-REPO_NAME={{ .RepoName }}
-REPO_OWNER={{ .RepoOwner }}
-REPO_PATH={{ .RepoPath }}
-BRANCH={{ .Branch }}
-echo "repo name: ${REPO_NAME}"
-echo "org name: ${REPO_OWNER}"
-echo "cloning ${REPO_OWNER}/${REPO_NAME} into ${REPO_PATH}"
-git clone "git@github.com:${REPO_OWNER}/${REPO_NAME}.git" "${REPO_PATH}"
-cd "${REPO_PATH}"
-git switch "${BRANCH}"
-./scripts/create-components-file.sh`
-	navigateRunComponentsFileScript = `#!/bin/sh
-set -e
-REPO_PATH={{ .RepoPath }}
-BRANCH={{ .Branch }}
-cd "${REPO_PATH}"
-echo "stashing local changes"
-git stash
-echo "fetching changes"
-git fetch 
-echo "switch to branch ${BRANCH}"
-git switch "${BRANCH}"
-echo "pulling latests changes"
-git pull origin "${BRANCH}"
-./scripts/create-components-file.sh`
 )
 
 const templateCheckRCDevDeps = `{{- define "componentsFile" -}}
@@ -370,7 +341,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	return nil
 }
 
-func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner, repoPath string, generalAvailability, ignoreDraft, dryRun bool) error {
+func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, generalAvailability, ignoreDraft, dryRun bool) error {
 	logrus.Info("validating tag semver format")
 	if !semver.IsValid(tag) {
 		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
@@ -381,18 +352,13 @@ func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remote
 		return err
 	}
 	logrus.Info("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
-	logrus.Info("running components file")
-	releaseBody, err := rancherComponents(remoteBranch, repoOwner, repoPath)
-	if err != nil {
-		return err
-	}
+
 	createAsDraft := !ignoreDraft
 	createAsPrerelease := !generalAvailability
 	logrus.Info("creating release ")
 	ghRelease := github.RepositoryRelease{
 		TagName:              github.String(tag),
 		Name:                 github.String(rancherReleaseName(generalAvailability, tag)),
-		Body:                 github.String(releaseBody),
 		Draft:                &createAsDraft,
 		Prerelease:           &createAsPrerelease,
 		GenerateReleaseNotes: github.Bool(false),
@@ -544,28 +510,4 @@ func formatContentLine(line string) string {
 	re := regexp.MustCompile(`\s+`)
 	line = re.ReplaceAllString(line, " ")
 	return strings.TrimSpace(line)
-}
-func rancherComponents(branch, repoOwner, repoPath string) (string, error) {
-	script := navigateRunComponentsFileScript
-	if repoPath == "" {
-		repoPath = scriptsWorkingDir + "/" + rancherRepo
-		script = cloneRancherRunComponentsFileScript
-	}
-	output, err := exec.RunTemplatedScript(scriptsWorkingDir, runComponentsFileScriptFileName, script,
-		RunComponentsFileArgs{
-			RepoName:  rancherRepo,
-			RepoOwner: repoOwner,
-			RepoPath:  repoPath,
-			Branch:    branch,
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-	logrus.Info(output)
-	components, err := os.ReadFile(repoPath + "/bin/rancher-components.txt")
-	if err != nil {
-		return "", err
-	}
-	return string(components), nil
 }
