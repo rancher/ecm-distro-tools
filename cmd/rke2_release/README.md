@@ -73,7 +73,7 @@ Updates references to the `hardened-build-base` docker image in the `rancher/ima
 | `working-dir`, `w` |  Directory in which the temporary scripts will be created, default is /tmp   | FALSE         |
 | `build-base-tag`, `t` |   hardened-build-base Docker image tag to update the references in the repo to  | TRUE         |
 | `dry-run`, `d` |  Don't push changes to remote and don't create the PR, just log the information   | FALSE         |
-| `create-pr`, `p` |  If not set, the images will be pushed to a new branch, but a PR won't be created  | FALSE         |
+| `create-pr`, `c` |  If not set, the images will be pushed to a new branch, but a PR won't be created  | FALSE         |
 
 **Examples**
 
@@ -86,7 +86,7 @@ rke2_release image-build update --repo image-build-calico --repo-path /tmp/image
 ```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
-rke2_release image-build update -r image-build-calico -p /tmp/image-build-calico -t v1.21.3b1 -p -d
+rke2_release image-build update -r image-build-calico -p /tmp/image-build-calico -t v1.21.3b1 -c -d
 ```
  
 ### Components

@@ -43,7 +43,7 @@ func imageBuildCommand() *cli.Command {
 					},
 					&cli.StringFlag{
 						Name:     "repo-path",
-						Aliases:  []string{"c"},
+						Aliases:  []string{"p"},
 						Usage:    "Local copy of the image-build repo that is being updated",
 						Required: true,
 					},
@@ -68,7 +68,7 @@ func imageBuildCommand() *cli.Command {
 					},
 					&cli.BoolFlag{
 						Name:     "create-pr",
-						Aliases:  []string{"p"},
+						Aliases:  []string{"c"},
 						Usage:    "If not set, the images will be pushed to a new branch, but a PR won't be created",
 						Required: false,
 					},
