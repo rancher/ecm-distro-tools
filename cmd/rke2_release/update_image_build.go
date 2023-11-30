@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 
 	"github.com/rancher/ecm-distro-tools/release/rke2"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -23,31 +22,45 @@ func updateImageBuildCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:     "repo",
 				Aliases:  []string{"r"},
+				Usage:    "what image-build repo to update, use `rke2_release update-image-build list-repos` for a full list",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "owner",
 				Aliases:  []string{"o"},
-				Required: true,
+				Usage:    "Owner of the repo, default is 'rancher' only used for testing purposes",
+				Value:    "rancher",
+				Required: false,
 			},
 			&cli.StringFlag{
-				Name:     "clone-dir",
+				Name:     "repo-path",
 				Aliases:  []string{"c"},
+				Usage:    "Local copy of the image-build repo that is being updated",
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "working-dir",
 				Aliases:  []string{"w"},
+				Usage:    "Directory in which the temporary scripts will be created, default is /tmp",
+				Value:    "/tmp",
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "build-base-tag",
+				Aliases:  []string{"t"},
+				Usage:    "hardened-build-base Docker image tag to update the references in the repo to",
 				Required: true,
 			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
 				Aliases:  []string{"d"},
+				Usage:    "don't push changes to remote and don't create the PR, just log the information",
 				Required: false,
 			},
 			&cli.BoolFlag{
 				Name:     "create-pr",
 				Aliases:  []string{"p"},
+				Usage:    "If not set, the images will be pushed to a new branch, but a PR won't be created",
 				Required: false,
 			},
 		},
@@ -57,16 +70,14 @@ func updateImageBuildCommand() *cli.Command {
 
 func updateImageBuild(c *cli.Context) error {
 	token := c.String("github-token")
-	if token == "" {
-		return errors.New("env var GITHUB_TOKEN is required")
-	}
 	repo := c.String("repo")
 	owner := c.String("owner")
-	cloneDir := c.String("clone-dir")
+	repoPath := c.String("repo-path")
 	workingDir := c.String("working-dir")
+	buildBaseTag := c.String("build-base-tag")
 	dryRun := c.Bool("dry-run")
 	createPR := c.Bool("create-pr")
 	ctx := context.Background()
 	ghClient := repository.NewGithub(ctx, token)
-	return rke2.UpdateImageBuild(ctx, ghClient, repo, owner, cloneDir, workingDir, dryRun, createPR)
+	return rke2.UpdateImageBuild(ctx, ghClient, repo, owner, repoPath, workingDir, buildBaseTag, dryRun, createPR)
 }

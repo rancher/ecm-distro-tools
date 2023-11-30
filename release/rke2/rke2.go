@@ -16,43 +16,39 @@ import (
 )
 
 const (
+	imageBuildDefaultBranch           = "master"
 	goDevURL                          = "https://go.dev/dl/?mode=json"
 	imageBuildBaseRepo                = "image-build-base"
-	cloneImageBuildScriptFileName     = "clone_image_build.sh"
 	getHardenedBuildTagScriptFileName = "get_hardened_build_tag.sh"
 	updateImageBuildScriptFileName    = "update_image_build_base.sh"
-	cloneImageBuildScript             = `#!/bin/sh
+	getHardenedBuildTagScript         = `#!/bin/sh
 set -e
-REPO_NAME={{ .RepoName }}
-REPO_OWNER={{ .RepoOwner }}
-CLONE_DIR={{ .CloneDir }}
-echo "repo name: ${REPO_NAME}"
-echo "org name: ${REPO_OWNER}"
-echo "cloning ${REPO_OWNER}/${REPO_NAME} into ${CLONE_DIR}"
-git clone "git@github.com:${REPO_OWNER}/${REPO_NAME}.git" "${CLONE_DIR}"
-`
-	getHardenedBuildTagScript = `#!/bin/sh
-set -e
-CLONE_DIR={{ .CloneDir }}
-cd "${CLONE_DIR}"
+REPO_PATH={{ .RepoPath }}
+DEFAULT_BRANCH={{ .DefaultBranch }}
+cd "${REPO_PATH}"
+git stash
+git switch "${DEFAULT_BRANCH}"
+git pull origin "${DEFAULT_BRANCH}"
 grep -o -e "hardened-build-base:.*$" Dockerfile
 `
 	updateImageBuildScript = `#!/bin/sh
 set -e
 DRY_RUN={{ .DryRun }}
 NEW_TAG={{ .NewTag }}
-CLONE_DIR={{ .CloneDir }}
+REPO_PATH={{ .RepoPath }}
 BRANCH_NAME={{ .BranchName }}
 CURRENT_TAG={{ .CurrentTag }}
+DEFAULT_BRANCH={{ .DefaultBranch }}
 echo "dry run: ${DRY_RUN}"
 echo "current tag: ${CURRENT_TAG}"
 echo "branch name: ${BRANCH_NAME}"
+echo "default branch: ${DEFAULT_BRANCH}"
 
 echo "navigating to the repo dir"
-cd "${CLONE_DIR}"
+cd "${REPO_PATH}"
 echo "new tag: ${NEW_TAG}"
 echo "creating local branch"
-git checkout -B "${BRANCH_NAME}" master
+git checkout -B "${BRANCH_NAME}" "${DEFAULT_BRANCH}"
 git clean -xfd
 OS=$(uname -s)
 case ${OS} in
@@ -82,7 +78,7 @@ type UpdateImageBuildArgs struct {
 	RepoOwner  string
 	BranchName string
 	DryRun     bool
-	CloneDir   string
+	RepoPath   string
 	NewTag     string
 	CurrentTag string
 }
@@ -173,13 +169,9 @@ func goVersions(goDevURL string) ([]goVersionRecord, error) {
 	return versions, nil
 }
 
-func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner, cloneDir, workingDir string, dryRun, createPR bool) error {
+func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner, repoPath, workingDir, newTag string, dryRun, createPR bool) error {
 	if _, ok := imageBuildRepos[repo]; !ok {
 		return errors.New("invalid repo, please review the `imageBuildRepos` map")
-	}
-	newTag, err := latestTag(ctx, ghClient, "rancher", "image-build-base")
-	if err != nil {
-		return err
 	}
 	branchName := "update-to-" + newTag
 	data := UpdateImageBuildArgs{
@@ -187,14 +179,9 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 		RepoOwner:  owner,
 		BranchName: branchName,
 		DryRun:     dryRun,
-		CloneDir:   cloneDir,
+		RepoPath:   repoPath,
 		NewTag:     newTag,
 	}
-	cloneOutput, err := exec.RunTemplatedScript(workingDir, cloneImageBuildScriptFileName, cloneImageBuildScript, data)
-	if err != nil {
-		return err
-	}
-	logrus.Info(cloneOutput)
 	currentTagOutput, err := exec.RunTemplatedScript(workingDir, getHardenedBuildTagScriptFileName, getHardenedBuildTagScript, data)
 	if err != nil {
 		return err
@@ -210,34 +197,26 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	if createPR {
 		prName := "Update hardened build base to " + newTag
 		logrus.Info("preparing PR")
-		logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To rancher:master")
+		logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To rancher:" + imageBuildDefaultBranch)
 		if dryRun {
 			logrus.Info("dry run, PR will not be created")
 			return nil
 		}
 		logrus.Info("creating pr")
-		if err := createPRFromRancher(ctx, ghClient, prName, branchName, owner, repo); err != nil {
+		if err := createPRFromRancher(ctx, ghClient, prName, branchName, owner, repo, imageBuildDefaultBranch); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func createPRFromRancher(ctx context.Context, ghClient *github.Client, title, branchName, forkOwner, repo string) error {
+func createPRFromRancher(ctx context.Context, ghClient *github.Client, title, branchName, forkOwner, repo, baseBranch string) error {
 	pull := &github.NewPullRequest{
 		Title:               &title,
-		Base:                github.String("master"),
+		Base:                github.String(baseBranch),
 		Head:                github.String(forkOwner + ":" + branchName),
 		MaintainerCanModify: github.Bool(true),
 	}
 	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", repo, pull)
 	return err
-}
-
-func latestTag(ctx context.Context, ghClient *github.Client, owner, repo string) (string, error) {
-	release, _, err := ghClient.Repositories.GetLatestRelease(ctx, owner, repo)
-	if err != nil {
-		return "", err
-	}
-	return *release.TagName, nil
 }
