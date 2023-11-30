@@ -83,7 +83,7 @@ type UpdateImageBuildArgs struct {
 	CurrentTag string
 }
 
-var imageBuildRepos map[string]bool = map[string]bool{
+var ImageBuildRepos map[string]bool = map[string]bool{
 	"image-build-dns-nodecache":                    true,
 	"image-build-k8s-metrics-server":               true,
 	"image-build-sriov-cni":                        true,
@@ -170,8 +170,8 @@ func goVersions(goDevURL string) ([]goVersionRecord, error) {
 }
 
 func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner, repoPath, workingDir, newTag string, dryRun, createPR bool) error {
-	if _, ok := imageBuildRepos[repo]; !ok {
-		return errors.New("invalid repo, please review the `imageBuildRepos` map")
+	if _, ok := ImageBuildRepos[repo]; !ok {
+		return errors.New("invalid repo, please review the supported repos list")
 	}
 	branchName := "update-to-" + newTag
 	data := UpdateImageBuildArgs{
