@@ -23,22 +23,22 @@ const (
 	updateImageBuildScriptFileName    = "update_image_build_base.sh"
 	getHardenedBuildTagScript         = `#!/bin/sh
 set -e
-REPO_PATH={{ .RepoPath }}
-DEFAULT_BRANCH={{ .DefaultBranch }}
+REPO_PATH="{{ .RepoPath }}"
+DEFAULT_BRANCH="{{ .DefaultBranch }}"
 cd "${REPO_PATH}"
-git stash
-git switch "${DEFAULT_BRANCH}"
-git pull origin "${DEFAULT_BRANCH}"
+git stash >/dev/null
+git switch "${DEFAULT_BRANCH}" >/dev/null
+git pull origin "${DEFAULT_BRANCH}" >/dev/null
 grep -o -e "hardened-build-base:.*$" Dockerfile
 `
 	updateImageBuildScript = `#!/bin/sh
 set -e
 DRY_RUN={{ .DryRun }}
-NEW_TAG={{ .NewTag }}
-REPO_PATH={{ .RepoPath }}
-BRANCH_NAME={{ .BranchName }}
-CURRENT_TAG={{ .CurrentTag }}
-DEFAULT_BRANCH={{ .DefaultBranch }}
+NEW_TAG="{{ .NewTag }}"
+REPO_PATH="{{ .RepoPath }}"
+BRANCH_NAME="{{ .BranchName }}"
+CURRENT_TAG="{{ .CurrentTag }}"
+DEFAULT_BRANCH="{{ .DefaultBranch }}"
 echo "dry run: ${DRY_RUN}"
 echo "current tag: ${CURRENT_TAG}"
 echo "branch name: ${BRANCH_NAME}"
@@ -74,13 +74,14 @@ fi`
 )
 
 type UpdateImageBuildArgs struct {
-	RepoName   string
-	RepoOwner  string
-	BranchName string
-	DryRun     bool
-	RepoPath   string
-	NewTag     string
-	CurrentTag string
+	RepoName      string
+	RepoOwner     string
+	BranchName    string
+	DryRun        bool
+	RepoPath      string
+	NewTag        string
+	CurrentTag    string
+	DefaultBranch string
 }
 
 var ImageBuildRepos map[string]bool = map[string]bool{
@@ -175,12 +176,13 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	}
 	branchName := "update-to-" + newTag
 	data := UpdateImageBuildArgs{
-		RepoName:   repo,
-		RepoOwner:  owner,
-		BranchName: branchName,
-		DryRun:     dryRun,
-		RepoPath:   repoPath,
-		NewTag:     newTag,
+		RepoName:      repo,
+		RepoOwner:     owner,
+		BranchName:    branchName,
+		DryRun:        dryRun,
+		RepoPath:      repoPath,
+		NewTag:        newTag,
+		DefaultBranch: imageBuildDefaultBranch,
 	}
 	currentTagOutput, err := exec.RunTemplatedScript(workingDir, getHardenedBuildTagScriptFileName, getHardenedBuildTagScript, data)
 	if err != nil {
