@@ -64,6 +64,8 @@ rke2_release image-build list-repos
 #### update
 Updates references to the `hardened-build-base` docker image in the `rancher/image-build-*` repos.
 
+The GitHub Token must have the `pull requests read/write`  permission.
+
 | **Flag**                            | **Description** | **Required** |
 | ----------------------------------- | --------------- | ------------ |
 | `github-token`, `g`, `GITHUB_TOKEN` | Github Token    | TRUE         |

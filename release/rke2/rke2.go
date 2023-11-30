@@ -199,7 +199,7 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	if createPR {
 		prName := "Update hardened build base to " + newTag
 		logrus.Info("preparing PR")
-		logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To rancher:" + imageBuildDefaultBranch)
+		logrus.Info("PR:\n  Name: " + prName + "\n  From: " + owner + ":" + branchName + "\n  To " + owner + ":" + imageBuildDefaultBranch)
 		if dryRun {
 			logrus.Info("dry run, PR will not be created")
 			return nil
@@ -212,13 +212,13 @@ func UpdateImageBuild(ctx context.Context, ghClient *github.Client, repo, owner,
 	return nil
 }
 
-func createPRFromRancher(ctx context.Context, ghClient *github.Client, title, branchName, forkOwner, repo, baseBranch string) error {
+func createPRFromRancher(ctx context.Context, ghClient *github.Client, title, branchName, owner, repo, baseBranch string) error {
 	pull := &github.NewPullRequest{
 		Title:               &title,
 		Base:                github.String(baseBranch),
-		Head:                github.String(forkOwner + ":" + branchName),
+		Head:                github.String(owner + ":" + branchName),
 		MaintainerCanModify: github.Bool(true),
 	}
-	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", repo, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, owner, repo, pull)
 	return err
 }
