@@ -17,7 +17,7 @@ Results are printed in MD, and can be pasted into Slack, but formatting is trick
 
 **Examples**
 
-```
+```sh
 rancher_release list-nonmirrored-rc-images --tag v2.8.0-rc1
 ```
 
@@ -31,7 +31,7 @@ Checks if there’s an available Helm Chart and Docker images for amd64, arm and
 
 **Examples**
 
-```
+```sh
 rancher_release check-rancher-image --tag v2.8.0-rc1
 ```
 
@@ -56,24 +56,24 @@ Optional flags can be automatically set if you are inside your rancher fork. ⚠
 
 **Examples**
 
-```
+```sh
 rancher_release set-kdm-branch-refs -n dev-v2.8-september-patches --create-pr --dry-run
 ```
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-kdm-branch-refs -n dev-v2.8-september-patches -p -r
 ```
 
-```
+```sh
 rancher_release set-kdm-branch-refs --fork-path $GOPATH/src/github.com/{YOUR_USERNAME}/rancher \
     --base-branch release/v2.8 \
     --current-kdm-branch dev-v2.8 \
     --new-kdm-branch dev-v2.8-september-patches
 ```
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-kdm-branch-refs -f $GOPATH/src/github.com/{YOUR_USERNAME}/rancher -b release/v2.8 -c dev-v2.8 -n dev-v2.8-september-patches -p -u {YOUR_USERNAME}
@@ -100,19 +100,19 @@ Non-required flags can be automatically set, if you are inside your rancher fork
 
 **Examples**
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-charts-branch-refs --new-charts-branch dev-v2.9 --create-pr --dry-run
 ```
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-charts-branch-refs -n dev-v2.9 -p -r
 ```
 
-```
+```sh
 rancher_release set-charts-branch-refs --fork-path $GOPATH/src/github.com/{YOUR_USERNAME}/rancher \
  --base-branch release/v2.8 \
  --current-charts-branch dev-v2.8 \
@@ -120,12 +120,50 @@ rancher_release set-charts-branch-refs --fork-path $GOPATH/src/github.com/{YOUR_
 
 ```
 
-```
+```sh
 export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
 
 rancher_release set-charts-branch-refs -f $GOPATH/src/github.com/{YOUR_USERNAME}/rancher -b release/v2.8 -c dev-v2.8 -n dev-v2.9 -p -o {YOUR_USERNAME}
 
 ```
+
+### tag-release
+Tags releases in GitHub for Rancher.
+
+When tagging a new release using the `tag-release` command, always prefer to use the default behavior of creating as a draft and verifying the release in the UI before publishing it.
+If you are running this locally, you'll need to generate a GitHub Token, use the fine-grained personal access token, scoped to only the rancher repo and with the `contents read and write` scope.
+
+
+| **Flag**                 | **Description**                                                                                                                                                                               | **Required** |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `github-token`, `g`, `GITHUB_TOKEN`         | GitHub generated token as described above.                                                                                      | TRUE        |
+| `tag`, `t`       | The tag that you want to create.                                                                                         | TRUE        |
+| `remote-branch`, `b` | The branch which you want to create the tag against.                                                                                                                                                            | TRUE         |
+| `repo-owner`, `o`         | Username of the rancher repo owner. Default is `rancher`, only customize this for testing purposes. | FALSE        |
+| `general-availability`, `a`         | By default, the release will be created as a pre-release, before setting this as true, make sure it absolutely needs to be a GA release. | FALSE        |
+| `ignore-draft`, `d`         | By default, the release will be created as a draft, so you can verify everything is correct before publishing it. | FALSE        |
+| `dry-run`, `r`           | The release will not be created, just logged.                                                                                                                          | FALSE        |
+
+**Examples**
+
+```sh
+export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
+
+rancher_release tag-release --tag v2.8.0-rc1 --remote-branch release/v2.8 --dry-run
+```
+
+```sh
+export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
+
+rancher_release tag-release --tag v2.8.0-rc1 --remote-branch release/v2.8 --repo-owner tashima42 --dry-run
+```
+
+```sh
+export GITHUB_TOKEN={YOUR_GITHUB_TOKEN}
+
+rancher_release tag-release -t v2.8.0 -b release/v2.8 -a -r
+```
+
 
 ### label-issues
 

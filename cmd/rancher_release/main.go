@@ -33,6 +33,7 @@ func main() {
 		setChartsBranchReferencesCommand(),
 		checkRancherRCDepsCommand(),
 		labelIssuesCommand(),
+		tagReleaseCommand(),
 	}
 	app.Flags = rootFlags
 

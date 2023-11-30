@@ -20,17 +20,20 @@ import (
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
 )
 
 const (
+	rancherOrg               = "rancher"
+	rancherRepo              = rancherOrg
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 
 	setKDMBranchReferencesScriptFileName = "set_kdm_branch_references.sh"
 	setChartReferencesScriptFileName     = `set_chart_references.sh`
-	cloneCheckoutRancherScript           = `#!/bin/sh
+	navigateCheckoutRancherScript        = `#!/bin/sh
 set -e
 
 BRANCH_NAME={{ .BranchName }}
@@ -150,6 +153,20 @@ type HelmIndex struct {
 	} `yaml:"entries"`
 }
 
+type ContentLine struct {
+	Line    int
+	File    string
+	Content string
+}
+
+type Content struct {
+	RancherImages  []ContentLine
+	FilesWithRC    []ContentLine
+	MinFilesWithRC []ContentLine
+	ChartsWithDev  []ContentLine
+	KDMWithDev     []ContentLine
+}
+
 func ListRancherImagesRC(tag string) (string, error) {
 	downloadURL := rancherImagesBaseURL + tag + rancherImagesFileName
 	imagesFile, err := rancherImages(downloadURL)
@@ -257,7 +274,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 		BranchName:        branchName,
 	}
 
-	script := cloneCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
+	script := navigateCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 	logrus.Info("running update files and apply updates script...")
 	output, err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data)
 	if err != nil {
@@ -291,7 +308,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 		DryRun:            dryRun,
 		BranchName:        branchName,
 	}
-	script := cloneCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
+	script := navigateCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
 	logrus.Info("running update files script")
 	output, err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data)
 	if err != nil {
@@ -317,6 +334,46 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	return nil
 }
 
+func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, generalAvailability, ignoreDraft, dryRun bool) error {
+	logrus.Info("validating tag semver format")
+	if !semver.IsValid(tag) {
+		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
+	}
+	logrus.Info("getting remote branch information from " + repoOwner + "/" + rancherRepo)
+	branch, _, err := ghClient.Repositories.GetBranch(ctx, repoOwner, rancherRepo, remoteBranch, true)
+	if err != nil {
+		return err
+	}
+	logrus.Info("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
+
+	createAsDraft := !ignoreDraft
+	createAsPrerelease := !generalAvailability
+	logrus.Info("creating release ")
+	ghRelease := github.RepositoryRelease{
+		TagName:              github.String(tag),
+		Name:                 github.String(rancherReleaseName(generalAvailability, tag)),
+		Draft:                &createAsDraft,
+		Prerelease:           &createAsPrerelease,
+		GenerateReleaseNotes: github.Bool(false),
+	}
+	logrus.Infof("github release: %+v", ghRelease)
+	if dryRun {
+		logrus.Info("dry run, skipping release creation")
+		return nil
+	}
+	_, _, err = ghClient.Repositories.CreateRelease(ctx, repoOwner, rancherRepo, &ghRelease)
+	return err
+}
+
+func rancherReleaseName(generalAvailability bool, tag string) string {
+	releaseName := ""
+	if !generalAvailability {
+		releaseName += "Pre-release "
+	}
+	releaseName += tag
+	return releaseName
+}
+
 func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchName, forkOwner string, ghClient *github.Client) error {
 	pull := &github.NewPullRequest{
 		Title:               github.String(title),
@@ -327,20 +384,6 @@ func createPRFromRancher(ctx context.Context, rancherBaseBranch, title, branchNa
 	_, _, err := ghClient.PullRequests.Create(ctx, "rancher", "rancher", pull)
 
 	return err
-}
-
-type ContentLine struct {
-	Line    int
-	File    string
-	Content string
-}
-
-type Content struct {
-	RancherImages  []ContentLine
-	FilesWithRC    []ContentLine
-	MinFilesWithRC []ContentLine
-	ChartsWithDev  []ContentLine
-	KDMWithDev     []ContentLine
 }
 
 func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commitHash, files string) error {
