@@ -142,8 +142,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case newItemMsg:
 		m.visible = listView
 		if msg.err != nil {
-			m.list.NewStatusMessage(msg.err.Error())
-			return m, nil
+			return m, m.list.NewStatusMessage(msg.err.Error())
 		}
 		m.items = append([]listItem{msg.item}, m.items...)
 

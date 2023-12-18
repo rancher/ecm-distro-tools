@@ -73,13 +73,14 @@ func (b droneBuild) Description() string {
 
 	var elapsed string
 	if b.build.Started != 0 {
-		elapsed = time.Since(time.Unix(b.build.Started, 0)).Round(time.Second).String()
+		started := time.Unix(b.build.Started, 0)
+		elapsed = formatDuration(time.Since(started))
 	}
 	return status + "  " + subtle.Render(b.org+"/"+b.repo) + "  " + elapsed
 }
 
 func (b droneBuild) FilterValue() string {
-	return b.number + " " + b.build.Title
+	return "drone " + b.number + " " + b.build.Title + " " + b.org + "/" + b.repo + " " + b.build.Status
 }
 
 func (b droneBuild) Key() string {

@@ -116,9 +116,7 @@ func (a *addItem) validateItem() tea.Cmd {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			if err := release.update(ctx, a.config.GitHubToken); err != nil {
-				return newItemMsg{err: err}
-			}
+			release.update(ctx, a.config.GitHubToken)
 			return newItemMsg{item: release}
 		}
 

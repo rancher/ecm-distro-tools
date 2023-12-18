@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strconv"
 
 	"github.com/charmbracelet/lipgloss"
@@ -32,20 +34,18 @@ func (r release) Description() string {
 	var status string
 	switch {
 	case r.err != nil:
-		status = redBlock.Width(12).Align(lipgloss.Center).Render("error") + " " + r.err.Error()
+		status = redBlock.Width(12).Align(lipgloss.Center).Render("error")
+		return status + "  " + subtle.Render(r.org+"/"+r.repo) + "  " + r.err.Error()
 	case r.release.TagName == nil:
-		status = greyBlock.Width(12).Align(lipgloss.Center).Render("not created")
+		status = greyBlock.Width(14).Render("unavailable")
 	case r.release.Draft != nil && *r.release.Draft:
 		status = greyBlock.Width(12).Align(lipgloss.Center).Render("draft")
 	case r.release.Prerelease != nil && *r.release.Prerelease:
 		status = yellowBlock.Width(12).Align(lipgloss.Center).Render("prerelease")
-	default:
+	case r.release.PublishedAt != nil:
 		status = greenBlock.Width(12).Align(lipgloss.Center).Render("published")
-	}
-
-	if r.err != nil {
-		status = redBlock.Width(12).Align(lipgloss.Center).Render("unavailable")
-		return status + "  " + subtle.Render(r.org+"/"+r.repo) + "  " + r.err.Error()
+	default:
+		status = greenBlock.Width(16).Render("not published")
 	}
 
 	return status + "  " + subtle.Render(r.org+"/"+r.repo)
@@ -53,16 +53,27 @@ func (r release) Description() string {
 }
 
 func (r release) FilterValue() string {
-	return "pull " + r.tag + " " + *r.release.Name
+	if r.release.Name != nil {
+		return "release " + r.tag + " " + *r.release.Name + " " + r.org + "/" + r.repo
+	}
+	return "release " + r.tag + " " + r.org + "/" + r.repo
 }
 
 func (r release) Completed() bool {
+	var published bool
+	var draft bool
+	var prerelease bool
 	if r.release.PublishedAt != nil {
-		if r.release.Prerelease != nil && !*r.release.Prerelease {
-			return true
-		}
+		published = true
 	}
-	return false
+	if r.release.Draft != nil {
+		draft = *r.release.Draft
+	}
+	if r.release.Prerelease != nil {
+		prerelease = *r.release.Prerelease
+	}
+
+	return published && !draft && !prerelease
 }
 
 func (r release) Record() record {
@@ -88,6 +99,12 @@ func (r *release) update(ctx context.Context, token string) error {
 func (r release) Refresh(ctx context.Context, c config) listItem {
 	r.err = nil
 	if err := r.update(ctx, c.GitHubToken); err != nil {
+		var ghErr *github.ErrorResponse
+		if errors.As(err, &ghErr) {
+			if ghErr.Response.StatusCode == http.StatusNotFound {
+				return r
+			}
+		}
 		r.err = err
 	}
 	return r
@@ -136,7 +153,7 @@ func (p pullRequest) Description() string {
 	}
 
 	if p.err != nil {
-		state = redBlock.Width(12).Align(lipgloss.Center).Render("unavailable")
+		state = redBlock.Width(12).Render("unavailable")
 		return state + "  " + subtle.Render(p.org+"/"+p.repo) + "  " + p.err.Error()
 	}
 
@@ -154,14 +171,19 @@ func (p pullRequest) Description() string {
 }
 
 func (p pullRequest) FilterValue() string {
-	val := "pull " + p.number + " "
+	var state string
+	var title string
 	if p.pr.Title != nil {
-		val += *p.pr.Title + " "
+		title = *p.pr.Title
 	}
 	if p.pr.State != nil {
-		val += *p.pr.State + " "
+		state = *p.pr.State
 	}
-	return val
+	if p.pr.Merged != nil && *p.pr.Merged {
+		state = "merged"
+	}
+
+	return "pull " + p.number + " " + title + " " + p.org + "/" + p.repo + " " + state
 }
 
 func (p pullRequest) Record() record {
