@@ -18,7 +18,7 @@ func main() {
 		fmt.Println("failed to get home dir:", err)
 		os.Exit(1)
 	}
-	dir := home + "/.ecm-distro-tools/watch"
+	dir := home + "/.ecm-distro-tools/watch_repo"
 	configPath := dir + "/config.json"
 	listPath := dir + "/watch_list.json"
 	config, err := newConfig(configPath)
@@ -35,7 +35,7 @@ func main() {
 	}
 
 	m := model{
-		filename: dir + "/watch_list.json",
+		filename: listPath,
 		config:   *config,
 		interval: time.Second * 30,
 		visible:  listView,

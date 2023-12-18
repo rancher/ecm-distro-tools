@@ -1,5 +1,6 @@
-# watch
+# watch_repo
 
-Watch repo resources.
+watch_repo is a terminal ui application that polls for updates
+to builds in Drone and to releases and pull requests in GitHub.
 
-<img alt="Welcome to VHS" src="./example.gif" width="600" />
+<img alt="watch_repo basic use" src="./example.gif" width="600" />
