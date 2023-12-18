@@ -67,7 +67,6 @@ type modelView int
 const (
 	listView modelView = iota
 	addItemView
-	configView
 )
 
 type model struct {
@@ -91,8 +90,6 @@ func (m model) View() string {
 		return docStyle.Render(m.list.View())
 	case addItemView:
 		return docStyle.Render(m.addItem.View())
-	case configView:
-		return docStyle.Render(m.config.View())
 	default:
 		return docStyle.Render("view missing")
 	}
@@ -130,10 +127,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 	case refreshCompleteMsg:
 		return m.updateList(msg)
-	case viewConfigMsg:
-		m.visible = configView
-	case exitConfigMsg:
-		m.visible = listView
 	case viewAddItemMsg:
 		m.visible = addItemView
 		m.addItem = newAddItem(m.config)
@@ -157,10 +150,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case addItemView:
 		var cmd tea.Cmd
 		m.addItem, cmd = m.addItem.Update(msg)
-		return m, cmd
-	case configView:
-		var cmd tea.Cmd
-		m.config, cmd = m.config.Update(msg)
 		return m, cmd
 	}
 
