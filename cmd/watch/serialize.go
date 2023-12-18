@@ -2,62 +2,77 @@ package main
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
 	"os"
 )
 
 type record struct {
-	Type string `json:"type"`
-	Org  string `json:"org"`
-	Repo string `json:"repo"`
-	Id   string `json:"id"`
+	Type   string `json:"type"`
+	Org    string `json:"org"`
+	Repo   string `json:"repo"`
+	Id     string `json:"id"`
+	Server string `json:"server"`
 }
 
-type serializable interface {
-	Type() string
-	Org() string
-	Repo() string
-	ID() string
-}
+func serialize(filename string, items []listItem) error {
+	records := make([]record, 0, len(items))
+	for _, item := range items {
+		records = append(records, item.Record())
+	}
 
-func save(filename string, item serializable) error {
-	dataFile, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	jsonData, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
 		return err
 	}
-	defer dataFile.Close()
 
-	return nil
-}
-
-func remove(filename string, id string) error {
-	return nil
-}
-
-func serialize(w io.Writer, items []serializable) error {
-	var records []record
-
-	for _, item := range items {
-		records = append(records, record{
-			Type: item.Type(),
-			Org:  item.Org(),
-			Repo: item.Repo(),
-			Id:   item.ID(),
-		})
+	err = os.WriteFile(filename, jsonData, 0644)
+	if err != nil {
+		return err
 	}
 
-	encoder := json.NewEncoder(w)
-	return encoder.Encode(records)
+	return nil
 }
 
-func deserializeRecords(r io.Reader) ([]record, error) {
-	var records []record
-
-	decoder := json.NewDecoder(r)
-	err := decoder.Decode(&records)
+func deserialize(filename string) ([]listItem, error) {
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
-	return records, nil
+	var records []record
+	if err := json.NewDecoder(f).Decode(&records); err != nil {
+		return nil, err
+	}
+
+	var items []listItem
+	for _, r := range records {
+		var item listItem
+		switch r.Type {
+		case "github_pull_request":
+			item = &pullRequest{
+				number: r.Id,
+				org:    r.Org,
+				repo:   r.Repo,
+			}
+		case "github_release":
+			item = &release{
+				tag:  r.Id,
+				org:  r.Org,
+				repo: r.Repo,
+			}
+		case "drone_build":
+			item = &droneBuild{
+				number: r.Id,
+				org:    r.Org,
+				repo:   r.Repo,
+				server: r.Server,
+			}
+		default:
+			return nil, fmt.Errorf("unknown item type: %s", r.Type)
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
 }

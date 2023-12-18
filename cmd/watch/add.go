@@ -2,72 +2,63 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/drone/drone-go/drone"
 )
 
 type addItemContentView int
 
-type addItemExitMsg struct{}
-
-// type addItemValidatedMsg struct {
-// 	id string
-// }
-
 const (
 	addItemType addItemContentView = iota
+	addDroneServer
 	addItemRepo
-	addBuildNo
+	addItemId
 )
 
-//	type droneBuildClient interface {
-//		Build(string, string, int) (*drone.Build, error)
-//	}
-type addItemMsg struct {
-	item listItem
-}
+type itemType int
+
+const (
+	droneBuildItem itemType = iota
+	githubPrItem
+	githubReleaseItem
+)
 
 type addItem struct {
-	config    config
-	view      addItemContentView
-	itemType  string
-	itemRepo  textinput.Model
-	buildNo   textinput.Model
-	validated bool
+	config   config
+	view     addItemContentView
+	itemType itemType
+	server   string
+	itemRepo textinput.Model
+	itemID   textinput.Model
 }
 
-var itemTypes = []string{
-	"drone_pr_build",
-	"drone_publish_build",
-	"github_pull_request",
-	"kubernetes_upstream_release",
+var droneServers = []string{
+	droneRancherPrServer,
+	droneRancherPubServer,
+	droneK3sPrServer,
+	droneK3sPubServer,
 }
 
 func newAddItem(config config) addItem {
 	a := addItem{
-		config:    config,
-		view:      addItemType,
-		itemType:  "drone_pr_build",
-		itemRepo:  textinput.New(),
-		buildNo:   textinput.New(),
-		validated: false,
+		config:   config,
+		view:     addItemType,
+		itemType: droneBuildItem,
+		itemRepo: textinput.New(),
+		itemID:   textinput.New(),
 	}
 
-	a.itemRepo.Placeholder = "rancher/rke2"
-	a.itemRepo.CharLimit = 28
-	a.itemRepo.Width = 30
+	a.itemRepo.Placeholder = "rancher/rancher"
+	a.itemRepo.CharLimit = 48
+	a.itemRepo.Width = 48
 
-	a.buildNo.Placeholder = "1234"
-	a.buildNo.CharLimit = 10
-	a.buildNo.Width = 30
+	a.itemID.CharLimit = 24
+	a.itemID.Width = 24
 
 	return a
 }
@@ -79,221 +70,241 @@ func checkbox(label string, checked bool) string {
 	return fmt.Sprintf("[ ] %s", label)
 }
 
-func (a addItem) validateKubernetesUpstreamRelease() tea.Cmd {
-	return func() tea.Msg {
-		return kubernetesUpstreamRelease{
-			version:   a.buildNo.Value(),
-			published: false,
-		}
+func (a addItem) orgRepo() (string, string) {
+	parts := strings.Split(a.itemRepo.Value(), "/")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
 	}
+	return "", ""
 }
 
-func (a *addItem) validateDroneBuild() tea.Cmd {
+type newItemMsg struct {
+	item listItem
+	err  error
+}
+
+func (a *addItem) validateItem() tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		var server string
-		var token string
+		org, repo := a.orgRepo()
+
 		switch a.itemType {
-		case "drone_pr_build":
-			server = "https://drone-pr.rancher.io"
-			token = a.config.drone_pr_token
-		case "drone_publish_build":
-			server = "https://drone-publish.rancher.io"
-			token = a.config.drone_publish_token
+		case droneBuildItem:
+			build := newDroneBuild(a.server, org, repo, a.itemID.Value())
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := build.update(ctx, a.config); err != nil {
+				return newItemMsg{err: err}
+			}
+			return newItemMsg{item: build}
+		case githubPrItem:
+			pr := pullRequest{
+				number: a.itemID.Value(),
+				org:    org,
+				repo:   repo,
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := pr.update(ctx, a.config.GitHubToken); err != nil {
+				return newItemMsg{err: err}
+			}
+			return newItemMsg{item: pr}
+		case githubReleaseItem:
+			release := release{
+				tag:  a.itemID.Value(),
+				org:  org,
+				repo: repo,
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := release.update(ctx, a.config.GitHubToken); err != nil {
+				return newItemMsg{err: err}
+			}
+			return newItemMsg{item: release}
 		}
 
-		client := newDroneClient(ctx, server, token)
-
-		var org, repo string
-		parts := strings.Split(a.itemRepo.Value(), "/")
-		if len(parts) == 2 {
-			org = parts[0]
-			repo = parts[1]
-		} else {
-			return errors.New("invalid repo")
-		}
-		id, err := strconv.Atoi(a.buildNo.Value())
-		if err != nil {
-			return err
-		}
-		build, err := client.Build(org, repo, id)
-		if err != nil {
-			return err
-		}
-		return addItemMsg{
-			item: &droneBuild{
-				id:      strconv.Itoa(int(build.ID)),
-				title:   build.Title,
-				desc:    build.Message,
-				org:     org,
-				repo:    repo,
-				passing: build.Status == drone.StatusPassing,
-				failing: build.Status == drone.StatusFailing,
-				running: build.Status == drone.StatusRunning,
-				elapsed: formatDurationSince(build.Started),
-				server:  server,
-				token:   token,
-			},
-		}
+		return exitAddItemCmd()
 	}
 }
 
-func exitAddItem() tea.Cmd {
+type exitAddItemMsg struct{}
+
+func exitAddItemCmd() tea.Cmd {
 	return func() tea.Msg {
-		return addItemExitMsg{}
+		return exitAddItemMsg{}
 	}
 }
 
-// func validatedAddItem(*drone.Build) tea.Cmd {
-// 	return func() tea.Msg {
-// 		return addItemValidatedMsg{}
-// 	}
-// }
-
-func (v addItem) Update(msg tea.Msg) (addItem, tea.Cmd) {
+func (a addItem) Update(msg tea.Msg) (addItem, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			if v.view == addItemType {
-				for i, itemType := range itemTypes {
-					if itemType == v.itemType {
-						if i < len(itemTypes)-1 {
-							v.itemType = itemTypes[i+1]
-							break
+			switch a.view {
+			case addItemType:
+				if a.itemType < githubReleaseItem {
+					a.itemType++
+					return a, nil
+				}
+			case addDroneServer:
+				for i, server := range droneServers {
+					if server == a.server {
+						if i < len(droneServers)-1 {
+							a.server = droneServers[i+1]
+							return a, nil
 						}
 					}
 				}
 			}
 		case "k", "up":
-			if v.view == addItemType {
-				for i, itemType := range itemTypes {
-					if itemType == v.itemType {
+			switch a.view {
+			case addItemType:
+				if a.itemType > 0 {
+					a.itemType--
+					return a, nil
+				}
+			case addDroneServer:
+				for i, server := range droneServers {
+					if server == a.server {
 						if i > 0 {
-							v.itemType = itemTypes[i-1]
-							break
+							a.server = droneServers[i-1]
+							return a, nil
 						}
 					}
 				}
 			}
 		case "esc":
-			return v, exitAddItem()
-
+			return a, exitAddItemCmd()
 		case "enter":
-			if v.view == addItemType {
-				if v.itemType == "kubernetes_upstream_release" {
-					v.view = addBuildNo
-					v.buildNo.Placeholder = "v1.29.0"
-					return v, tea.Batch(v.buildNo.Focus(), textinput.Blink)
-
-				} else {
-					v.view = addItemRepo
-					return v, tea.Batch(v.itemRepo.Focus(), textinput.Blink)
+			switch a.view {
+			case addItemType:
+				switch a.itemType {
+				case githubPrItem, githubReleaseItem:
+					a.view = addItemRepo
+					return a, tea.Batch(a.itemRepo.Focus(), textinput.Blink)
+				case droneBuildItem:
+					a.server = droneRancherPrServer
+					a.view = addDroneServer
 				}
+			case addDroneServer:
+				a.view = addItemRepo
+				return a, tea.Batch(a.itemRepo.Focus(), textinput.Blink)
+			case addItemRepo:
+				a.view = addItemId
+				return a, tea.Batch(a.itemID.Focus(), textinput.Blink)
+			case addItemId:
+				return a, a.validateItem()
 			}
-			if v.view == addItemRepo {
-				v.view = addBuildNo
-				return v, tea.Batch(v.buildNo.Focus(), textinput.Blink)
-			}
-			if v.view == addBuildNo {
-				if v.itemType == "drone_pr_build" || v.itemType == "drone_publish_build" {
-					return v, v.validateDroneBuild()
-				}
-				if v.itemType == "kubernetes_upstream_release" {
-					return v, v.validateKubernetesUpstreamRelease()
-				}
-			}
-			return v, nil
+			return a, nil
 		}
 	case error:
 		fmt.Println("got an error", msg)
-		return v, nil
-		// case *drone.Build:
-		// 	fmt.Println("got the drone build down in add item", msg)
-		// 	v.validated = true
-		// 	return v, nil
-
+		return a, nil
 	}
 
-	if v.view == addItemRepo {
+	if a.view == addItemRepo {
 		var cmd tea.Cmd
-		v.itemRepo, cmd = v.itemRepo.Update(msg)
-		return v, cmd
+		a.itemRepo, cmd = a.itemRepo.Update(msg)
+		return a, cmd
 	}
-	if v.view == addBuildNo {
+	if a.view == addItemId {
 		var cmd tea.Cmd
-		v.buildNo, cmd = v.buildNo.Update(msg)
-		return v, cmd
+		a.itemID, cmd = a.itemID.Update(msg)
+		return a, cmd
 	}
 
-	return v, nil
+	return a, nil
 }
 
-func (v addItem) View() string {
-	switch v.view {
+func (a addItem) View() string {
+	switch a.view {
 	case addItemType:
-		return v.chooseTypeView()
+		return a.chooseTypeView()
+	case addDroneServer:
+		return a.chooseDroneView()
 	case addItemRepo:
-		return v.repoInputView()
-	case addBuildNo:
-		return v.idInputView()
+		return a.repoInputView()
+	case addItemId:
+		return a.idInputView()
 	}
 
 	return ""
 
 }
 
-func (v addItem) chooseTypeView() string {
-	tpl := "What kind of resource do you want to watch?\n\n"
-	for _, it := range itemTypes {
-		tpl += "\n" + checkbox(it, it == v.itemType)
+func (a addItem) chooseTypeView() string {
+	t := a.itemType
+	tpl := "What kind of resource do you want to watch?\n"
+	tpl += "\n" + checkbox("Drone Build", t == droneBuildItem)
+	tpl += "\n" + checkbox("GitHub Pull Request", t == githubPrItem)
+	tpl += "\n" + checkbox("GitHub Release", t == githubReleaseItem)
+	tpl += "\n\n"
+	tpl += subtle.Render("j/k, up/down: select")
+	tpl += dot + subtle.Render("enter: choose")
+	tpl += dot + subtle.Render("q, esc: quit")
+
+	return tpl
+}
+
+func (a addItem) chooseDroneView() string {
+	tpl := "Choose Drone server:\n"
+
+	for _, server := range droneServers {
+		tpl += "\n"
+		switch server {
+		case droneRancherPrServer:
+			tpl += checkbox("drone-pr.rancher.io", server == a.server)
+		case droneRancherPubServer:
+			tpl += checkbox("drone-publish.rancher.io", server == a.server)
+		case droneK3sPrServer:
+			tpl += checkbox("drone-pr.k3s.io", server == a.server)
+		case droneK3sPubServer:
+			tpl += checkbox("drone-publish.k3s.io", server == a.server)
+		}
 	}
 	tpl += "\n\n"
-	tpl += subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("q, esc: quit")
-
+	tpl += subtle.Render("j/k, up/down: select")
+	tpl += dot + subtle.Render("enter: choose")
+	tpl += dot + subtle.Render("q, esc: quit")
 	return tpl
 }
 
-func (v addItem) repoInputView() string {
+func (a addItem) repoInputView() string {
 	tpl := "What is the repo?\n\n"
-	tpl += v.itemRepo.View()
-	tpl += "\n\n" + subtle("enter: save") + dot + subtle("q, esc: quit") + "\n"
+	tpl += a.itemRepo.View()
+	tpl += "\n\n" + subtle.Render("enter: save") + dot + subtle.Render("q, esc: quit") + "\n"
 
 	return tpl
 }
 
-func (v addItem) idInputView() string {
+func (a addItem) idInputView() string {
 	var tpl string
-	switch v.itemType {
-	case "drone_pr_build", "drone_publish_build":
-		tpl += "What is the drone build id?\n\n"
-	case "github_pull_request":
-		tpl += "What is the github pull request id?\n\n"
-	case "kubernetes_upstream_release":
-		tpl += "This option will watch for a new Kubernetes release"
-		tpl += "\nand then tag a new image-build-kubernetes release"
-		tpl += "\n\nWhat is the Kubernetes version?\n\n"
+	switch a.itemType {
+	case droneBuildItem:
+		tpl += "What is the drone build number?\n\n"
+	case githubPrItem:
+		tpl += "What is the github pull request number?\n\n"
+	case githubReleaseItem:
+		tpl += "What is the release tag?\n\n"
 	}
-	tpl += v.buildNo.View()
-	tpl += "\n\n" + subtle("enter: submit") + dot + subtle("q, esc: quit") + "\n"
+	tpl += a.itemID.View()
+	tpl += "\n\n" + subtle.Render("enter: submit") + dot + subtle.Render("esc: quit") + "\n"
 
 	return tpl
 }
 
-// func (v addItem) listItem() list.Item {
-// 	switch v.itemType {
+// func (a addItem) listItem() list.Item {
+// 	switch a.itemType {
 // 	case "drone_pr_build", "drone_publish_build":
 // 		return &droneBuild{
-// 			id:    v.buildNo.Value(),
-// 			title: v.itemRepo.Value(),
-// 			desc:  v.itemRepo.Value(),
+// 			id:    a.buildNo.Value(),
+// 			title: a.itemRepo.Value(),
+// 			desc:  a.itemRepo.Value(),
 // 		}
 // 	case "github_pull_request":
 // 		return &pullRequest{
-// 			id:    v.buildNo.Value(),
-// 			title: v.itemRepo.Value(),
-// 			desc:  v.itemRepo.Value(),
+// 			id:    a.buildNo.Value(),
+// 			title: a.itemRepo.Value(),
+// 			desc:  a.itemRepo.Value(),
 // 		}
 // 	}
 // 	return nil

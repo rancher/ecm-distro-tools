@@ -6,132 +6,122 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// type listKeyMap struct {
-// 	addItem key.Binding
-// }
+func newList(items []listItem) list.Model {
+	listItems := make([]list.Item, 0, len(items))
+	for _, item := range items {
+		listItems = append(listItems, item)
+	}
+	delegate := newItemDelegate()
+	list := list.New(listItems, delegate, 0, 0)
+	list.Title = "Watch list"
+	list.SetStatusBarItemName("resource", "resources")
+	list.SetShowStatusBar(false)
+	list.Styles.Title = list.Styles.Title.Copy().Background(selected)
+	return list
+}
 
-// func newListKeys() *listKeyMap {
-// 	return &listKeyMap{
-// 		addItem: key.NewBinding(
-// 			key.WithKeys("a"),
-// 			key.WithHelp("a", "add item"),
-// 		),
-// 	}
-// }
+type delegateKeyMap struct {
+	add    key.Binding
+	config key.Binding
+	remove key.Binding
+	clear  key.Binding
+}
 
-// type delegateKeyMap struct {
-// 	add    key.Binding
-// 	remove key.Binding
-// }
-
-// type item interface {
-// 	Title() string
-// 	Description() string
-// }
-
-// func newDelegateKeyMap() *delegateKeyMap {
-// 	return &delegateKeyMap{
-// 		add: key.NewBinding(
-// 			key.WithKeys("a"),
-// 			key.WithHelp("a", "choose"),
-// 		),
-// 		remove: key.NewBinding(
-// 			key.WithKeys("x", "backspace"),
-// 			key.WithHelp("x", "delete"),
-// 		),
-// 	}
-// }
-
-// delegate
-
-func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
+func newItemDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.Copy().BorderForeground(selected).Foreground(selected)
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.Copy().BorderForeground(selected)
+
+	keys := delegateKeyMap{
+		add: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "add"),
+		),
+		config: key.NewBinding(
+			key.WithKeys("c"),
+			key.WithHelp("c", "config"),
+		),
+		remove: key.NewBinding(
+			key.WithKeys("d", "backspace"),
+			key.WithHelp("d", "delete"),
+		),
+		clear: key.NewBinding(
+			key.WithKeys("x"),
+			key.WithHelp("x", "clear completed"),
+		),
+	}
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
-
-		// if i, ok := m.SelectedItem().(item); ok {
-		// 	title = i.Title()
-		// } else {
-		// 	return nil
-		// }
-
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
+			if m.FilterState() == list.Filtering {
+				break
+			}
 			switch {
 			case key.Matches(msg, keys.add):
-				return m.NewStatusMessage("You chose ADD")
-
+				return viewAddItem()
 			case key.Matches(msg, keys.remove):
-				x := m.SelectedItem()
-				if x == nil {
-					return nil
-				}
-				index := m.Index()
-				m.RemoveItem(index)
-				if len(m.Items()) == 0 {
-					keys.remove.SetEnabled(false)
-				}
-				return m.NewStatusMessage("Deleted build")
+				return removeItem(m.Index())
+			case key.Matches(msg, keys.clear):
+				return clearItems()
+			case key.Matches(msg, keys.config):
+				return viewConfig()
 			}
 		}
 
 		return nil
 	}
 
-	help := []key.Binding{keys.add, keys.remove}
-
 	d.ShortHelpFunc = func() []key.Binding {
-		return help
+		return []key.Binding{
+			keys.add,
+			keys.remove,
+			keys.clear,
+		}
 	}
 
 	d.FullHelpFunc = func() [][]key.Binding {
-		return [][]key.Binding{help}
+		return [][]key.Binding{{
+			keys.add,
+			keys.remove,
+			keys.clear,
+			keys.config,
+		}}
 	}
 
 	return d
 }
 
-type delegateKeyMap struct {
-	add     key.Binding
-	refresh key.Binding
-	remove  key.Binding
+type removeItemMsg struct {
+	index int
 }
 
-// Additional short help entries. This satisfies the help.KeyMap interface and
-// is entirely optional.
-func (d delegateKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{
-		d.add,
-		d.refresh,
-		d.remove,
+func removeItem(index int) tea.Cmd {
+	return func() tea.Msg {
+		return removeItemMsg{index: index}
 	}
 }
 
-// Additional full help entries. This satisfies the help.KeyMap interface and
-// is entirely optional.
-func (d delegateKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{
-			d.add,
-			d.refresh,
-			d.remove,
-		},
+type clearItemsMsg struct{}
+
+func clearItems() tea.Cmd {
+	return func() tea.Msg {
+		return clearItemsMsg{}
 	}
 }
 
-func newDelegateKeyMap() *delegateKeyMap {
-	return &delegateKeyMap{
-		add: key.NewBinding(
-			key.WithKeys("a"),
-			key.WithHelp("a", "add"),
-		),
-		refresh: key.NewBinding(
-			key.WithKeys("r"),
-			key.WithHelp("r", "refresh"),
-		),
-		remove: key.NewBinding(
-			key.WithKeys("x", "backspace"),
-			key.WithHelp("x", "delete"),
-		),
+type viewAddItemMsg struct{}
+
+func viewAddItem() tea.Cmd {
+	return func() tea.Msg {
+		return viewAddItemMsg{}
+	}
+}
+
+type viewConfigMsg struct{}
+
+func viewConfig() tea.Cmd {
+	return func() tea.Msg {
+		return viewConfigMsg{}
 	}
 }

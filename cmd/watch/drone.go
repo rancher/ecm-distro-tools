@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -11,140 +10,139 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var (
+	droneRancherPrServer  = "https://drone-pr.rancher.io"
+	droneRancherPubServer = "https://drone-publish.rancher.io"
+	droneK3sPrServer      = "https://drone-pr.k3s.io"
+	droneK3sPubServer     = "https://drone-publish.k3s.io"
+)
+
 type droneBuild struct {
-	id      string
-	buildNo int
-	title   string
-	desc    string
-	org     string
-	repo    string
-	server  string
-	token   string
-	running bool
-	passing bool
-	failing bool
-	elapsed string
+	number string
+	org    string
+	repo   string
+	server string
+	build  drone.Build
+	err    error
 }
 
-func formatDurationSince(timestamp int64) string {
-	t := time.Unix(timestamp, 0)
-	duration := time.Since(t)
-
-	seconds := int64(duration.Seconds())
-	minutes := seconds / 60
-	hours := minutes / 60
-	days := hours / 24
-	weeks := days / 7
-	months := days / 30 // Approximation
-	years := days / 365 // Approximation
-
-	switch {
-	case seconds < 60:
-		return fmt.Sprintf("%d seconds", seconds)
-	case minutes < 60:
-		return fmt.Sprintf("%d minutes", minutes)
-	case hours < 24:
-		return fmt.Sprintf("%d hours", hours)
-	case days < 7:
-		return fmt.Sprintf("%d days", days)
-	case weeks < 4:
-		return fmt.Sprintf("%d weeks", weeks)
-	case months < 12:
-		return fmt.Sprintf("%d months", months)
-	default:
-		return fmt.Sprintf("%d years", years)
-	}
-}
-
-func newDroneBuild(server, token, org, repo string, b *drone.Build) droneBuild {
+func newDroneBuild(server, org, repo, number string) droneBuild {
 	return droneBuild{
-		id:      strconv.Itoa(int(b.ID)),
-		buildNo: int(b.Number),
-		title:   b.Title,
-		desc:    b.Message,
-		org:     org,
-		repo:    repo,
-		server:  server,
-		token:   token,
-		passing: b.Status == drone.StatusPassing,
-		failing: b.Status == drone.StatusFailing,
-		running: b.Status == drone.StatusRunning,
-		elapsed: formatDurationSince(b.Started),
+		number: number,
+		org:    org,
+		repo:   repo,
+		server: server,
 	}
 }
 
-var droneBuildRunningStyle = lipgloss.NewStyle().Background(lipgloss.Color("220")).Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "248"})
-var droneBuildFailingStyle = lipgloss.NewStyle().Background(lipgloss.Color("160")).Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "248"})
-var droneBuildPassingStyle = lipgloss.NewStyle().Background(lipgloss.Color("40")).Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "248"})
-var droneBuildNotStartedStyle = lipgloss.NewStyle().Background(lipgloss.Color("255")).Foreground(lipgloss.AdaptiveColor{Light: "236", Dark: "248"})
+func (b droneBuild) Title() string {
 
-func (i droneBuild) BuildNo() int {
-	return i.buildNo
+	switch b.server {
+	case droneRancherPrServer:
+		return "[Drone PR] " + b.number
+	case droneRancherPubServer:
+		return "[Drone Publish] " + b.number
+	case droneK3sPrServer:
+		return "[k3s PR] " + b.number
+	case droneK3sPubServer:
+		return "[k3s Publish] " + b.number
+	default:
+		return "[Drone] " + b.number
+	}
 }
-func (i droneBuild) Title() string {
-	return "[Drone] " + i.title
-}
-func (i droneBuild) Description() string {
+
+func (b droneBuild) Description() string {
+	var status string
+	switch b.build.Status {
+	case drone.StatusPassing:
+		status = greenBlock.Width(12).Align(lipgloss.Center).Render("passing")
+	case drone.StatusFailing:
+		status = redBlock.Width(12).Align(lipgloss.Center).Render("failing")
+	case drone.StatusRunning:
+		status = yellowBlock.Width(12).Align(lipgloss.Center).Render("running")
+	case "":
+		status = whiteBlock.Width(12).Align(lipgloss.Center).Render("unknown")
+	default:
+		status = whiteBlock.Width(12).Align(lipgloss.Center).Render(b.build.Status)
+	}
+
+	if b.err != nil {
+		status = redBlock.Width(12).Align(lipgloss.Center).Render("error")
+		return status + "  " + subtle.Render(b.org+"/"+b.repo) + "  " + b.err.Error()
+	}
+
 	var elapsed string
-	if i.elapsed != "" {
-		elapsed = i.elapsed + " elapsed"
+	if b.build.Started != 0 {
+		elapsed = time.Since(time.Unix(b.build.Started, 0)).Round(time.Second).String()
 	}
-	if i.running {
-		return droneBuildRunningStyle.Render("running") + "    " + elapsed
-	}
-	if i.passing {
-		return droneBuildPassingStyle.Render("passing") + "    " + elapsed
-	}
-	if i.failing {
-		return droneBuildFailingStyle.Render("failing") + "    " + elapsed
-	}
-	return droneBuildNotStartedStyle.Render("not started")
-}
-func (i droneBuild) FilterValue() string {
-	return i.id + " " + i.title
-}
-func (i droneBuild) ID() string {
-	return i.id
-}
-func (i droneBuild) Org() string {
-	return i.org
-}
-func (i droneBuild) Repo() string {
-	return i.repo
-}
-func (i droneBuild) Type() string {
-	switch i.server {
-	case "https://drone-pr.rancher.io":
-		return "drone_pr_build"
-	case "https://drone-publish.rancher.io":
-		return "drone_publish_build"
-	}
-	return ""
+	return status + "  " + subtle.Render(b.org+"/"+b.repo) + "  " + elapsed
 }
 
-func (i droneBuild) completed() bool {
-	return i.passing || i.failing
+func (b droneBuild) FilterValue() string {
+	return b.number + " " + b.build.Title
 }
 
-func (i *droneBuild) Refresh(ctx context.Context) error {
-	if i.completed() {
-		return nil
+func (b droneBuild) Key() string {
+	return "drone_build_" + b.server + "_" + b.org + "_" + b.repo + b.number
+}
+
+func (b droneBuild) Record() record {
+	return record{
+		Type:   "drone_build",
+		Id:     b.number,
+		Org:    b.org,
+		Repo:   b.repo,
+		Server: b.server,
 	}
-	client := newDroneClient(ctx, i.server, i.token)
-	// id, err := strconv.Atoi(i.id)
-	// if err != nil {
-	// 	return err
-	// }
-	build, err := client.Build(i.org, i.repo, i.buildNo)
+}
+
+func (b droneBuild) Completed() bool {
+	switch b.build.Status {
+	case drone.StatusPassing, drone.StatusFailing,
+		drone.StatusKilled, drone.StatusError,
+		drone.StatusBlocked, drone.StatusDeclined,
+		drone.StatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+func (b droneBuild) Refresh(ctx context.Context, c config) listItem {
+	b.err = nil
+	if err := b.update(ctx, c); err != nil {
+		b.err = err
+	}
+	return b
+}
+
+func (b *droneBuild) update(ctx context.Context, config config) error {
+	client := newDroneClient(ctx, b.server, config)
+	number, err := strconv.Atoi(b.number)
 	if err != nil {
 		return err
 	}
-	*i = newDroneBuild(i.server, i.token, i.org, i.repo, build)
+	build, err := client.Build(b.org, b.repo, number)
+	if err != nil {
+		return err
+	}
+	b.build = *build
 	return nil
 }
 
-func newDroneClient(ctx context.Context, server, token string) drone.Client {
+func newDroneClient(ctx context.Context, server string, config config) drone.Client {
 	conf := new(oauth2.Config)
+	var token string
+	switch server {
+	case droneRancherPrServer:
+		token = config.DroneRancherPrToken
+	case droneRancherPubServer:
+		token = config.DroneRancherPublishToken
+	case droneK3sPrServer:
+		token = config.DroneK3sPrToken
+	case droneK3sPubServer:
+		token = config.DroneK3sPublishToken
+	}
 	httpClient := conf.Client(ctx, &oauth2.Token{AccessToken: token})
 	return drone.NewClient(server, httpClient)
 }
