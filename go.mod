@@ -18,7 +18,7 @@ require (
 require (
 	github.com/MetalBlueberry/go-plotly v0.4.0
 	github.com/charmbracelet/bubbles v0.16.1
-	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/urfave/cli/v2 v2.25.7
 	gopkg.in/yaml.v2 v2.4.0
