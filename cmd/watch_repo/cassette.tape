@@ -6,16 +6,16 @@ Sleep 0.5s
 Hide
 Sleep 5s
 Show
-Sleep 1s
+Sleep 2.5s
 Type "a"
 Sleep 1.5s
 Enter
 Sleep 1.5s
 Enter
-Type@200ms "rancher/rancher"
+Type@100ms "rancher/rancher"
 Enter
 Sleep 500ms
-Type@200ms "35221"
+Type@100ms "35221"
 Enter
 Sleep 5s
 Ctrl+C
