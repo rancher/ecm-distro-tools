@@ -1,4 +1,4 @@
-BINARIES = gen_release_notes gen_release_report backport semv k3s_release rancher_release test_coverage upstream_go_version rke2_release
+BINARIES = gen_release_notes gen_release_report backport semv k3s_release rancher_release test_coverage upstream_go_version rke2_release watch_repo
 ARCHS ?= amd64 arm64
 OSs ?= linux darwin freebsd
 GO_COMPILE = GOOS=$${os} GOARCH=$${arch} CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v -ldflags "$(LDFLAGS)" -o $@-$${os}-$${arch}
