@@ -1,7 +1,7 @@
 {
     "variables": {
-        "name": "Oracle-Linux-8.7-OL8.7",
-        "source_ami": "ami-01d29ab1ae3200806",
+        "name": "Oracle-Linux-9.3-FIPS-OL9.3",
+        "source_ami": "ami-0a90dbc398b4c8aa2",
         "access_key":"",
         "secret_key":"",
         "region":"us-east-2"
