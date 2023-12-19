@@ -21,7 +21,7 @@ Please reference the help menu from the binary.
 |-----------------|------------------------------------------------------------------------------------------------------------|
 | old_k8s_version | Previous k8s patch version                                                                                 |
 | new_k8s_version | Latest released k8s patch version                                                                          |
-| old_k8s_client  | Premius k8s client patch version, usually the same as the k8s version, but with a major of 0 instead of 1  |
+| old_k8s_client  | Previous k8s client patch version, usually the same as the k8s version, but with a major of 0 instead of 1  |
 | new_k8s_client  | Latest released k8s client patch version                                                                   |
 | old_k3s_version | Previous k3s patch version, including the suffix (`+k3s1`)                                                 |
 | new_k3s_version | Latest released k3s patch version                                                                          |
