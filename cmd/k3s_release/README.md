@@ -5,6 +5,7 @@ k3s_release is a utility that performs the bulk of the actions to complete a K3s
 Please reference the help menu from the binary.
 
 ## Requirements
+* OS: Linux
 * Docker
 * Git
 * Go (At least the version used upstream for kubernetes)
@@ -12,8 +13,7 @@ Please reference the help menu from the binary.
 * All commands require a Github token (classic) with the following permissions:
   * Be generated on behalf of an account with access to the `k3s-io/k3s` repo
   * `repo`
-  * `write:packages`
-
+  * `write:packages`    
 * An SSH key is also required, follow the Github [Documentation](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) to generate one.
 
 ## Configuration
