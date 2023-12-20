@@ -21,6 +21,7 @@ import (
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -41,12 +42,7 @@ const (
 	`
 	dockerDevImage = `
 	FROM %goimage%
-	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk
-	ARG UID=%uid%
-	ARG GID=%gid%
-	RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
-	USER user
-	`
+	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk`
 
 	modifyScript = `
 		#!/bin/bash
@@ -328,8 +324,6 @@ func (r *Release) buildGoWrapper() (string, error) {
 	goImageVersion := fmt.Sprintf("golang:%s-alpine", goVersion)
 
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
-	devDockerfile = strings.ReplaceAll(devDockerfile, "%uid%", strconv.Itoa(os.Getuid()))
-	devDockerfile = strings.ReplaceAll(devDockerfile, "%gid%", strconv.Itoa(os.Getgid()))
 
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
@@ -494,7 +488,8 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	for _, tagCmd := range tagsCmds {
+	for i, tagCmd := range tagsCmds {
+		logrus.Infof("pushing tag %d/%d", i, len(tagsCmds))
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
 		if err := repo.Push(&git.PushOptions{
