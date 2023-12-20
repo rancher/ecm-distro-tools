@@ -544,9 +544,11 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 	}
 
 	logrus.Info("running modify script")
-	if _, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
+	out, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh")
+	if err != nil {
 		return err
 	}
+	logrus.Info(out)
 
 	return nil
 }
