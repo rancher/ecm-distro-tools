@@ -489,7 +489,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 	}
 
 	for i, tagCmd := range tagsCmds {
-		logrus.Infof("pushing tag %d/%d", i, len(tagsCmds))
+		logrus.Infof("pushing tag %d/%d", i+1, len(tagsCmds))
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
 		if err := repo.Push(&git.PushOptions{
