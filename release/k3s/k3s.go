@@ -520,6 +520,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 		}
 	}
 
+	logrus.Info("creating modify script")
 	modifyScriptPath := filepath.Join(r.Workspace, "modify_script.sh")
 	f, err := os.Create(modifyScriptPath)
 	if err != nil {
@@ -542,6 +543,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 		return err
 	}
 
+	logrus.Info("running modify script")
 	if _, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
 		return err
 	}
