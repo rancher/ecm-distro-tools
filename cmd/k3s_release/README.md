@@ -21,10 +21,10 @@ Please reference the help menu from the binary.
 |-----------------|------------------------------------------------------------------------------------------------------------|
 | old_k8s_version | Previous k8s patch version                                                                                 |
 | new_k8s_version | Latest released k8s patch version                                                                          |
-| old_k8s_client  | Previous k8s client patch version, usually the same as the k8s version, but with a major of 0 instead of 1  |
+| old_k8s_client  | Previous k8s client patch version, usually the same as the k8s version, but with a major of 0 instead of 1 |
 | new_k8s_client  | Latest released k8s client patch version                                                                   |
-| old_k3s_version | Previous k3s patch version, including the suffix (`+k3s1`)                                                 |
-| new_k3s_version | Latest released k3s patch version                                                                          |
+| old_k3s_version | Previous patch version suffix e.g: `k3s1`, this is used to update dependencies                             |
+| new_k3s_version | Suffix for the next version `k3s1`                                                                         |
 | release_branch  | Branch in `k3s-io/k3s` for the minor version e.g: `release-1.28`                                           |
 | workspace       | Local directory to clone repos and create files                                                            |
 | handler         | Your Github username                                                                                       |
@@ -39,8 +39,8 @@ Example:
   "new_k8s_version": "v1.28.5",
   "old_k8s_client": "v0.28.4",
   "new_k8s_client": "v0.28.5",
-  "old_k3s_version": "v1.28.4+k3s2",
-  "new_k3s_version": "v1.28.5+k3s1",
+  "old_k3s_version": "k3s1",
+  "new_k3s_version": "k3s1",
   "release_branch": "release-1.28",
   "workspace": "$GOPATH/src/github.com/kubernetes",
   "handler": "YourUsername",
