@@ -79,7 +79,7 @@ type Release struct {
 	OldK3SVersion string `json:"old_k3s_version"`
 	NewK3SVersion string `json:"new_k3s_version"`
 	OldGoVersion  string `json:"old_go_version"`
-	NewGoVersion  string `json:"-"`
+	NewGoVersion  string `json:"new_go_version"`
 	ReleaseBranch string `json:"release_branch"`
 	Workspace     string `json:"workspace"`
 	Handler       string `json:"handler"`
@@ -669,6 +669,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 		opts := &repository.CreateReleaseOpts{
 			Repo:         k3sRepo,
 			Name:         name,
+			Owner:        "k3s-io",
 			Prerelease:   rc,
 			Branch:       r.ReleaseBranch,
 			Draft:        !rc,
@@ -690,6 +691,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 
 		if _, err := repository.CreateRelease(ctx, client, opts); err != nil {
 			githubErr := err.(*github.ErrorResponse)
+			logrus.Printf("error: %+v", githubErr)
 			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
 				if !rc {
 					return err
