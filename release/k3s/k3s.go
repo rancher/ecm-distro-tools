@@ -33,45 +33,56 @@ const (
 	k8sRancherURL      = "git@github.com:k3s-io/kubernetes.git"
 	k8sUserURL         = "git@github.com:user/kubernetes.git"
 	k3sUpstreamRepoURL = "https://github.com/k3s-io/k3s"
-	gitconfig          = `
-	[safe]
-	directory = /home/go/src/kubernetes
-	[user]
-	email = %email%
-	name = %user%
-	`
-	dockerDevImage = `
-	FROM %goimage%
-	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk`
+	gitconfig          = `[safe]
+directory = /home/go/src/kubernetes
+[user]
+email = %email%
+name = %user%`
+	dockerDevImage = `FROM %goimage%
+RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk`
 
-	modifyScript = `
-		#!/bin/bash
-		set -x
-		DRY_RUN={{ .DryRun }}
-		cd {{ .Workspace }}
-		git clone "git@github.com:{{ .Handler }}/k3s.git"
-		cd {{ .Workspace }}/k3s
-		git remote add upstream https://github.com/k3s-io/k3s.git
-		git fetch upstream
-		git branch delete {{ .NewK8SVersion }}-{{ .NewK3SVersion }}
-		git checkout -B {{ .NewK8SVersion }}-{{ .NewK3SVersion }} upstream/{{.ReleaseBranch}}
-		git clean -xfd
-		
-		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
-		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
-		sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-		sed -Ei "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
-		
-		go mod tidy
-		# There is no need for running make since the changes will be only for go.mod
-		# mkdir -p build/data && DRONE_TAG={{ .NewK8SVersion }}-{{ .NewK3SVersion }} make download && make generate
-	
-		git add go.mod go.sum Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
-		if [ "${DRY_RUN}" = false ]; then
-			git commit --all --signoff -m "Update to {{ .NewK8SVersion }}"
-			git push --set-upstream origin {{ .NewK8SVersion }}-{{ .NewK3SVersion }} # run git remote -v for your origin
-		fi
-		`
+	modifyScript = `#!/bin/bash
+set -ex
+OS=$(uname -s)
+DRY_RUN={{ .DryRun }}
+BRANCH_NAME={{ .NewK8SVersion }}-{{ .NewK3SVersion }}
+cd {{ .Workspace }}
+# using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
+ls | grep -w k3s || git clone "git@github.com:{{ .Handler }}/k3s.git"
+cd {{ .Workspace }}/k3s
+git remote -v | grep -w upstream || git remote add upstream https://github.com/k3s-io/k3s.git
+git fetch upstream
+git stash
+git branch -D "${BRANCH_NAME}" &>/dev/null || true
+git checkout -B "${BRANCH_NAME}" upstream/{{.ReleaseBranch}}
+git clean -xfd
+
+case ${OS} in
+Darwin)
+	sed -Ei '' "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
+	sed -Ei '' "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
+	sed -Ei '' "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei '' "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	;;
+Linux)
+	sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
+	sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
+	sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	;;
+*)
+	>&2 echo "$(OS) not supported yet"
+	exit 1
+	;;
+esac
+
+go mod tidy
+
+git add go.mod go.sum Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	git commit --signoff -m "Update to {{ .NewK8SVersion }}"
+if [ "${DRY_RUN}" = false ]; then
+	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
+fi`
 )
 
 type Release struct {
