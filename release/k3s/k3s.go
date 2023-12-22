@@ -101,9 +101,11 @@ type Release struct {
 	NewGoVersion  string `json:"-"`
 	ReleaseBranch string `json:"release_branch"`
 	Workspace     string `json:"workspace"`
+	K3sRemote     string `json:"k3s_remote"`
 	Handler       string `json:"handler"`
 	Email         string `json:"email"`
 	GithubToken   string `json:"-"`
+	K8sRancherURL string `json:"k8s_rancher_url"`
 	SSHKeyPath    string `json:"ssh_key_path"`
 	DryRun        bool   `json:"dry_run"`
 }
@@ -137,6 +139,14 @@ func NewRelease(configPath string) (*Release, error) {
 		return nil, errors.New("missing GITHUB_TOKEN env var")
 	}
 	release.GithubToken = githubToken
+
+	if release.K3sRemote == "" {
+		release.K3sRemote = rancherRemote
+	}
+
+	if release.K8sRancherURL == "" {
+		release.K8sRancherURL = k8sRancherURL
+	}
 
 	return &release, nil
 }
@@ -190,8 +200,8 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	}
 
 	if _, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: rancherRemote,
-		URLs: []string{k8sRancherURL},
+		Name: r.K3sRemote,
+		URLs: []string{r.K8sRancherURL},
 	}); err != nil {
 		if err != git.ErrRemoteExists {
 			return err
@@ -199,7 +209,7 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	}
 
 	if err := repo.Fetch(&git.FetchOptions{
-		RemoteName: rancherRemote,
+		RemoteName: r.K3sRemote,
 		Progress:   os.Stdout,
 		Tags:       git.AllTags,
 		Auth:       gitAuth,
@@ -499,14 +509,14 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	k3sRemote, err := repo.Remote(rancherRemote)
+	k3sRemote, err := repo.Remote(r.K3sRemote)
 	if err != nil {
 		return err
 	}
 
 	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[r.Handler] = userRemote.Config()
-	cfg.Remotes[rancherRemote] = k3sRemote.Config()
+	cfg.Remotes[r.K3sRemote] = k3sRemote.Config()
 
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
