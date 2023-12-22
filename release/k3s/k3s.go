@@ -54,7 +54,7 @@ cd {{ .Workspace }}
 # using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
 ls | grep -w k3s || git clone "git@github.com:{{ .Handler }}/k3s.git"
 cd {{ .Workspace }}/k3s
-git remote -v | grep -w upstream || git remote add upstream https://github.com/k3s-io/k3s.git
+git remote -v | grep -w upstream || git remote add upstream {{ .K3sUpstreamURL }}
 git fetch upstream
 git stash
 git branch -D "${BRANCH_NAME}" &>/dev/null || true
@@ -92,22 +92,23 @@ fi`
 )
 
 type Release struct {
-	OldK8SVersion string `json:"old_k8s_version"`
-	NewK8SVersion string `json:"new_k8s_version"`
-	OldK8SClient  string `json:"old_k8s_client"`
-	NewK8SClient  string `json:"new_k8s_client"`
-	OldK3SSuffix  string `json:"old_k3s_suffix"`
-	NewK3SSuffix  string `json:"new_k3s_suffix"`
-	NewGoVersion  string `json:"-"`
-	ReleaseBranch string `json:"release_branch"`
-	Workspace     string `json:"workspace"`
-	K3sRemote     string `json:"k3s_remote"`
-	Handler       string `json:"handler"`
-	Email         string `json:"email"`
-	GithubToken   string `json:"-"`
-	K8sRancherURL string `json:"k8s_rancher_url"`
-	SSHKeyPath    string `json:"ssh_key_path"`
-	DryRun        bool   `json:"dry_run"`
+	OldK8SVersion  string `json:"old_k8s_version"`
+	NewK8SVersion  string `json:"new_k8s_version"`
+	OldK8SClient   string `json:"old_k8s_client"`
+	NewK8SClient   string `json:"new_k8s_client"`
+	OldK3SSuffix   string `json:"old_k3s_suffix"`
+	NewK3SSuffix   string `json:"new_k3s_suffix"`
+	NewGoVersion   string `json:"-"`
+	ReleaseBranch  string `json:"release_branch"`
+	Workspace      string `json:"workspace"`
+	K3sRemote      string `json:"k3s_remote"`
+	Handler        string `json:"handler"`
+	Email          string `json:"email"`
+	GithubToken    string `json:"-"`
+	K8sRancherURL  string `json:"k8s_rancher_url"`
+	K3sUpstreamURL string `json:"k3s_upstream_url"`
+	SSHKeyPath     string `json:"ssh_key_path"`
+	DryRun         bool   `json:"dry_run"`
 }
 
 func NewRelease(configPath string) (*Release, error) {
@@ -142,6 +143,10 @@ func NewRelease(configPath string) (*Release, error) {
 
 	if release.K3sRemote == "" {
 		release.K3sRemote = rancherRemote
+	}
+
+	if release.K3sUpstreamURL == "" {
+		release.K3sUpstreamURL = k3sUpstreamRepoURL
 	}
 
 	if release.K8sRancherURL == "" {
@@ -465,8 +470,6 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 }
 
 func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client) error {
-	// here we can use go-git library or ecmExec.RunCommand function
-	// I am using go-git library to enhance code quality
 	gitConfigFile, err := r.setupGitArtifacts()
 	if err != nil {
 		return err
