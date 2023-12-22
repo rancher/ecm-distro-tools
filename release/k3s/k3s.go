@@ -39,7 +39,11 @@ directory = /home/go/src/kubernetes
 email = %email%
 name = %user%`
 	dockerDevImage = `FROM %goimage%
-RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk`
+RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk binutils-gold
+ARG UID=1000
+ARG GID=1000
+RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
+USER user`
 
 	modifyScript = `#!/bin/bash
 set -ex
@@ -421,7 +425,7 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 		wrapperImageTag,
 	}
 
-	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git "+containerGoCachePath+" "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
+	args := append(goWrapper, "./tag.sh", r.NewK8SVersion+"-k3s1")
 
 	return ecmExec.RunCommand(k8sDir, "docker", args...)
 }
@@ -495,14 +499,14 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	k3sRemote, err := repo.Remote("k3s-io")
+	k3sRemote, err := repo.Remote(rancherRemote)
 	if err != nil {
 		return err
 	}
 
 	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[r.Handler] = userRemote.Config()
-	cfg.Remotes["k3s-io"] = k3sRemote.Config()
+	cfg.Remotes[rancherRemote] = k3sRemote.Config()
 
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
@@ -526,7 +530,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 			},
 		}); err != nil {
 			if err != git.NoErrAlreadyUpToDate {
-				os.Exit(1)
+				logrus.Fatal("failed to push tag: " + err.Error())
 			}
 		}
 	}
