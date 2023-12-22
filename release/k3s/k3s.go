@@ -464,7 +464,7 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 
 }
 
-func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
+func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client) error {
 	// here we can use go-git library or ecmExec.RunCommand function
 	// I am using go-git library to enhance code quality
 	gitConfigFile, err := r.setupGitArtifacts()
@@ -525,7 +525,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 			continue
 		}
 		if err := repo.Push(&git.PushOptions{
-			RemoteName: remote,
+			RemoteName: r.K3sRemote,
 			Auth:       gitAuth,
 			Progress:   os.Stdout,
 			RefSpecs: []config.RefSpec{
