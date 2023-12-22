@@ -398,10 +398,8 @@ func (r *Release) setupGitArtifacts() (string, error) {
 }
 
 func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, error) {
-	const (
-		containerK8sPath     = "/home/go/src/kubernetes"
-		containerGoCachePath = "/home/go/.cache"
-	)
+	const containerK8sPath = "/home/go/src/kubernetes"
+	const containerGoCachePath = "/home/go/.cache"
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 
@@ -414,28 +412,19 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
 	// prep the docker run command
-	goWrapper := []string{
+	args := []string{
 		"run",
-		"-u",
-		uid + ":" + gid,
-		"-v",
-		gopath + ":/home/go:rw",
-		"-v",
-		gitConfigFile + ":/home/go/.gitconfig:rw",
-		"-v",
-		k8sDir + ":" + containerK8sPath + ":rw",
-		"-v",
-		gopath + "/.cache:" + containerGoCachePath + ":rw",
-		"-e",
-		"HOME=/home/go",
-		"-e",
-		"GOCACHE=" + containerGoCachePath,
-		"-w",
-		containerK8sPath,
+		"-u", uid + ":" + gid,
+		"-v", gopath + ":/home/go:rw",
+		"-v", gitConfigFile + ":/home/go/.gitconfig:rw",
+		"-v", k8sDir + ":" + containerK8sPath + ":rw",
+		"-v", gopath + "/.cache:" + containerGoCachePath + ":rw",
+		"-e", "HOME=/home/go",
+		"-e", "GOCACHE=" + containerGoCachePath,
+		"-w", containerK8sPath,
 		wrapperImageTag,
+		"./tag.sh", r.NewK8SVersion + "-k3s1",
 	}
-
-	args := append(goWrapper, "./tag.sh", r.NewK8SVersion+"-k3s1")
 
 	return ecmExec.RunCommand(k8sDir, "docker", args...)
 }
