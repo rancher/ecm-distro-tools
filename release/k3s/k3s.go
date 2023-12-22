@@ -511,7 +511,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 
 	k3sRemote, err := repo.Remote(r.K3sRemote)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find remote %s: %s", r.K3sRemote, err.Error())
 	}
 
 	cfg.Remotes["origin"] = originRemote.Config()
@@ -613,7 +613,7 @@ func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) 
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, "k3s-io", repo, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, r.K3sRemote, repo, pull)
 
 	return err
 }
@@ -715,7 +715,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 		opts := &repository.CreateReleaseOpts{
 			Repo:         k3sRepo,
 			Name:         name,
-			Owner:        "k3s-io",
+			Owner:        r.K3sRemote,
 			Prerelease:   rc,
 			Branch:       r.ReleaseBranch,
 			Draft:        !rc,
@@ -723,12 +723,12 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 		}
 
 		if !rc {
-			latestRc, err := release.LatestRC(ctx, "k3s-io", k3sRepo, r.NewK8SVersion, client)
+			latestRc, err := release.LatestRC(ctx, r.K3sRemote, k3sRepo, r.NewK8SVersion, client)
 			if err != nil {
 				return err
 			}
 
-			buff, err := release.GenReleaseNotes(ctx, "k3s-io", k3sRepo, latestRc, oldName, client)
+			buff, err := release.GenReleaseNotes(ctx, r.K3sRemote, k3sRepo, latestRc, oldName, client)
 			if err != nil {
 				return err
 			}
