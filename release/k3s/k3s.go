@@ -743,6 +743,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 					return err
 				}
 
+				logrus.Printf("RC %d already exists, trying to create next", rcNum)
 				rcNum += 1
 				continue
 			}
