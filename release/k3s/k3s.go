@@ -47,6 +47,7 @@ const (
 	modifyScript = `
 		#!/bin/bash
 		set -x
+		DRY_RUN={{ .DryRun }}
 		cd {{ .Workspace }}
 		git clone "git@github.com:{{ .Handler }}/k3s.git"
 		cd {{ .Workspace }}/k3s
@@ -59,15 +60,17 @@ const (
 		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
 		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
 		sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-		sed -Ei "s/{{ replaceAll .OldGoVersion "." "\\." }}/{{ replaceAll .NewGoVersion "." "\\." }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+		sed -Ei "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
 		
 		go mod tidy
 		# There is no need for running make since the changes will be only for go.mod
 		# mkdir -p build/data && DRONE_TAG={{ .NewK8SVersion }}-{{ .NewK3SVersion }} make download && make generate
 	
-		git add go.mod go.sum
-		git commit --all --signoff -m "Update to {{ .NewK8SVersion }}"
-		git push --set-upstream origin {{ .NewK8SVersion }}-{{ .NewK3SVersion }} # run git remote -v for your origin
+		git add go.mod go.sum Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+		if [ "${DRY_RUN}" = false ]; then
+			git commit --all --signoff -m "Update to {{ .NewK8SVersion }}"
+			git push --set-upstream origin {{ .NewK8SVersion }}-{{ .NewK3SVersion }} # run git remote -v for your origin
+		fi
 		`
 )
 
@@ -86,6 +89,7 @@ type Release struct {
 	Email         string `json:"email"`
 	Token         string `json:"token"`
 	SSHKeyPath    string `json:"ssh_key_path"`
+	DryRun        bool   `json:"dry_run"`
 }
 
 func NewRelease(configPath string) (*Release, error) {
