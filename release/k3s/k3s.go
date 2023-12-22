@@ -528,9 +528,13 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 	}
 
 	for i, tagCmd := range tagsCmds {
-		logrus.Infof("pushing tag %d/%d", i+1, len(tagsCmds))
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
+		logrus.Infof("pushing tag %d/%d: %s", i+1, len(tagsCmds), tag)
+		if r.DryRun {
+			logrus.Info("Dry run, skipping tag creation")
+			continue
+		}
 		if err := repo.Push(&git.PushOptions{
 			RemoteName: remote,
 			Auth:       gitAuth,
