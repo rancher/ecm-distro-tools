@@ -99,7 +99,7 @@ type Release struct {
 	Workspace     string `json:"workspace"`
 	Handler       string `json:"handler"`
 	Email         string `json:"email"`
-	Token         string `json:"token"`
+	GithubToken   string `json:"-"`
 	SSHKeyPath    string `json:"ssh_key_path"`
 	DryRun        bool   `json:"dry_run"`
 }
@@ -127,6 +127,12 @@ func NewRelease(configPath string) (*Release, error) {
 	if !filepath.IsAbs(release.Workspace) {
 		return nil, errors.New("workspace path must be an absolute path")
 	}
+
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		return nil, errors.New("missing GITHUB_TOKEN env var")
+	}
+	release.GithubToken = githubToken
 
 	return &release, nil
 }
