@@ -62,13 +62,15 @@ Darwin)
 	sed -Ei '' "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
 	sed -Ei '' "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
 	sed -Ei '' "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-	sed -Ei '' "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	sed -Ei '' "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei '' "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
 	;;
 Linux)
 	sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
 	sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
 	sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-	sed -Ei "s/{{ .OldGoVersion }}/{{ .NewGoVersion }}/g" Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	sed -Ei "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -92,8 +94,7 @@ type Release struct {
 	NewK8SClient  string `json:"new_k8s_client"`
 	OldK3SVersion string `json:"old_k3s_version"`
 	NewK3SVersion string `json:"new_k3s_version"`
-	OldGoVersion  string `json:"old_go_version"`
-	NewGoVersion  string `json:"new_go_version"`
+	NewGoVersion  string `json:"-"`
 	ReleaseBranch string `json:"release_branch"`
 	Workspace     string `json:"workspace"`
 	Handler       string `json:"handler"`
@@ -537,6 +538,12 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 			return err
 		}
 	}
+
+	goVersion, err := r.goVersion()
+	if err != nil {
+		return err
+	}
+	r.NewGoVersion = goVersion
 
 	logrus.Info("creating modify script")
 	modifyScriptPath := filepath.Join(r.Workspace, "modify_script.sh")
