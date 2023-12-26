@@ -44,8 +44,8 @@ ARG UID=1000
 ARG GID=1000
 RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
 USER user`
-
-	modifyScript = `#!/bin/bash
+	modifyScriptName = "modify_script.sh"
+	modifyScript     = `#!/bin/bash
 set -ex
 OS=$(uname -s)
 DRY_RUN={{ .DryRun }}
@@ -562,7 +562,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 	r.NewGoVersion = goVersion
 
 	logrus.Info("creating modify script")
-	modifyScriptPath := filepath.Join(r.Workspace, "modify_script.sh")
+	modifyScriptPath := filepath.Join(r.Workspace, modifyScriptName)
 	f, err := os.Create(modifyScriptPath)
 	if err != nil {
 		return err
@@ -575,7 +575,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 	funcMap := template.FuncMap{
 		"replaceAll": strings.ReplaceAll,
 	}
-	tmpl, err := template.New("modify_script.sh").Funcs(funcMap).Parse(modifyScript)
+	tmpl, err := template.New(modifyScriptName).Funcs(funcMap).Parse(modifyScript)
 	if err != nil {
 		return err
 	}
@@ -585,7 +585,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 	}
 
 	logrus.Info("running modify script")
-	out, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh")
+	out, err := ecmExec.RunCommand(r.Workspace, "bash", "./"+modifyScriptName)
 	if err != nil {
 		return err
 	}
