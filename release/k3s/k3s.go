@@ -536,7 +536,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 			},
 		}); err != nil {
 			if err != git.NoErrAlreadyUpToDate {
-				logrus.Fatal("failed to push tag: " + err.Error())
+				return errors.New("failed to push tag: " + err.Error())
 			}
 		}
 	}
