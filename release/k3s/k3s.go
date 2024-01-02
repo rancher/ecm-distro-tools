@@ -734,7 +734,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 
 		if _, err := repository.CreateRelease(ctx, client, opts); err != nil {
 			githubErr := err.(*github.ErrorResponse)
-			logrus.Printf("error: %+v", githubErr)
+			logrus.Debugf("error: %+v", githubErr)
 			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
 				if !rc {
 					return err
