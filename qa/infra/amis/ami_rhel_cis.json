@@ -44,5 +44,23 @@
     {
         "type": "shell",
         "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh rhel8"
+    },
+    {
+        "type": "file",
+        "source": "install_rpms.sh",
+        "destination": "/tmp/install_rpms.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/install_rpms.sh && sudo /tmp/install_rpms.sh"
+    },
+    {
+        "type": "file",
+        "source": "cis_ready.sh",
+        "destination": "/tmp/cis_ready.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/cis_ready.sh && sudo /tmp/cis_ready.sh"
     }]
 }
