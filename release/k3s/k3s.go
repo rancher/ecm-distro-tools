@@ -141,6 +141,10 @@ func NewRelease(configPath string) (*Release, error) {
 	}
 	release.GithubToken = githubToken
 
+	if !release.DryRun {
+		release.DryRun = false
+	}
+
 	if release.K3sRemote == "" {
 		release.K3sRemote = rancherRemote
 	}
@@ -696,8 +700,8 @@ func cleanGitRepo(dir string) error {
 
 func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc bool) error {
 	rcNum := 1
-	name := r.NewK8SClient + "+" + r.NewK3SSuffix
-	oldName := r.OldK8SVersion + "+" + r.OldK8SVersion
+	name := r.NewK8SVersion + "+" + r.NewK3SSuffix
+	oldName := r.OldK8SVersion + "+" + r.OldK3SSuffix
 
 	for {
 		if rc {
@@ -708,7 +712,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 			Repo:         k3sRepo,
 			Name:         name,
 			Owner:        r.K3sRemote,
-			Prerelease:   rc,
+			Prerelease:   true,
 			Branch:       r.ReleaseBranch,
 			Draft:        !rc,
 			ReleaseNotes: "",
@@ -720,6 +724,7 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 				return err
 			}
 
+			logrus.Infof("k3sRemote: %s | k3sRepo: %s | latestRc: %s | oldName: %s", r.K3sRemote, k3sRepo, latestRc, oldName)
 			buff, err := release.GenReleaseNotes(ctx, r.K3sRemote, k3sRepo, latestRc, oldName, client)
 			if err != nil {
 				return err
