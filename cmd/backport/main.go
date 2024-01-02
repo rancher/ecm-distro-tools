@@ -24,6 +24,7 @@ Env Variables:
 Options:
     -h                   help
     -v                   show version and exit
+	-o owner             owner that should be used
     -r repo              repository that should be used
     -i issue id          original issue id
     -c commits           commits to be backported (comma seperated)
@@ -32,9 +33,9 @@ Options:
 
 Examples: 
     # generate 2 backport issues for k3s issue 1234
-    %[2]s -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
-	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
-	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3 -u susejsmith
+    %[2]s -o k3s-io -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
+	%[2]s -o k3s-io -r k3s -b "release-1.26" -i 1234 -c 1,2,3
+	%[2]s -o k3s-io -r k3s -b "release-1.26" -i 1234 -c 1,2,3 -u susejsmith
 
 Note: if a commit is provided, %[2]s utility needs to be ran from either
 	  the RKE2 or k3s directory.
