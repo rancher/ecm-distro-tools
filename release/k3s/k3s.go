@@ -21,6 +21,7 @@ import (
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 )
@@ -32,61 +33,82 @@ const (
 	k8sRancherURL      = "git@github.com:k3s-io/kubernetes.git"
 	k8sUserURL         = "git@github.com:user/kubernetes.git"
 	k3sUpstreamRepoURL = "https://github.com/k3s-io/k3s"
-	gitconfig          = `
-	[safe]
-	directory = /home/go/src/kubernetes
-	[user]
-	email = %email%
-	name = %user%
-	`
-	dockerDevImage = `
-	FROM %goimage%
-	RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk
-	ARG UID=%uid%
-	ARG GID=%gid%
-	RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
-	USER user
-	`
+	gitconfig          = `[safe]
+directory = /home/go/src/kubernetes
+[user]
+email = %email%
+name = %user%`
+	dockerDevImage = `FROM %goimage%
+RUN apk add --no-cache bash git make tar gzip curl git coreutils rsync alpine-sdk binutils-gold
+ARG UID=1000
+ARG GID=1000
+RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
+USER user`
+	modifyScriptName = "modify_script.sh"
+	modifyScript     = `#!/bin/bash
+set -ex
+OS=$(uname -s)
+DRY_RUN={{ .DryRun }}
+BRANCH_NAME={{ .NewK8SVersion }}-{{ .NewK3SSuffix }}
+cd {{ .Workspace }}
+# using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
+ls | grep -w k3s || git clone "git@github.com:{{ .Handler }}/k3s.git"
+cd {{ .Workspace }}/k3s
+git remote -v | grep -w upstream || git remote add upstream {{ .K3sUpstreamURL }}
+git fetch upstream
+git stash
+git branch -D "${BRANCH_NAME}" &>/dev/null || true
+git checkout -B "${BRANCH_NAME}" upstream/{{.ReleaseBranch}}
+git clean -xfd
 
-	modifyScript = `
-		#!/bin/bash
-		set -x
-		cd {{ .Workspace }}
-		git clone "git@github.com:{{ .Handler }}/k3s.git"
-		cd {{ .Workspace }}/k3s
-		git remote add upstream https://github.com/k3s-io/k3s.git
-		git fetch upstream
-		git branch delete {{ .NewK8SVersion }}-{{ .NewK3SVersion }}
-		git checkout -B {{ .NewK8SVersion }}-{{ .NewK3SVersion }} upstream/{{.ReleaseBranch}}
-		git clean -xfd
-		
-		sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SVersion }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SVersion }}|" go.mod
-		sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
-		sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-		
-		go mod tidy
-		# There is no need for running make since the changes will be only for go.mod
-		# mkdir -p build/data && DRONE_TAG={{ .NewK8SVersion }}-{{ .NewK3SVersion }} make download && make generate
-	
-		git add go.mod go.sum
-		git commit --all --signoff -m "Update to {{ .NewK8SVersion }}"
-		git push --set-upstream origin {{ .NewK8SVersion }}-{{ .NewK3SVersion }} # run git remote -v for your origin
-		`
+case ${OS} in
+Darwin)
+	sed -Ei '' "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SSuffix }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SSuffix }}|" go.mod
+	sed -Ei '' "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
+	sed -Ei '' "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei '' "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei '' "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	;;
+Linux)
+	sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8SVersion "." "\\." }}-{{ .OldK3SSuffix }}|{{ replaceAll .NewK8SVersion "." "\\." }}-{{ .NewK3SSuffix }}|" go.mod
+	sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8SVersion "." "\\." }}/" go.mod
+	sed -Ei "s/{{ replaceAll .OldK8SClient "." "\\." }}/{{ replaceAll .NewK8SClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	;;
+*)
+	>&2 echo "$(OS) not supported yet"
+	exit 1
+	;;
+esac
+
+go mod tidy
+
+git add go.mod go.sum Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	git commit --signoff -m "Update to {{ .NewK8SVersion }}"
+if [ "${DRY_RUN}" = false ]; then
+	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
+fi`
 )
 
 type Release struct {
-	OldK8SVersion string `json:"old_k8s_version"`
-	NewK8SVersion string `json:"new_k8s_version"`
-	OldK8SClient  string `json:"old_k8s_client"`
-	NewK8SClient  string `json:"new_k8s_client"`
-	OldK3SVersion string `json:"old_k3s_version"`
-	NewK3SVersion string `json:"new_k3s_version"`
-	ReleaseBranch string `json:"release_branch"`
-	Workspace     string `json:"workspace"`
-	Handler       string `json:"handler"`
-	Email         string `json:"email"`
-	Token         string `json:"token"`
-	SSHKeyPath    string `json:"ssh_key_path"`
+	OldK8SVersion  string `json:"old_k8s_version"`
+	NewK8SVersion  string `json:"new_k8s_version"`
+	OldK8SClient   string `json:"old_k8s_client"`
+	NewK8SClient   string `json:"new_k8s_client"`
+	OldK3SSuffix   string `json:"old_k3s_suffix"`
+	NewK3SSuffix   string `json:"new_k3s_suffix"`
+	NewGoVersion   string `json:"-"`
+	ReleaseBranch  string `json:"release_branch"`
+	Workspace      string `json:"workspace"`
+	K3sRemote      string `json:"k3s_remote"`
+	Handler        string `json:"handler"`
+	Email          string `json:"email"`
+	GithubToken    string `json:"-"`
+	K8sRancherURL  string `json:"k8s_rancher_url"`
+	K3sUpstreamURL string `json:"k3s_upstream_url"`
+	SSHKeyPath     string `json:"ssh_key_path"`
+	DryRun         bool   `json:"dry_run"`
 }
 
 func NewRelease(configPath string) (*Release, error) {
@@ -111,6 +133,28 @@ func NewRelease(configPath string) (*Release, error) {
 
 	if !filepath.IsAbs(release.Workspace) {
 		return nil, errors.New("workspace path must be an absolute path")
+	}
+
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		return nil, errors.New("missing GITHUB_TOKEN env var")
+	}
+	release.GithubToken = githubToken
+
+	if !release.DryRun {
+		release.DryRun = false
+	}
+
+	if release.K3sRemote == "" {
+		release.K3sRemote = rancherRemote
+	}
+
+	if release.K3sUpstreamURL == "" {
+		release.K3sUpstreamURL = k3sUpstreamRepoURL
+	}
+
+	if release.K8sRancherURL == "" {
+		release.K8sRancherURL = k8sRancherURL
 	}
 
 	return &release, nil
@@ -165,8 +209,8 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	}
 
 	if _, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: rancherRemote,
-		URLs: []string{k8sRancherURL},
+		Name: r.K3sRemote,
+		URLs: []string{r.K8sRancherURL},
 	}); err != nil {
 		if err != git.ErrRemoteExists {
 			return err
@@ -174,7 +218,7 @@ func (r *Release) SetupK8sRemotes(_ context.Context, ghClient *github.Client) er
 	}
 
 	if err := repo.Fetch(&git.FetchOptions{
-		RemoteName: rancherRemote,
+		RemoteName: r.K3sRemote,
 		Progress:   os.Stdout,
 		Tags:       git.AllTags,
 		Auth:       gitAuth,
@@ -328,8 +372,6 @@ func (r *Release) buildGoWrapper() (string, error) {
 	goImageVersion := fmt.Sprintf("golang:%s-alpine", goVersion)
 
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
-	devDockerfile = strings.ReplaceAll(devDockerfile, "%uid%", strconv.Itoa(os.Getuid()))
-	devDockerfile = strings.ReplaceAll(devDockerfile, "%gid%", strconv.Itoa(os.Getgid()))
 
 	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
 		return "", err
@@ -365,10 +407,8 @@ func (r *Release) setupGitArtifacts() (string, error) {
 }
 
 func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, error) {
-	const (
-		containerK8sPath     = "/home/go/src/kubernetes"
-		containerGoCachePath = "/home/go/.cache"
-	)
+	const containerK8sPath = "/home/go/src/kubernetes"
+	const containerGoCachePath = "/home/go/.cache"
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 
@@ -381,28 +421,19 @@ func (r *Release) runTagScript(gitConfigFile, wrapperImageTag string) (string, e
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
 	// prep the docker run command
-	goWrapper := []string{
+	args := []string{
 		"run",
-		"-u",
-		uid + ":" + gid,
-		"-v",
-		gopath + ":/home/go:rw",
-		"-v",
-		gitConfigFile + ":/home/go/.gitconfig:rw",
-		"-v",
-		k8sDir + ":" + containerK8sPath + ":rw",
-		"-v",
-		gopath + "/.cache:" + containerGoCachePath + ":rw",
-		"-e",
-		"HOME=/home/go",
-		"-e",
-		"GOCACHE=" + containerGoCachePath,
-		"-w",
-		containerK8sPath,
+		"-u", uid + ":" + gid,
+		"-v", gopath + ":/home/go:rw",
+		"-v", gitConfigFile + ":/home/go/.gitconfig:rw",
+		"-v", k8sDir + ":" + containerK8sPath + ":rw",
+		"-v", gopath + "/.cache:" + containerGoCachePath + ":rw",
+		"-e", "HOME=/home/go",
+		"-e", "GOCACHE=" + containerGoCachePath,
+		"-w", containerK8sPath,
 		wrapperImageTag,
+		"./tag.sh", r.NewK8SVersion + "-k3s1",
 	}
-
-	args := append(goWrapper, "sh", "-c", "chown -R $(id -u):$(id -g) .git "+containerGoCachePath+" "+containerK8sPath+" | ./tag.sh "+r.NewK8SVersion+"-k3s1")
 
 	return ecmExec.RunCommand(k8sDir, "docker", args...)
 }
@@ -442,9 +473,7 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 
 }
 
-func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client, remote string) error {
-	// here we can use go-git library or ecmExec.RunCommand function
-	// I am using go-git library to enhance code quality
+func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *github.Client) error {
 	gitConfigFile, err := r.setupGitArtifacts()
 	if err != nil {
 		return err
@@ -476,14 +505,14 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	k3sRemote, err := repo.Remote("k3s-io")
+	k3sRemote, err := repo.Remote(r.K3sRemote)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find remote %s: %s", r.K3sRemote, err.Error())
 	}
 
 	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[r.Handler] = userRemote.Config()
-	cfg.Remotes["k3s-io"] = k3sRemote.Config()
+	cfg.Remotes[r.K3sRemote] = k3sRemote.Config()
 
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
@@ -494,11 +523,16 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 		return err
 	}
 
-	for _, tagCmd := range tagsCmds {
+	for i, tagCmd := range tagsCmds {
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
+		logrus.Infof("pushing tag %d/%d: %s", i+1, len(tagsCmds), tag)
+		if r.DryRun {
+			logrus.Info("Dry run, skipping tag creation")
+			continue
+		}
 		if err := repo.Push(&git.PushOptions{
-			RemoteName: remote,
+			RemoteName: r.K3sRemote,
 			Auth:       gitAuth,
 			Progress:   os.Stdout,
 			RefSpecs: []config.RefSpec{
@@ -506,7 +540,7 @@ func (r *Release) PushTags(_ context.Context, tagsCmds []string, ghClient *githu
 			},
 		}); err != nil {
 			if err != git.NoErrAlreadyUpToDate {
-				os.Exit(1)
+				return errors.New("failed to push tag: " + err.Error())
 			}
 		}
 	}
@@ -525,7 +559,14 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 		}
 	}
 
-	modifyScriptPath := filepath.Join(r.Workspace, "modify_script.sh")
+	goVersion, err := r.goVersion()
+	if err != nil {
+		return err
+	}
+	r.NewGoVersion = goVersion
+
+	logrus.Info("creating modify script")
+	modifyScriptPath := filepath.Join(r.Workspace, modifyScriptName)
 	f, err := os.Create(modifyScriptPath)
 	if err != nil {
 		return err
@@ -538,7 +579,7 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 	funcMap := template.FuncMap{
 		"replaceAll": strings.ReplaceAll,
 	}
-	tmpl, err := template.New("modify_script.sh").Funcs(funcMap).Parse(modifyScript)
+	tmpl, err := template.New(modifyScriptName).Funcs(funcMap).Parse(modifyScript)
 	if err != nil {
 		return err
 	}
@@ -547,9 +588,12 @@ func (r *Release) ModifyAndPush(_ context.Context) error {
 		return err
 	}
 
-	if _, err := ecmExec.RunCommand(r.Workspace, "bash", "./modify_script.sh"); err != nil {
+	logrus.Info("running modify script")
+	out, err := ecmExec.RunCommand(r.Workspace, "bash", "./"+modifyScriptName)
+	if err != nil {
 		return err
 	}
+	logrus.Info(out)
 
 	return nil
 }
@@ -558,14 +602,14 @@ func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) 
 	const repo = "k3s"
 
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Update to %s-%s", r.NewK8SVersion, r.NewK3SVersion)),
+		Title:               github.String(fmt.Sprintf("Update to %s-%s", r.NewK8SVersion, r.NewK3SSuffix)),
 		Base:                github.String(r.ReleaseBranch),
-		Head:                github.String(r.Handler + ":" + r.NewK8SVersion + "-" + r.NewK3SVersion),
+		Head:                github.String(r.Handler + ":" + r.NewK8SVersion + "-" + r.NewK3SSuffix),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, "k3s-io", repo, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, r.K3sRemote, repo, pull)
 
 	return err
 }
@@ -599,7 +643,7 @@ func (r *Release) isTagExists() (bool, error) {
 		return false, err
 	}
 
-	tag := r.NewK8SVersion + "-" + r.NewK3SVersion
+	tag := r.NewK8SVersion + "-" + r.NewK3SSuffix
 
 	if _, err := repo.Tag(tag); err != nil {
 		if err == git.ErrTagNotFound {
@@ -625,7 +669,7 @@ func (r *Release) removeExistingTags() error {
 	}
 
 	if err := tagsIter.ForEach(func(ref *plumbing.Reference) error {
-		if strings.Contains(ref.Name().String(), r.NewK8SVersion+"-"+r.NewK3SVersion) {
+		if strings.Contains(ref.Name().String(), r.NewK8SVersion+"-"+r.NewK3SSuffix) {
 			if err := repo.DeleteTag(ref.Name().Short()); err != nil {
 				return err
 			}
@@ -656,30 +700,32 @@ func cleanGitRepo(dir string) error {
 
 func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc bool) error {
 	rcNum := 1
-	name := r.NewK8SClient + "+" + r.NewK3SVersion
-	oldName := r.OldK8SVersion + "+" + r.OldK8SVersion
+	name := r.NewK8SVersion + "+" + r.NewK3SSuffix
+	oldName := r.OldK8SVersion + "+" + r.OldK3SSuffix
 
 	for {
 		if rc {
-			name = r.NewK8SVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewK3SVersion
+			name = r.NewK8SVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewK3SSuffix
 		}
 
 		opts := &repository.CreateReleaseOpts{
 			Repo:         k3sRepo,
 			Name:         name,
-			Prerelease:   rc,
+			Owner:        r.K3sRemote,
+			Prerelease:   true,
 			Branch:       r.ReleaseBranch,
 			Draft:        !rc,
 			ReleaseNotes: "",
 		}
 
 		if !rc {
-			latestRc, err := release.LatestRC(ctx, "k3s-io", k3sRepo, r.NewK8SVersion, client)
+			latestRc, err := release.LatestRC(ctx, r.K3sRemote, k3sRepo, r.NewK8SVersion, client)
 			if err != nil {
 				return err
 			}
 
-			buff, err := release.GenReleaseNotes(ctx, "k3s-io", k3sRepo, latestRc, oldName, client)
+			logrus.Infof("k3sRemote: %s | k3sRepo: %s | latestRc: %s | oldName: %s", r.K3sRemote, k3sRepo, latestRc, oldName)
+			buff, err := release.GenReleaseNotes(ctx, r.K3sRemote, k3sRepo, latestRc, oldName, client)
 			if err != nil {
 				return err
 			}
@@ -688,11 +734,13 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 
 		if _, err := repository.CreateRelease(ctx, client, opts); err != nil {
 			githubErr := err.(*github.ErrorResponse)
+			logrus.Debugf("error: %+v", githubErr)
 			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
 				if !rc {
 					return err
 				}
 
+				logrus.Printf("RC %d already exists, trying to create next", rcNum)
 				rcNum += 1
 				continue
 			}

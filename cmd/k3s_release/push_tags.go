@@ -8,10 +8,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const (
-	k3sRemote = "k3s-io"
-)
-
 func pushTagsCommand() *cli.Command {
 	return &cli.Command{
 		Name:   "push-tags",
@@ -32,7 +28,7 @@ func pushTags(c *cli.Context) error {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
 
-	client, err := k3s.NewGithubClient(ctx, release.Token)
+	client, err := k3s.NewGithubClient(ctx, release.GithubToken)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}
@@ -44,7 +40,7 @@ func pushTags(c *cli.Context) error {
 	}
 
 	logrus.Infof("pushing tags to github")
-	if err := release.PushTags(ctx, tags, client, k3sRemote); err != nil {
+	if err := release.PushTags(ctx, tags, client); err != nil {
 		logrus.Fatalf("failed to push tags: %v", err)
 	}
 

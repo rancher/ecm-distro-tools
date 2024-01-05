@@ -27,7 +27,7 @@ func modifyK3S(c *cli.Context) error {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
 
-	client, err := k3s.NewGithubClient(ctx, release.Token)
+	client, err := k3s.NewGithubClient(ctx, release.GithubToken)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}
@@ -38,9 +38,12 @@ func modifyK3S(c *cli.Context) error {
 	}
 
 	logrus.Info("Creating pull request")
+	if release.DryRun {
+		logrus.Info("Dry Run, Skipping Pull Request")
+		return nil
+	}
 	if err := release.CreatePRFromK3S(ctx, client); err != nil {
 		logrus.Fatalf("failed to create a new PR: %v", err)
 	}
-
 	return nil
 }

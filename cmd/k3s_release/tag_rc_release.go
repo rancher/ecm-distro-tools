@@ -10,10 +10,10 @@ import (
 
 func tagRCReleaseCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "tag-rc-release",
-		Usage:   "tag rc release for k3s repo",
-		Flags:   rootFlags,
-		Action:  createRCRelease,
+		Name:   "tag-rc-release",
+		Usage:  "tag rc release for k3s repo",
+		Flags:  rootFlags,
+		Action: createRCRelease,
 	}
 }
 
@@ -27,7 +27,7 @@ func createRCRelease(c *cli.Context) error {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
 
-	client, err := k3s.NewGithubClient(ctx, release.Token)
+	client, err := k3s.NewGithubClient(ctx, release.GithubToken)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}

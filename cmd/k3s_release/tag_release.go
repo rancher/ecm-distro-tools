@@ -27,7 +27,7 @@ func createRelease(c *cli.Context) error {
 		logrus.Fatalf("failed to read config file: %v", err)
 	}
 
-	client, err := k3s.NewGithubClient(ctx, release.Token)
+	client, err := k3s.NewGithubClient(ctx, release.GithubToken)
 	if err != nil {
 		logrus.Fatalf("failed to initialize a new github client from token: %v", err)
 	}
