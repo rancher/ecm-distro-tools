@@ -6,15 +6,15 @@ If a commit is provided, `backport` assumes you're running from the repository t
 
 ### Flags
 
-| **Flag**                            | **Description** | **Required** |
-| ----------------------------------- | --------------- | ------------ |
-| `repo`, `r` | Name of the repository to perform the backport, e.g: `k3s`, `rke2`    | TRUE         |
-| `issue`, `i` | ID of the original issue on GitHub | TRUE         |
-| `commits`, `c` | Commits to be backported, if none is provided, only the issues will be created. When passing this flag, it assumes you're running from the repository this operation is related to (comma separated) | FALSE |
-| `branches`, `b` | Branches the issue is being backported to, one or more (comma separated) | TRUE         |
-| `user`, `u` | User to assign new issues to (default: user assignted to the original issue) | FALSE         |
-| `owner`, `o` | Owner of the repository, defaults to either `k3s-io` or `rancher` if not provided | FALSE         |
-| `github-token`, `g`, `GITHUB_TOKEN` | Github Token    | TRUE         |
+| **Flag**                            | **Description**                                                                                                                                                                                      | **Required** |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `repo`, `r`                         | Name of the repository to perform the backport, e.g: `k3s`, `rke2`                                                                                                                                   | TRUE         |
+| `issue`, `i`                        | ID of the original issue on GitHub                                                                                                                                                                   | TRUE         |
+| `commits`, `c`                      | Commits to be backported, if none is provided, only the issues will be created. When passing this flag, it assumes you're running from the repository this operation is related to (comma separated) | FALSE        |
+| `branches`, `b`                     | Branches the issue is being backported to, one or more (comma separated)                                                                                                                             | TRUE         |
+| `user`, `u`                         | User to assign new issues to (default: user assignted to the original issue)                                                                                                                         | FALSE        |
+| `owner`, `o`                        | Owner of the repository, defaults to either `k3s-io` or `rancher` if not provided                                                                                                                    | FALSE        |
+| `github-token`, `g`, `GITHUB_TOKEN` | Github Token                                                                                                                                                                                         | TRUE         |
 
 ### Examples
 
