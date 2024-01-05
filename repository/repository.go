@@ -218,7 +218,7 @@ type PerformBackportOpts struct {
 	Repo     string   `json:"repo"`
 	Commits  []string `json:"commits"`
 	IssueID  uint     `json:"issue_id"`
-	Branches string   `json:"branches"`
+	Branches []string `json:"branches"`
 	User     string   `json:"user"`
 }
 
@@ -230,11 +230,6 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		issueBody  = "Backport fix for %s\n\n* #%d"
 	)
 
-	backportBranches := strings.Split(pbo.Branches, ",")
-	if len(backportBranches) < 1 || backportBranches[0] == "" {
-		return nil, errors.New("no branches specified")
-	}
-
 	origIssue, err := RetrieveOriginalIssue(ctx, client, pbo.Owner, pbo.Repo, pbo.IssueID)
 	if err != nil {
 		return nil, err
@@ -245,8 +240,8 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		Body:  issueBody,
 	}
 
-	issues := make([]*github.Issue, len(backportBranches))
-	for _, branch := range backportBranches {
+	issues := make([]*github.Issue, len(pbo.Branches))
+	for _, branch := range pbo.Branches {
 		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
 		if err != nil {
 			return nil, err
@@ -275,7 +270,7 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		return nil, err
 	}
 
-	for _, branch := range backportBranches {
+	for _, branch := range pbo.Branches {
 		coo := git.CheckoutOptions{
 			Branch: plumbing.ReferenceName("refs/heads/" + branch),
 		}
@@ -382,6 +377,17 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 	}
 
 	return found, nil
+}
+
+func OrgFromRepo(repo string) (string, error) {
+	orgs := map[string]string{
+		"k3s":  "k3s-io",
+		"rke2": "rancher",
+	}
+	if org, exists := orgs[repo]; exists {
+		return org, nil
+	}
+	return "", errors.New("invalid repository")
 }
 
 const cutRKE2ReleaseIssue = `**Summary:**
