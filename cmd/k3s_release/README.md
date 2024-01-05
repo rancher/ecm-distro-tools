@@ -18,7 +18,7 @@ Please reference the help menu from the binary.
 
 ## Configuration
 | Name             | Description                                                                                                |
-|------------------|------------------------------------------------------------------------------------------------------------|
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
 | old_k8s_version  | Previous k8s patch version                                                                                 |
 | new_k8s_version  | Latest released k8s patch version                                                                          |
 | old_k8s_client   | Previous k8s client patch version, usually the same as the k8s version, but with a major of 0 instead of 1 |
@@ -50,9 +50,14 @@ Example:
   "ssh_key_path": "$HOME/.ssh/github"
 }
 ```
-Export your Github token as an environment variable:
+Export your Github token as an environment variable and run commands:
 ```bash
-export GITHUB_TOKEN=your_token
+export GITHUB_TOKEN={YOUR_TOKEN}
+create-tags -c config.json
+push-tags -c config.json
+modify-k3s -c config.json
+tag-rc-release -c config.json
+tag-release -c config.json
 ```
 
 ## Errors
