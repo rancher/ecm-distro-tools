@@ -32,8 +32,8 @@ func main() {
 		&cli.StringFlag{
 			Name:     "commits",
 			Aliases:  []string{"c"},
-			Usage:    "commits to be backported (comma separated)",
-			Required: true,
+			Usage:    "commits to be backported, if none is provided, only the issues will be created, when passing this flag, it assumes you're running from the repository this operation is related to (comma separated)",
+			Required: false,
 		},
 		&cli.StringFlag{
 			Name:     "branches",
