@@ -6,19 +6,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
+	ecmHttp "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
@@ -27,6 +31,7 @@ import (
 )
 
 const (
+	channelsURL        = "https://update.k3s.io/v1-release/channels"
 	k3sRepo            = "k3s"
 	k8sUpstreamURL     = "https://github.com/kubernetes/kubernetes"
 	rancherRemote      = "k3s-io"
@@ -101,14 +106,35 @@ type Release struct {
 	NewGoVersion   string `json:"-"`
 	ReleaseBranch  string `json:"release_branch"`
 	Workspace      string `json:"workspace"`
-	K3sRemote      string `json:"k3s_remote"`
+	K3sRemote      string `json:"k3s_remote,omitempty"`
 	Handler        string `json:"handler"`
 	Email          string `json:"email"`
 	GithubToken    string `json:"-"`
-	K8sRancherURL  string `json:"k8s_rancher_url"`
-	K3sUpstreamURL string `json:"k3s_upstream_url"`
+	K8sRancherURL  string `json:"k8s_rancher_url,omitempty"`
+	K3sUpstreamURL string `json:"k3s_upstream_url,omitempty"`
 	SSHKeyPath     string `json:"ssh_key_path"`
-	DryRun         bool   `json:"dry_run"`
+	DryRun         bool   `json:"dry_run,omitempty"`
+}
+
+type Channels struct {
+	Type  string `json:"type"`
+	Links struct {
+		Self string `json:"self"`
+	} `json:"links"`
+	Actions struct {
+	} `json:"actions"`
+	ResourceType string `json:"resourceType"`
+	Data         []struct {
+		ID    string `json:"id"`
+		Type  string `json:"type"`
+		Links struct {
+			Self string `json:"self"`
+		} `json:"links"`
+		Name          string `json:"name"`
+		Latest        string `json:"latest"`
+		LatestRegexp  string `json:"latestRegexp,omitempty"`
+		ExcludeRegexp string `json:"excludeRegexp,omitempty"`
+	} `json:"data"`
 }
 
 func NewRelease(configPath string) (*Release, error) {
@@ -752,4 +778,97 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 	}
 
 	return nil
+}
+
+func GenerateConfig(version, sshPath, generatePath, workspace, handler string) error {
+	var releaseBranch string
+	var lastVersion string
+	var configFile string
+
+	channels, err := getK3sChannels(channelsURL)
+	if err != nil {
+		return err
+	}
+	ver, err := semver.NewVersion(version)
+	if err != nil {
+		return err
+	}
+	releaseBranch = fmt.Sprintf("release-%d.%d", ver.Major(), ver.Minor())
+	for _, channel := range channels.Data {
+		if channel.ID == "latest" {
+			if strings.Contains(channel.Latest, version) {
+				releaseBranch = "master"
+			}
+		}
+		if channel.Name == "v"+version {
+			lastVersion = channel.Latest
+			break
+		}
+	}
+	lastVer, err := semver.NewVersion(lastVersion)
+	if err != nil {
+		return err
+	}
+	oldK8sVersion := fmt.Sprintf("%d.%d.%d", lastVer.Major(), lastVer.Minor(), lastVer.Patch())
+	newK8sVersion := fmt.Sprintf("%d.%d.%d", lastVer.Major(), lastVer.Minor(), lastVer.Patch()+1)
+	oldK8sClient := fmt.Sprintf("0.%d.%d", lastVer.Minor(), lastVer.Patch())
+	newK8sClient := fmt.Sprintf("0.%d.%d", lastVer.Minor(), lastVer.Patch()+1)
+
+	workspace, err = filepath.Abs(workspace)
+	if err != nil {
+		return err
+	}
+	sshPath, err = filepath.Abs(sshPath)
+	if err != nil {
+		return err
+	}
+
+	output, err := ecmExec.RunCommand(workspace, "/bin/sh", "-c", "git config --list | grep user.email=")
+	if err != nil {
+		return err
+	}
+	email := strings.TrimPrefix(output, "user.email=")
+	email = strings.TrimSuffix(email, "\n")
+	config := Release{
+		OldK8SVersion: oldK8sVersion,
+		NewK8SVersion: newK8sVersion,
+		OldK8SClient:  oldK8sClient,
+		NewK8SClient:  newK8sClient,
+		OldK3SSuffix:  lastVer.Metadata(),
+		NewK3SSuffix:  "k3s1",
+		Handler:       handler,
+		Email:         email,
+		ReleaseBranch: releaseBranch,
+		Workspace:     workspace,
+		SSHKeyPath:    sshPath,
+	}
+	configFile, err = filepath.Abs(generatePath)
+	if err != nil {
+		return err
+	}
+	configFile = filepath.Join(configFile, "config.json")
+	file, err := json.MarshalIndent(config, "", " ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configFile, file, 0644)
+}
+
+func getK3sChannels(url string) (*Channels, error) {
+	client := ecmHttp.NewClient(time.Second * 15)
+	res, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.New("failed to get channels file")
+	}
+
+	var channels Channels
+	if err := json.NewDecoder(res.Body).Decode(&channels); err != nil {
+		return nil, err
+	}
+
+	return &channels, nil
 }

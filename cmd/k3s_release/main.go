@@ -32,6 +32,7 @@ func main() {
 		modifyK3SCommand(),
 		tagRCReleaseCommand(),
 		tagReleaseCommand(),
+		generateConfigCommand(),
 	}
 	app.Flags = rootFlags
 
