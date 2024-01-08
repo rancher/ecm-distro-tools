@@ -53,6 +53,13 @@ func main() {
 			Usage:    "owner of the repository, defaults to either k3s-io or rancher depending on the repository",
 			Required: false,
 		},
+		&cli.BoolFlag{
+			Name:     "dry-run",
+			Aliases:  []string{"n"},
+			Usage:    "skip creating issues and pushing changes to remote",
+			Value:    false,
+			Required: false,
+		},
 		&cli.StringFlag{
 			Name:     "github-token",
 			Aliases:  []string{"g"},
@@ -77,6 +84,7 @@ func backport(c *cli.Context) error {
 	user := c.String("user")
 	owner := c.String("owner")
 	githubToken := c.String("github-token")
+	dryRun := c.Bool("dry-run")
 
 	branches := strings.Split(rawBranches, ",")
 	if len(branches) < 1 || branches[0] == "" {
@@ -104,7 +112,7 @@ func backport(c *cli.Context) error {
 		IssueID:  issue,
 		Branches: branches,
 		User:     user,
-		DryRun:   true,
+		DryRun:   dryRun,
 	}
 	issues, err := repository.PerformBackport(ctx, githubClient, pbo)
 	if err != nil {
