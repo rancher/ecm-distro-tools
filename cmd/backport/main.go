@@ -104,6 +104,7 @@ func backport(c *cli.Context) error {
 		IssueID:  issue,
 		Branches: branches,
 		User:     user,
+		DryRun:   true,
 	}
 	issues, err := repository.PerformBackport(ctx, githubClient, pbo)
 	if err != nil {

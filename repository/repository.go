@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -220,6 +221,7 @@ type PerformBackportOpts struct {
 	IssueID  uint     `json:"issue_id"`
 	Branches []string `json:"branches"`
 	User     string   `json:"user"`
+	DryRun   bool     `json:"dry_run"`
 }
 
 // PerformBackport creates backport issues, performs a cherry-pick of the
@@ -242,6 +244,11 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 
 	issues := make([]*github.Issue, len(pbo.Branches))
 	for _, branch := range pbo.Branches {
+		logrus.Infof("creating issue:\n  Owner: %s\n  Repo: %s\n  Branch: %s\n  User: %s", pbo.Owner, pbo.Repo, branch, pbo.User)
+		if pbo.DryRun {
+			logrus.Info("dry run, skipping issue creation")
+			continue
+		}
 		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
 		if err != nil {
 			return nil, err
@@ -251,35 +258,50 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 
 	// stop here if there are no commits given
 	if len(pbo.Commits) == 0 {
+		logrus.Info("no commits, interrupting run")
 		return issues, nil
 	}
 
 	// we're assuming this code is called from the repository itself
+	logrus.Info("getting working directory")
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
+	logrus.Info("working directory: " + cwd)
 
+	logrus.Info("opening git repository at working directory")
 	r, err := git.PlainOpen(cwd)
 	if err != nil {
 		return nil, err
 	}
 
+	logrus.Info("getting repository worktree")
 	w, err := r.Worktree()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, branch := range pbo.Branches {
+		logrus.Info("fetching all branches from all remotes")
+		fetchOut, err := exec.RunCommand(cwd, "git", "fetch", "origin", branch+":"+branch)
+		if err != nil {
+			return nil, err
+		}
+		logrus.Info(fetchOut)
 		coo := git.CheckoutOptions{
 			Branch: plumbing.ReferenceName("refs/heads/" + branch),
 		}
+		logrus.Info("checking out on reference refs/heads/" + branch)
+		logrus.Infof("checkout options: %+v", coo)
 		if err := w.Checkout(&coo); err != nil {
 			return nil, errors.New("failed checkout: " + err.Error())
 		}
 
 		newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
+		logrus.Info("new branch name: " + newBranchName)
 
+		logrus.Info("getting head reference")
 		headRef, err := r.Head()
 		if err != nil {
 			return nil, err
@@ -293,24 +315,29 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		coo = git.CheckoutOptions{
 			Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
 		}
+		logrus.Info("checkout out on reference refs/heads/" + newBranchName)
 		if err := w.Checkout(&coo); err != nil {
 			return nil, errors.New("failed checkout: " + err.Error())
 		}
 
 		for _, commit := range pbo.Commits {
-			cmd := exec.Command("git", "cherry-pick", commit)
-			stdoutStderr, err := cmd.CombinedOutput()
+			logrus.Info("cherry picking commit: " + commit)
+			cherryPickOut, err := exec.RunCommand(cwd, "git", "cherry-pick", commit)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("%s\n", stdoutStderr)
+			logrus.Info(cherryPickOut)
 
-			cmd = exec.Command("git", "push", "origin", newBranchName)
-			stdoutStderr, err = cmd.CombinedOutput()
+			if pbo.DryRun {
+				logrus.Info("dry run, skipping push to origin for branch " + newBranchName)
+				continue
+			}
+			logrus.Info("pushing " + newBranchName + "to origin")
+			pushOut, err := exec.RunCommand(cwd, "git", "push", "origin", newBranchName)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("%s\n", stdoutStderr)
+			logrus.Info(pushOut)
 		}
 	}
 
