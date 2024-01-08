@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/urfave/cli/v2"
 )
 
@@ -32,11 +31,19 @@ func main() {
 		modifyK3SCommand(),
 		tagRCReleaseCommand(),
 		tagReleaseCommand(),
-		generateConfigCommand(),
 	}
 	app.Flags = rootFlags
 
-	if err := app.Run(os.Args); err != nil {
+	// if err := app.Run(os.Args); err != nil {
+	// 	logrus.Fatal(err)
+	// }
+	var rootCmd = &cobra.Command{
+		Use:   "k3s-release",
+		Short: "Perform a k3s release",
+	}
+	rootCmd.AddCommand(configCommand())
+
+	if err := rootCmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
 }

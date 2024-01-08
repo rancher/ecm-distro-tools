@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,6 +25,33 @@ const (
 	httpTimeout        = time.Second * 10
 	ghContentURL       = "https://raw.githubusercontent.com"
 )
+
+type Config struct {
+	Release ReleaseConfig `json:"release"`
+}
+
+type ReleaseConfig struct {
+	K3s         map[string]K3sReleaseConfig `json:"k3s"`
+	Workspace   string                      `json:"workspace"`
+	Email       string                      `json:"email"`
+	GithubToken string                      `json:"-"`
+	SSHKeyPath  string                      `json:"ssh_key_path"`
+}
+
+type K3sReleaseConfig struct {
+	OldK8SVersion  string `json:"old_k8s_version"`
+	NewK8SVersion  string `json:"new_k8s_version"`
+	OldK8SClient   string `json:"old_k8s_client"`
+	NewK8SClient   string `json:"new_k8s_client"`
+	OldSuffix      string `json:"old_suffix"`
+	NewSuffix      string `json:"new_suffix"`
+	NewGoVersion   string `json:"-"`
+	ReleaseBranch  string `json:"release_branch"`
+	Remote         string `json:"remote,omitempty"`
+	K8sRancherURL  string `json:"k8s_rancher_url,omitempty"`
+	K3sUpstreamURL string `json:"k3s_upstream_url,omitempty"`
+	DryRun         bool   `json:"dry_run,omitempty"`
+}
 
 // stripBackportTag returns a string with a prefix backport tag removed
 func stripBackportTag(s string) string {
@@ -46,6 +75,38 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	}
 
 	return token, nil
+}
+
+func GenerateConfig(path string) error {
+	goPath := os.Getenv("GOPATH")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	config := Config{
+		Release: ReleaseConfig{
+			K3s: map[string]K3sReleaseConfig{
+				"v1.x": {
+					OldK8SVersion: "1.x.y",
+					NewK8SVersion: "1.x.z",
+					OldK8SClient:  "0.x.y",
+					NewK8SClient:  "0.x.z",
+					OldSuffix:     "k3s1",
+					NewSuffix:     "k3s1",
+					ReleaseBranch: "release-1.x",
+					DryRun:        true,
+				},
+			},
+			Workspace:  filepath.Join(goPath, "src/github.com/src/kubernetes"),
+			Email:      "your.name@suse.com",
+			SSHKeyPath: filepath.Join(home, ".ssh/your_key"),
+		},
+	}
+	file, err := json.MarshalIndent(config, "", " ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, file, 0644)
 }
 
 // NewGithub creates a value of type github.Client pointer
