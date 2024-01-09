@@ -329,7 +329,7 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 			}
 		}
 
-		logrus.Infof("creating issue | owner: %s | Repo: %s | Branch: %s", pbo.Owner, pbo.Repo, branch)
+		logrus.Info("creating issue | owner: " + pbo.Owner + " | Repo: " + pbo.Repo + " | Branch: " + branch)
 		if pbo.DryRun {
 			logrus.Info("dry run, skipping issue creation")
 			continue
