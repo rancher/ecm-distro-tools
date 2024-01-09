@@ -3,116 +3,86 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
-	"strings"
 
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
+type BackportCmdOpts struct {
+	Repo     string
+	Issue    uint
+	Commits  []string
+	Branches []string
+	User     string
+	Owner    string
+	DryRun   bool
+}
+
+var backportCmdOpts BackportCmdOpts
+
 func main() {
-	app := cli.NewApp()
-	app.Name = "backport"
-	app.Usage = "generate backport issues and cherry pick commits to branches"
-	app.UseShortOptionHandling = true
-	app.Flags = []cli.Flag{
-		&cli.StringFlag{
-			Name:     "repo",
-			Aliases:  []string{"r"},
-			Usage:    "name of the repository to perform the backport. e.g: k3s, rke2",
-			Required: true,
-		},
-		&cli.UintFlag{
-			Name:     "issue",
-			Aliases:  []string{"i"},
-			Usage:    "ID of the original issue",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "commits",
-			Aliases:  []string{"c"},
-			Usage:    "commits to be backported, if none is provided, only the issues will be created, when passing this flag, it assumes you're running from the repository this operation is related to (comma separated)",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:     "branches",
-			Aliases:  []string{"b"},
-			Usage:    "branches the issue is being backported to, one or more (comma separated)",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "user",
-			Aliases:  []string{"u"},
-			Usage:    "user to assign new issues to (default: user assigned to the original issue)",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:     "owner",
-			Aliases:  []string{"o"},
-			Usage:    "owner of the repository, defaults to either k3s-io or rancher depending on the repository",
-			Required: false,
-		},
-		&cli.BoolFlag{
-			Name:     "dry-run",
-			Aliases:  []string{"n"},
-			Usage:    "skip creating issues and pushing changes to remote",
-			Value:    false,
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:     "github-token",
-			Aliases:  []string{"g"},
-			EnvVars:  []string{"GITHUB_TOKEN"},
-			Usage:    "github token",
-			Required: true,
-		},
+	cmd := &cobra.Command{
+		Use:   "backport",
+		Short: "Generate backport issues and cherry pick commits to branches",
+		Long:  "The backport utility needs to be executed inside the repository you want to perform the actions",
+		RunE:  backport,
 	}
 
-	app.Action = backport
+	cmd.Flags().StringVarP(&backportCmdOpts.Repo, "repo", "r", "", "name of the repository to perform the backport (k3s, rke2)")
+	cmd.Flags().UintVarP(&backportCmdOpts.Issue, "issue", "i", 0, "ID of the original issue")
+	cmd.Flags().StringSliceVarP(&backportCmdOpts.Commits, "commits", "c", []string{}, "commits to be backported, if none is provided, only the issues will be created, when passing this flag, it assumes you're running from the repository this operation is related to (comma separated)")
+	cmd.Flags().StringSliceVarP(&backportCmdOpts.Branches, "branches", "b", []string{}, "branches the issue is being backported to, one or more (comma separated)")
+	cmd.Flags().StringVarP(&backportCmdOpts.User, "user", "u", "", "user to assign new issues to (default: user assigned to the original issue)")
+	cmd.Flags().StringVarP(&backportCmdOpts.Owner, "owner", "o", "", "owner of the repository, defaults to either k3s-io or rancher depending on the repository")
+	cmd.Flags().BoolVarP(&backportCmdOpts.DryRun, "dry-run", "n", false, "skip creating issues and pushing changes to remote")
 
-	if err := app.Run(os.Args); err != nil {
+	if err := cmd.MarkFlagRequired("repo"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("issue"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("commits"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("branches"); err != nil {
+		logrus.Fatal(err)
+	}
+
+	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
 }
 
-func backport(c *cli.Context) error {
-	repo := c.String("repo")
-	issue := c.Uint("issue")
-	rawCommits := c.String("commits")
-	rawBranches := c.String("branches")
-	user := c.String("user")
-	owner := c.String("owner")
-	githubToken := c.String("github-token")
-	dryRun := c.Bool("dry-run")
-
-	branches := strings.Split(rawBranches, ",")
-	if len(branches) < 1 || branches[0] == "" {
+func backport(cmd *cobra.Command, args []string) error {
+	if len(backportCmdOpts.Branches) < 1 || backportCmdOpts.Branches[0] == "" {
 		return errors.New("no branches specified")
 	}
-	commits := strings.Split(rawCommits, ",")
-	if len(commits) < 1 || commits[0] == "" {
+	if len(backportCmdOpts.Commits) < 1 || backportCmdOpts.Commits[0] == "" {
 		return errors.New("no commits specified")
 	}
+	if backportCmdOpts.Owner == "" {
+		backportCmdOpts.Owner = defaultRepositoryOwner(backportCmdOpts.Repo)
+	}
 
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		return errors.New("env variable GITHUB_TOKEN is required")
+	}
 	ctx := context.Background()
 	githubClient := repository.NewGithub(ctx, githubToken)
 
-	if owner == "" {
-		defaultOwner, err := repository.OrgFromRepo(repo)
-		if err != nil {
-			return err
-		}
-		owner = defaultOwner
-	}
 	pbo := &repository.PerformBackportOpts{
-		Owner:    owner,
-		Repo:     repo,
-		Commits:  commits,
-		IssueID:  issue,
-		Branches: branches,
-		User:     user,
-		DryRun:   dryRun,
+		Owner:    backportCmdOpts.Owner,
+		Repo:     backportCmdOpts.Repo,
+		Branches: backportCmdOpts.Branches,
+		Commits:  backportCmdOpts.Commits,
+		IssueID:  backportCmdOpts.Issue,
+		User:     backportCmdOpts.User,
+		DryRun:   backportCmdOpts.DryRun,
 	}
 	issues, err := repository.PerformBackport(ctx, githubClient, pbo)
 	if err != nil {
@@ -124,4 +94,12 @@ func backport(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func defaultRepositoryOwner(repo string) string {
+	defaultOwner, err := repository.OrgFromRepo(repo)
+	if err != nil {
+		log.Fatal("failed to get default owner for "+repo, err)
+	}
+	return defaultOwner
 }
