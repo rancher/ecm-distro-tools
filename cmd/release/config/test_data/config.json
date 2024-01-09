@@ -1,0 +1,29 @@
+{
+    "user": {
+        "email": "your.name@suse.com"
+    },
+    "k3s": {
+        "v1.x": {
+            "old_k8s_version": "1.x.y",
+            "new_k8s_version": "1.x.z",
+            "old_k8s_client": "0.x.y",
+            "new_k8s_client": "0.x.z",
+            "old_suffix": "k3s1",
+            "new_suffix": "k3s1",
+            "release_branch": "release-1.x",
+            "dry_run": true
+        },
+        "workspace": "/Users/pedrosuse/go/src/github.com/src/kubernetes"
+    },
+    "rke2": [],
+    "auth": {
+        "drone": {
+            "k3s_pr": "",
+            "k3s_publish": "",
+            "rancher_pr": "",
+            "rancher_publish": ""
+        },
+        "github": "",
+        "ssh_key_path": "/Users/pedrosuse/.ssh/your_key"
+    }
+}
