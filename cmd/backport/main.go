@@ -45,9 +45,6 @@ func main() {
 	if err := cmd.MarkFlagRequired("issue"); err != nil {
 		logrus.Fatal(err)
 	}
-	if err := cmd.MarkFlagRequired("commits"); err != nil {
-		logrus.Fatal(err)
-	}
 	if err := cmd.MarkFlagRequired("branches"); err != nil {
 		logrus.Fatal(err)
 	}
@@ -58,12 +55,6 @@ func main() {
 }
 
 func backport(cmd *cobra.Command, args []string) error {
-	if len(backportCmdOpts.Branches) < 1 || backportCmdOpts.Branches[0] == "" {
-		return errors.New("no branches specified")
-	}
-	if len(backportCmdOpts.Commits) < 1 || backportCmdOpts.Commits[0] == "" {
-		return errors.New("no commits specified")
-	}
 	if backportCmdOpts.Owner == "" {
 		backportCmdOpts.Owner = defaultRepositoryOwner(backportCmdOpts.Repo)
 	}
