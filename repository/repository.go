@@ -257,7 +257,7 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		logrus.Info("opening git repository at working directory")
 		r, err = git.PlainOpen(cwd)
 		if err != nil {
-			return nil, fmt.Errorf("not in a git repository, make sure you are executing this inside the %s repo: %s", pbo.Repo, err)
+			return nil, errors.New("not in a git repository, make sure you are executing this inside the " + pbo.Repo + " repo: " + err.Error())
 		}
 
 		logrus.Info("getting repository worktree")
