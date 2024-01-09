@@ -35,7 +35,7 @@ func main() {
 	cmd.Flags().StringSliceVarP(&backportCmdOpts.Commits, "commits", "c", []string{}, "commits to be backported, if none is provided, only the issues will be created, when passing this flag, it assumes you're running from the repository this operation is related to (comma separated)")
 	cmd.Flags().StringSliceVarP(&backportCmdOpts.Branches, "branches", "b", []string{}, "branches the issue is being backported to, one or more (comma separated)")
 	cmd.Flags().StringVarP(&backportCmdOpts.User, "user", "u", "", "user to assign new issues to (default: user assigned to the original issue)")
-	cmd.Flags().StringVarP(&backportCmdOpts.Owner, "owner", "o", "", "owner of the repository, defaults to either k3s-io or rancher depending on the repository")
+	cmd.Flags().StringVarP(&backportCmdOpts.Owner, "owner", "o", "", "owner of the repository, e.g: k3s-io, rancher")
 	cmd.Flags().BoolVarP(&backportCmdOpts.DryRun, "dry-run", "n", false, "skip creating issues and pushing changes to remote")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
