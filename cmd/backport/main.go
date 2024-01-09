@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -42,6 +41,9 @@ func main() {
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
 		logrus.Fatal(err)
 	}
+	if err := cmd.MarkFlagRequired("owner"); err != nil {
+		logrus.Fatal(err)
+	}
 	if err := cmd.MarkFlagRequired("issue"); err != nil {
 		logrus.Fatal(err)
 	}
@@ -55,10 +57,6 @@ func main() {
 }
 
 func backport(cmd *cobra.Command, args []string) error {
-	if backportCmdOpts.Owner == "" {
-		backportCmdOpts.Owner = defaultRepositoryOwner(backportCmdOpts.Repo)
-	}
-
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	if githubToken == "" {
 		return errors.New("env variable GITHUB_TOKEN is required")
@@ -85,12 +83,4 @@ func backport(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func defaultRepositoryOwner(repo string) string {
-	defaultOwner, err := repository.OrgFromRepo(repo)
-	if err != nil {
-		log.Fatal("failed to get default owner for "+repo, err)
-	}
-	return defaultOwner
 }
