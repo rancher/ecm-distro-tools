@@ -1,12 +1,20 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"os"
 
+	"github.com/rancher/ecm-distro-tools/release/rke2"
+	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
 
-// tagCmd represents the tag command
+var (
+	alpineVersion *string
+)
+
+// tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "",
@@ -17,9 +25,21 @@ var tagCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
+		ctx := context.Background()
+		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
 		switch args[0] {
 		case "k3s":
 		case "rke2":
+			switch args[1] {
+			case "image-build-kubernetes":
+				if err := rke2.ImageBuildBaseRelease(ctx, client, *alpineVersion, false); err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+
+				fmt.Println("Successfully tagged")
+			}
 		default:
 			rootCmd.Help()
 			os.Exit(0)
@@ -38,5 +58,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// tagCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	tagCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
 }
