@@ -231,8 +231,9 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 	var cwd string
 	var r *git.Repository
 	var w *git.Worktree
+	var cherryPick bool
 
-	cherryPick := false
+	cherryPick = false
 	if len(pbo.Commits) != 0 {
 		cherryPick = true
 	}
@@ -404,17 +405,6 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 	}
 
 	return found, nil
-}
-
-func OrgFromRepo(repo string) (string, error) {
-	orgs := map[string]string{
-		"k3s":  "k3s-io",
-		"rke2": "rancher",
-	}
-	if org, exists := orgs[repo]; exists {
-		return org, nil
-	}
-	return "", errors.New("invalid repository")
 }
 
 const cutRKE2ReleaseIssue = `**Summary:**
