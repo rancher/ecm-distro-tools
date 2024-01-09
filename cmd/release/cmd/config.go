@@ -19,8 +19,13 @@ var configCmd = &cobra.Command{
 
 		switch args[0] {
 		case "generate":
+			//
 		case "view":
+			conf := rootConfig
+			conf.Auth.GithubToken = "********"
+			// print out
 		case "edit":
+			//
 		default:
 			rootCmd.Help()
 			os.Exit(0)
