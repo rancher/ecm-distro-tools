@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+	"html/template"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -21,7 +23,15 @@ var configCmd = &cobra.Command{
 		case "generate":
 			//
 		case "view":
-			// print out
+			tmpl, err := template.New("config").Parse(configViewTemplate)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(0)
+			}
+			if err := tmpl.Execute(os.Stdout, rootConfig); err != nil {
+				fmt.Println(err)
+				os.Exit(0)
+			}
 		case "edit":
 			//
 		default:
@@ -44,3 +54,11 @@ func init() {
 	// is called directly, e.g.:
 	// configCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
+
+const configViewTemplate = `RKE2 Version
+------------
+{{- range .RKE2.Versions }}
+{{ . -}}+rke2r1
+{{- end}}
+
+`
