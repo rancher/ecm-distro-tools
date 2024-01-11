@@ -15,7 +15,9 @@
         },
         "workspace": "/Users/pedrosuse/go/src/github.com/src/kubernetes"
     },
-    "rke2": [],
+    "rke2": {
+        "versions": []
+    },
     "auth": {
         "drone": {
             "k3s_pr": "",
