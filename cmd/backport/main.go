@@ -2,117 +2,85 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
+	"errors"
 	"os"
-	"strings"
 
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
-var (
-	name    string
-	version string
-	gitSHA  string
-)
+type BackportCmdOpts struct {
+	Repo     string
+	Issue    uint
+	Commits  []string
+	Branches []string
+	User     string
+	Owner    string
+	DryRun   bool
+}
 
-const usage = `version: %s
-Usage: %[2]s [-r repo] [-b branches] [-i issue]
-
-Env Variables:
-    GITHUB_TOKEN         user token for posting issues
-Options:
-    -h                   help
-    -v                   show version and exit
-    -r repo              repository that should be used
-    -i issue id          original issue id
-    -c commits           commits to be backported (comma seperated)
-    -b branch(es)        branches issue is being backported to
-    -u user              user to assign new issues to (default: user assigned to orig. issue)
-
-Examples: 
-    # generate 2 backport issues for k3s issue 1234
-    %[2]s -r k3s -b "release-1.25,release-1.26" -i 1234 -c 1
-	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3
-	%[2]s -r k3s -b "release-1.26" -i 1234 -c 1,2,3 -u susejsmith
-
-Note: if a commit is provided, %[2]s utility needs to be ran from either
-	  the RKE2 or k3s directory.
-`
-
-var (
-	vers      bool
-	owner     string
-	repo      string
-	commitIDs string
-	issueID   uint
-	branches  string
-	user      string
-)
+var backportCmdOpts BackportCmdOpts
 
 func main() {
-	flag.Usage = func() {
-		w := os.Stderr
-		for _, arg := range os.Args {
-			if arg == "-h" {
-				w = os.Stdout
-				break
-			}
-		}
-		fmt.Fprintf(w, usage, version, name)
+	cmd := &cobra.Command{
+		Use:   "backport",
+		Short: "Generate backport issues and cherry pick commits to branches",
+		Long:  "The backport utility needs to be executed inside the repository you want to perform the actions",
+		RunE:  backport,
 	}
 
-	flag.BoolVar(&vers, "v", false, "")
-	flag.StringVar(&owner, "o", "", "")
-	flag.StringVar(&repo, "r", "", "")
-	flag.StringVar(&commitIDs, "c", "", "")
-	flag.UintVar(&issueID, "i", 0, "")
-	flag.StringVar(&branches, "b", "", "")
-	flag.StringVar(&user, "u", "", "")
-	flag.Parse()
+	cmd.Flags().StringVarP(&backportCmdOpts.Repo, "repo", "r", "", "name of the repository to perform the backport (k3s, rke2)")
+	cmd.Flags().UintVarP(&backportCmdOpts.Issue, "issue", "i", 0, "ID of the original issue")
+	cmd.Flags().StringSliceVarP(&backportCmdOpts.Commits, "commits", "c", []string{}, "commits to be backported, if none is provided, only the issues will be created, when passing this flag, it assumes you're running from the repository this operation is related to (comma separated)")
+	cmd.Flags().StringSliceVarP(&backportCmdOpts.Branches, "branches", "b", []string{}, "branches the issue is being backported to, one or more (comma separated)")
+	cmd.Flags().StringVarP(&backportCmdOpts.User, "user", "u", "", "user to assign new issues to (default: user assigned to the original issue)")
+	cmd.Flags().StringVarP(&backportCmdOpts.Owner, "owner", "o", "", "owner of the repository, e.g: k3s-io, rancher")
+	cmd.Flags().BoolVarP(&backportCmdOpts.DryRun, "dry-run", "n", false, "skip creating issues and pushing changes to remote")
 
-	if vers {
-		fmt.Fprintf(os.Stdout, "version: %s - git sha: %s\n", version, gitSHA)
-		return
+	if err := cmd.MarkFlagRequired("repo"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("owner"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("issue"); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := cmd.MarkFlagRequired("branches"); err != nil {
+		logrus.Fatal(err)
 	}
 
-	ghToken := os.Getenv("GITHUB_TOKEN")
-	if ghToken == "" {
-		fmt.Println("error: please provide a GITHUB_TOKEN")
-		os.Exit(1)
+	if err := cmd.Execute(); err != nil {
+		logrus.Fatal(err)
 	}
+}
 
-	var commits []string
-	if commitIDs != "" {
-		commits = strings.Split(commitIDs, ",")
+func backport(cmd *cobra.Command, args []string) error {
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		return errors.New("env variable GITHUB_TOKEN is required")
 	}
-
-	if issueID == 0 {
-		fmt.Println("error: please provide a valid issue id")
-		os.Exit(1)
-	}
-
 	ctx := context.Background()
+	githubClient := repository.NewGithub(ctx, githubToken)
 
-	client := repository.NewGithub(ctx, ghToken)
-
-	pbo := repository.PerformBackportOpts{
-		Owner:    owner,
-		Repo:     repo,
-		Commits:  commits,
-		IssueID:  issueID,
-		Branches: branches,
-		User:     user,
+	pbo := &repository.PerformBackportOpts{
+		Owner:    backportCmdOpts.Owner,
+		Repo:     backportCmdOpts.Repo,
+		Branches: backportCmdOpts.Branches,
+		Commits:  backportCmdOpts.Commits,
+		IssueID:  backportCmdOpts.Issue,
+		User:     backportCmdOpts.User,
+		DryRun:   backportCmdOpts.DryRun,
 	}
-	issues, err := repository.PerformBackport(ctx, client, &pbo)
+	issues, err := repository.PerformBackport(ctx, githubClient, pbo)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	for _, issue := range issues {
-		fmt.Println("Backport issue created: " + issue.GetHTMLURL())
+		logrus.Info("Backport issue created: " + issue.GetHTMLURL())
 	}
 
-	os.Exit(0)
+	return nil
 }

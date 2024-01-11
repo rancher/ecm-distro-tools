@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -218,105 +219,127 @@ type PerformBackportOpts struct {
 	Repo     string   `json:"repo"`
 	Commits  []string `json:"commits"`
 	IssueID  uint     `json:"issue_id"`
-	Branches string   `json:"branches"`
+	Branches []string `json:"branches"`
 	User     string   `json:"user"`
+	DryRun   bool     `json:"dry_run"`
 }
 
 // PerformBackport creates backport issues, performs a cherry-pick of the
 // given commit if it exists.
 func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBackportOpts) ([]*github.Issue, error) {
-	const (
-		issueTitle = "[%s] - %s"
-		issueBody  = "Backport fix for %s\n\n* #%d"
-	)
+	var issues []*github.Issue
+	var cwd string
+	var r *git.Repository
+	var w *git.Worktree
+	var cherryPick bool
 
-	backportBranches := strings.Split(pbo.Branches, ",")
-	if len(backportBranches) < 1 || backportBranches[0] == "" {
-		return nil, errors.New("no branches specified")
+	cherryPick = false
+	if len(pbo.Commits) != 0 {
+		cherryPick = true
 	}
 
 	origIssue, err := RetrieveOriginalIssue(ctx, client, pbo.Owner, pbo.Repo, pbo.IssueID)
 	if err != nil {
 		return nil, err
 	}
-
 	issue := Issue{
-		Title: issueTitle,
-		Body:  issueBody,
+		Title: "[%s] - %s",
+		Body:  "Backport fix for %s\n\n* #%d",
+	}
+	if cherryPick {
+		// we're assuming this code is called from the repository itself
+		logrus.Info("getting working directory")
+		cwd, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		logrus.Info("working directory: " + cwd)
+
+		logrus.Info("opening git repository at working directory")
+		r, err = git.PlainOpen(cwd)
+		if err != nil {
+			return nil, errors.New("not in a git repository, make sure you are executing this inside the " + pbo.Repo + " repo: " + err.Error())
+		}
+
+		logrus.Info("getting repository worktree")
+		w, err = r.Worktree()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	issues := make([]*github.Issue, len(backportBranches))
-	for _, branch := range backportBranches {
+	for _, branch := range pbo.Branches {
+		if cherryPick {
+			logrus.Info("fetching branch from origin: " + branch + ":" + branch)
+			fetchOut, err := exec.RunCommand(cwd, "git", "fetch", "origin", branch+":"+branch)
+			if err != nil {
+				return nil, err
+			}
+			logrus.Info(fetchOut)
+			coo := git.CheckoutOptions{
+				Branch: plumbing.ReferenceName("refs/heads/" + branch),
+			}
+			logrus.Info("checking out on reference refs/heads/" + branch)
+			logrus.Infof("checkout options: %+v", coo)
+			if err := w.Checkout(&coo); err != nil {
+				return nil, errors.New("failed checkout: " + err.Error())
+			}
+
+			newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
+			logrus.Info("new branch name: " + newBranchName)
+
+			logrus.Info("getting head reference")
+			headRef, err := r.Head()
+			if err != nil {
+				return nil, err
+			}
+
+			logrus.Info("getting new hash reference")
+			ref := plumbing.NewHashReference(plumbing.NewBranchReferenceName(newBranchName), headRef.Hash())
+			logrus.Info("setting new hash reference")
+			if err := r.Storer.SetReference(ref); err != nil {
+				return nil, err
+			}
+
+			coo = git.CheckoutOptions{
+				Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
+			}
+			logrus.Info("checkout out on reference refs/heads/" + newBranchName)
+			if err := w.Checkout(&coo); err != nil {
+				return nil, errors.New("failed checkout: " + err.Error())
+			}
+
+			for _, commit := range pbo.Commits {
+				logrus.Info("cherry picking commit: " + commit)
+				cherryPickOut, err := exec.RunCommand(cwd, "git", "cherry-pick", commit)
+				if err != nil {
+					return nil, err
+				}
+				logrus.Info(cherryPickOut)
+
+				if pbo.DryRun {
+					logrus.Info("dry run, skipping push to origin for branch " + newBranchName)
+					continue
+				}
+				logrus.Info("pushing " + newBranchName + " to origin")
+				pushOut, err := exec.RunCommand(cwd, "git", "push", "origin", newBranchName)
+				if err != nil {
+					return nil, err
+				}
+				logrus.Info(pushOut)
+			}
+		}
+
+		logrus.Info("creating issue | owner: " + pbo.Owner + " | Repo: " + pbo.Repo + " | Branch: " + branch)
+		if pbo.DryRun {
+			logrus.Info("dry run, skipping issue creation")
+			continue
+		}
 		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
 		if err != nil {
 			return nil, err
 		}
 		issues = append(issues, newIssue)
-	}
-
-	// stop here if there are no commits given
-	if len(pbo.Commits) == 0 {
-		return issues, nil
-	}
-
-	// we're assuming this code is called from the repository itself
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := git.PlainOpen(cwd)
-	if err != nil {
-		return nil, err
-	}
-
-	w, err := r.Worktree()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, branch := range backportBranches {
-		coo := git.CheckoutOptions{
-			Branch: plumbing.ReferenceName("refs/heads/" + branch),
-		}
-		if err := w.Checkout(&coo); err != nil {
-			return nil, errors.New("failed checkout: " + err.Error())
-		}
-
-		newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
-
-		headRef, err := r.Head()
-		if err != nil {
-			return nil, err
-		}
-
-		ref := plumbing.NewHashReference(plumbing.NewBranchReferenceName(newBranchName), headRef.Hash())
-		if err := r.Storer.SetReference(ref); err != nil {
-			return nil, err
-		}
-
-		coo = git.CheckoutOptions{
-			Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
-		}
-		if err := w.Checkout(&coo); err != nil {
-			return nil, errors.New("failed checkout: " + err.Error())
-		}
-
-		for _, commit := range pbo.Commits {
-			cmd := exec.Command("git", "cherry-pick", commit)
-			stdoutStderr, err := cmd.CombinedOutput()
-			if err != nil {
-				return nil, err
-			}
-			fmt.Printf("%s\n", stdoutStderr)
-
-			cmd = exec.Command("git", "push", "origin", newBranchName)
-			stdoutStderr, err = cmd.CombinedOutput()
-			if err != nil {
-				return nil, err
-			}
-			fmt.Printf("%s\n", stdoutStderr)
-		}
 	}
 
 	return issues, nil
