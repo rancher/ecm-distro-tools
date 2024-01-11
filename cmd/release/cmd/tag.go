@@ -24,31 +24,43 @@ var tagCmd = &cobra.Command{
 			rootCmd.Help()
 			os.Exit(0)
 		}
+	},
+}
 
+var k3sTagSubCmd = &cobra.Command{
+	Use:   "k3s",
+	Short: "",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Here we are!")
+	},
+}
+
+var rke2TagSubCmd = &cobra.Command{
+	Use:   "rke2",
+	Short: "",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		switch args[0] {
-		case "k3s":
-		case "rke2":
-			switch args[1] {
-			case "image-build-kubernetes":
-				if err := rke2.ImageBuildBaseRelease(ctx, client, *alpineVersion, false); err != nil {
-					fmt.Println(err)
-					os.Exit(1)
-				}
-
-				fmt.Println("Successfully tagged")
+		case "image-build-kubernetes":
+			if err := rke2.ImageBuildBaseRelease(ctx, client, *alpineVersion, false); err != nil {
+				fmt.Println(err)
+				os.Exit(1)
 			}
-		default:
-			rootCmd.Help()
-			os.Exit(0)
+
+			fmt.Println("Successfully tagged")
 		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tagCmd)
+
+	tagCmd.AddCommand(k3sTagSubCmd)
+	tagCmd.AddCommand(rke2TagSubCmd)
 
 	// Here you will define your flags and configuration settings.
 

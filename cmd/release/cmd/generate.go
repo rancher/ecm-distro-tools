@@ -25,32 +25,36 @@ var generateCmd = &cobra.Command{
 			rootCmd.Help()
 			os.Exit(0)
 		}
+	},
+}
 
+var k3sGenerateSubCmd = &cobra.Command{
+	Use:   "k3s",
+	Short: "",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		var (
-			owner string
-			repo  string
-		)
-
-		switch args[0] {
-		case "k3s":
-			if args[1] == "release-notes" {
-				owner = "k3s-io"
-				repo = "k3s"
-			}
-		case "rke2":
-			if args[1] == "release-notes" {
-				owner = "rancher"
-				repo = "rke2"
-			}
-		default:
-			rootCmd.Help()
-			os.Exit(0)
+		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", *milestone, *prevMilestone, client)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
-		notes, err := release.GenReleaseNotes(ctx, owner, repo, *milestone, *prevMilestone, client)
+		fmt.Print(notes.String())
+	},
+}
+
+var rke2GenerateSubCmd = &cobra.Command{
+	Use:   "rke2",
+	Short: "",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
+		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", *milestone, *prevMilestone, client)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -62,6 +66,9 @@ var generateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(generateCmd)
+
+	generateCmd.AddCommand(k3sGenerateSubCmd)
+	generateCmd.AddCommand(rke2GenerateSubCmd)
 
 	// Here you will define your flags and configuration settings.
 
