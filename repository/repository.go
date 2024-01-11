@@ -207,6 +207,7 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
 		Title:    github.String(title),
 		Body:     github.String(body),
+		Labels:   &[]string{"kind/backport"},
 		Assignee: assignee,
 	})
 	if err != nil {
