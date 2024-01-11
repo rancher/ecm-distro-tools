@@ -15,6 +15,8 @@ import (
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -190,7 +192,8 @@ type ChangeLog struct {
 
 // CreateBackportIssues
 func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, owner, repo, branch, user string, i *Issue) (*github.Issue, error) {
-	title := fmt.Sprintf(i.Title, strings.Title(branch), origIssue.GetTitle())
+	caser := cases.Title(language.English)
+	title := fmt.Sprintf(i.Title, caser.String(branch), origIssue.GetTitle())
 	body := fmt.Sprintf(i.Body, origIssue.GetTitle(), *origIssue.Number)
 
 	var assignee *string
