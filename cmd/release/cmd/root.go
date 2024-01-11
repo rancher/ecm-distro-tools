@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -33,24 +33,16 @@ func SetVersion(version string) {
 }
 
 func init() {
-	rootCmd.Flags().BoolP("debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
 
-	homeDir, err := os.UserHomeDir()
+	configPath, err := config.DefaultConfigPath()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		logrus.Fatal(err)
+	}
+	conf, err := config.Load(configPath)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
-	const (
-		ecmDistroDir   = ".ecm-distro-tools"
-		configFileName = "config.json"
-	)
-	configFile := filepath.Join(homeDir, ecmDistroDir, configFileName)
-
-	conf, err := config.Load(configFile)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 	rootConfig = conf
 }

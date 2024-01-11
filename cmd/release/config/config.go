@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
+)
+
+const (
+	ecmDistroDir   = ".ecm-distro-tools"
+	configFileName = "config.json"
 )
 
 // K3sRelease
@@ -57,6 +63,14 @@ type Config struct {
 	Auth *Auth `json:"auth"`
 }
 
+func DefaultConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", nil
+	}
+	return filepath.Join(homeDir, ecmDistroDir, configFileName), nil
+}
+
 // Load reads the given config file and returns a struct
 // containing the necessary values to perform a release.
 func Load(configFile string) (*Config, error) {
@@ -73,4 +87,12 @@ func read(r io.Reader) (*Config, error) {
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (c *Config) String() (string, error) {
+	b, err := json.MarshalIndent(c, "", " ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
