@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"html/template"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -18,31 +17,42 @@ var configCmd = &cobra.Command{
 			rootCmd.Help()
 			os.Exit(0)
 		}
+	},
+}
 
-		switch args[0] {
-		case "generate":
-			//
-		case "view":
-			tmpl, err := template.New("config").Parse(configViewTemplate)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(0)
-			}
-			if err := tmpl.Execute(os.Stdout, rootConfig); err != nil {
-				fmt.Println(err)
-				os.Exit(0)
-			}
-		case "edit":
-			//
-		default:
-			rootCmd.Help()
-			os.Exit(0)
-		}
+var genConfigSubCmd = &cobra.Command{
+	Use:   "gen",
+	Short: "generate config",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Here we are!")
+	},
+}
+
+var viewConfigSubCmd = &cobra.Command{
+	Use:   "view",
+	Short: "view config",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Here we are!")
+	},
+}
+
+var editConfigSubCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "edit config",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Here we are!")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(configCmd)
+
+	configCmd.AddCommand(genConfigSubCmd)
+	configCmd.AddCommand(viewConfigSubCmd)
+	configCmd.AddCommand(editConfigSubCmd)
 
 	// Here you will define your flags and configuration settings.
 
