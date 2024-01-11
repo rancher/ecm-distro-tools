@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 )
 
@@ -63,11 +64,13 @@ func Load(configFile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	return read(f)
+}
 
+func read(r io.Reader) (*Config, error) {
 	var c Config
-	if err := json.NewDecoder(f).Decode(&c); err != nil {
+	if err := json.NewDecoder(r).Decode(&c); err != nil {
 		return nil, err
 	}
-
 	return &c, nil
 }
