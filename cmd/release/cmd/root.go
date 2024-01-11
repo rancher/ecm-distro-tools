@@ -4,11 +4,8 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -26,29 +23,21 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		logrus.Fatal(err)
 	}
 }
 
 func init() {
-	rootCmd.Flags().BoolP("debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
 
-	homeDir, err := os.UserHomeDir()
+	configPath, err := config.DefaultConfigPath()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		logrus.Fatal(err)
+	}
+	conf, err := config.Load(configPath)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
-	const (
-		ecmDistroDir   = ".ecm-distro-tools"
-		configFileName = "config.json"
-	)
-	configFile := filepath.Join(homeDir, ecmDistroDir, configFileName)
-
-	conf, err := config.Load(configFile)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 	rootConfig = conf
 }

@@ -33,8 +33,13 @@ var viewConfigSubCmd = &cobra.Command{
 	Use:   "view",
 	Short: "view config",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		conf, err := rootConfig.String()
+		if err != nil {
+			return err
+		}
+		fmt.Println(conf)
+		return nil
 	},
 }
 
