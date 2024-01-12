@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -24,9 +25,15 @@ var configCmd = &cobra.Command{
 var genConfigSubCmd = &cobra.Command{
 	Use:   "gen",
 	Short: "generate config",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	Long:  `generates a new config in the default location if it doesn't exists`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := config.GenConfig(); err != nil {
+			return err
+		}
+		logrus.Info("config generated")
+		logrus.Info("to view it, run: release config view")
+		logrus.Info("to edit it, run: release config edit")
+		return nil
 	},
 }
 
@@ -70,11 +77,3 @@ func init() {
 	// is called directly, e.g.:
 	// configCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
-
-const configViewTemplate = `RKE2 Version
-------------
-{{- range .RKE2.Versions }}
-{{ . -}}+rke2r1
-{{- end}}
-
-`

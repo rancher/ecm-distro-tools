@@ -39,8 +39,14 @@ func init() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+
+	if os.Args[1] == "config" && os.Args[2] == "gen" {
+		logrus.Info("running release config gen, skipping config load")
+		return
+	}
 	conf, err := config.Load(configPath)
 	if err != nil {
+		logrus.Error("error loading config, check if it exisits at " + configPath + " and if not, use: release config gen")
 		logrus.Fatal(err)
 	}
 

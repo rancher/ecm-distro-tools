@@ -2,10 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -109,10 +111,69 @@ func OpenOnEditor() error {
 	return cmd.Run()
 }
 
+func GenConfig() error {
+	var configExists = true
+	configPath, err := DefaultConfigPath()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			return err
+		}
+		configExists = false
+	}
+	if configExists {
+		return errors.New("config already exists at " + configPath)
+	}
+	confB, err := json.MarshalIndent(exampleConfig(), "", " ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, confB, 0644)
+}
+
 func textEditorName() string {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vi"
 	}
 	return editor
+}
+
+func exampleConfig() Config {
+	gopath := os.Getenv("GOPATH")
+	return Config{
+		User: &User{
+			Email: "your.name@suse.com",
+		},
+		K3s: &K3s{
+			Version: map[string]K3sRelease{
+				"v1.x.y": {
+					OldK8sVersion: "v1.x.z",
+					NewK8sVersion: "v1.x.y",
+					OldK8sClient:  "v0.x.z",
+					NewK8sClient:  "v0.x.y",
+					OldSuffix:     "k3s1",
+					NewSuffix:     "k3s1",
+					ReleaseBranch: "release-1.x",
+					DryRun:        false,
+				},
+			},
+			Workspace: filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes"),
+		},
+		RKE2: &RKE2{
+			Versions: []string{"v1.x.y"},
+		},
+		Auth: &Auth{
+			Drone: &Drone{
+				K3sPR:          "YOUR_TOKEN",
+				K3sPublish:     "YOUR_TOKEN",
+				RancherPR:      "YOUR_TOKEN",
+				RancherPublish: "YOUR_TOKEN",
+			},
+			GithubToken: "YOUR_TOKEN",
+			SSHKeyPath:  "path/to/your/ssh/key",
+		},
+	}
 }
