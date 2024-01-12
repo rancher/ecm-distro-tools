@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -95,4 +96,23 @@ func (c *Config) String() (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func OpenOnEditor() error {
+	confPath, err := DefaultConfigPath()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(textEditorName(), confPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
+func textEditorName() string {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+	return editor
 }

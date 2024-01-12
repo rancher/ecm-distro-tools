@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
 )
 
@@ -47,8 +48,8 @@ var editConfigSubCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "edit config",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return config.OpenOnEditor()
 	},
 }
 
