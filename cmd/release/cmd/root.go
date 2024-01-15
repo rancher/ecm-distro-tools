@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -37,17 +36,19 @@ func init() {
 
 	configPath, err := config.DefaultConfigPath()
 	if err != nil {
-		logrus.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	if os.Args[1] == "config" && os.Args[2] == "gen" {
-		logrus.Info("running release config gen, skipping config load")
+		fmt.Println("running release config gen, skipping config load")
 		return
 	}
 	conf, err := config.Load(configPath)
 	if err != nil {
-		logrus.Error("error loading config, check if it exisits at " + configPath + " and if not, use: release config gen")
-		logrus.Fatal(err)
+		fmt.Println("error loading config, check if it exisits at " + configPath + " and if not, use: release config gen")
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	rootConfig = conf
