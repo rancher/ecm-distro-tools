@@ -92,14 +92,6 @@ func read(r io.Reader) (*Config, error) {
 	return &c, nil
 }
 
-func (c *Config) String() (string, error) {
-	b, err := json.MarshalIndent(c, "", " ")
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
 func OpenOnEditor() error {
 	confPath, err := DefaultConfigPath()
 	if err != nil {

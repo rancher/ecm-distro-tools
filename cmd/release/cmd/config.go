@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +30,9 @@ var genConfigSubCmd = &cobra.Command{
 		if err := config.Generate(); err != nil {
 			return err
 		}
-		logrus.Info("config generated")
-		logrus.Info("to view it, run: release config view")
-		logrus.Info("to edit it, run: release config edit")
+		fmt.Println("config generated")
+		fmt.Println("to view it, run: release config view")
+		fmt.Println("to edit it, run: release config edit")
 		return nil
 	},
 }
@@ -42,12 +42,7 @@ var viewConfigSubCmd = &cobra.Command{
 	Short: "view config",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		conf, err := rootConfig.String()
-		if err != nil {
-			return err
-		}
-		fmt.Println(conf)
-		return nil
+		return errors.New("not implemented yet")
 	},
 }
 
