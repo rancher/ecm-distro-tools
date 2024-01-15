@@ -111,7 +111,7 @@ func OpenOnEditor() error {
 	return cmd.Run()
 }
 
-func GenConfig() error {
+func Generate() error {
 	var configExists = true
 	configPath, err := DefaultConfigPath()
 	if err != nil {

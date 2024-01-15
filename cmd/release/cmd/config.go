@@ -27,7 +27,7 @@ var genConfigSubCmd = &cobra.Command{
 	Short: "generate config",
 	Long:  `generates a new config in the default location if it doesn't exists`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := config.GenConfig(); err != nil {
+		if err := config.Generate(); err != nil {
 			return err
 		}
 		logrus.Info("config generated")
