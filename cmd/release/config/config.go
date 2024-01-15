@@ -112,7 +112,7 @@ func OpenOnEditor() error {
 }
 
 func Generate() error {
-	var configExists = true
+	configExists := true
 	configPath, err := DefaultConfigPath()
 	if err != nil {
 		return err
