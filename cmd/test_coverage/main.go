@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	version   = "development"
 	rootFlags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:    "verbose",
@@ -45,6 +46,7 @@ func main() {
 	app.UseShortOptionHandling = true
 	app.Flags = rootFlags
 	app.Action = coverage
+	app.Version = version
 	err := app.Run(os.Args)
 	if err != nil {
 		logrus.Fatal(err)
