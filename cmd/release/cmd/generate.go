@@ -32,17 +32,18 @@ var k3sGenerateSubCmd = &cobra.Command{
 	Use:   "k3s",
 	Short: "",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", *milestone, *prevMilestone, client)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 
 		fmt.Print(notes.String())
+
+		return nil
 	},
 }
 
@@ -50,17 +51,18 @@ var rke2GenerateSubCmd = &cobra.Command{
 	Use:   "rke2",
 	Short: "",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", *milestone, *prevMilestone, client)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 
 		fmt.Print(notes.String())
+
+		return nil
 	},
 }
 
