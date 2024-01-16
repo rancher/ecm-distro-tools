@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "development"
+
 type BackportCmdOpts struct {
 	Repo     string
 	Issue    uint
@@ -24,10 +26,11 @@ var backportCmdOpts BackportCmdOpts
 
 func main() {
 	cmd := &cobra.Command{
-		Use:   "backport",
-		Short: "Generate backport issues and cherry pick commits to branches",
-		Long:  "The backport utility needs to be executed inside the repository you want to perform the actions",
-		RunE:  backport,
+		Use:     "backport",
+		Short:   "Generate backport issues and cherry pick commits to branches",
+		Long:    "The backport utility needs to be executed inside the repository you want to perform the actions",
+		RunE:    backport,
+		Version: version,
 	}
 
 	cmd.Flags().StringVarP(&backportCmdOpts.Repo, "repo", "r", "", "name of the repository to perform the backport (k3s, rke2)")
