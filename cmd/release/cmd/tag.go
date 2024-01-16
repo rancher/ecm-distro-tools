@@ -96,7 +96,7 @@ var rke2TagSubCmd = &cobra.Command{
 			}
 
 			if *dryRun {
-				fmt.Println("(dry-run)\n\nTagging github.com/rancher/rke2-packaging: \n")
+				fmt.Print("(dry-run)\n\nTagging github.com/rancher/rke2-packaging:\n\n")
 				for _, version := range rootConfig.RKE2.Versions {
 					fmt.Println("\t" + version + rpmTag)
 				}
