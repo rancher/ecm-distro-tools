@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -44,10 +45,9 @@ var rke2TagSubCmd = &cobra.Command{
 	Use:   "rke2",
 	Short: "",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(*releaseVersion) != 2 {
-			fmt.Println("error: invalid release version")
-			os.Exit(1)
+			return errors.New("invalid release version")
 		}
 
 		ctx := context.Background()
@@ -56,8 +56,7 @@ var rke2TagSubCmd = &cobra.Command{
 		switch args[0] {
 		case "image-build-base":
 			if err := rke2.ImageBuildBaseRelease(ctx, client, *alpineVersion, *dryRun); err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+				return err
 			}
 		case "image-build-kubernetes":
 			now := time.Now().UTC().Format("20060201")
@@ -78,8 +77,7 @@ var rke2TagSubCmd = &cobra.Command{
 						Prerelease: false,
 					}
 					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
-						fmt.Println(err)
-						os.Exit(1)
+						return err
 					}
 
 					fmt.Println("tag " + version + suffix + " created successfully")
@@ -89,8 +87,7 @@ var rke2TagSubCmd = &cobra.Command{
 			//
 		case "rpm":
 			if len(args) == 1 {
-				fmt.Println("error: invalid rpm tag. expected {testinglatest|stable}")
-				os.Exit(1)
+				return errors.New("invalid rpm tag. expected {testinglatest|stable}")
 			}
 
 			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *releaseVersion, args[1], *rpmVersion)
@@ -113,15 +110,15 @@ var rke2TagSubCmd = &cobra.Command{
 						Prerelease: false,
 					}
 					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
-						fmt.Println(err)
-						os.Exit(1)
+						return err
 					}
 				}
 			}
 		default:
-			fmt.Println("error: unrecognized resource")
-			os.Exit(1)
+			return errors.New("unrecognized resource")
 		}
+
+		return nil
 	},
 }
 
