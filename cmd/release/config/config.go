@@ -169,3 +169,10 @@ func exampleConfig() Config {
 		},
 	}
 }
+
+const configViewTemplate = `RKE2 Version
+------------
+{{- range .RKE2.Versions }}
+{{ . -}}+rke2r1
+{{- end}}
+`
