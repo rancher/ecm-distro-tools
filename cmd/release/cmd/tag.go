@@ -59,8 +59,8 @@ var rke2TagSubCmd = &cobra.Command{
 				return err
 			}
 		case "image-build-kubernetes":
-			now := time.Now().UTC().Format("20060201")
-			suffix := "+rke2" + *releaseVersion + "-build" + now
+			now := time.Now().UTC().Format("20060102")
+			suffix := "-rke2" + *releaseVersion + "-build" + now
 
 			if *dryRun {
 				fmt.Println("dry-run:")
