@@ -15,6 +15,7 @@ If a commit is provided, `backport` assumes you're running from the repository t
 | `commits`, `c`                      | Commits to be backported, if none is provided, only the issues will be created. When passing this flag, it assumes you're running from the repository this operation is related to (comma separated) | FALSE        |
 | `user`, `u`                         | User to assign new issues to (default: user assignted to the original issue)                                                                                                                         | FALSE        |
 | `dry-run`, `n`                      | Skip creating issues and pushing changes to remote                                                                                                                                                   | FALSE        |
+| `skip-create-issue`, `s`            | Skip creating issues                                                                                                                                                                                 | FALSE        |
 | `github-token`, `g`, `GITHUB_TOKEN` | Github Token                                                                                                                                                                                         | TRUE         |
 
 ### Examples
