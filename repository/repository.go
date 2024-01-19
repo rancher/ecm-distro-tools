@@ -219,13 +219,14 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 
 // PerformBackportOpts
 type PerformBackportOpts struct {
-	Owner    string   `json:"owner"`
-	Repo     string   `json:"repo"`
-	Commits  []string `json:"commits"`
-	IssueID  uint     `json:"issue_id"`
-	Branches []string `json:"branches"`
-	User     string   `json:"user"`
-	DryRun   bool     `json:"dry_run"`
+	Owner           string   `json:"owner"`
+	Repo            string   `json:"repo"`
+	Commits         []string `json:"commits"`
+	IssueID         uint     `json:"issue_id"`
+	Branches        []string `json:"branches"`
+	User            string   `json:"user"`
+	DryRun          bool     `json:"dry_run"`
+	SkipCreateIssue bool     `json:"skip_create_issue"`
 }
 
 // PerformBackport creates backport issues, performs a cherry-pick of the
@@ -335,8 +336,8 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		}
 
 		logrus.Info("creating issue | owner: " + pbo.Owner + " | Repo: " + pbo.Repo + " | Branch: " + branch)
-		if pbo.DryRun {
-			logrus.Info("dry run, skipping issue creation")
+		if pbo.DryRun || pbo.SkipCreateIssue {
+			logrus.Info("skipping issue creation")
 			continue
 		}
 		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
