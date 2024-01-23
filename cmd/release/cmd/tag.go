@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/release/rke2"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
@@ -20,12 +21,15 @@ type TagRKE2CmdFlags struct {
 }
 
 type TagRancherCmdFlags struct {
-	Version *string
-	Branch  *string
+	Tag       *string
+	Branch    *string
+	RepoOwner *string
+	DryRun    *bool
 }
 
 var (
-	tagRKE2CmdFlags TagRKE2CmdFlags
+	tagRKE2CmdFlags    TagRKE2CmdFlags
+	tagRancherCmdFlags TagRancherCmdFlags
 )
 
 // tagCmd represents the tag command.
@@ -136,7 +140,9 @@ var rancherTagSubCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return nil
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		return rancher.TagRelease(ctx, ghClient, *tagRancherCmdFlags.Tag, *tagRancherCmdFlags.Branch, *tagRancherCmdFlags.RepoOwner, *tagRancherCmdFlags.DryRun)
 	},
 }
 
@@ -156,4 +162,16 @@ func init() {
 	tagRKE2CmdFlags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
 
 	// rancher
+	tagRancherCmdFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
+	tagRancherCmdFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
+	tagRancherCmdFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
+	tagRancherCmdFlags.DryRun = rancherTagSubCmd.Flags().BoolP("dry-run", "d", false, "don't push any changes, optional (default \"false\")")
+	if err := rancherTagSubCmd.MarkFlagRequired("tag"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherTagSubCmd.MarkFlagRequired("branch"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
