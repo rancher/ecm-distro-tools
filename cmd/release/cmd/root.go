@@ -46,7 +46,7 @@ func init() {
 	}
 	conf, err := config.Load(configPath)
 	if err != nil {
-		fmt.Println("error loading config, check if it exisits at " + configPath + " and if not, use: release config gen")
+		fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configPath)
 		fmt.Println(err)
 		os.Exit(1)
 	}
