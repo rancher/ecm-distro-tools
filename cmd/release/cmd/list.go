@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/spf13/cobra"
@@ -51,4 +52,9 @@ func init() {
 	listCmd.AddCommand(rancherListSubCmd)
 
 	rancherImageTag = listCmd.Flags().StringP("tag", "t", "", "release tag to validate images")
+
+	if err := listCmd.MarkFlagRequired("tag"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
