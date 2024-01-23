@@ -15,7 +15,7 @@ var rootConfig *config.Config
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "release",
-	Short: "Central command to perform RKE2 and K3s Releases",
+	Short: "Central command to perform RKE2, K3s and Rancher Releases",
 	Long:  ``,
 }
 

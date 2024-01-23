@@ -12,11 +12,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type TagRKE2CmdFlags struct {
+	AlpineVersion  *string
+	ReleaseVersion *string
+	RCVersion      *string
+	RPMVersion     *int
+}
+
+type TagRancherCmdFlags struct {
+	Version *string
+	Branch  *string
+}
+
 var (
-	alpineVersion  *string
-	releaseVersion *string
-	rcVersion      *string
-	rpmVersion     *int
+	tagRKE2CmdFlags TagRKE2CmdFlags
 )
 
 // tagCmd represents the tag command.
@@ -46,7 +55,7 @@ var rke2TagSubCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(*releaseVersion) != 2 {
+		if len(*tagRKE2CmdFlags.AlpineVersion) != 2 {
 			return errors.New("invalid release version")
 		}
 
@@ -55,12 +64,12 @@ var rke2TagSubCmd = &cobra.Command{
 
 		switch args[0] {
 		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, *alpineVersion, *dryRun); err != nil {
+			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2CmdFlags.AlpineVersion, *dryRun); err != nil {
 				return err
 			}
 		case "image-build-kubernetes":
 			now := time.Now().UTC().Format("20060102")
-			suffix := "-rke2" + *releaseVersion + "-build" + now
+			suffix := "-rke2" + *tagRKE2CmdFlags.ReleaseVersion + "-build" + now
 
 			if *dryRun {
 				fmt.Println("dry-run:")
@@ -90,9 +99,9 @@ var rke2TagSubCmd = &cobra.Command{
 				return errors.New("invalid rpm tag. expected {testinglatest|stable}")
 			}
 
-			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *releaseVersion, args[1], *rpmVersion)
-			if *rcVersion != "" {
-				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *releaseVersion, *rcVersion, args[1], *rpmVersion)
+			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *tagRKE2CmdFlags.ReleaseVersion, args[1], *tagRKE2CmdFlags.RPMVersion)
+			if *tagRKE2CmdFlags.RCVersion != "" {
+				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *tagRKE2CmdFlags.ReleaseVersion, *tagRKE2CmdFlags.RCVersion, args[1], *tagRKE2CmdFlags.RPMVersion)
 			}
 
 			if *dryRun {
@@ -122,26 +131,29 @@ var rke2TagSubCmd = &cobra.Command{
 	},
 }
 
+var rancherTagSubCmd = &cobra.Command{
+	Use:   "rancher",
+	Short: "",
+	Long:  ``,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
 	tagCmd.AddCommand(k3sTagSubCmd)
 	tagCmd.AddCommand(rke2TagSubCmd)
+	tagCmd.AddCommand(rancherTagSubCmd)
 
 	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "d", false, "Dry run")
 
-	alpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
-	releaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
-	rcVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
-	rpmVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
+	// rke2
+	tagRKE2CmdFlags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
+	tagRKE2CmdFlags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
+	tagRKE2CmdFlags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
+	tagRKE2CmdFlags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// tagCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-
+	// rancher
 }
