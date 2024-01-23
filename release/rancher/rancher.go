@@ -352,25 +352,21 @@ func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch,
 	if err := commitStateSuccess(ctx, ghClient, repoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
 		return err
 	}
-
-	ghTag := &github.Tag{
-		Tag:     github.String(tag),
-		SHA:     github.String(remoteBranch),
-		Message: github.String(tag),
-		Object: &github.GitObject{
-			Type: github.String("tree"),
-		},
-	}
-	fmt.Printf("creating tag %+v", ghTag)
+	fmt.Println("creating tag: " + tag)
 	if dryRun {
-		logrus.Info("dry run, skipping tag creation")
+		fmt.Println("dry run, skipping tag creation")
 		return nil
 	}
-	createdTag, _, err := ghClient.Git.CreateTag(ctx, repoOwner, rancherRepo, ghTag)
+	ref, _, err := ghClient.Git.CreateRef(ctx, repoOwner, rancherRepo, &github.Reference{
+		Ref: github.String("refs/tags/" + tag),
+		Object: &github.GitObject{
+			SHA: branch.Commit.SHA,
+		},
+	})
 	if err != nil {
 		return err
 	}
-	fmt.Println("created tag: " + *createdTag.URL)
+	fmt.Println("created tag: " + *ref.URL)
 	return nil
 }
 
