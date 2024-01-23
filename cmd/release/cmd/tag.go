@@ -13,14 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type TagRKE2CmdFlags struct {
+type tagRKE2CmdFlags struct {
 	AlpineVersion  *string
 	ReleaseVersion *string
 	RCVersion      *string
 	RPMVersion     *int
 }
 
-type TagRancherCmdFlags struct {
+type tagRancherCmdFlags struct {
 	Tag       *string
 	Branch    *string
 	RepoOwner *string
@@ -28,8 +28,8 @@ type TagRancherCmdFlags struct {
 }
 
 var (
-	tagRKE2CmdFlags    TagRKE2CmdFlags
-	tagRancherCmdFlags TagRancherCmdFlags
+	tagRKE2Flags    tagRKE2CmdFlags
+	tagRancherFlags tagRancherCmdFlags
 )
 
 // tagCmd represents the tag command.
@@ -59,7 +59,7 @@ var rke2TagSubCmd = &cobra.Command{
 	Short: "",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(*tagRKE2CmdFlags.AlpineVersion) != 2 {
+		if len(*tagRKE2Flags.AlpineVersion) != 2 {
 			return errors.New("invalid release version")
 		}
 
@@ -68,12 +68,12 @@ var rke2TagSubCmd = &cobra.Command{
 
 		switch args[0] {
 		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2CmdFlags.AlpineVersion, *dryRun); err != nil {
+			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2Flags.AlpineVersion, *dryRun); err != nil {
 				return err
 			}
 		case "image-build-kubernetes":
 			now := time.Now().UTC().Format("20060102")
-			suffix := "-rke2" + *tagRKE2CmdFlags.ReleaseVersion + "-build" + now
+			suffix := "-rke2" + *tagRKE2Flags.ReleaseVersion + "-build" + now
 
 			if *dryRun {
 				fmt.Println("dry-run:")
@@ -103,9 +103,9 @@ var rke2TagSubCmd = &cobra.Command{
 				return errors.New("invalid rpm tag. expected {testinglatest|stable}")
 			}
 
-			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *tagRKE2CmdFlags.ReleaseVersion, args[1], *tagRKE2CmdFlags.RPMVersion)
-			if *tagRKE2CmdFlags.RCVersion != "" {
-				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *tagRKE2CmdFlags.ReleaseVersion, *tagRKE2CmdFlags.RCVersion, args[1], *tagRKE2CmdFlags.RPMVersion)
+			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *tagRKE2Flags.ReleaseVersion, args[1], *tagRKE2Flags.RPMVersion)
+			if *tagRKE2Flags.RCVersion != "" {
+				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *tagRKE2Flags.ReleaseVersion, *tagRKE2Flags.RCVersion, args[1], *tagRKE2Flags.RPMVersion)
 			}
 
 			if *dryRun {
@@ -142,7 +142,7 @@ var rancherTagSubCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		return rancher.TagRelease(ctx, ghClient, *tagRancherCmdFlags.Tag, *tagRancherCmdFlags.Branch, *tagRancherCmdFlags.RepoOwner, *tagRancherCmdFlags.DryRun)
+		return rancher.TagRelease(ctx, ghClient, *tagRancherFlags.Tag, *tagRancherFlags.Branch, *tagRancherFlags.RepoOwner, *tagRancherFlags.DryRun)
 	},
 }
 
@@ -156,16 +156,16 @@ func init() {
 	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "d", false, "Dry run")
 
 	// rke2
-	tagRKE2CmdFlags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
-	tagRKE2CmdFlags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
-	tagRKE2CmdFlags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
-	tagRKE2CmdFlags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
+	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
+	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
+	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
+	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
 
 	// rancher
-	tagRancherCmdFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
-	tagRancherCmdFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
-	tagRancherCmdFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
-	tagRancherCmdFlags.DryRun = rancherTagSubCmd.Flags().BoolP("dry-run", "d", false, "don't push any changes, optional (default \"false\")")
+	tagRancherFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
+	tagRancherFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
+	tagRancherFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
+	tagRancherFlags.DryRun = rancherTagSubCmd.Flags().BoolP("dry-run", "d", false, "don't push any changes, optional (default \"false\")")
 	if err := rancherTagSubCmd.MarkFlagRequired("tag"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
