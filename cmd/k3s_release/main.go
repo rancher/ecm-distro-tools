@@ -30,8 +30,6 @@ func main() {
 		createTagsCommand(),
 		pushTagsCommand(),
 		modifyK3SCommand(),
-		tagRCReleaseCommand(),
-		tagReleaseCommand(),
 	}
 	app.Flags = rootFlags
 
