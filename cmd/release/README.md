@@ -14,7 +14,7 @@ release -h
 * Docker
 * Git
 * Go (At least the version used upstream for kubernetes)
-* Sed (GNU or BSD)
+* Sed (GNU for Linux or BSD for macOS)
 * All commands require a Github token (classic) with the following permissions:
   * Be generated on behalf of an account with access to the `k3s-io/k3s` repo
   * `repo`
