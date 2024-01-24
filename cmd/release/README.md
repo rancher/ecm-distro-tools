@@ -19,7 +19,7 @@ release -h
   * Be generated on behalf of an account with access to the `k3s-io/k3s` repo
   * `repo`
   * `write:packages`    
-* An SSH key is also required, follow the Github [Documentation](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) to generate one.
+* An SSH key, follow the Github [Documentation](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) to generate one.
 * A valid config file at `~/.ecm-distro-tools/config.json`
 
 #### Commands
