@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/release/rke2"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -46,11 +47,25 @@ var tagCmd = &cobra.Command{
 }
 
 var k3sTagSubCmd = &cobra.Command{
-	Use:   "k3s",
+	Use:   "k3s [ga,rc] [version]",
 	Short: "",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		rc, err := releaseTypeRC(args[0])
+		if err != nil {
+			return err
+		}
+		tag := args[1]
+		k3sRelease, found := rootConfig.K3s.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, tag, rc)
 	},
 }
 
@@ -174,4 +189,14 @@ func init() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+}
+
+func releaseTypeRC(releaseType string) (bool, error) {
+	if releaseType == "rc" {
+		return true, nil
+	}
+	if releaseType == "ga" {
+		return false, nil
+	}
+	return false, errors.New("release type must be either 'ga' or 'rc', instead got: " + releaseType)
 }

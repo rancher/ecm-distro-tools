@@ -25,6 +25,8 @@ type K3sRelease struct {
 	NewSuffix     string `json:"new_suffix"`
 	ReleaseBranch string `json:"release_branch"`
 	DryRun        bool   `json:"dry_run"`
+	Workspace     string `json:"workspace"`
+	K3sRepoOwner  string `json:"k3s_repo_owner"`
 }
 
 // RKE2
@@ -39,8 +41,7 @@ type User struct {
 
 // K3s
 type K3s struct {
-	Version   map[string]K3sRelease `json:"version"`
-	Workspace string                `json:"workspace"`
+	Versions map[string]K3sRelease `json:"versions"`
 }
 
 // Drone
