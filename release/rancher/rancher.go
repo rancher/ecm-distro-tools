@@ -334,35 +334,51 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	return nil
 }
 
-func TagRancherRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, generalAvailability, ignoreDraft, dryRun bool) error {
-	logrus.Info("validating tag semver format")
+func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, dryRun bool) error {
+	fmt.Println("validating tag semver format")
 	if !semver.IsValid(tag) {
 		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
 	}
-	logrus.Info("getting remote branch information from " + repoOwner + "/" + rancherRepo)
+	fmt.Println("getting remote branch information from " + repoOwner + "/" + rancherRepo)
 	branch, _, err := ghClient.Repositories.GetBranch(ctx, repoOwner, rancherRepo, remoteBranch, true)
 	if err != nil {
 		return err
 	}
-	logrus.Info("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
-
-	createAsDraft := !ignoreDraft
-	createAsPrerelease := !generalAvailability
-	logrus.Info("creating release ")
-	ghRelease := github.RepositoryRelease{
-		TagName:              github.String(tag),
-		Name:                 github.String(rancherReleaseName(generalAvailability, tag)),
-		Draft:                &createAsDraft,
-		Prerelease:           &createAsPrerelease,
-		GenerateReleaseNotes: github.Bool(false),
+	if branch.Commit.SHA == nil {
+		return errors.New("branch commit sha is nil")
 	}
-	logrus.Infof("github release: %+v", ghRelease)
+	fmt.Println("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
+	fmt.Println("checking if CI is passing")
+	if err := commitStateSuccess(ctx, ghClient, repoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
+		return err
+	}
+	fmt.Println("creating tag: " + tag)
 	if dryRun {
-		logrus.Info("dry run, skipping release creation")
+		fmt.Println("dry run, skipping tag creation")
 		return nil
 	}
-	_, _, err = ghClient.Repositories.CreateRelease(ctx, repoOwner, rancherRepo, &ghRelease)
-	return err
+	ref, _, err := ghClient.Git.CreateRef(ctx, repoOwner, rancherRepo, &github.Reference{
+		Ref: github.String("refs/tags/" + tag),
+		Object: &github.GitObject{
+			SHA: branch.Commit.SHA,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Println("created tag: " + *ref.URL)
+	return nil
+}
+
+func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, repo, commit string) error {
+	status, _, err := ghClient.Repositories.GetCombinedStatus(ctx, owner, repo, commit, &github.ListOptions{})
+	if err != nil {
+		return err
+	}
+	if status.State != github.String("success") {
+		return errors.New("expected commit " + commit + " to have state 'success', instead, got " + *status.State)
+	}
+	return nil
 }
 
 func rancherReleaseName(generalAvailability bool, tag string) string {
