@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
@@ -33,24 +32,24 @@ func SetVersion(version string) {
 }
 
 func init() {
-	rootCmd.Flags().BoolP("debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
 
-	homeDir, err := os.UserHomeDir()
+	configPath, err := config.DefaultConfigPath()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	const (
-		ecmDistroDir   = ".ecm-distro-tools"
-		configFileName = "config.json"
-	)
-	configFile := filepath.Join(homeDir, ecmDistroDir, configFileName)
-
-	conf, err := config.Load(configFile)
+	if os.Args[1] == "config" && os.Args[2] == "gen" {
+		fmt.Println("running release config gen, skipping config load")
+		return
+	}
+	conf, err := config.Load(configPath)
 	if err != nil {
+		fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configPath)
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	rootConfig = conf
 }

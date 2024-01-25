@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
 )
 
@@ -23,9 +25,15 @@ var configCmd = &cobra.Command{
 var genConfigSubCmd = &cobra.Command{
 	Use:   "gen",
 	Short: "generate config",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	Long:  `generates a new config in the default location if it doesn't exists`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := config.Generate(); err != nil {
+			return err
+		}
+		fmt.Println("config generated")
+		fmt.Println("to view it, run: release config view")
+		fmt.Println("to edit it, run: release config edit")
+		return nil
 	},
 }
 
@@ -33,8 +41,8 @@ var viewConfigSubCmd = &cobra.Command{
 	Use:   "view",
 	Short: "view config",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return errors.New("not implemented yet")
 	},
 }
 
@@ -42,8 +50,8 @@ var editConfigSubCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "edit config",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Here we are!")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return config.OpenOnEditor()
 	},
 }
 
@@ -64,11 +72,3 @@ func init() {
 	// is called directly, e.g.:
 	// configCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
-
-const configViewTemplate = `RKE2 Version
-------------
-{{- range .RKE2.Versions }}
-{{ . -}}+rke2r1
-{{- end}}
-
-`
