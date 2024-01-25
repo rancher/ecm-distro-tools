@@ -141,7 +141,7 @@ func exampleConfig() Config {
 			Email: "your.name@suse.com",
 		},
 		K3s: &K3s{
-			Version: map[string]K3sRelease{
+			Versions: map[string]K3sRelease{
 				"v1.x.y": {
 					OldK8sVersion: "v1.x.z",
 					NewK8sVersion: "v1.x.y",
@@ -151,9 +151,9 @@ func exampleConfig() Config {
 					NewSuffix:     "k3s1",
 					ReleaseBranch: "release-1.x",
 					DryRun:        false,
+					Workspace:     filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes"),
 				},
 			},
-			Workspace: filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes"),
 		},
 		RKE2: &RKE2{
 			Versions: []string{"v1.x.y"},

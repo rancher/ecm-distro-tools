@@ -52,7 +52,7 @@ var k3sTagSubCmd = &cobra.Command{
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
-			return errors.New("expected at least one argument: [version]")
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 		rc, err := releaseTypeRC(args[0])
 		if err != nil {
@@ -168,7 +168,7 @@ func init() {
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
 
-	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "d", false, "Dry run")
+	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "Dry run")
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
@@ -180,7 +180,7 @@ func init() {
 	tagRancherFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
 	tagRancherFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
 	tagRancherFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
-	tagRancherFlags.DryRun = rancherTagSubCmd.Flags().BoolP("dry-run", "d", false, "don't push any changes, optional (default \"false\")")
+	tagRancherFlags.DryRun = dryRun
 	if err := rancherTagSubCmd.MarkFlagRequired("tag"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
