@@ -16,6 +16,11 @@ var pushCmd = &cobra.Command{
 
 var pushK3sCmd = &cobra.Command{
 	Use:   "k3s [version]",
+	Short: "",
+}
+
+var pushK3sTagsCmd = &cobra.Command{
+	Use:   "tags [version]",
 	Short: "push k8s tags to remote",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
@@ -35,4 +40,5 @@ var pushK3sCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(pushCmd)
 	pushCmd.AddCommand(pushK3sCmd)
+	pushK3sCmd.AddCommand(pushK3sTagsCmd)
 }
