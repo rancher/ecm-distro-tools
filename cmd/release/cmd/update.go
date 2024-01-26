@@ -15,7 +15,12 @@ var updateCmd = &cobra.Command{
 }
 
 var updateK3sCmd = &cobra.Command{
-	Use:   "k3s [version]",
+	Use:   "k3s",
+	Short: "",
+}
+
+var updateK3sReferencesCmd = &cobra.Command{
+	Use: "references [version]",
 	Short: "update k8s and go references in a k3s repo and create a PR",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
@@ -35,4 +40,5 @@ var updateK3sCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.AddCommand(updateK3sCmd)
+	updateK3sCmd.AddCommand(updateK3sReferencesCmd)
 }
