@@ -44,17 +44,17 @@ ARG UID=1000
 ARG GID=1000
 RUN addgroup -S -g $GID ecmgroup && adduser -S -G ecmgroup -u $UID user
 USER user`
-	modifyScriptName = "modify_script.sh"
-	modifyScript     = `#!/bin/bash
+	updateK3sScriptName       = "update_k3s_references.sh"
+	updateK3sReferencesScript = `#!/bin/bash
 set -ex
 OS=$(uname -s)
-DRY_RUN={{ .DryRun }}
-BRANCH_NAME={{ .NewK8sVersion }}-{{ .NewSuffix }}
+DRY_RUN={{ .K3s.DryRun }}
+BRANCH_NAME={{ .K3s.NewK8sVersion }}-{{ .K3s.NewSuffix }}
 cd {{ .Workspace }}
 # using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
-ls | grep -w k3s || git clone "git@github.com:{{ .GithubUsername }}/k3s.git"
-cd {{ .Workspace }}/k3s
-git remote -v | grep -w upstream || git remote add upstream {{ .K3sUpstreamURL }}
+ls | grep -w k3s || git clone "git@github.com:{{ .User.GithubUsername }}/k3s.git"
+cd {{ .K3s.Workspace }}/k3s
+git remote -v | grep -w upstream || git remote add upstream {{ .K3s.K3sUpstreamURL }}
 git fetch upstream
 git stash
 git branch -D "${BRANCH_NAME}" &>/dev/null || true
@@ -63,18 +63,18 @@ git clean -xfd
 
 case ${OS} in
 Darwin)
-	sed -Ei '' "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8sVersion "." "\\." }}-{{ .OldSuffix }}|{{ replaceAll .NewK8sVersion "." "\\." }}-{{ .NewSuffix }}|" go.mod
-	sed -Ei '' "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8sVersion "." "\\." }}/" go.mod
-	sed -Ei '' "s/{{ replaceAll .OldK8sClient "." "\\." }}/{{ replaceAll .NewK8sClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-	sed -Ei '' "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
-	sed -Ei '' "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	sed -Ei '' "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .K3s.OldK8sVersion "." "\\." }}-{{ .K3s.OldSuffix }}|{{ replaceAll .K3s.NewK8sVersion "." "\\." }}-{{ .K3s.NewSuffix }}|" go.mod
+	sed -Ei '' "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .K3s.NewK8sVersion "." "\\." }}/" go.mod
+	sed -Ei '' "s/{{ replaceAll .K3s.OldK8sClient "." "\\." }}/{{ replaceAll .K3s.NewK8sClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei '' "s/golang:.*-/golang:{{ .K3s.NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei '' "s/go-version:.*$/go-version:\ '{{ .K3s.NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
 	;;
 Linux)
-	sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .OldK8sVersion "." "\\." }}-{{ .OldSuffix }}|{{ replaceAll .NewK8sVersion "." "\\." }}-{{ .NewSuffix }}|" go.mod
-	sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .NewK8sVersion "." "\\." }}/" go.mod
-	sed -Ei "s/{{ replaceAll .OldK8sClient "." "\\." }}/{{ replaceAll .NewK8sClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
-	sed -Ei "s/golang:.*-/golang:{{ .NewGoVersion }}-/g" Dockerfile.*
-	sed -Ei "s/go-version:.*$/go-version:\ '{{ .NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
+	sed -Ei "\|github.com/k3s-io/kubernetes| s|{{ replaceAll .K3s.OldK8sVersion "." "\\." }}-{{ .K3s.OldSuffix }}|{{ replaceAll .K3s.NewK8sVersion "." "\\." }}-{{ .K3s.NewSuffix }}|" go.mod
+	sed -Ei "s/k8s.io\/kubernetes v\S+/k8s.io\/kubernetes {{ replaceAll .K3s.NewK8sVersion "." "\\." }}/" go.mod
+	sed -Ei "s/{{ replaceAll .K3s.OldK8sClient "." "\\." }}/{{ replaceAll .K3s.NewK8sClient "." "\\." }}/g" go.mod # This should only change ~6 lines in go.mod
+	sed -Ei "s/golang:.*-/golang:{{ .K3s.NewGoVersion }}-/g" Dockerfile.*
+	sed -Ei "s/go-version:.*$/go-version:\ '{{ .K3s.NewGoVersion }}'/g" .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
 	;;
 *)
 	>&2 echo "$(OS) not supported yet"
@@ -85,11 +85,16 @@ esac
 go mod tidy
 
 git add go.mod go.sum Dockerfile.* .github/workflows/integration.yaml .github/workflows/unitcoverage.yaml
-	git commit --signoff -m "Update to {{ .NewK8sVersion }}"
+	git commit --signoff -m "Update to {{ .K3s.NewK8sVersion }}"
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
 fi`
 )
+
+type UpdateScriptVars struct {
+	K3s  *ecmConfig.K3sRelease
+	User *ecmConfig.User
+}
 
 type Release struct {
 	OldK8sVersion  string `json:"old_k8s_version"`
@@ -584,68 +589,59 @@ func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.Use
 	return nil
 }
 
-func ModifyAndPush(r *ecmConfig.K3sRelease) error {
+func UpdateK3sReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
+	if err := updateK3sReferencesAndPush(r, u); err != nil {
+		return err
+	}
+	if r.DryRun {
+		fmt.Println("dry run, skipping creating PR")
+		return nil
+	}
+	return createK3sReferencesPR(ctx, ghClient, r, u)
+}
+
+func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
+	fmt.Println("verifying if workspace dir exists")
 	if _, err := os.Stat(r.Workspace); err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(r.Workspace, 0755); err != nil {
-				return err
-			}
-		} else {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		fmt.Println("workspace dir doesn't exists, creating it")
+		if err := os.MkdirAll(r.Workspace, 0755); err != nil {
 			return err
 		}
 	}
 
+	fmt.Println("getting k8s go version")
 	goVersion, err := goVersion(r)
 	if err != nil {
 		return err
 	}
 	r.NewGoVersion = goVersion
 
-	logrus.Info("creating modify script")
-	modifyScriptPath := filepath.Join(r.Workspace, modifyScriptName)
-	f, err := os.Create(modifyScriptPath)
+	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
+	fmt.Println("creating update k3s references script template")
+	scriptVars := UpdateScriptVars{K3s: r, User: u}
+	updateScriptOut, err := ecmExec.RunTemplatedScript(r.Workspace, updateK3sScriptName, updateK3sReferencesScript, funcMap, scriptVars)
 	if err != nil {
 		return err
 	}
-
-	if err := os.Chmod(modifyScriptPath, 0755); err != nil {
-		return err
-	}
-
-	funcMap := template.FuncMap{
-		"replaceAll": strings.ReplaceAll,
-	}
-	tmpl, err := template.New(modifyScriptName).Funcs(funcMap).Parse(modifyScript)
-	if err != nil {
-		return err
-	}
-
-	if err := tmpl.Execute(f, r); err != nil {
-		return err
-	}
-
-	logrus.Info("running modify script")
-	out, err := ecmExec.RunCommand(r.Workspace, "bash", "./"+modifyScriptName)
-	if err != nil {
-		return err
-	}
-	logrus.Info(out)
-
+	fmt.Println(updateScriptOut)
 	return nil
 }
 
-func (r *Release) CreatePRFromK3S(ctx context.Context, ghClient *github.Client) error {
+func createK3sReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
 	const repo = "k3s"
 
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Update to %s-%s", r.NewK8sVersion, r.NewSuffix)),
+		Title:               github.String(fmt.Sprintf("Update to %s-%s and Go %s", r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
 		Base:                github.String(r.ReleaseBranch),
-		Head:                github.String(r.Handler + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
+		Head:                github.String(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, r.K3sRemote, repo, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, r.K3sRepoOwner, repo, pull)
 
 	return err
 }

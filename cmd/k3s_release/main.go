@@ -28,7 +28,6 @@ func main() {
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
 		pushTagsCommand(),
-		modifyK3SCommand(),
 	}
 	app.Flags = rootFlags
 

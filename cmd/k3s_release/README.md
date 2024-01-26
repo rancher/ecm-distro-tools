@@ -41,26 +41,12 @@ Example:
 ```
 Export your Github token as an environment variable and run commands:
 ```bash
-export GITHUB_TOKEN={YOUR_TOKEN}
-k3s_release create-tags -c config.json
 k3s_release push-tags -c config.json
 k3s_release modify-k3s -c config.json
 ```
 
 ## Errors
 
-### Cache Permissions and Docker:
-```bash
-$ k3s_release create-tags -c config-2-26.json
-> FATA[0014] failed to rebase and create tags: chown: changing ownership of '/home/go/.cache': Operation not permitted
-failed to initialize build cache at /home/go/.cache: mkdir /home/go/.cache/00: permission denied 
-```
-Verify if the `$GOPATH/.cache` directory is owned by the same user that is running the command. If not, change the ownership of the directory:
-```bash
-$ ls -la $GOPATH/
-> drwxr-xr-x  2 root root 4096 Dec 20 15:50 .cache
-$ sudo chown $USER $GOPATH/.cache
-```
 
 
 ## Contributions
