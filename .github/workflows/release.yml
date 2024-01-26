@@ -24,6 +24,7 @@ jobs:
           files: |
             ${{ github.workspace }}/bin/bootstrap_hash
             ${{ github.workspace }}/bin/check_for_k8s_release
+            ${{ github.workspace }}/bin/cut_k3s_release_issue
             ${{ github.workspace }}/bin/cut_rke2_release_issue
             ${{ github.workspace }}/bin/delete_release_assets
             ${{ github.workspace }}/bin/rancher_image_scan
@@ -41,6 +42,13 @@ jobs:
             ${{ github.workspace }}/cmd/backport/bin/backport-linux-amd64
             ${{ github.workspace }}/cmd/backport/bin/backport-linux-arm64
             ${{ github.workspace }}/cmd/backport/bin/sha256sums-backport.txt
+            ${{ github.workspace }}/cmd/release/bin/release-darwin-amd64
+            ${{ github.workspace }}/cmd/release/bin/release-darwin-arm64
+            ${{ github.workspace }}/cmd/release/bin/release-freebsd-amd64
+            ${{ github.workspace }}/cmd/release/bin/release-freebsd-arm64
+            ${{ github.workspace }}/cmd/release/bin/release-linux-amd64
+            ${{ github.workspace }}/cmd/release/bin/release-linux-arm64
+            ${{ github.workspace }}/cmd/release/bin/sha256sums-release.txt
             ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-darwin-amd64
             ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-darwin-arm64
             ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-freebsd-amd64
