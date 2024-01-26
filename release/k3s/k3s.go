@@ -20,7 +20,6 @@ import (
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
@@ -519,7 +518,7 @@ func tagsCmdsFromFile(r *ecmConfig.K3sRelease) ([]string, error) {
 func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
 	tagsCmds, err := tagsCmdsFromFile(r)
 	if err != nil {
-		logrus.Fatalf("failed to extract tags from file: %v", err)
+		return errors.New("failed to extract tags from file: " + err.Error())
 	}
 	fmt.Println("setting up git artifacts")
 	gitConfigFile, err := setupGitArtifacts(r, u)
@@ -583,9 +582,9 @@ func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.Use
 	for i, tagCmd := range tagsCmds {
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
-		logrus.Infof("pushing tag %d/%d: %s", i+1, len(tagsCmds), tag)
+		fmt.Printf("pushing tag %d/%d: %s", i+1, len(tagsCmds), tag)
 		if r.DryRun {
-			logrus.Info("Dry run, skipping tag creation")
+			fmt.Println("Dry run, skipping tag creation")
 			continue
 		}
 		if err := repo.Push(&git.PushOptions{
