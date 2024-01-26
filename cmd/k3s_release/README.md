@@ -4,17 +4,6 @@ k3s_release is a utility that performs the bulk of the actions to complete a K3s
 
 Please reference the help menu from the binary.
 
-## Requirements
-* OS: Linux
-* Docker
-* Git
-* Go (At least the version used upstream for kubernetes)
-* Sed (GNU)
-* All commands require a Github token (classic) with the following permissions:
-  * Be generated on behalf of an account with access to the `k3s-io/k3s` repo
-  * `repo`
-  * `write:packages`    
-* An SSH key is also required, follow the Github [Documentation](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) to generate one.
 
 ## Configuration
 | Name             | Description                                                                                                |
@@ -41,8 +30,8 @@ Example:
   "new_k8s_version": "v1.28.5",
   "old_k8s_client": "v0.28.4",
   "new_k8s_client": "v0.28.5",
-  "old_k3s_version": "k3s1",
-  "new_k3s_version": "k3s1",
+  "old_k3s_suffix": "k3s1",
+  "new_k3s_suffix": "k3s1",
   "release_branch": "release-1.28",
   "workspace": "$GOPATH/src/github.com/kubernetes",
   "handler": "YourUsername",
@@ -53,11 +42,9 @@ Example:
 Export your Github token as an environment variable and run commands:
 ```bash
 export GITHUB_TOKEN={YOUR_TOKEN}
-create-tags -c config.json
-push-tags -c config.json
-modify-k3s -c config.json
-tag-rc-release -c config.json
-tag-release -c config.json
+k3s_release create-tags -c config.json
+k3s_release push-tags -c config.json
+k3s_release modify-k3s -c config.json
 ```
 
 ## Errors

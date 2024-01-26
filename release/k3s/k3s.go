@@ -18,11 +18,13 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/google/go-github/v39/github"
+	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	ssh2 "golang.org/x/crypto/ssh"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
 )
 
@@ -698,49 +700,60 @@ func cleanGitRepo(dir string) error {
 	return nil
 }
 
-func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, tag string, rc bool) error {
+	fmt.Println("validating tag")
+	if !semver.IsValid(tag) {
+		return errors.New("tag isn't a valid semver: " + tag)
+	}
+	var createdReleaseURL string
 	rcNum := 1
-	name := r.NewK8SVersion + "+" + r.NewK3SSuffix
-	oldName := r.OldK8SVersion + "+" + r.OldK3SSuffix
+	name := r.NewK8sVersion + "+" + r.NewSuffix
+	oldName := r.OldK8sVersion + "+" + r.OldSuffix
 
 	for {
 		if rc {
-			name = r.NewK8SVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewK3SSuffix
+			name = r.NewK8sVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewSuffix
 		}
 
 		opts := &repository.CreateReleaseOpts{
 			Repo:         k3sRepo,
 			Name:         name,
-			Owner:        r.K3sRemote,
+			Owner:        r.K3sRepoOwner,
 			Prerelease:   true,
 			Branch:       r.ReleaseBranch,
 			Draft:        !rc,
 			ReleaseNotes: "",
 		}
 
+		fmt.Printf("create release options: %+v\n", *opts)
+
+		if r.DryRun {
+			fmt.Println("dry run, skipping creating release and verifying if rcs already were created")
+			break
+		}
+
 		if !rc {
-			latestRc, err := release.LatestRC(ctx, r.K3sRemote, k3sRepo, r.NewK8SVersion, client)
+			latestRc, err := release.LatestRC(ctx, r.K3sRepoOwner, k3sRepo, r.NewK8sVersion, client)
 			if err != nil {
 				return err
 			}
 
-			logrus.Infof("k3sRemote: %s | k3sRepo: %s | latestRc: %s | oldName: %s", r.K3sRemote, k3sRepo, latestRc, oldName)
-			buff, err := release.GenReleaseNotes(ctx, r.K3sRemote, k3sRepo, latestRc, oldName, client)
+			buff, err := release.GenReleaseNotes(ctx, r.K3sRepoOwner, k3sRepo, latestRc, oldName, client)
 			if err != nil {
 				return err
 			}
 			opts.ReleaseNotes = buff.String()
 		}
 
-		if _, err := repository.CreateRelease(ctx, client, opts); err != nil {
+		createdRelease, err := repository.CreateRelease(ctx, client, opts)
+		if err != nil {
 			githubErr := err.(*github.ErrorResponse)
-			logrus.Debugf("error: %+v", githubErr)
 			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
 				if !rc {
 					return err
 				}
 
-				logrus.Printf("RC %d already exists, trying to create next", rcNum)
+				fmt.Println("RC " + strconv.Itoa(rcNum) + " already exists, trying to create next")
 				rcNum += 1
 				continue
 			}
@@ -748,8 +761,10 @@ func (r *Release) CreateRelease(ctx context.Context, client *github.Client, rc b
 			return err
 		}
 
+		createdReleaseURL = *createdRelease.HTMLURL
+
 		break
 	}
-
+	fmt.Println("release created: " + createdReleaseURL)
 	return nil
 }
