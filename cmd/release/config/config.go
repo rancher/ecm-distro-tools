@@ -26,7 +26,9 @@ type K3sRelease struct {
 	ReleaseBranch string `json:"release_branch"`
 	DryRun        bool   `json:"dry_run"`
 	Workspace     string `json:"workspace"`
+	NewGoVersion  string `json:"-"`
 	K3sRepoOwner  string `json:"k3s_repo_owner"`
+	K8sRancherURL string `json:"k8s_rancher_url"`
 }
 
 // RKE2
@@ -36,7 +38,8 @@ type RKE2 struct {
 
 // User
 type User struct {
-	Email string `json:"email"`
+	Email          string `json:"email"`
+	GithubUsername string `json:"github_username"`
 }
 
 // K3s

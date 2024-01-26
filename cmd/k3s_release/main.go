@@ -27,7 +27,6 @@ func main() {
 	app.Usage = "Perform a k3s release"
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
-		createTagsCommand(),
 		pushTagsCommand(),
 		modifyK3SCommand(),
 	}
