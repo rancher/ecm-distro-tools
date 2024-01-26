@@ -24,7 +24,6 @@ jobs:
           files: |
             ${{ github.workspace }}/bin/bootstrap_hash
             ${{ github.workspace }}/bin/check_for_k8s_release
-            ${{ github.workspace }}/bin/cut_k3s_release_issue
             ${{ github.workspace }}/bin/cut_rke2_release_issue
             ${{ github.workspace }}/bin/delete_release_assets
             ${{ github.workspace }}/bin/rancher_image_scan
@@ -56,13 +55,6 @@ jobs:
             ${{ github.workspace }}/cmd/gen_release_report/bin/gen_release_report-linux-amd64
             ${{ github.workspace }}/cmd/gen_release_report/bin/gen_release_report-linux-arm64
             ${{ github.workspace }}/cmd/gen_release_report/bin/sha256sums-gen_release_report.txt
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-darwin-amd64
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-darwin-arm64
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-freebsd-amd64
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-freebsd-arm64
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-linux-amd64
-            ${{ github.workspace }}/cmd/k3s_release/bin/k3s_release-linux-arm64
-            ${{ github.workspace }}/cmd/k3s_release/bin/sha256sums-k3s_release.txt
             ${{ github.workspace }}/cmd/rancher_release/bin/rancher_release-darwin-amd64
             ${{ github.workspace }}/cmd/rancher_release/bin/rancher_release-darwin-arm64
             ${{ github.workspace }}/cmd/rancher_release/bin/rancher_release-freebsd-amd64
