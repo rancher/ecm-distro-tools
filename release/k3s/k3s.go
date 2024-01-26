@@ -426,10 +426,12 @@ func setupGitArtifacts(r *ecmConfig.K3sRelease, u *ecmConfig.User) (string, erro
 	gitconfigFile := filepath.Join(r.Workspace, ".gitconfig")
 
 	// setting up username and email for tagging purposes
+	fmt.Println("updating git config contents")
 	gitconfigFileContent := strings.ReplaceAll(gitconfig, "%email%", u.Email)
 	gitconfigFileContent = strings.ReplaceAll(gitconfigFileContent, "%user%", u.GithubUsername)
 
 	// disable gpg signing direct in .gitconfig
+	fmt.Println("disabling gpg signing")
 	if strings.Contains(gitconfigFileContent, "[commit]") {
 		gitconfigFileContent = strings.Replace(gitconfigFileContent, "gpgsign = true", "gpgsign = false", 1)
 	} else {
@@ -491,7 +493,7 @@ func tagPushLines(out string) []string {
 	return tagCmds
 }
 
-func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
+func tagsCmdsFromFile(r *ecmConfig.K3sRelease) ([]string, error) {
 	var tagCmds []string
 
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8sVersion)
@@ -514,56 +516,70 @@ func (r *Release) TagsFromFile(_ context.Context) ([]string, error) {
 
 }
 
-func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string, tagsCmds []string) error {
+func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
+	tagsCmds, err := tagsCmdsFromFile(r)
+	if err != nil {
+		logrus.Fatalf("failed to extract tags from file: %v", err)
+	}
+	fmt.Println("setting up git artifacts")
 	gitConfigFile, err := setupGitArtifacts(r, u)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("opening git config file")
 	file, err := os.Open(gitConfigFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
+	fmt.Println("reading git config")
 	cfg, err := config.ReadConfig(file)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("opening kubernetes repo")
 	repo, err := git.PlainOpen(filepath.Join(r.Workspace, "kubernetes"))
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("getting remote: " + u.GithubUsername)
 	userRemote, err := repo.Remote(u.GithubUsername)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("getting remote: origin")
 	originRemote, err := repo.Remote("origin")
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("getting remote: " + r.K3sRepoOwner)
 	k3sRemote, err := repo.Remote(r.K3sRepoOwner)
 	if err != nil {
-		return fmt.Errorf("failed to find remote %s: %s", r.K3sRepoOwner, err.Error())
+		return errors.New("failed to find remote: '" + r.K3sRepoOwner + "' " + err.Error())
 	}
 
 	cfg.Remotes["origin"] = originRemote.Config()
 	cfg.Remotes[u.GithubUsername] = userRemote.Config()
 	cfg.Remotes[r.K3sRepoOwner] = k3sRemote.Config()
 
+	fmt.Println("setting remotes in the config")
 	if err := repo.SetConfig(cfg); err != nil {
 		return err
 	}
 
+	fmt.Println("getting ssh key auth")
 	gitAuth, err := getAuth(sshKeyPath)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("pushing tags")
 	for i, tagCmd := range tagsCmds {
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
