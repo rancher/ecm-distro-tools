@@ -17,18 +17,19 @@ const (
 
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion string `json:"old_k8s_version"`
-	NewK8sVersion string `json:"new_k8s_version"`
-	OldK8sClient  string `json:"old_k8s_client"`
-	NewK8sClient  string `json:"new_k8s_client"`
-	OldSuffix     string `json:"old_suffix"`
-	NewSuffix     string `json:"new_suffix"`
-	ReleaseBranch string `json:"release_branch"`
-	DryRun        bool   `json:"dry_run"`
-	Workspace     string `json:"workspace"`
-	NewGoVersion  string `json:"-"`
-	K3sRepoOwner  string `json:"k3s_repo_owner"`
-	K8sRancherURL string `json:"k8s_rancher_url"`
+	OldK8sVersion  string `json:"old_k8s_version"`
+	NewK8sVersion  string `json:"new_k8s_version"`
+	OldK8sClient   string `json:"old_k8s_client"`
+	NewK8sClient   string `json:"new_k8s_client"`
+	OldSuffix      string `json:"old_suffix"`
+	NewSuffix      string `json:"new_suffix"`
+	ReleaseBranch  string `json:"release_branch"`
+	DryRun         bool   `json:"dry_run"`
+	Workspace      string `json:"workspace"`
+	NewGoVersion   string `json:"-"`
+	K3sRepoOwner   string `json:"k3s_repo_owner"`
+	K8sRancherURL  string `json:"k8s_rancher_url"`
+	K3sUpstreamURL string `json:"k3s_upstream_url"`
 }
 
 // RKE2
@@ -146,15 +147,18 @@ func exampleConfig() Config {
 		K3s: &K3s{
 			Versions: map[string]K3sRelease{
 				"v1.x.y": {
-					OldK8sVersion: "v1.x.z",
-					NewK8sVersion: "v1.x.y",
-					OldK8sClient:  "v0.x.z",
-					NewK8sClient:  "v0.x.y",
-					OldSuffix:     "k3s1",
-					NewSuffix:     "k3s1",
-					ReleaseBranch: "release-1.x",
-					DryRun:        false,
-					Workspace:     filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes"),
+					OldK8sVersion:  "v1.x.z",
+					NewK8sVersion:  "v1.x.y",
+					OldK8sClient:   "v0.x.z",
+					NewK8sClient:   "v0.x.y",
+					OldSuffix:      "k3s1",
+					NewSuffix:      "k3s1",
+					ReleaseBranch:  "release-1.x",
+					DryRun:         false,
+					Workspace:      filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes"),
+					K3sRepoOwner:   "k3s-io",
+					K8sRancherURL:  "git@github.com:k3s-io/kubernetes.git",
+					K3sUpstreamURL: "git@github.com:k3s-io/k3s.git",
 				},
 			},
 		},

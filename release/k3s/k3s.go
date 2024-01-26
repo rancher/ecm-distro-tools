@@ -57,7 +57,7 @@ git remote -v | grep -w upstream || git remote add upstream {{ .K3s.K3sUpstreamU
 git fetch upstream
 git stash
 git branch -D "${BRANCH_NAME}" &>/dev/null || true
-git checkout -B "${BRANCH_NAME}" upstream/{{.ReleaseBranch}}
+git checkout -B "${BRANCH_NAME}" upstream/{{.K3s.ReleaseBranch}}
 git clean -xfd
 
 case ${OS} in
