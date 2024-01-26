@@ -20,7 +20,7 @@ var updateK3sCmd = &cobra.Command{
 }
 
 var updateK3sReferencesCmd = &cobra.Command{
-	Use: "references [version]",
+	Use:   "references [version]",
 	Short: "update k8s and go references in a k3s repo and create a PR",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {

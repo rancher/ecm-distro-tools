@@ -49,7 +49,7 @@ set -ex
 OS=$(uname -s)
 DRY_RUN={{ .K3s.DryRun }}
 BRANCH_NAME={{ .K3s.NewK8sVersion }}-{{ .K3s.NewSuffix }}
-cd {{ .Workspace }}
+cd {{ .K3s.Workspace }}
 # using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
 ls | grep -w k3s || git clone "git@github.com:{{ .User.GithubUsername }}/k3s.git"
 cd {{ .K3s.Workspace }}/k3s
