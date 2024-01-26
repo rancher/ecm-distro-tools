@@ -2,7 +2,6 @@ package k3s
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -93,75 +92,6 @@ fi`
 type UpdateScriptVars struct {
 	K3s  *ecmConfig.K3sRelease
 	User *ecmConfig.User
-}
-
-type Release struct {
-	OldK8sVersion  string `json:"old_k8s_version"`
-	NewK8sVersion  string `json:"new_k8s_version"`
-	OldK8sClient   string `json:"old_k8s_client"`
-	NewK8sClient   string `json:"new_k8s_client"`
-	OldSuffix      string `json:"old_k3s_suffix"`
-	NewSuffix      string `json:"new_k3s_suffix"`
-	NewGoVersion   string `json:"-"`
-	ReleaseBranch  string `json:"release_branch"`
-	Workspace      string `json:"workspace"`
-	K3sRemote      string `json:"k3s_remote"`
-	Handler        string `json:"handler"`
-	Email          string `json:"email"`
-	GithubToken    string `json:"-"`
-	K8sRancherURL  string `json:"k8s_rancher_url"`
-	K3sUpstreamURL string `json:"k3s_upstream_url"`
-	SSHKeyPath     string `json:"ssh_key_path"`
-	DryRun         bool   `json:"dry_run"`
-}
-
-func NewRelease(configPath string) (*Release, error) {
-	var release Release
-
-	if configPath == "" {
-		return nil, errors.New("config file required")
-	}
-
-	b, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(b, &release); err != nil {
-		return nil, err
-	}
-
-	if release.Workspace == "" {
-		return nil, errors.New("workspace path required")
-	}
-
-	if !filepath.IsAbs(release.Workspace) {
-		return nil, errors.New("workspace path must be an absolute path")
-	}
-
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	if githubToken == "" {
-		return nil, errors.New("missing GITHUB_TOKEN env var")
-	}
-	release.GithubToken = githubToken
-
-	if !release.DryRun {
-		release.DryRun = false
-	}
-
-	if release.K3sRemote == "" {
-		release.K3sRemote = rancherRemote
-	}
-
-	if release.K3sUpstreamURL == "" {
-		release.K3sUpstreamURL = k3sUpstreamRepoURL
-	}
-
-	if release.K8sRancherURL == "" {
-		release.K8sRancherURL = k8sRancherURL
-	}
-
-	return &release, nil
 }
 
 // GenerateTags will clone the kubernetes repository, rebase it with the k3s-io fork and
