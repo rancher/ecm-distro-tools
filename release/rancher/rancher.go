@@ -276,7 +276,7 @@ func SetKDMBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, ne
 
 	script := navigateCheckoutRancherScript + setKDMBranchReferencesScript + pushChangesScript
 	logrus.Info("running update files and apply updates script...")
-	output, err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, data)
+	output, err := exec.RunTemplatedScript(forkPath, setKDMBranchReferencesScriptFileName, script, template.FuncMap{}, data)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	}
 	script := navigateCheckoutRancherScript + setChartBranchReferencesScript + pushChangesScript
 	logrus.Info("running update files script")
-	output, err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, data)
+	output, err := exec.RunTemplatedScript(forkPath, setChartReferencesScriptFileName, script, template.FuncMap{}, data)
 	if err != nil {
 		return err
 	}

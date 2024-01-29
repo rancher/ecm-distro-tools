@@ -24,9 +24,24 @@ release -h
 
 #### Commands
 ```bash
-# [...]
-release k3s tag rc v1.29.2
-release k3s tag ga v1.29.2
+release generate k3s tags v1.29.2
+release push k3s tags v1.29.2
+release update k3s references v1.29.2
+release tag k3s rc v1.29.2
+release tag k3s ga v1.29.2
+```
+
+#### Cache Permissions and Docker:
+```bash
+$ release generate k3s tags v1.26.12
+> failed to rebase and create tags: chown: changing ownership of '/home/go/.cache': Operation not permitted
+failed to initialize build cache at /home/go/.cache: mkdir /home/go/.cache/00: permission denied 
+```
+Verify if the `$GOPATH/.cache` directory is owned by the same user that is running the command. If not, change the ownership of the directory:
+```bash
+$ ls -la $GOPATH/
+> drwxr-xr-x  2 root root 4096 Dec 20 15:50 .cache
+$ sudo chown $USER $GOPATH/.cache
 ```
 
 

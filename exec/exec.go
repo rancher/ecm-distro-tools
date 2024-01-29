@@ -23,11 +23,11 @@ func RunCommand(dir, cmd string, args ...string) (string, error) {
 	return outb.String(), nil
 }
 
-func RunTemplatedScript(path, fileName, script string, args interface{}) (string, error) {
-	if _, err := os.Stat(path); err != nil {
+func RunTemplatedScript(dir, fileName, scriptTemplate string, funcMap template.FuncMap, args interface{}) (string, error) {
+	if _, err := os.Stat(dir); err != nil {
 		return "", err
 	}
-	scriptPath := filepath.Join(path, fileName)
+	scriptPath := filepath.Join(dir, fileName)
 	f, err := os.Create(scriptPath)
 	if err != nil {
 		return "", err
@@ -36,14 +36,14 @@ func RunTemplatedScript(path, fileName, script string, args interface{}) (string
 	if err := os.Chmod(scriptPath, 0755); err != nil {
 		return "", err
 	}
-	tmpl, err := template.New(script).Parse(script)
+	tmpl, err := template.New(scriptTemplate).Funcs(funcMap).Parse(scriptTemplate)
 	if err != nil {
 		return "", err
 	}
 	if err := tmpl.Execute(f, args); err != nil {
 		return "", err
 	}
-	output, err := RunCommand(path, "bash", "./"+fileName)
+	output, err := RunCommand(dir, "bash", "./"+fileName)
 	if err != nil {
 		return "", err
 	}
