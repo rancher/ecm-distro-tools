@@ -40,9 +40,11 @@ func init() {
 		os.Exit(1)
 	}
 
-	if os.Args[1] == "config" && os.Args[2] == "gen" {
-		fmt.Println("running release config gen, skipping config load")
-		return
+	if len(os.Args) >= 2 {
+		if os.Args[1] == "config" && os.Args[2] == "gen" {
+			fmt.Println("running release config gen, skipping config load")
+			return
+		}
 	}
 	conf, err := config.Load(configPath)
 	if err != nil {
