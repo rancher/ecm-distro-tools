@@ -11,17 +11,17 @@ import (
 
 var pushCmd = &cobra.Command{
 	Use:   "push",
-	Short: "",
+	Short: "Push things from your local to a remote",
 }
 
 var pushK3sCmd = &cobra.Command{
 	Use:   "k3s [version]",
-	Short: "",
+	Short: "Push k3s artifacts",
 }
 
 var pushK3sTagsCmd = &cobra.Command{
 	Use:   "tags [version]",
-	Short: "push k8s tags to remote",
+	Short: "Push k3s-io/kubernetes tags to remote",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")

@@ -36,8 +36,7 @@ var (
 // tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
 	Use:   "tag",
-	Short: "",
-	Long:  ``,
+	Short: "Tag releases",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
 			rootCmd.Help()
@@ -48,8 +47,7 @@ var tagCmd = &cobra.Command{
 
 var k3sTagSubCmd = &cobra.Command{
 	Use:   "k3s [ga,rc] [version]",
-	Short: "",
-	Long:  ``,
+	Short: "Tag k3s releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
@@ -71,8 +69,7 @@ var k3sTagSubCmd = &cobra.Command{
 
 var rke2TagSubCmd = &cobra.Command{
 	Use:   "rke2",
-	Short: "",
-	Long:  ``,
+	Short: "Tag rke2 releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(*tagRKE2Flags.AlpineVersion) != 2 {
 			return errors.New("invalid release version")
@@ -152,8 +149,7 @@ var rke2TagSubCmd = &cobra.Command{
 
 var rancherTagSubCmd = &cobra.Command{
 	Use:   "rancher",
-	Short: "",
-	Long:  ``,
+	Short: "Tag Rancher releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)

@@ -23,7 +23,7 @@ var (
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "",
+	Short: "Various utilities to generate release artifacts",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 || len(args) > 2 {
 			rootCmd.Help()
@@ -34,12 +34,12 @@ var generateCmd = &cobra.Command{
 
 var k3sGenerateSubCmd = &cobra.Command{
 	Use:   "k3s",
-	Short: "",
+	Short: "Generate k3s related artifacts",
 }
 
 var k3sGenerateReleaseNotesSubCmd = &cobra.Command{
 	Use:   "release-notes",
-	Short: "",
+	Short: "Generate k3s release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
@@ -57,7 +57,7 @@ var k3sGenerateReleaseNotesSubCmd = &cobra.Command{
 
 var k3sGenerateTagsSubCmd = &cobra.Command{
 	Use:   "tags [version]",
-	Short: "generate k8s tags for a given version",
+	Short: "Generate k8s tags for a given version",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
@@ -75,12 +75,12 @@ var k3sGenerateTagsSubCmd = &cobra.Command{
 
 var rke2GenerateSubCmd = &cobra.Command{
 	Use:   "rke2",
-	Short: "",
+	Short: "Generate rke2 related artifacts",
 }
 
 var rke2GenerateReleaseNotesSubCmd = &cobra.Command{
 	Use:   "release-notes",
-	Short: "",
+	Short: "Generate rke2 release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
