@@ -1,6 +1,6 @@
 module github.com/rancher/ecm-distro-tools
 
-go 1.17
+go 1.21
 
 require (
 	github.com/drone/drone-go v1.7.1
