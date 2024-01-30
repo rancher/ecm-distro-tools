@@ -187,7 +187,7 @@ func View(config *Config) error {
 	return tmp.Execute(os.Stdout, config)
 }
 
-const configViewTemplate = `ECM distro tools config
+const configViewTemplate = `Release config
 ------------
 User
 	Email:           {{ .User.Email }}
