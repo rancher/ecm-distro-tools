@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -42,7 +41,7 @@ var viewConfigSubCmd = &cobra.Command{
 	Short: "view config",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return errors.New("not implemented yet")
+		return config.View(rootConfig)
 	},
 }
 

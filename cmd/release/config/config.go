@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
 
 const (
@@ -178,9 +179,35 @@ func exampleConfig() Config {
 	}
 }
 
-const configViewTemplate = `RKE2 Version
+func View(config *Config) error {
+	tmp, err := template.New("ecm").Parse(configViewTemplate)
+	if err != nil {
+		return err
+	}
+	return tmp.Execute(os.Stdout, config)
+}
+
+const configViewTemplate = `ECM distro tools config
 ------------
-{{- range .RKE2.Versions }}
-{{ . -}}+rke2r1
-{{- end}}
+User
+	Email:           {{ .User.Email }}
+	Github Username: {{ .User.GithubUsername }}
+------------
+K3s {{ range $version, $value := .K3s.Versions }}
+	{{ $version }}:
+		Old K8s Version:  {{ $value.OldK8sVersion}}	
+		New K8s Version:  {{ $value.NewK8sVersion}}	
+		Old K8s Client:   {{ $value.OldK8sClient}}	
+		New K8s Client:   {{ $value.NewK8sClient}}	
+		Old Suffix:       {{ $value.OldSuffix}}	
+		New Suffix:       {{ $value.NewSuffix}}	
+		Release Branch:   {{ $value.ReleaseBranch}}	
+		Dry Run:          {{ $value.DryRun}}	
+		K3s Repo Owner:   {{ $value.K3sRepoOwner}}	
+		K8s Rancher URL:  {{ $value.K8sRancherURL}}	
+		Workspace:        {{ $value.Workspace}}	
+		K3s Upstream URL: {{ $value.K3sUpstreamURL}}{{ end }}
+------------
+RKE2{{ range .RKE2.Versions }}
+	{{ . }}{{ end}}
 `
