@@ -21,7 +21,7 @@ var updateK3sCmd = &cobra.Command{
 
 var updateK3sReferencesCmd = &cobra.Command{
 	Use:   "references [version]",
-	Short: "Update k8s and go references in a k3s repo and create a PR",
+	Short: "Update k8s and Go references in a k3s repo and create a PR",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
