@@ -29,6 +29,7 @@ release push k3s tags v1.29.2
 release update k3s references v1.29.2
 release tag k3s rc v1.29.2
 release tag k3s ga v1.29.2
+release watch
 ```
 
 #### Cache Permissions and Docker:
@@ -44,6 +45,10 @@ $ ls -la $GOPATH/
 $ sudo chown $USER $GOPATH/.cache
 ```
 
+### watch
+watch polls for updates to Drone builds and to GitHub releases and pull requests you select.
+
+<img alt="release watch basic use" src="./watch/example.gif" width="600" />
 
 ## Contributions
 
