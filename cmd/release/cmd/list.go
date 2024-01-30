@@ -15,7 +15,6 @@ var rancherImageTag *string
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List resources",
-	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		//
 	},
@@ -24,7 +23,6 @@ var listCmd = &cobra.Command{
 var rancherListSubCmd = &cobra.Command{
 	Use:   "rancher",
 	Short: "List Rancher resources",
-	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("arguments required")

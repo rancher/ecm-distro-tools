@@ -11,8 +11,7 @@ import (
 // configCmd represents the config command
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "",
-	Long:  ``,
+	Short: "Manage the ecm distro tools cli config file",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
 			rootCmd.Help()
@@ -23,8 +22,7 @@ var configCmd = &cobra.Command{
 
 var genConfigSubCmd = &cobra.Command{
 	Use:   "gen",
-	Short: "generate config",
-	Long:  `generates a new config in the default location if it doesn't exists`,
+	Short: "Generates a config file in the default location if it doesn't exists",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := config.Generate(); err != nil {
 			return err
@@ -38,8 +36,7 @@ var genConfigSubCmd = &cobra.Command{
 
 var viewConfigSubCmd = &cobra.Command{
 	Use:   "view",
-	Short: "view config",
-	Long:  ``,
+	Short: "Print the parsed config to stdout",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return config.View(rootConfig)
 	},
@@ -47,7 +44,7 @@ var viewConfigSubCmd = &cobra.Command{
 
 var editConfigSubCmd = &cobra.Command{
 	Use:   "edit",
-	Short: "edit config",
+	Short: "Open the config file in your default editor",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return config.OpenOnEditor()
