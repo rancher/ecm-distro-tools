@@ -188,11 +188,11 @@ func View(config *Config) error {
 }
 
 const configViewTemplate = `Release config
-------------
+
 User
 	Email:           {{ .User.Email }}
 	Github Username: {{ .User.GithubUsername }}
-------------
+
 K3s {{ range $version, $value := .K3s.Versions }}
 	{{ $version }}:
 		Old K8s Version:  {{ $value.OldK8sVersion}}	
@@ -207,7 +207,7 @@ K3s {{ range $version, $value := .K3s.Versions }}
 		K8s Rancher URL:  {{ $value.K8sRancherURL}}	
 		Workspace:        {{ $value.Workspace}}	
 		K3s Upstream URL: {{ $value.K3sUpstreamURL}}{{ end }}
-------------
+
 RKE2{{ range .RKE2.Versions }}
 	{{ . }}{{ end}}
 `
