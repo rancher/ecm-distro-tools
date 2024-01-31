@@ -28,7 +28,9 @@ release generate k3s tags v1.29.2
 release push k3s tags v1.29.2
 release update k3s references v1.29.2
 release tag k3s rc v1.29.2
+release tag system-agent-installer-k3s rc v1.29.2
 release tag k3s ga v1.29.2
+release tag system-agent-installer-k3s ga v1.29.2
 ```
 
 #### Cache Permissions and Docker:
