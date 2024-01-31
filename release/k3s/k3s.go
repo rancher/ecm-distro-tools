@@ -685,10 +685,10 @@ func cleanGitRepo(dir string) error {
 	return nil
 }
 
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, tag string, rc bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, rc bool) error {
 	fmt.Println("validating tag")
-	if !semver.IsValid(tag) {
-		return errors.New("tag isn't a valid semver: " + tag)
+	if !semver.IsValid(opts.Tag) {
+		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
 	var createdReleaseURL string
 	rcNum := 1
@@ -700,15 +700,10 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 			name = r.NewK8sVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewSuffix
 		}
 
-		opts := &repository.CreateReleaseOpts{
-			Repo:         k3sRepo,
-			Name:         name,
-			Owner:        r.K3sRepoOwner,
-			Prerelease:   true,
-			Branch:       r.ReleaseBranch,
-			Draft:        !rc,
-			ReleaseNotes: "",
-		}
+		opts.Name = name
+		opts.Prerelease = true
+		opts.Draft = !rc
+		opts.ReleaseNotes = ""
 
 		fmt.Printf("create release options: %+v\n", *opts)
 
@@ -717,13 +712,13 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 			break
 		}
 
-		if !rc {
-			latestRc, err := release.LatestRC(ctx, r.K3sRepoOwner, k3sRepo, r.NewK8sVersion, client)
+		if !rc && opts.Repo == "k3s" {
+			latestRc, err := release.LatestRC(ctx, opts.Owner, opts.Repo, r.NewK8sVersion, client)
 			if err != nil {
 				return err
 			}
 
-			buff, err := release.GenReleaseNotes(ctx, r.K3sRepoOwner, k3sRepo, latestRc, oldName, client)
+			buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, latestRc, oldName, client)
 			if err != nil {
 				return err
 			}

@@ -63,7 +63,13 @@ var k3sTagSubCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, tag, rc)
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "k3s",
+			Owner:  k3sRelease.K3sRepoOwner,
+			Branch: k3sRelease.ReleaseBranch,
+		}
+		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, rc)
 	},
 }
 
@@ -157,12 +163,41 @@ var rancherTagSubCmd = &cobra.Command{
 	},
 }
 
+var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
+	Use:   "system-agent-installer-k3s [ga,rc] [version]",
+	Short: "Tag system-agent-installer-k3s releases",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
+		}
+		rc, err := releaseTypeRC(args[0])
+		if err != nil {
+			return err
+		}
+		tag := args[1]
+		k3sRelease, found := rootConfig.K3s.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "system-agent-installer-k3s",
+			Owner:  k3sRelease.K3sRepoOwner,
+			Branch: "main",
+		}
+		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, rc)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
 	tagCmd.AddCommand(k3sTagSubCmd)
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
+	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 
 	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "Dry run")
 
