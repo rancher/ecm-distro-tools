@@ -726,7 +726,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	}
 
 	if r.DryRun {
-		fmt.Println("dry run, skipping creating release and verifying if rcs already were created")
+		fmt.Println("dry run, skipping creating release")
 		return nil
 	}
 	createdRelease, err := repository.CreateRelease(ctx, client, opts)
