@@ -733,14 +733,16 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 		createdRelease, err := repository.CreateRelease(ctx, client, opts)
 		if err != nil {
 			githubErr := err.(*github.ErrorResponse)
-			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
-				if !rc {
-					return err
-				}
+			if len(githubErr.Errors) > 0 {
+				if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
+					if !rc {
+						return err
+					}
 
-				fmt.Println("RC " + strconv.Itoa(rcNum) + " already exists, trying to create next")
-				rcNum += 1
-				continue
+					fmt.Println("RC " + strconv.Itoa(rcNum) + " already exists, trying to create next")
+					rcNum += 1
+					continue
+				}
 			}
 
 			return err
