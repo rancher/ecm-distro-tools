@@ -698,7 +698,10 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 		return err
 	}
 	if rc {
-		trimmedRCNumber := strings.TrimSuffix(strings.TrimPrefix(latestRC, r.NewK8sVersion+"-rc"), "+k3s1")
+		trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(latestRC, r.NewK8sVersion+"-rc"), "+k3s")
+		if !found {
+			return errors.New("failed to parse rc number from " + latestRC)
+		}
 		currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
 		if err != nil {
 			return err
