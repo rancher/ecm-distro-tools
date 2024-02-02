@@ -661,15 +661,15 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 }
 
 // LatestRC will get the latest rc created for the k8s version in either rke2 or k3s
-func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *github.Client) (string, error) {
+func LatestRC(ctx context.Context, owner, repo, k8sVersion, suffix string, client *github.Client) (*string, error) {
 	var rcs []*github.RepositoryRelease
 
 	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	for _, release := range allReleases {
-		if strings.Contains(*release.Name, k8sVersion+"-rc") {
+		if strings.Contains(*release.Name, k8sVersion+"-rc") && strings.Contains(*release.Name, suffix) {
 			rcs = append(rcs, release)
 		}
 	}
@@ -677,8 +677,10 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion string, client *githu
 		return rcs[i].PublishedAt.Time.Before(rcs[j].PublishedAt.Time)
 	})
 
-	return *rcs[len(rcs)-1].Name, nil
-
+	if len(rcs) == 0 {
+		return nil, nil
+	}
+	return rcs[len(rcs)-1].Name, nil
 }
 
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file
