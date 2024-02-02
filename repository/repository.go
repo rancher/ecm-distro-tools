@@ -72,6 +72,7 @@ type CreateReleaseOpts struct {
 	Owner        string `json:"owner"`
 	Repo         string `json:"repo"`
 	Name         string `json:"name"`
+	Tag          string `json:"tag"`
 	Prerelease   bool   `json:"pre_release"`
 	Branch       string `json:"branch"`
 	ReleaseNotes string `json:"release_notes"`

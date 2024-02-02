@@ -685,71 +685,55 @@ func cleanGitRepo(dir string) error {
 	return nil
 }
 
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, tag string, rc bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, rc bool) error {
 	fmt.Println("validating tag")
-	if !semver.IsValid(tag) {
-		return errors.New("tag isn't a valid semver: " + tag)
+	if !semver.IsValid(opts.Tag) {
+		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
-	var createdReleaseURL string
-	rcNum := 1
 	name := r.NewK8sVersion + "+" + r.NewSuffix
 	oldName := r.OldK8sVersion + "+" + r.OldSuffix
 
-	for {
-		if rc {
-			name = r.NewK8sVersion + "-rc" + strconv.Itoa(rcNum) + "+" + r.NewSuffix
+	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, r.NewK8sVersion, client)
+	if err != nil {
+		return err
+	}
+	if rc {
+		trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(latestRC, r.NewK8sVersion+"-rc"), "+k3s")
+		if !found {
+			return errors.New("failed to parse rc number from " + latestRC)
 		}
-
-		opts := &repository.CreateReleaseOpts{
-			Repo:         k3sRepo,
-			Name:         name,
-			Owner:        r.K3sRepoOwner,
-			Prerelease:   true,
-			Branch:       r.ReleaseBranch,
-			Draft:        !rc,
-			ReleaseNotes: "",
-		}
-
-		fmt.Printf("create release options: %+v\n", *opts)
-
-		if r.DryRun {
-			fmt.Println("dry run, skipping creating release and verifying if rcs already were created")
-			break
-		}
-
-		if !rc {
-			latestRc, err := release.LatestRC(ctx, r.K3sRepoOwner, k3sRepo, r.NewK8sVersion, client)
-			if err != nil {
-				return err
-			}
-
-			buff, err := release.GenReleaseNotes(ctx, r.K3sRepoOwner, k3sRepo, latestRc, oldName, client)
-			if err != nil {
-				return err
-			}
-			opts.ReleaseNotes = buff.String()
-		}
-
-		createdRelease, err := repository.CreateRelease(ctx, client, opts)
+		currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
 		if err != nil {
-			githubErr := err.(*github.ErrorResponse)
-			if strings.Contains(githubErr.Errors[0].Code, "already_exists") {
-				if !rc {
-					return err
-				}
-
-				fmt.Println("RC " + strconv.Itoa(rcNum) + " already exists, trying to create next")
-				rcNum += 1
-				continue
-			}
-
 			return err
 		}
-
-		createdReleaseURL = *createdRelease.HTMLURL
-
-		break
+		latestRCNumber := currentRCNumber + 1
+		name = r.NewK8sVersion + "-rc" + strconv.Itoa(latestRCNumber) + "+" + r.NewSuffix
 	}
-	fmt.Println("release created: " + createdReleaseURL)
+
+	opts.Name = name
+	opts.Prerelease = true
+	opts.Draft = !rc
+	opts.ReleaseNotes = ""
+
+	fmt.Printf("create release options: %+v\n", *opts)
+
+	if !rc && opts.Repo == "k3s" {
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, latestRC, oldName, client)
+		if err != nil {
+			return err
+		}
+		opts.ReleaseNotes = buff.String()
+	}
+
+	if r.DryRun {
+		fmt.Println("dry run, skipping creating release")
+		return nil
+	}
+	createdRelease, err := repository.CreateRelease(ctx, client, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("release created: " + *createdRelease.HTMLURL)
 	return nil
 }
