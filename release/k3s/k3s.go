@@ -693,20 +693,26 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	name := r.NewK8sVersion + "+" + r.NewSuffix
 	oldName := r.OldK8sVersion + "+" + r.OldSuffix
 
-	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, r.NewK8sVersion, client)
+	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, r.NewK8sVersion, r.NewSuffix, client)
 	if err != nil {
 		return err
 	}
+	if latestRC == nil && !rc {
+		return errors.New("couldn't find the latest RC")
+	}
 	if rc {
-		trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(latestRC, r.NewK8sVersion+"-rc"), "+k3s")
-		if !found {
-			return errors.New("failed to parse rc number from " + latestRC)
+		latestRCNumber := 1
+		if latestRC != nil {
+			trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(*latestRC, r.NewK8sVersion+"-rc"), "+k3s")
+			if !found {
+				return errors.New("failed to parse rc number from " + *latestRC)
+			}
+			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
+			if err != nil {
+				return err
+			}
+			latestRCNumber = currentRCNumber + 1
 		}
-		currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
-		if err != nil {
-			return err
-		}
-		latestRCNumber := currentRCNumber + 1
 		name = r.NewK8sVersion + "-rc" + strconv.Itoa(latestRCNumber) + "+" + r.NewSuffix
 	}
 
@@ -718,7 +724,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	fmt.Printf("create release options: %+v\n", *opts)
 
 	if !rc && opts.Repo == "k3s" {
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, latestRC, oldName, client)
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, *latestRC, oldName, client)
 		if err != nil {
 			return err
 		}

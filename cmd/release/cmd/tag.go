@@ -184,7 +184,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 		opts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   "system-agent-installer-k3s",
-			Owner:  k3sRelease.K3sRepoOwner,
+			Owner:  k3sRelease.SystemAgentInstallerRepoOwner,
 			Branch: "main",
 		}
 		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, rc)
