@@ -41,7 +41,7 @@ func main() {
 	cmd.Flags().StringVarP(&backportCmdOpts.User, "user", "u", "", "user to assign new issues to (default: user assigned to the original issue)")
 	cmd.Flags().StringVarP(&backportCmdOpts.Owner, "owner", "o", "", "owner of the repository, e.g: k3s-io, rancher")
 	cmd.Flags().BoolVarP(&backportCmdOpts.DryRun, "dry-run", "n", false, "skip creating issues and pushing changes to remote")
-	cmd.Flags().BoolVarP(&backportCmdOpts.DryRun, "skip-create-issue", "s", false, "skip creating issues")
+	cmd.Flags().BoolVarP(&backportCmdOpts.SkipCreateIssue, "skip-create-issue", "s", false, "skip creating issues")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
 		logrus.Fatal(err)
