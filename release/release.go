@@ -730,7 +730,7 @@ const rke2ReleaseNoteTemplate = `
 {{- define "rke2" -}}
 <!-- {{.Milestone}} -->
 
-This release ... <FILL ME OUT!>
+This release updates Kubernetes to {{.K8sVersion}}.
 
 **Important Note**
 
@@ -778,7 +778,7 @@ cat /var/lib/rancher/rke2/server/token
 ### Available CNIs
 | Component | Version | FIPS Compliant |
 | --- | --- | --- |
-| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/k3s-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}]({{.CanalCalicoURL}}) | Yes |
+| Canal (Default) | [Flannel {{.FlannelVersion}}](https://github.com/flannel-io/flannel/releases/tag/{{.FlannelVersion}})<br/>[Calico {{.CanalCalicoVersion}}]({{.CanalCalicoURL}}) | Yes |
 | Calico | [{{.CalicoVersion}}]({{.CalicoURL}}) | No |
 | Cilium | [{{.CiliumVersion}}](https://github.com/cilium/cilium/releases/tag/{{.CiliumVersion}}) | No |
 | Multus | [{{.MultusVersion}}](https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/{{.MultusVersion}}) | No |
