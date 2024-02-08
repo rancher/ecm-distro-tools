@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/exec"
@@ -272,20 +273,32 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 		if err != nil {
 			return nil, err
 		}
+		upstreamRemoteURL := "https://github.com/" + pbo.Owner + "/" + pbo.Repo + ".git"
+		fmt.Println("creating remote: 'upstream " + upstreamRemoteURL + "'")
+		if _, err := r.CreateRemote(&config.RemoteConfig{
+			Name: "upstream",
+			URLs: []string{upstreamRemoteURL},
+		}); err != nil {
+			if err != git.ErrRemoteExists {
+				return nil, err
+			}
+		}
+		fmt.Println("fetching remote: upstream")
+		if err := r.Fetch(&git.FetchOptions{
+			RemoteName: "upstream",
+			Progress:   os.Stdout,
+			Tags:       git.AllTags,
+		}); err != nil {
+			if err != git.NoErrAlreadyUpToDate {
+				return nil, err
+			}
+		}
 	}
 
 	for _, branch := range pbo.Branches {
 		if cherryPick {
-			logrus.Info("fetching branch from origin: " + branch + ":" + branch)
-			fetchOut, err := exec.RunCommand(cwd, "git", "fetch", "origin", branch+":"+branch)
-			if err != nil {
-				return nil, err
-			}
-			logrus.Info(fetchOut)
-			coo := git.CheckoutOptions{
-				Branch: plumbing.ReferenceName("refs/heads/" + branch),
-			}
-			logrus.Info("checking out on reference refs/heads/" + branch)
+			coo := git.CheckoutOptions{Branch: plumbing.ReferenceName("refs/remotes/upstream/" + branch)}
+			logrus.Info("checking out on reference refs/remotes/upstream/" + branch)
 			logrus.Infof("checkout options: %+v", coo)
 			if err := w.Checkout(&coo); err != nil {
 				return nil, errors.New("failed checkout: " + err.Error())
