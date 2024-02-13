@@ -39,6 +39,10 @@ upstream_go_version:
 semv:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: drone_migrator
+drone_migrator:
+	cd cmd/$@ && $(MAKE)
+
 .PHONY: test
 test:
 	go test -v -cover ./...
