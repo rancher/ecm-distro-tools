@@ -98,11 +98,15 @@ install_binaries() {
 }
 
 { # main
-    if [ -z "$1" ]; then 
+    RELEASE_VERSION=$1
+    if [ -n "${ECM_VERSION}" ]; then
+        RELEASE_VERSION=${ECM_VERSION}
+    fi
+
+    if [ -z "$RELEASE_VERSION" ]; then 
         echo "error: release version required"
         exit 1
     fi
-    RELEASE_VERSION=$1
 
     echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"
 
