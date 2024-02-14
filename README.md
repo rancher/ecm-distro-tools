@@ -27,6 +27,9 @@ The easiest way to install a single utility is to go to the release page, choose
 To install all executables and shell libraries, run the install script as follows:
 
 ```sh
+# to install the latest version
+curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | sh -
+# to install a specific version
 curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | ECM_VERSION=v0.31.2 sh -
 ```
 
