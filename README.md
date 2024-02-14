@@ -29,8 +29,12 @@ To install all executables and shell libraries, run the install script as follow
 ```sh
 # to install the latest version
 curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | sh -
+# or
+./install.sh
 # to install a specific version
 curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | ECM_VERSION=v0.31.2 sh -
+# or
+./install.sh v0.31.2
 ```
 
 This will download all binaries and shell libraries and install them to `/usr/local/bin/ecm-distro-tools`. You'll need to add that directory to your path after installation.
