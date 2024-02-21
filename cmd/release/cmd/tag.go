@@ -22,10 +22,11 @@ type tagRKE2CmdFlags struct {
 }
 
 type tagRancherCmdFlags struct {
-	Tag       *string
-	Branch    *string
-	RepoOwner *string
-	DryRun    *bool
+	Tag             *string
+	Branch          *string
+	RepoOwner       *string
+	SkipStatusCheck *bool
+	DryRun          *bool
 }
 
 var (
@@ -159,7 +160,7 @@ var rancherTagSubCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		return rancher.TagRelease(ctx, ghClient, *tagRancherFlags.Tag, *tagRancherFlags.Branch, *tagRancherFlags.RepoOwner, *tagRancherFlags.DryRun)
+		return rancher.TagRelease(ctx, ghClient, *tagRancherFlags.Tag, *tagRancherFlags.Branch, *tagRancherFlags.RepoOwner, *tagRancherFlags.DryRun, *tagRancherFlags.SkipStatusCheck)
 	},
 }
 
@@ -211,6 +212,7 @@ func init() {
 	tagRancherFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
 	tagRancherFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
 	tagRancherFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
+	tagRancherFlags.SkipStatusCheck = rancherTagSubCmd.Flags().BoolP("skip-status-check", "s", false, "skip the github commit status check before creating a tag")
 	tagRancherFlags.DryRun = dryRun
 	if err := rancherTagSubCmd.MarkFlagRequired("tag"); err != nil {
 		fmt.Println(err.Error())
