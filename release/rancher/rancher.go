@@ -375,7 +375,7 @@ func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, rep
 	if err != nil {
 		return err
 	}
-	if status.State != github.String("success") {
+	if *status.State != "success" {
 		return errors.New("expected commit " + commit + " to have state 'success', instead, got " + *status.State)
 	}
 	return nil
