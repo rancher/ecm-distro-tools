@@ -334,7 +334,7 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	return nil
 }
 
-func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, dryRun bool) error {
+func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, dryRun, skipStatusCheck bool) error {
 	fmt.Println("validating tag semver format")
 	if !semver.IsValid(tag) {
 		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
@@ -348,9 +348,11 @@ func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch,
 		return errors.New("branch commit sha is nil")
 	}
 	fmt.Println("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
-	fmt.Println("checking if CI is passing")
-	if err := commitStateSuccess(ctx, ghClient, repoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
-		return err
+	if !skipStatusCheck {
+		fmt.Println("checking if CI is passing")
+		if err := commitStateSuccess(ctx, ghClient, repoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
+			return err
+		}
 	}
 	fmt.Println("creating tag: " + tag)
 	if dryRun {
@@ -375,7 +377,7 @@ func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, rep
 	if err != nil {
 		return err
 	}
-	if status.State != github.String("success") {
+	if *status.State != "success" {
 		return errors.New("expected commit " + commit + " to have state 'success', instead, got " + *status.State)
 	}
 	return nil
