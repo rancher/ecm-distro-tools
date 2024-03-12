@@ -241,8 +241,7 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 		key := keyFile[0]
 		file := keyFile[1]
 
-		log.Print("key: " + key + " | file: " + file)
-
+		log.Print("adding: " + key + "/" + file)
 		// only non ga releases contains '-' e.g: -rc, -debug
 		if strings.Contains(key, "-") {
 			indexContent.PreRelease.Versions[key] = append(indexContent.PreRelease.Versions[key], file)
