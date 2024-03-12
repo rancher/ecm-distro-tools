@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	htmlTemplate "html/template"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,6 +34,8 @@ const (
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
+	rancherArtifactsListURL  = "https://prime-artifacts.s3.amazonaws.com"
+	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
 
 	setKDMBranchReferencesScriptFileName = "set_kdm_branch_references.sh"
 	setChartReferencesScriptFileName     = `set_chart_references.sh`
@@ -165,6 +171,99 @@ type Content struct {
 	MinFilesWithRC []ContentLine
 	ChartsWithDev  []ContentLine
 	KDMWithDev     []ContentLine
+}
+
+type ListBucketResult struct {
+	Contents []struct {
+		Key string `xml:"Key"`
+	} `xml:"Contents"`
+}
+
+type ArtifactsIndexContent struct {
+	GA         ArtifactsIndexContentGroup `json:"ga"`
+	PreRelease ArtifactsIndexContentGroup `json:"preRelease"`
+}
+
+type ArtifactsIndexContentGroup struct {
+	Versions map[string][]string `json:"versions"`
+	BaseURL  string              `json:"baseUrl"`
+}
+
+func GeneratePrimeArtifactsIndex(writeToPath string) error {
+	client := ecmHTTP.NewClient(time.Second * 15)
+	resp, err := client.Get(rancherArtifactsListURL)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("unexpected status code on " + rancherArtifactsListURL + " expected 200, got " + strconv.Itoa(resp.StatusCode))
+	}
+	defer resp.Body.Close()
+	contentDecoder := xml.NewDecoder(resp.Body)
+	listBucket := new(ListBucketResult)
+	if err := contentDecoder.Decode(listBucket); err != nil {
+		return err
+	}
+	content := generateArtifactsIndexContent(*listBucket)
+	gaIndex, err := generatePrimeArtifactsHTML(content.GA)
+	if err != nil {
+		return err
+	}
+	preReleaseIndex, err := generatePrimeArtifactsHTML(content.PreRelease)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(writeToPath, "index.html"), gaIndex, 0644); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(writeToPath, "index-prerelease.html"), preReleaseIndex, 0644)
+}
+
+func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexContent {
+	indexContent := ArtifactsIndexContent{
+		GA: ArtifactsIndexContentGroup{
+			Versions: map[string][]string{},
+			BaseURL:  rancherArtifactsBaseURL,
+		},
+		PreRelease: ArtifactsIndexContentGroup{
+			Versions: map[string][]string{},
+			BaseURL:  rancherArtifactsBaseURL,
+		},
+	}
+	for _, content := range listBucket.Contents {
+		if !strings.Contains(content.Key, "rancher/") {
+			continue
+		}
+		keyFile := strings.Split(strings.TrimPrefix(content.Key, "rancher/"), "/")
+		if len(keyFile) < 2 || keyFile[1] == "" {
+			continue
+		}
+		key := keyFile[0]
+		file := keyFile[1]
+
+		log.Print("key: " + key + " | file: " + file)
+
+		// only non ga releases contains '-' e.g: -rc, -debug
+		if strings.Contains(key, "-") {
+			indexContent.PreRelease.Versions[key] = append(indexContent.PreRelease.Versions[key], file)
+		} else {
+			indexContent.GA.Versions[key] = append(indexContent.GA.Versions[key], file)
+		}
+	}
+	return indexContent
+}
+
+func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, error) {
+	tmpl, err := htmlTemplate.New("release-artifacts-index").Parse(artifactsIndexTempalte)
+	if err != nil {
+		return nil, err
+	}
+	buff := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(buff, "release-artifacts-index", content); err != nil {
+		return nil, err
+	}
+
+	return buff.Bytes(), nil
 }
 
 func ListRancherImagesRC(tag string) (string, error) {
@@ -522,3 +621,63 @@ func formatContentLine(line string) string {
 	line = re.ReplaceAllString(line, " ")
 	return strings.TrimSpace(line)
 }
+
+const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Rancher Prime Artifacts</title>
+    <style>
+    body { font-family: Verdana, Geneneva; }
+    header { display: flex; flex-direction: row; justify-items: center; }
+    #rancher-logo { width: 200px; }
+    .project { margin-left: 20px; }
+    .release { margin-left: 40px; margin-bottom: 20px; }
+    .release h3 { margin-bottom: 0px; }
+    .files { margin-left: 60px; display: flex; flex-direction: column; }
+    .release-title { display: flex; flex-direction: row; }
+    .release-title-tag { margin-right: 20px; }
+    .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
+    .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
+    .hidden { display: none; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="https://www.rancher.com/assets/img/logos/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
+      <h1>Prime Artifacts</h1>
+    </header>
+    <main>
+      <div class="project-rancher project">
+        <h2>rancher</h2>
+        {{ range $version, $files := .Versions }}
+        <div class="release-{{ $version }} release">
+          <div class="release-title">
+						<b class="release-title-tag">{{ $version }}</b>
+            <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
+          </div>
+          <div class="files hidden" id="release-{{ $version }}-files">
+            <ul>
+              {{ range $files }}
+              <li><a href="{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
+              {{ end }}
+            </ul>
+          </div>
+        </div>
+				{{ end }}
+      </div>
+    </main>
+  <script>
+    function expand(tag) {
+      const filesId = "release-" + tag + "-files"
+      const expandButtonId = "release-" + tag + "-expand"
+      document.getElementById(filesId).classList.toggle("hidden")
+      document.getElementById(expandButtonId).classList.toggle("expand-active")
+    }
+  </script>
+  </body>
+</html>
+{{end}}`
