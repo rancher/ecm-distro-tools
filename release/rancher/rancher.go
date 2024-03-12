@@ -188,7 +188,7 @@ type ArtifactsIndexContentGroup struct {
 	BaseURL  string              `json:"baseUrl"`
 }
 
-func GeneratePrimeArtifactsIndex(writeToPath string) error {
+func GeneratePrimeArtifactsIndex(path string) error {
 	client := ecmHTTP.NewClient(time.Second * 15)
 	resp, err := client.Get(rancherArtifactsListURL)
 	if err != nil {
@@ -212,10 +212,10 @@ func GeneratePrimeArtifactsIndex(writeToPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(writeToPath, "index.html"), gaIndex, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "index.html"), gaIndex, 0644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(writeToPath, "index-prerelease.html"), preReleaseIndex, 0644)
+	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
 func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexContent {
