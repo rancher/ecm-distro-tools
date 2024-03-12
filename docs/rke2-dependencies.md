@@ -4,6 +4,7 @@
 
 - rancher/image-build-base
 - rancher/image-build-calico
+- rancher/image-build-cluster-proportional-autoscaler
 - rancher/image-build-cni-plugins
 - rancher/image-build-containerd
 - rancher/image-build-coredns
