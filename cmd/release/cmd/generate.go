@@ -107,11 +107,7 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	Use:   "artifacts-index",
 	Short: "Generate artifacts index page",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := rancher.GeneratePrimeArtifactsIndex(*artifactsIndexWriteToPath); err != nil {
-			return err
-		}
-
-		return nil
+		return rancher.GeneratePrimeArtifactsIndex(*artifactsIndexWriteToPath)
 	},
 }
 
