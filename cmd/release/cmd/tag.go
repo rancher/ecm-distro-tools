@@ -21,17 +21,8 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-type tagRancherCmdFlags struct {
-	Tag             *string
-	Branch          *string
-	RepoOwner       *string
-	SkipStatusCheck *bool
-	DryRun          *bool
-}
-
 var (
-	tagRKE2Flags    tagRKE2CmdFlags
-	tagRancherFlags tagRancherCmdFlags
+	tagRKE2Flags tagRKE2CmdFlags
 )
 
 // tagCmd represents the tag command.
@@ -53,7 +44,7 @@ var k3sTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
-		rc, err := releaseTypeRC(args[0])
+		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
@@ -155,12 +146,33 @@ var rke2TagSubCmd = &cobra.Command{
 }
 
 var rancherTagSubCmd = &cobra.Command{
-	Use:   "rancher",
+	Use:   "rancher [ga, rc, debug, alpha] [version]",
 	Short: "Tag Rancher releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc,debug,alpha] [version]")
+		}
+		releaseType := args[0]
+		preRelease, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+		tag := args[1]
+		rancherRelease, found := rootConfig.Rancher.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		return rancher.TagRelease(ctx, ghClient, *tagRancherFlags.Tag, *tagRancherFlags.Branch, *tagRancherFlags.RepoOwner, *tagRancherFlags.DryRun, *tagRancherFlags.SkipStatusCheck)
+
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "rancher",
+			Owner:  rancherRelease.RancherRepoOwner,
+			Branch: rancherRelease.ReleaseBranch,
+		}
+		return rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
 	},
 }
 
@@ -171,7 +183,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
-		rc, err := releaseTypeRC(args[0])
+		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
@@ -207,29 +219,14 @@ func init() {
 	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
 	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
-
-	// rancher
-	tagRancherFlags.Tag = rancherTagSubCmd.Flags().StringP("tag", "t", "", "tag to be created. e.g: v2.8.1-rc4")
-	tagRancherFlags.Branch = rancherTagSubCmd.Flags().StringP("branch", "b", "", "branch to be used as the base to create the tag. e.g: release/v2.8")
-	tagRancherFlags.RepoOwner = rancherTagSubCmd.Flags().StringP("repo-owner", "o", "rancher", "repository owner to create the tag in, optional")
-	tagRancherFlags.SkipStatusCheck = rancherTagSubCmd.Flags().BoolP("skip-status-check", "s", false, "skip the github commit status check before creating a tag")
-	tagRancherFlags.DryRun = dryRun
-	if err := rancherTagSubCmd.MarkFlagRequired("tag"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	if err := rancherTagSubCmd.MarkFlagRequired("branch"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
 }
 
-func releaseTypeRC(releaseType string) (bool, error) {
-	if releaseType == "rc" {
+func releaseTypePreRelease(releaseType string) (bool, error) {
+	if releaseType == "rc" || releaseType == "debug" || releaseType == "alpha" {
 		return true, nil
 	}
 	if releaseType == "ga" {
 		return false, nil
 	}
-	return false, errors.New("release type must be either 'ga' or 'rc', instead got: " + releaseType)
+	return false, errors.New("release type must be either 'ga', 'debug', 'alpha' or 'rc', instead got: " + releaseType)
 }

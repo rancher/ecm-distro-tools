@@ -661,7 +661,7 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 }
 
 // LatestRC will get the latest rc created for the k8s version in either rke2 or k3s
-func LatestRC(ctx context.Context, owner, repo, k8sVersion, suffix string, client *github.Client) (*string, error) {
+func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string, client *github.Client) (*string, error) {
 	var rcs []*github.RepositoryRelease
 
 	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
@@ -669,18 +669,36 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion, suffix string, clien
 		return nil, err
 	}
 	for _, release := range allReleases {
-		if strings.Contains(*release.Name, k8sVersion+"-rc") && strings.Contains(*release.Name, suffix) {
+		if strings.Contains(*release.TagName, k8sVersion+"-rc") && strings.Contains(*release.TagName, projectSuffix) {
 			rcs = append(rcs, release)
 		}
 	}
-	sort.Slice(rcs, func(i, j int) bool {
-		return rcs[i].PublishedAt.Time.Before(rcs[j].PublishedAt.Time)
-	})
+	return latestRelease(rcs), nil
+}
 
-	if len(rcs) == 0 {
-		return nil, nil
+func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, version, preReleaseSuffix string) (*string, error) {
+	var versions []*github.RepositoryRelease
+
+	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
+	if err != nil {
+		return nil, err
 	}
-	return rcs[len(rcs)-1].Name, nil
+	for _, release := range allReleases {
+		if strings.Contains(*release.TagName, version+"-"+preReleaseSuffix) {
+			versions = append(versions, release)
+		}
+	}
+	return latestRelease(versions), nil
+}
+
+func latestRelease(versions []*github.RepositoryRelease) *string {
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].PublishedAt.Time.Before(versions[j].PublishedAt.Time)
+	})
+	if len(versions) == 0 {
+		return nil
+	}
+	return versions[len(versions)-1].TagName
 }
 
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file

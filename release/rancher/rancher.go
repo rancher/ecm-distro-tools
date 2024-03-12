@@ -16,8 +16,10 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
@@ -334,41 +336,61 @@ func SetChartBranchReferences(ctx context.Context, forkPath, rancherBaseBranch, 
 	return nil
 }
 
-func TagRelease(ctx context.Context, ghClient *github.Client, tag, remoteBranch, repoOwner string, dryRun, skipStatusCheck bool) error {
+func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) error {
 	fmt.Println("validating tag semver format")
-	if !semver.IsValid(tag) {
-		return errors.New("the tag `" + tag + "` isn't a valid semantic versioning string")
+	if !semver.IsValid(opts.Tag) {
+		return errors.New("the tag isn't a valid semver: " + opts.Tag)
 	}
-	fmt.Println("getting remote branch information from " + repoOwner + "/" + rancherRepo)
-	branch, _, err := ghClient.Repositories.GetBranch(ctx, repoOwner, rancherRepo, remoteBranch, true)
+	fmt.Println("getting remote branch information from " + r.RancherRepoOwner + "/" + rancherRepo)
+	branch, _, err := ghClient.Repositories.GetBranch(ctx, r.RancherRepoOwner, rancherRepo, r.ReleaseBranch, true)
 	if err != nil {
 		return err
 	}
 	if branch.Commit.SHA == nil {
 		return errors.New("branch commit sha is nil")
 	}
-	fmt.Println("the latest commit on branch " + remoteBranch + " is: " + *branch.Commit.SHA)
-	if !skipStatusCheck {
+	fmt.Println("the latest commit on branch " + r.ReleaseBranch + " is: " + *branch.Commit.SHA)
+	if !r.SkipStatusCheck {
 		fmt.Println("checking if CI is passing")
-		if err := commitStateSuccess(ctx, ghClient, repoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
+		if err := commitStateSuccess(ctx, ghClient, r.RancherRepoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
 			return err
 		}
 	}
-	fmt.Println("creating tag: " + tag)
-	if dryRun {
+
+	releaseName := opts.Tag
+	if preRelease {
+		latestVersionNumber := 1
+		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
+		if err != nil {
+			return err
+		}
+		if latestVersion != nil {
+			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, opts.Tag+"-"+releaseType)
+			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
+			if err != nil {
+				return errors.New("failed to parse trimmed latest version number: " + err.Error())
+			}
+			latestVersionNumber = currentVersionNumber + 1
+		}
+		opts.Tag = opts.Tag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
+		releaseName = "Pre-release " + opts.Tag
+	}
+
+	opts.Name = releaseName
+	opts.Prerelease = true
+	opts.Draft = !preRelease
+	opts.ReleaseNotes = ""
+
+	fmt.Printf("creating release with options: %+v\n", opts)
+	if r.DryRun {
 		fmt.Println("dry run, skipping tag creation")
 		return nil
 	}
-	ref, _, err := ghClient.Git.CreateRef(ctx, repoOwner, rancherRepo, &github.Reference{
-		Ref: github.String("refs/tags/" + tag),
-		Object: &github.GitObject{
-			SHA: branch.Commit.SHA,
-		},
-	})
+	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
 	if err != nil {
 		return err
 	}
-	fmt.Println("created tag: " + *ref.URL)
+	fmt.Println("release created: " + *createdRelease.URL)
 	return nil
 }
 
