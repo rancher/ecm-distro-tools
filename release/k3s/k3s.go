@@ -512,11 +512,14 @@ func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.Use
 	for i, tagCmd := range tagsCmds {
 		tagCmdStr := tagCmd
 		tag := strings.Split(tagCmdStr, " ")[3]
-		fmt.Printf("pushing tag %d/%d: %s", i+1, len(tagsCmds), tag)
+
+		fmt.Printf("pushing tag %d/%d: %s\n", i+1, len(tagsCmds), tag)
+
 		if r.DryRun {
-			fmt.Println("Dry run, skipping tag creation")
+			fmt.Printf("\nDry run, skipping tag creation\n")
 			continue
 		}
+
 		if err := repo.Push(&git.PushOptions{
 			RemoteName: r.K3sRepoOwner,
 			Auth:       gitAuth,
@@ -538,10 +541,12 @@ func UpdateK3sReferences(ctx context.Context, ghClient *github.Client, r *ecmCon
 	if err := updateK3sReferencesAndPush(r, u); err != nil {
 		return err
 	}
+
 	if r.DryRun {
 		fmt.Println("dry run, skipping creating PR")
 		return nil
 	}
+
 	return createK3sReferencesPR(ctx, ghClient, r, u)
 }
 
@@ -551,13 +556,16 @@ func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) erro
 		if !os.IsNotExist(err) {
 			return err
 		}
+
 		fmt.Println("workspace dir doesn't exists, creating it")
+
 		if err := os.MkdirAll(r.Workspace, 0755); err != nil {
 			return err
 		}
 	}
 
 	fmt.Println("getting k8s go version")
+
 	goVersion, err := goVersion(r)
 	if err != nil {
 		return err
@@ -602,7 +610,9 @@ func NewGithubClient(ctx context.Context, token string) (*github.Client, error) 
 // tagsFileExists verify if there is a tags file at the release workspace
 func tagsFileExists(r *ecmConfig.K3sRelease) (bool, error) {
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8sVersion)
+
 	fmt.Println("verifying if tags file exists at: " + tagFile)
+
 	if _, err := os.Stat(tagFile); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -617,6 +627,7 @@ func isTagExists(r *ecmConfig.K3sRelease) (bool, error) {
 	dir := filepath.Join(r.Workspace, "kubernetes")
 
 	fmt.Println("opening k8s repo: " + dir)
+
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		return false, err
@@ -645,6 +656,7 @@ func removeExistingTags(r *ecmConfig.K3sRelease) error {
 	}
 
 	fmt.Println("getting repo tags")
+
 	tagsIter, err := repo.Tags()
 	if err != nil {
 		return err
@@ -653,7 +665,9 @@ func removeExistingTags(r *ecmConfig.K3sRelease) error {
 	if err := tagsIter.ForEach(func(ref *plumbing.Reference) error {
 		if strings.Contains(ref.Name().String(), r.NewK8sVersion+"-"+r.NewSuffix) {
 			tagRefName := ref.Name().Short()
+
 			fmt.Println("tag ref found, deleting it: " + tagRefName)
+
 			if err := repo.DeleteTag(tagRefName); err != nil {
 				return err
 			}
