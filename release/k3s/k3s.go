@@ -717,6 +717,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	}
 
 	opts.Name = name
+	opts.Tag = name
 	opts.Prerelease = true
 	opts.Draft = !rc
 	opts.ReleaseNotes = ""

@@ -130,6 +130,7 @@ var rke2TagSubCmd = &cobra.Command{
 						Repo:       "rke2-packaging",
 						Branch:     "master",
 						Name:       version + rpmTag,
+						Tag:        version + rpmTag,
 						Prerelease: false,
 					}
 					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {

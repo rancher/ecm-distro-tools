@@ -121,7 +121,7 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 
 	rr := github.RepositoryRelease{
 		Name:            &cro.Name,
-		TagName:         &cro.Name,
+		TagName:         &cro.Tag,
 		Prerelease:      &cro.Prerelease,
 		TargetCommitish: &cro.Branch,
 		Draft:           &cro.Draft,
