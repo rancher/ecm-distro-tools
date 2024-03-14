@@ -200,7 +200,7 @@ func init() {
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 
-	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "Dry run")
+	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "dry run")
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")

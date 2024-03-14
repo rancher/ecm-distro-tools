@@ -516,7 +516,7 @@ func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.Use
 		fmt.Printf("pushing tag %d/%d: %s\n", i+1, len(tagsCmds), tag)
 
 		if r.DryRun {
-			fmt.Printf("\nDry run, skipping tag creation\n")
+			fmt.Printf("\ndry run, skipping tag creation\n")
 			continue
 		}
 
