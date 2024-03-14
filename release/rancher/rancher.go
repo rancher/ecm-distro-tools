@@ -200,7 +200,7 @@ func GeneratePrimeArtifactsIndex(path string) error {
 	defer resp.Body.Close()
 	contentDecoder := xml.NewDecoder(resp.Body)
 	var listBucket ListBucketResult
-	if err := contentDecoder.Decode(listBucket); err != nil {
+	if err := contentDecoder.Decode(&listBucket); err != nil {
 		return err
 	}
 	content := generateArtifactsIndexContent(listBucket)
