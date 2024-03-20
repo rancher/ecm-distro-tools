@@ -8,6 +8,7 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
+	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -16,8 +17,9 @@ var (
 	k3sPrevMilestone *string
 	k3sMilestone     *string
 
-	rke2PrevMilestone *string
-	rke2Milestone     *string
+	rke2PrevMilestone         *string
+	rke2Milestone             *string
+	artifactsIndexWriteToPath *string
 )
 
 // generateCmd represents the generate command
@@ -96,15 +98,30 @@ var rke2GenerateReleaseNotesSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateSubCmd = &cobra.Command{
+	Use:   "rancher",
+	Short: "Generate rancher related artifacts",
+}
+
+var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
+	Use:   "artifacts-index",
+	Short: "Generate artifacts index page",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return rancher.GeneratePrimeArtifactsIndex(*artifactsIndexWriteToPath)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
 	k3sGenerateSubCmd.AddCommand(k3sGenerateReleaseNotesSubCmd)
 	k3sGenerateSubCmd.AddCommand(k3sGenerateTagsSubCmd)
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
+	generateCmd.AddCommand(rancherGenerateSubCmd)
 
 	// k3s release notes
 	k3sPrevMilestone = k3sGenerateReleaseNotesSubCmd.Flags().StringP("prev-milestone", "p", "", "Previous Milestone")
@@ -126,6 +143,13 @@ func init() {
 		os.Exit(1)
 	}
 	if err := rke2GenerateReleaseNotesSubCmd.MarkFlagRequired("milestone"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	// rancher artifacts-index
+	artifactsIndexWriteToPath = rancherGenerateArtifactsIndexSubCmd.Flags().StringP("write-path", "w", "", "Write To Path")
+	if err := rancherGenerateArtifactsIndexSubCmd.MarkFlagRequired("write-path"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
