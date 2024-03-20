@@ -233,6 +233,9 @@ func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps
 
 		for scanner.Scan() {
 			line := scanner.Text()
+			if strings.Contains(line, "indirect") {
+				continue
+			}
 			if devDependencyPattern.MatchString(line) {
 				lineContent := RancherRCDepsLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				lineContentLower := strings.ToLower(lineContent.Content)
