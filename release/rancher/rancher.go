@@ -22,7 +22,6 @@ import (
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 )
 
@@ -34,46 +33,20 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 	rancherArtifactsListURL  = "https://prime-artifacts.s3.amazonaws.com"
 	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
-	templateCheckRCDevDeps   = `{{- define "componentsFile" -}}
-# Images with -rc
-{{range .RancherImages}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-
-# Components with -rc
-{{range .FilesWithRC}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-
-# Min version components with -rc
-{{range .MinFilesWithRC}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}} 
-
-# KDM References with dev branch
-{{range .KDMWithDev}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-
-# Chart References with dev branch
-{{range .ChartsWithDev}}
-* {{ .Content }} ({{ .File }}, line {{ .Line }})
-{{- end}}
-{{ end }}`
 )
 
-type ContentLine struct {
-	Line    int
-	File    string
-	Content string
+type RancherRCDepsLine struct {
+	Line    int    `json:"line"`
+	File    string `json:"file"`
+	Content string `json:"content"`
 }
 
-type Content struct {
-	RancherImages  []ContentLine
-	FilesWithRC    []ContentLine
-	MinFilesWithRC []ContentLine
-	ChartsWithDev  []ContentLine
-	KDMWithDev     []ContentLine
+type RancherRCDeps struct {
+	RancherImages  []RancherRCDepsLine `json:"rancherImages"`
+	FilesWithRC    []RancherRCDepsLine `json:"filesWithRc"`
+	MinFilesWithRC []RancherRCDepsLine `json:"minFilesWithRc"`
+	ChartsWithDev  []RancherRCDepsLine `json:"chartsWithDev"`
+	KDMWithDev     []RancherRCDepsLine `json:"kdmWithDev"`
 }
 
 type ListBucketResult struct {
@@ -242,109 +215,63 @@ func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, rep
 	return nil
 }
 
-func CheckRancherRCDeps(ctx context.Context, local, forCi bool, org, repo, commitHash, files string) error {
-	var (
-		content  Content
-		badFiles bool
-	)
-
+func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps, error) {
+	var content RancherRCDeps
+	files := []string{"Dockerfile.dapper", "go.mod", "/package/Dockerfile", "/pkg/apis/go.mod", "/pkg/settings/setting.go", "/scripts/package-env"}
 	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
 	rcTagPattern := regexp.MustCompile(`-rc[0-9]+`)
-
 	ghClient := repository.NewGithub(ctx, "")
 
-	for _, filePath := range strings.Split(files, ",") {
+	for _, filePath := range files {
 		var scanner *bufio.Scanner
-		if local {
-			content, err := contentLocal("./" + filePath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					logrus.Debugf("file '%s' not found, skipping...", filePath)
-					continue
-				}
-				return err
-			}
-			defer content.Close()
-			scanner = bufio.NewScanner(content)
-		} else {
-			if strings.Contains(filePath, "bin") {
-				continue
-			}
-			content, err := contentRemote(ctx, ghClient, org, repo, commitHash, filePath)
-			if err != nil {
-				return err
-			}
-			scanner = bufio.NewScanner(strings.NewReader(content))
+		fileContent, err := remoteGitContent(ctx, ghClient, org, rancherRepo, gitRef, filePath)
+		if err != nil {
+			return nil, err
 		}
-
+		scanner = bufio.NewScanner(strings.NewReader(fileContent))
 		lineNum := 1
 
 		for scanner.Scan() {
 			line := scanner.Text()
-			if strings.Contains(filePath, "bin/rancher") {
-				badFiles = true
-				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
-				content.RancherImages = append(content.RancherImages, lineContent)
-				continue
-			}
 			if devDependencyPattern.MatchString(line) {
-				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				lineContent := RancherRCDepsLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				lineContentLower := strings.ToLower(lineContent.Content)
 				if strings.Contains(lineContentLower, "chart") {
-					badFiles = true
 					content.ChartsWithDev = append(content.ChartsWithDev, lineContent)
-				}
-				if strings.Contains(lineContentLower, "kdm") {
-					badFiles = true
+				} else if strings.Contains(lineContentLower, "kdm") {
 					content.KDMWithDev = append(content.KDMWithDev, lineContent)
 				}
 			}
 			if strings.Contains(filePath, "/package/Dockerfile") {
 				if regexp.MustCompile(`CATTLE_(\S+)_MIN_VERSION`).MatchString(line) && strings.Contains(line, "-rc") {
-					badFiles = true
-					lineContent := ContentLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
+					lineContent := RancherRCDepsLine{Line: lineNum, File: filePath, Content: formatContentLine(line)}
 					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
 				}
 			}
 			if rcTagPattern.MatchString(line) {
-				badFiles = true
-				lineContent := ContentLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
+				lineContent := RancherRCDepsLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				content.FilesWithRC = append(content.FilesWithRC, lineContent)
 			}
 			lineNum++
 		}
 		if err := scanner.Err(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	return &content, nil
+}
+
+func (r *RancherRCDeps) ToString() (string, error) {
 	tmpl := template.New("rancher-release-rc-dev-deps")
-	tmpl = template.Must(tmpl.Parse(templateCheckRCDevDeps))
+	tmpl = template.Must(tmpl.Parse(checkRancherRCDepsTemplate))
 	buff := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buff, "componentsFile", content)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(buff.String())
-
-	if forCi && badFiles {
-		return errors.New("check failed, some files don't match the expected dependencies for a final release candidate")
-	}
-
-	return nil
+	err := tmpl.ExecuteTemplate(buff, "componentsFile", r)
+	return buff.String(), err
 }
 
-func contentLocal(filePath string) (*os.File, error) {
-	repoContent, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	return repoContent, nil
-}
-
-func contentRemote(ctx context.Context, ghClient *github.Client, org, repo, commitHash, filePath string) (string, error) {
-	content, _, _, err := ghClient.Repositories.GetContents(ctx, org, repo, filePath, &github.RepositoryContentGetOptions{Ref: commitHash})
+func remoteGitContent(ctx context.Context, ghClient *github.Client, org, repo, gitRef, filePath string) (string, error) {
+	content, _, _, err := ghClient.Repositories.GetContents(ctx, org, repo, filePath, &github.RepositoryContentGetOptions{Ref: gitRef})
 	if err != nil {
 		return "", err
 	}
@@ -420,3 +347,29 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
   </body>
 </html>
 {{end}}`
+const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
+# Images with -rc
+{{range .RancherImages}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Components with -rc
+{{range .FilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Min version components with -rc
+{{range .MinFilesWithRC}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}} 
+
+# KDM References with dev branch
+{{range .KDMWithDev}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+
+# Chart References with dev branch
+{{range .ChartsWithDev}}
+* {{ .Content }} ({{ .File }}, line {{ .Line }})
+{{- end}}
+{{ end }}`

@@ -27,7 +27,6 @@ func main() {
 	app.Usage = "Perform a Rancher release"
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
-		checkRancherRCDepsCommand(),
 		labelIssuesCommand(),
 	}
 	app.Flags = rootFlags

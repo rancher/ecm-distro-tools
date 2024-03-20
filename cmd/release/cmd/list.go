@@ -1,58 +1,48 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/spf13/cobra"
 )
 
-var rancherImageTag *string
-
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List resources",
-	Run: func(cmd *cobra.Command, args []string) {
-		//
-	},
 }
 
 var rancherListSubCmd = &cobra.Command{
 	Use:   "rancher",
-	Short: "List Rancher resources",
+	Short: "List Rancher Utilities",
+}
+
+var rancherListRCDepsSubCmd = &cobra.Command{
+	Use:   "rc-deps [version]",
+	Short: "List Rancher RC Deps",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("arguments required")
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
 		}
-		switch args[0] {
-		case "nonmirrored-rc-images":
-			if *rancherImageTag == "" {
-				return errors.New("invalid list rancher ...command")
-			}
-
-			imagesRC, err := rancher.ListRancherImagesRC(*rancherImageTag)
-			if err != nil {
-				return err
-			}
-
-			fmt.Println(imagesRC)
+		fmt.Println("[WARN]: not fully implemented yet")
+		rancherRCDeps, err := rancher.CheckRancherRCDeps(context.Background(), "rancher", args[0])
+		if err != nil {
+			return err
 		}
-
+		deps, err := rancherRCDeps.ToString()
+		if err != nil {
+			return err
+		}
+		fmt.Println(deps)
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rancherListSubCmd.AddCommand(rancherListRCDepsSubCmd)
 	listCmd.AddCommand(rancherListSubCmd)
-
-	rancherImageTag = listCmd.Flags().StringP("tag", "t", "", "release tag to validate images")
-
-	if err := listCmd.MarkFlagRequired("tag"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	rootCmd.AddCommand(listCmd)
 }
