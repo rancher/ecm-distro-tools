@@ -21,11 +21,11 @@ var rancherListSubCmd = &cobra.Command{
 }
 
 var rancherListRCDepsSubCmd = &cobra.Command{
-	Use:   "rc-deps [version]",
+	Use:   "rc-deps [git-ref]",
 	Short: "List Rancher RC Deps",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("expected at least one argument: [version]")
+			return errors.New("expected at least one argument: [git-ref]")
 		}
 		rancherRCDeps, err := rancher.CheckRancherRCDeps(context.Background(), "rancher", args[0])
 		if err != nil {
