@@ -27,7 +27,6 @@ var rancherListRCDepsSubCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
-		fmt.Println("[WARN]: not fully implemented yet")
 		rancherRCDeps, err := rancher.CheckRancherRCDeps(context.Background(), "rancher", args[0])
 		if err != nil {
 			return err
