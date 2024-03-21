@@ -359,6 +359,12 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 
 	releaseName := opts.Tag
 	if preRelease {
+		if releaseType == "debug" {
+			if r.IssueNumber == "" {
+				return errors.New("debug releases require an issue number")
+			}
+			releaseType = "debug-" + r.IssueNumber + "-"
+		}
 		latestVersionNumber := 1
 		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
 		if err != nil {

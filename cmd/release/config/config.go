@@ -40,6 +40,7 @@ type RancherRelease struct {
 	DryRun           bool   `json:"dry_run"`
 	SkipStatusCheck  bool   `json:"skip_status_check"`
 	RancherRepoOwner string `json:"rancher_repo_owner"`
+	IssueNumber      string `json:"issue_number"`
 }
 
 // RKE2
@@ -239,6 +240,7 @@ Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 		Release Branch:     {{ $rancherValue.ReleaseBranch }}
 		Dry Run:            {{ $rancherValue.DryRun }}
 		Skip Status Check:  {{ $rancherValue.SkipStatusCheck }}
+		Issue Number:       {{ $rancherValue.IssueNumber }}
 		Rancher Repo Owner: {{ $rancherValue.RancherRepoOwner }}{{ end }}
 
 RKE2{{ range .RKE2.Versions }}
