@@ -34,6 +34,15 @@ type K3sRelease struct {
 	K3sUpstreamURL                string `json:"k3s_upstream_url"`
 }
 
+// RancherRelease
+type RancherRelease struct {
+	ReleaseBranch    string `json:"release_branch"`
+	DryRun           bool   `json:"dry_run"`
+	SkipStatusCheck  bool   `json:"skip_status_check"`
+	RancherRepoOwner string `json:"rancher_repo_owner"`
+	IssueNumber      string `json:"issue_number"`
+}
+
 // RKE2
 type RKE2 struct {
 	Versions []string `json:"versions"`
@@ -48,6 +57,11 @@ type User struct {
 // K3s
 type K3s struct {
 	Versions map[string]K3sRelease `json:"versions"`
+}
+
+// Rancher
+type Rancher struct {
+	Versions map[string]RancherRelease `json:"versions"`
 }
 
 // Drone
@@ -67,10 +81,11 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User *User `json:"user"`
-	K3s  *K3s  `json:"k3s"`
-	RKE2 *RKE2 `json:"rke2"`
-	Auth *Auth `json:"auth"`
+	User    *User    `json:"user"`
+	K3s     *K3s     `json:"k3s"`
+	Rancher *Rancher `json:"rancher"`
+	RKE2    *RKE2    `json:"rke2"`
+	Auth    *Auth    `json:"auth"`
 }
 
 func DefaultConfigPath() (string, error) {
@@ -168,6 +183,16 @@ func exampleConfig() Config {
 		RKE2: &RKE2{
 			Versions: []string{"v1.x.y"},
 		},
+		Rancher: &Rancher{
+			Versions: map[string]RancherRelease{
+				"v2.x.y": {
+					ReleaseBranch:    "release/v2.x",
+					DryRun:           false,
+					SkipStatusCheck:  false,
+					RancherRepoOwner: "rancher",
+				},
+			},
+		},
 		Auth: &Auth{
 			Drone: &Drone{
 				K3sPR:          "YOUR_TOKEN",
@@ -195,20 +220,28 @@ User
 	Email:           {{ .User.Email }}
 	Github Username: {{ .User.GithubUsername }}
 
-K3s {{ range $version, $value := .K3s.Versions }}
-	{{ $version }}:
-		Old K8s Version:  {{ $value.OldK8sVersion}}	
-		New K8s Version:  {{ $value.NewK8sVersion}}	
-		Old K8s Client:   {{ $value.OldK8sClient}}	
-		New K8s Client:   {{ $value.NewK8sClient}}	
-		Old Suffix:       {{ $value.OldSuffix}}	
-		New Suffix:       {{ $value.NewSuffix}}	
-		Release Branch:   {{ $value.ReleaseBranch}}	
-		Dry Run:          {{ $value.DryRun}}	
-		K3s Repo Owner:   {{ $value.K3sRepoOwner}}	
-		K8s Rancher URL:  {{ $value.K8sRancherURL}}	
-		Workspace:        {{ $value.Workspace}}	
-		K3s Upstream URL: {{ $value.K3sUpstreamURL}}{{ end }}
+K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
+	{{ $k3sVersion }}:
+		Old K8s Version:  {{ $k3sValue.OldK8sVersion}}	
+		New K8s Version:  {{ $k3sValue.NewK8sVersion}}	
+		Old K8s Client:   {{ $k3sValue.OldK8sClient}}	
+		New K8s Client:   {{ $k3sValue.NewK8sClient}}	
+		Old Suffix:       {{ $k3sValue.OldSuffix}}	
+		New Suffix:       {{ $k3sValue.NewSuffix}}	
+		Release Branch:   {{ $k3sValue.ReleaseBranch}}	
+		Dry Run:          {{ $k3sValue.DryRun}}	
+		K3s Repo Owner:   {{ $k3sValue.K3sRepoOwner}}	
+		K8s Rancher URL:  {{ $k3sValue.K8sRancherURL}}	
+		Workspace:        {{ $k3sValue.Workspace}}	
+		K3s Upstream URL: {{ $k3sValue.K3sUpstreamURL}}{{ end }}
+
+Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
+	{{ $rancherVersion }}:
+		Release Branch:     {{ $rancherValue.ReleaseBranch }}
+		Dry Run:            {{ $rancherValue.DryRun }}
+		Skip Status Check:  {{ $rancherValue.SkipStatusCheck }}
+		Issue Number:       {{ $rancherValue.IssueNumber }}
+		Rancher Repo Owner: {{ $rancherValue.RancherRepoOwner }}{{ end }}
 
 RKE2{{ range .RKE2.Versions }}
 	{{ . }}{{ end}}
