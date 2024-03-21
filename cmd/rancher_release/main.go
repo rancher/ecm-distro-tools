@@ -27,11 +27,6 @@ func main() {
 	app.Usage = "Perform a Rancher release"
 	app.UseShortOptionHandling = true
 	app.Commands = []*cli.Command{
-		listImagesRCCommand(),
-		checkRancherImageCommand(),
-		setKDMBranchReferencesCommand(),
-		setChartsBranchReferencesCommand(),
-		checkRancherRCDepsCommand(),
 		labelIssuesCommand(),
 	}
 	app.Flags = rootFlags

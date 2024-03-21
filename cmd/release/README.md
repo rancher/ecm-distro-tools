@@ -46,6 +46,15 @@ $ ls -la $GOPATH/
 $ sudo chown $USER $GOPATH/.cache
 ```
 
+### Rancher Release
+#### Examples
+##### List all RC and dev components in a git ref
+Git ref can be a tag, branch, or commit hash.
+```bash
+release list rancher rc-deps release/v2.7
+release list rancher rc-deps 8c7bbcaabcfabb00b1c89e55ed4f68117f938262
+release list rancher rc-deps v2.7.12-rc1
+```
 
 ## Contributions
 
