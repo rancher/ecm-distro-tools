@@ -61,8 +61,9 @@ type ArtifactsIndexContent struct {
 }
 
 type ArtifactsIndexContentGroup struct {
-	Versions map[string][]string `json:"versions"`
-	BaseURL  string              `json:"baseUrl"`
+	Versions      []string            `json:"versions"`
+	VersionsFiles map[string][]string `json:"versionsFiles"`
+	BaseURL       string              `json:"baseUrl"`
 }
 
 func GeneratePrimeArtifactsIndex(path string) error {
@@ -98,14 +99,19 @@ func GeneratePrimeArtifactsIndex(path string) error {
 func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
-			Versions: map[string][]string{},
-			BaseURL:  rancherArtifactsBaseURL,
+			Versions:      []string{},
+			VersionsFiles: map[string][]string{},
+			BaseURL:       rancherArtifactsBaseURL,
 		},
 		PreRelease: ArtifactsIndexContentGroup{
-			Versions: map[string][]string{},
-			BaseURL:  rancherArtifactsBaseURL,
+			Versions:      []string{},
+			VersionsFiles: map[string][]string{},
+			BaseURL:       rancherArtifactsBaseURL,
 		},
 	}
+	versions := []string{}
+	versionsFiles := map[string][]string{}
+
 	for _, content := range listBucket.Contents {
 		if !strings.Contains(content.Key, "rancher/") {
 			continue
@@ -114,16 +120,28 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 		if len(keyFile) < 2 || keyFile[1] == "" {
 			continue
 		}
-		key := keyFile[0]
+		version := keyFile[0]
 		file := keyFile[1]
 
+		if _, ok := versionsFiles[version]; !ok {
+			versions = append(versions, version)
+		}
+		versionsFiles[version] = append(versionsFiles[version], file)
+	}
+
+	semver.Sort(versions)
+
+	for _, version := range versions {
 		// only non ga releases contains '-' e.g: -rc, -debug
-		if strings.Contains(key, "-") {
-			indexContent.PreRelease.Versions[key] = append(indexContent.PreRelease.Versions[key], file)
+		if strings.Contains(version, "-") {
+			indexContent.PreRelease.Versions = append(indexContent.PreRelease.Versions, version)
+			indexContent.PreRelease.VersionsFiles[version] = versionsFiles[version]
 		} else {
-			indexContent.GA.Versions[key] = append(indexContent.GA.Versions[key], file)
+			indexContent.GA.Versions = append(indexContent.GA.Versions, version)
+			indexContent.GA.VersionsFiles[version] = versionsFiles[version]
 		}
 	}
+
 	return indexContent
 }
 
@@ -322,7 +340,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     <main>
       <div class="project-rancher project">
         <h2>rancher</h2>
-        {{ range $version, $files := .Versions }}
+        {{ range $i, $version := .Versions }}
         <div class="release-{{ $version }} release">
           <div class="release-title">
 						<b class="release-title-tag">{{ $version }}</b>
@@ -330,7 +348,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
           </div>
           <div class="files hidden" id="release-{{ $version }}-files">
             <ul>
-              {{ range $files }}
+              {{ range index $.VersionsFiles $version }}
               <li><a href="{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
               {{ end }}
             </ul>
