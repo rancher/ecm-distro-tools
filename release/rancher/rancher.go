@@ -319,7 +319,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Rancher Prime Artifacts</title>
-		<link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
+    <link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
     <style>
     body { font-family: Verdana, Geneneva; }
     header { display: flex; flex-direction: row; justify-items: center; }
