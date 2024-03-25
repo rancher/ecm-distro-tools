@@ -109,8 +109,8 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 			BaseURL:       rancherArtifactsBaseURL,
 		},
 	}
-	versions := []string{}
-	versionsFiles := map[string][]string{}
+	var versions []string
+	versionsFiles := make(map[string][]string)
 
 	for _, content := range listBucket.Contents {
 		if !strings.Contains(content.Key, "rancher/") {
