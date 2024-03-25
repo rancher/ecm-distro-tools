@@ -131,7 +131,9 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 
 	semver.Sort(versions)
 
-	for _, version := range versions {
+	// starting from the last index will result in a newest to oldest sorting
+	for i := len(versions) - 1; i >= 0; i-- {
+		version := versions[i]
 		// only non ga releases contains '-' e.g: -rc, -debug
 		if strings.Contains(version, "-") {
 			indexContent.PreRelease.Versions = append(indexContent.PreRelease.Versions, version)
