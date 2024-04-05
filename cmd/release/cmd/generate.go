@@ -111,6 +111,17 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
+	Use:   "missing-images-list [version]",
+	Short: "Generate a missing images list",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		return rancher.GenerateMissingImagesList(args[0])
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -118,6 +129,7 @@ func init() {
 	k3sGenerateSubCmd.AddCommand(k3sGenerateTagsSubCmd)
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)

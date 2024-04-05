@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -33,6 +34,7 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 	rancherArtifactsListURL  = "https://prime-artifacts.s3.amazonaws.com"
 	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
+	rancherRegistryBaseURL   = "registry.rancher.com"
 )
 
 type RancherRCDepsLine struct {
@@ -309,6 +311,70 @@ func formatContentLine(line string) string {
 	re := regexp.MustCompile(`\s+`)
 	line = re.ReplaceAllString(line, " ")
 	return strings.TrimSpace(line)
+}
+
+func GenerateMissingImagesList(version string) error {
+	if !semver.IsValid(version) {
+		return errors.New("version is not a valid semver: " + version)
+	}
+	const rancherWindowsImagesFile = "rancher-windows-images.txt"
+	const rancherImagesFile = "rancher-images.txt"
+	rancherWindowsImages, err := getRancherPrimeArtifact(version, rancherWindowsImagesFile)
+	if err != nil {
+		return errors.New("failed to get rancher windows images: " + err.Error())
+	}
+	// rancherImages, err := getRancherPrimeArtifact(version, rancherImagesFile)
+	// if err != nil {
+	// 	return errors.New("failed to get rancher images: " + err.Error())
+	// }
+	// rancherImages = append(rancherImages, rancherWindowsImages...)
+	rancherImages := rancherWindowsImages
+	ctx := context.Background()
+	for _, image := range rancherImages {
+		image = rancherRegistryBaseURL + "/" + image
+		fmt.Println("checking image: " + image)
+		exists, err := checkIfImageExists(ctx, image)
+		if err != nil {
+			return errors.New("failed to check image: " + err.Error())
+		}
+		if !exists {
+			return errors.New("image doesn't exist: " + image)
+		}
+	}
+	return nil
+}
+
+func checkIfImageExists(ctx context.Context, img string) (bool, error) {
+	cli, err := client.NewClientWithOpts(
+	// client.WithHost("https://"+rancherRegistryBaseURL),
+	// client.WithVersion("2"),
+	)
+	if err != nil {
+		return false, err
+	}
+	_, err = cli.DistributionInspect(ctx, img, "")
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func getRancherPrimeArtifact(version, artifactName string) ([]string, error) {
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	res, err := httpClient.Get(rancherArtifactsBaseURL + "/rancher/" + version + "/" + artifactName)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	var file []string
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		file = append(file, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
 const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
