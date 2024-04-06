@@ -364,7 +364,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 					fullImage := image + ":" + imageVersion
 					if !exists {
 						missingImagesChan <- fullImage
-						log.Println(fullImage + " does not exists")
+						log.Println(fullImage + " is missing")
 					} else {
 						log.Println(fullImage + " exists")
 					}
