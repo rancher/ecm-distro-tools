@@ -118,7 +118,12 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
-		return rancher.GenerateMissingImagesList(args[0])
+		missingImages, err := rancher.GenerateMissingImagesList(args[0])
+		if err != nil {
+			return err
+		}
+		fmt.Println(missingImages)
+		return nil
 	},
 }
 
