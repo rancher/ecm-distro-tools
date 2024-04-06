@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -342,13 +343,16 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 	errGroup, _ := errgroup.WithContext(ctx)
 	errGroup.SetLimit(concurrencyLimit)
 	missingImagesChan := make(chan string, len(images))
+	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
+	repositoryAuths := map[string]string{}
+	repositoryAuthsLock := &sync.RWMutex{}
 
 	for _, imageAndVersion := range images {
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
 		imageVersion := splitImage[1]
 
-		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string) {
+		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, repositoryAuthsLock *sync.RWMutex) {
 			errGroup.Go(func() error {
 				// if any other check failed, stop running to prevent wasting resources
 				// this doesn't include 404's since it is expected it does include any other errors
@@ -356,7 +360,21 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 				case <-ctx.Done():
 					return ctx.Err()
 				default:
-					exists, err := checkIfImageExists(image, imageVersion)
+					repositoryAuthsLock.Lock()
+					var ok bool
+					var auth string
+					var err error
+					auth, ok = repositoryAuths[image]
+					if !ok {
+						auth, err = getRegistryAuth(sccSUSEService, image)
+						if err != nil {
+							cancel()
+							return err
+						}
+						repositoryAuths[image] = auth
+					}
+					repositoryAuthsLock.Unlock()
+					exists, err := checkIfImageExists(image, imageVersion, auth)
 					if err != nil {
 						cancel()
 						return err
@@ -371,7 +389,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 					return nil
 				}
 			})
-		}(ctx, missingImagesChan, image, imageVersion)
+		}(ctx, missingImagesChan, image, imageVersion, repositoryAuths, repositoryAuthsLock)
 
 	}
 	if err := errGroup.Wait(); err != nil {
@@ -382,12 +400,8 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 	return missingImages, nil
 }
 
-func checkIfImageExists(img, imgVersion string) (bool, error) {
+func checkIfImageExists(img, imgVersion, auth string) (bool, error) {
 	log.Println("checking image: " + img + ":" + imgVersion)
-	auth, err := getRegistryAuth(sccSUSEService, img)
-	if err != nil {
-		return false, err
-	}
 	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	req, err := http.NewRequest("GET", rancherRegistryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
