@@ -337,7 +337,8 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 	}
 	images := append(rancherWindowsImages, rancherImages...)
 
-	errGroup, _ := errgroup.WithContext(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	errGroup, _ := errgroup.WithContext(ctx)
 	errGroup.SetLimit(2)
 	missingImagesChan := make(chan string, len(images))
 
@@ -346,10 +347,15 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 		image := splitImage[0]
 		imageVersion := splitImage[1]
 
-		func(missingImagesChan chan string, image, imageVersion string) {
+		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string) {
 			errGroup.Go(func() error {
+				select {
+				case <- ctx.Done():
+					return ctx.Err()
+				default:
 				exists, err := checkIfImageExists(image, imageVersion)
 				if err != nil {
+					cancel()
 					return err
 				}
 				fullImage := image + ":" + imageVersion
@@ -360,8 +366,9 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 					log.Println(fullImage + " exists")
 				}
 				return nil
+				}
 			})
-		}(missingImagesChan, image, imageVersion)
+		}(ctx, missingImagesChan, image, imageVersion)
 
 	}
 	if err := errGroup.Wait(); err != nil {
@@ -378,7 +385,7 @@ func checkIfImageExists(img, imgVersion string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	req, err := http.NewRequest("GET", rancherRegistryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
 		return false, err
@@ -406,7 +413,7 @@ func checkIfImageExists(img, imgVersion string) (bool, error) {
 }
 
 func getRegistryAuth(service, image string) (string, error) {
-	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	scope := "repository:" + image + ":pull"
 	res, err := httpClient.Get(sccSUSEBaseURL + "/api/registry/authorize?scope=" + scope + "&service=" + service)
 	if err != nil {
