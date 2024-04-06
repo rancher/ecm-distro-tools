@@ -327,52 +327,53 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 	}
 	const rancherWindowsImagesFile = "rancher-windows-images.txt"
 	const rancherImagesFile = "rancher-images.txt"
-	// rancherWindowsImages, err := getRancherPrimeArtifact(version, rancherWindowsImagesFile)
-	// if err != nil {
-	// 	return nil, errors.New("failed to get rancher windows images: " + err.Error())
-	// }
+	rancherWindowsImages, err := getRancherPrimeArtifact(version, rancherWindowsImagesFile)
+	if err != nil {
+		return nil, errors.New("failed to get rancher windows images: " + err.Error())
+	}
 	rancherImages, err := getRancherPrimeArtifact(version, rancherImagesFile)
 	if err != nil {
 		return nil, errors.New("failed to get rancher images: " + err.Error())
 	}
-	// images := append(rancherWindowsImages, rancherImages...)
-	images := rancherImages
+	images := append(rancherWindowsImages, rancherImages...)
 
 	errGroup, _ := errgroup.WithContext(context.Background())
 	errGroup.SetLimit(2)
-	missingImagesChan := make(chan string, len(rancherImages))
-	defer close(missingImagesChan)
+	missingImagesChan := make(chan string, len(images))
 
 	for _, imageAndVersion := range images {
-		errGroup.Go(func() error {
-			splitImage := strings.Split(imageAndVersion, ":")
-			image := splitImage[0]
-			imageVersion := splitImage[1]
+		splitImage := strings.Split(imageAndVersion, ":")
+		image := splitImage[0]
+		imageVersion := splitImage[1]
 
-			exists, err := checkIfImageExists(image, imageVersion)
-			if err != nil {
-				return err
-			}
-			fullImage := image + ":" + imageVersion
-			if !exists {
-				missingImagesChan <- fullImage
-				log.Println(fullImage + " does not exists")
-			} else {
-				log.Println(fullImage + " exists")
-			}
-			return nil
-		})
+		func(missingImagesChan chan string, image, imageVersion string) {
+			errGroup.Go(func() error {
+				exists, err := checkIfImageExists(image, imageVersion)
+				if err != nil {
+					return err
+				}
+				fullImage := image + ":" + imageVersion
+				if !exists {
+					missingImagesChan <- fullImage
+					log.Println(fullImage + " does not exists")
+				} else {
+					log.Println(fullImage + " exists")
+				}
+				return nil
+			})
+		}(missingImagesChan, image, imageVersion)
+
 	}
-	errGroup.Wait()
-	if err != nil {
+	if err := errGroup.Wait(); err != nil {
 		return nil, err
 	}
+	close(missingImagesChan)
 	missingImages := readStringChan(missingImagesChan)
 	return missingImages, nil
 }
 
 func checkIfImageExists(img, imgVersion string) (bool, error) {
-	fmt.Println("checking image: " + img + ":" + imgVersion)
+	log.Println("checking image: " + img + ":" + imgVersion)
 	auth, err := getRegistryAuth(sccSUSEService, img)
 	if err != nil {
 		return false, err
@@ -435,7 +436,7 @@ func getRancherPrimeArtifact(version, artifactName string) ([]string, error) {
 	return file, nil
 }
 
-func readStringChan(ch chan string) []string {
+func readStringChan(ch <-chan string) []string {
 	var data []string
 	for s := range ch {
 		data = append(data, s)
