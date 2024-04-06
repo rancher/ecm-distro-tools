@@ -72,7 +72,7 @@ type ArtifactsIndexContentGroup struct {
 	BaseURL       string              `json:"baseUrl"`
 }
 
-type RegistryAuth struct {
+type registryAuth struct {
 	Token string `json:"token"`
 }
 
@@ -427,7 +427,7 @@ func getRegistryAuth(service, image string) (string, error) {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
 	decoder := json.NewDecoder(res.Body)
-	var auth RegistryAuth
+	var auth registryAuth
 	if err := decoder.Decode(&auth); err != nil {
 		return "", err
 	}
