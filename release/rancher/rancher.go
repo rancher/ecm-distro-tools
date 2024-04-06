@@ -337,6 +337,7 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 	}
 	images := append(rancherWindowsImages, rancherImages...)
 
+	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
 	ctx, cancel := context.WithCancel(context.Background())
 	errGroup, _ := errgroup.WithContext(ctx)
 	errGroup.SetLimit(2)
@@ -349,23 +350,26 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 
 		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string) {
 			errGroup.Go(func() error {
+				// if any other check failed, stop running to prevent wasting resources
+				// this doesn't include 404's since it is expected that this happens some times
+				// it does include any other errors
 				select {
-				case <- ctx.Done():
+				case <-ctx.Done():
 					return ctx.Err()
 				default:
-				exists, err := checkIfImageExists(image, imageVersion)
-				if err != nil {
-					cancel()
-					return err
-				}
-				fullImage := image + ":" + imageVersion
-				if !exists {
-					missingImagesChan <- fullImage
-					log.Println(fullImage + " does not exists")
-				} else {
-					log.Println(fullImage + " exists")
-				}
-				return nil
+					exists, err := checkIfImageExists(image, imageVersion)
+					if err != nil {
+						cancel()
+						return err
+					}
+					fullImage := image + ":" + imageVersion
+					if !exists {
+						missingImagesChan <- fullImage
+						log.Println(fullImage + " does not exists")
+					} else {
+						log.Println(fullImage + " exists")
+					}
+					return nil
 				}
 			})
 		}(ctx, missingImagesChan, image, imageVersion)

@@ -27,12 +27,6 @@ var (
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Various utilities to generate release artifacts",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 || len(args) > 2 {
-			rootCmd.Help()
-			os.Exit(0)
-		}
-	},
 }
 
 var k3sGenerateSubCmd = &cobra.Command{
@@ -123,6 +117,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		// if there are missing images, return it as an error so CI also fails
 		if len(missingImages) != 0 {
 			return errors.New("found missing images: " + strings.Join(missingImages, ","))
 		}

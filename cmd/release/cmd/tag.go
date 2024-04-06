@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -29,12 +28,6 @@ var (
 var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "Tag releases",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			rootCmd.Help()
-			os.Exit(0)
-		}
-	},
 }
 
 var k3sTagSubCmd = &cobra.Command{
