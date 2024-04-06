@@ -21,6 +21,7 @@ var (
 	rke2PrevMilestone         *string
 	rke2Milestone             *string
 	artifactsIndexWriteToPath *string
+	concurrencyLimit          *int
 )
 
 // generateCmd represents the generate command
@@ -113,7 +114,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(args[0])
+		missingImages, err := rancher.GenerateMissingImagesList(args[0], *concurrencyLimit)
 		if err != nil {
 			return err
 		}
@@ -168,4 +169,7 @@ func init() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+
+	// rancher generate-missing-images-list
+	concurrencyLimit = rancherGenerateMissingImagesListSubCmd.Flags().IntP("concurrency-limit", "c", 3, "Concurrency Limit")
 }

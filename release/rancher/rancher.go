@@ -321,7 +321,7 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(version string) ([]string, error) {
+func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, error) {
 	if !semver.IsValid(version) {
 		return nil, errors.New("version is not a valid semver: " + version)
 	}
@@ -340,7 +340,7 @@ func GenerateMissingImagesList(version string) ([]string, error) {
 	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
 	ctx, cancel := context.WithCancel(context.Background())
 	errGroup, _ := errgroup.WithContext(ctx)
-	errGroup.SetLimit(2)
+	errGroup.SetLimit(concurrencyLimit)
 	missingImagesChan := make(chan string, len(images))
 
 	for _, imageAndVersion := range images {
