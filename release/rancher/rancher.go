@@ -383,15 +383,15 @@ func checkIfImageExists(img, imgVersion string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	req.Header.Set("Accept", "application/vnd.oci.image.index.v1+json")
-	req.Header.Set("Accept", "application/vnd.oci.image.manifest.v1+json")
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v1+prettyjws")
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v1+json")
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.list.v2+json")
-	req.Header.Set("Accept", "application/vnd.oci.image.index.v1+json")
-	req.Header.Set("Docker-Distribution-Api-Version", "registry/2.0")
-	req.Header.Set("Authorization", "Bearer "+auth)
+	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
+	req.Header.Add("Accept", "application/vnd.oci.image.manifest.v1+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v1+prettyjws")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v1+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.list.v2+json")
+	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
+	req.Header.Add("Docker-Distribution-Api-Version", "registry/2.0")
+	req.Header.Add("Authorization", "Bearer "+auth)
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return false, err
