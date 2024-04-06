@@ -351,8 +351,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string) {
 			errGroup.Go(func() error {
 				// if any other check failed, stop running to prevent wasting resources
-				// this doesn't include 404's since it is expected that this happens some times
-				// it does include any other errors
+				// this doesn't include 404's since it is expected it does include any other errors
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
