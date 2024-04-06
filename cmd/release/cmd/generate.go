@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -122,7 +123,9 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println(missingImages)
+		if len(missingImages) != 0 {
+			return errors.New("found missing images: " + strings.Join(missingImages, ","))
+		}
 		return nil
 	},
 }
