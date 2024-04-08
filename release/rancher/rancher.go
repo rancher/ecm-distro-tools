@@ -393,8 +393,10 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 
 	}
 	if err := errGroup.Wait(); err != nil {
+		cancel()
 		return nil, err
 	}
+	cancel()
 	close(missingImagesChan)
 	missingImages := readStringChan(missingImagesChan)
 	return missingImages, nil
