@@ -340,7 +340,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 
 	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
 	ctx, cancel := context.WithCancel(context.Background())
-	errGroup, _ := errgroup.WithContext(ctx)
+	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.SetLimit(concurrencyLimit)
 	missingImagesChan := make(chan string, len(images))
 	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
