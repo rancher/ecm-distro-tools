@@ -348,6 +348,10 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 	mu := sync.RWMutex{}
 
 	for _, imageAndVersion := range images {
+		if !strings.Contains(imageAndVersion, ":") {
+			cancel()
+			return nil, errors.New("malformed image name: , missing ':'")
+		}
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
 		imageVersion := splitImage[1]
