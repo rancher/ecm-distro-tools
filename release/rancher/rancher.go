@@ -344,15 +344,15 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 	errGroup.SetLimit(concurrencyLimit)
 	missingImagesChan := make(chan string, len(images))
 	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
-	repositoryAuths := map[string]string{}
-	repositoryAuthsLock := &sync.RWMutex{}
+	repositoryAuths := make(map[string]string)
+	mu := sync.RWMutex{}
 
 	for _, imageAndVersion := range images {
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
 		imageVersion := splitImage[1]
 
-		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, repositoryAuthsLock *sync.RWMutex) {
+		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, mu *sync.RWMutex) {
 			errGroup.Go(func() error {
 				// if any other check failed, stop running to prevent wasting resources
 				// this doesn't include 404's since it is expected it does include any other errors
@@ -360,7 +360,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 				case <-ctx.Done():
 					return ctx.Err()
 				default:
-					repositoryAuthsLock.Lock()
+					mu.Lock()
 					var ok bool
 					var auth string
 					var err error
@@ -373,7 +373,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 						}
 						repositoryAuths[image] = auth
 					}
-					repositoryAuthsLock.Unlock()
+					mu.Unlock()
 					exists, err := checkIfImageExists(image, imageVersion, auth)
 					if err != nil {
 						cancel()
@@ -389,7 +389,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 					return nil
 				}
 			})
-		}(ctx, missingImagesChan, image, imageVersion, repositoryAuths, repositoryAuthsLock)
+		}(ctx, missingImagesChan, image, imageVersion, repositoryAuths, &mu)
 
 	}
 	if err := errGroup.Wait(); err != nil {
