@@ -73,7 +73,7 @@ type ArtifactsIndexContentGroup struct {
 	BaseURL       string              `json:"baseUrl"`
 }
 
-type registryAuth struct {
+type registryAuthToken struct {
 	Token string `json:"token"`
 }
 
@@ -328,11 +328,11 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 	}
 	const rancherWindowsImagesFile = "rancher-windows-images.txt"
 	const rancherImagesFile = "rancher-images.txt"
-	rancherWindowsImages, err := getRancherPrimeArtifact(version, rancherWindowsImagesFile)
+	rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
 	if err != nil {
 		return nil, errors.New("failed to get rancher windows images: " + err.Error())
 	}
-	rancherImages, err := getRancherPrimeArtifact(version, rancherImagesFile)
+	rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
 	if err != nil {
 		return nil, errors.New("failed to get rancher images: " + err.Error())
 	}
@@ -370,7 +370,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, 
 					var err error
 					auth, ok = repositoryAuths[image]
 					if !ok {
-						auth, err = getRegistryAuth(sccSUSEService, image)
+						auth, err = registryAuth(sccSUSEService, image)
 						if err != nil {
 							cancel()
 							return err
@@ -435,7 +435,7 @@ func checkIfImageExists(img, imgVersion, auth string) (bool, error) {
 	return true, nil
 }
 
-func getRegistryAuth(service, image string) (string, error) {
+func registryAuth(service, image string) (string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	scope := "repository:" + image + ":pull"
 	res, err := httpClient.Get(sccSUSEBaseURL + "/api/registry/authorize?scope=" + scope + "&service=" + service)
@@ -447,14 +447,14 @@ func getRegistryAuth(service, image string) (string, error) {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
 	decoder := json.NewDecoder(res.Body)
-	var auth registryAuth
+	var auth registryAuthToken
 	if err := decoder.Decode(&auth); err != nil {
 		return "", err
 	}
 	return auth.Token, nil
 }
 
-func getRancherPrimeArtifact(version, artifactName string) ([]string, error) {
+func rancherPrimeArtifact(version, artifactName string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(rancherArtifactsBaseURL + "/rancher/" + version + "/" + artifactName)
 	if err != nil {
