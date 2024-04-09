@@ -322,21 +322,23 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(version string, concurrencyLimit int) ([]string, error) {
+func GenerateMissingImagesList(version string, concurrencyLimit int, images []string) ([]string, error) {
 	if !semver.IsValid(version) {
 		return nil, errors.New("version is not a valid semver: " + version)
 	}
-	const rancherWindowsImagesFile = "rancher-windows-images.txt"
-	const rancherImagesFile = "rancher-images.txt"
-	rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
-	if err != nil {
-		return nil, errors.New("failed to get rancher windows images: " + err.Error())
+	if len(images) == 0 {
+		const rancherWindowsImagesFile = "rancher-windows-images.txt"
+		const rancherImagesFile = "rancher-images.txt"
+		rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
+		if err != nil {
+			return nil, errors.New("failed to get rancher windows images: " + err.Error())
+		}
+		rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
+		if err != nil {
+			return nil, errors.New("failed to get rancher images: " + err.Error())
+		}
+		images = append(rancherWindowsImages, rancherImages...)
 	}
-	rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
-	if err != nil {
-		return nil, errors.New("failed to get rancher images: " + err.Error())
-	}
-	images := append(rancherWindowsImages, rancherImages...)
 
 	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
 	ctx, cancel := context.WithCancel(context.Background())

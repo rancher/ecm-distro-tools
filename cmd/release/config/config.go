@@ -36,11 +36,12 @@ type K3sRelease struct {
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch    string `json:"release_branch"`
-	DryRun           bool   `json:"dry_run"`
-	SkipStatusCheck  bool   `json:"skip_status_check"`
-	RancherRepoOwner string `json:"rancher_repo_owner"`
-	IssueNumber      string `json:"issue_number"`
+	ReleaseBranch    string   `json:"release_branch"`
+	DryRun           bool     `json:"dry_run"`
+	SkipStatusCheck  bool     `json:"skip_status_check"`
+	RancherRepoOwner string   `json:"rancher_repo_owner"`
+	IssueNumber      string   `json:"issue_number"`
+	CheckImages      []string `json:"check_images"`
 }
 
 // RKE2
@@ -190,6 +191,7 @@ func exampleConfig() Config {
 					DryRun:           false,
 					SkipStatusCheck:  false,
 					RancherRepoOwner: "rancher",
+					CheckImages:      []string{},
 				},
 			},
 		},
