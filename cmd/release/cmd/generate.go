@@ -21,7 +21,6 @@ var (
 
 	rke2PrevMilestone                   *string
 	rke2Milestone                       *string
-	artifactsIndexWriteToPath           *string
 	concurrencyLimit                    *int
 	rancherMissingImagesJSONOutput      *bool
 	rancherArtifactsIndexWriteToPath    *string
