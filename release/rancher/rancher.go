@@ -542,17 +542,17 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
       </div>
     </main>
   <script>
-		hideFiles()
+    hideFiles()
     function expand(tag) {
       const filesId = "release-" + tag + "-files"
       const expandButtonId = "release-" + tag + "-expand"
       document.getElementById(filesId).classList.toggle("hidden")
       document.getElementById(expandButtonId).classList.toggle("expand-active")
     }
-		function hideFiles() {
-			const fileDivs = document.querySelectorAll(".files")
-			fileDivs.forEach(f => f.classList.add("hidden"))
-		}
+    function hideFiles() {
+        const fileDivs = document.querySelectorAll(".files")
+        fileDivs.forEach(f => f.classList.add("hidden"))
+    }
   </script>
   </body>
 </html>
