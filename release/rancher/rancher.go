@@ -500,7 +500,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     .release h3 { margin-bottom: 0px; }
     .files { margin-left: 60px; display: flex; flex-direction: column; }
     .release-title { display: flex; flex-direction: row; }
-    .release-title-tag { margin-right: 20px; }
+		.release-title-tag { margin-right: 20px; min-width: 50px; }
     .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
     .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
     .hidden { display: none; overflow: hidden; }
@@ -520,7 +520,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
           </div>
-          <div class="files hidden" id="release-{{ $version }}-files">
+          <div class="files" id="release-{{ $version }}-files">
             <ul>
               {{ range index $.VersionsFiles $version }}
               <li><a href="{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
@@ -532,12 +532,17 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
       </div>
     </main>
   <script>
+		hideFiles()
     function expand(tag) {
       const filesId = "release-" + tag + "-files"
       const expandButtonId = "release-" + tag + "-expand"
       document.getElementById(filesId).classList.toggle("hidden")
       document.getElementById(expandButtonId).classList.toggle("expand-active")
     }
+		function hideFiles() {
+			const fileDivs = document.querySelectorAll(".files")
+			fileDivs.forEach(f => f.classList.add("hidden"))
+		}
   </script>
   </body>
 </html>
