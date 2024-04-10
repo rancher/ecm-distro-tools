@@ -510,7 +510,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     .release h3 { margin-bottom: 0px; }
     .files { margin-left: 60px; display: flex; flex-direction: column; }
     .release-title { display: flex; flex-direction: row; }
-		.release-title-tag { margin-right: 20px; min-width: 70px; }
+    .release-title-tag { margin-right: 20px; min-width: 70px; }
     .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
     .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
     .hidden { display: none; overflow: hidden; }
