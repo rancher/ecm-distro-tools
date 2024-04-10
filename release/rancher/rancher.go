@@ -502,7 +502,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     <title>Rancher Prime Artifacts</title>
     <link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
     <style>
-    body { font-family: Verdana, Geneneva; }
+    body { font-family: 'Courier New', monospace, Verdana, Geneneva; }
     header { display: flex; flex-direction: row; justify-items: center; }
     #rancher-logo { width: 200px; }
     .project { margin-left: 20px; }
@@ -510,7 +510,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     .release h3 { margin-bottom: 0px; }
     .files { margin-left: 60px; display: flex; flex-direction: column; }
     .release-title { display: flex; flex-direction: row; }
-		.release-title-tag { margin-right: 20px; min-width: 50px; }
+		.release-title-tag { margin-right: 20px; min-width: 70px; }
     .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
     .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
     .hidden { display: none; overflow: hidden; }
@@ -519,7 +519,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
   <body>
     <header>
       <img src="https://prime.ribs.rancher.io/assets/img/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
-      <h1>Prime Artifacts</h1>
+      <h1>PRIME ARTIFACTS</h1>
     </header>
     <main>
       <div class="project-rancher project">
