@@ -77,7 +77,7 @@ type registryAuthToken struct {
 	Token string `json:"token"`
 }
 
-func GeneratePrimeArtifactsIndex(path string) error {
+func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 	client := ecmHTTP.NewClient(time.Second * 15)
 	resp, err := client.Get(rancherArtifactsListURL)
 	if err != nil {
@@ -92,7 +92,13 @@ func GeneratePrimeArtifactsIndex(path string) error {
 	if err := contentDecoder.Decode(&listBucket); err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(listBucket)
+
+	ignore := make(map[string]bool)
+	for _, v := range ignoreVersions {
+		ignore[v] = true
+	}
+
+	content := generateArtifactsIndexContent(listBucket, ignore)
 	gaIndex, err := generatePrimeArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -107,7 +113,7 @@ func GeneratePrimeArtifactsIndex(path string) error {
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexContent {
+func generateArtifactsIndexContent(listBucket ListBucketResult, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Versions:      []string{},
@@ -133,6 +139,10 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 		}
 		version := keyFile[0]
 		file := keyFile[1]
+
+		if _, ok := ignoreVersions[version]; ok {
+			continue
+		}
 
 		if _, ok := versionsFiles[version]; !ok {
 			versions = append(versions, version)

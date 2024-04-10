@@ -19,11 +19,13 @@ var (
 	k3sPrevMilestone *string
 	k3sMilestone     *string
 
-	rke2PrevMilestone              *string
-	rke2Milestone                  *string
-	artifactsIndexWriteToPath      *string
-	concurrencyLimit               *int
-	rancherMissingImagesJSONOutput *bool
+	rke2PrevMilestone                   *string
+	rke2Milestone                       *string
+	artifactsIndexWriteToPath           *string
+	concurrencyLimit                    *int
+	rancherMissingImagesJSONOutput      *bool
+	rancherArtifactsIndexWriteToPath    *string
+	rancherArtifactsIndexIgnoreVersions *[]string
 )
 
 // generateCmd represents the generate command
@@ -105,7 +107,7 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	Use:   "artifacts-index",
 	Short: "Generate artifacts index page",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GeneratePrimeArtifactsIndex(*artifactsIndexWriteToPath)
+		return rancher.GeneratePrimeArtifactsIndex(*rancherArtifactsIndexWriteToPath, *rancherArtifactsIndexIgnoreVersions)
 	},
 }
 
@@ -178,7 +180,8 @@ func init() {
 	}
 
 	// rancher artifacts-index
-	artifactsIndexWriteToPath = rancherGenerateArtifactsIndexSubCmd.Flags().StringP("write-path", "w", "", "Write To Path")
+	rancherArtifactsIndexIgnoreVersions = rancherGenerateArtifactsIndexSubCmd.Flags().StringSliceP("ignore-versions", "i", []string{}, "Versions to ignore on the index")
+	rancherArtifactsIndexWriteToPath = rancherGenerateArtifactsIndexSubCmd.Flags().StringP("write-path", "w", "", "Write To Path")
 	if err := rancherGenerateArtifactsIndexSubCmd.MarkFlagRequired("write-path"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
