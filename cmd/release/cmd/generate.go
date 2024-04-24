@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -17,21 +19,17 @@ var (
 	k3sPrevMilestone *string
 	k3sMilestone     *string
 
-	rke2PrevMilestone         *string
-	rke2Milestone             *string
-	artifactsIndexWriteToPath *string
+	rke2PrevMilestone              *string
+	rke2Milestone                  *string
+	artifactsIndexWriteToPath      *string
+	concurrencyLimit               *int
+	rancherMissingImagesJSONOutput *bool
 )
 
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Various utilities to generate release artifacts",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 || len(args) > 2 {
-			rootCmd.Help()
-			os.Exit(0)
-		}
-	},
 }
 
 var k3sGenerateSubCmd = &cobra.Command{
@@ -111,6 +109,37 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
+	Use:   "missing-images-list [version]",
+	Short: "Generate a missing images list",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		version := args[0]
+		rancherRelease, found := rootConfig.Rancher.Versions[version]
+		if !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+		missingImages, err := rancher.GenerateMissingImagesList(version, *concurrencyLimit, rancherRelease.CheckImages)
+		if err != nil {
+			return err
+		}
+		// if there are missing images, return it as an error so CI also fails
+		if len(missingImages) != 0 && !*rancherMissingImagesJSONOutput {
+			return errors.New("found missing images: " + strings.Join(missingImages, ","))
+		}
+		if *rancherMissingImagesJSONOutput {
+			b, err := json.MarshalIndent(missingImages, "", " ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -118,6 +147,7 @@ func init() {
 	k3sGenerateSubCmd.AddCommand(k3sGenerateTagsSubCmd)
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -153,4 +183,8 @@ func init() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+
+	// rancher generate-missing-images-list
+	concurrencyLimit = rancherGenerateMissingImagesListSubCmd.Flags().IntP("concurrency-limit", "c", 3, "Concurrency Limit")
+	rancherMissingImagesJSONOutput = rancherGenerateMissingImagesListSubCmd.Flags().BoolP("json", "j", false, "JSON Output")
 }

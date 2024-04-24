@@ -4,16 +4,19 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	htmlTemplate "html/template"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -23,6 +26,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -33,6 +37,9 @@ const (
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
 	rancherArtifactsListURL  = "https://prime-artifacts.s3.amazonaws.com"
 	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
+	rancherRegistryBaseURL   = "https://registry.rancher.com"
+	sccSUSEBaseURL           = "https://scc.suse.com"
+	sccSUSEService           = "SUSE+Linux+Docker+Registry"
 )
 
 type RancherRCDepsLine struct {
@@ -64,6 +71,10 @@ type ArtifactsIndexContentGroup struct {
 	Versions      []string            `json:"versions"`
 	VersionsFiles map[string][]string `json:"versionsFiles"`
 	BaseURL       string              `json:"baseUrl"`
+}
+
+type registryAuthToken struct {
+	Token string `json:"token"`
 }
 
 func GeneratePrimeArtifactsIndex(path string) error {
@@ -309,6 +320,166 @@ func formatContentLine(line string) string {
 	re := regexp.MustCompile(`\s+`)
 	line = re.ReplaceAllString(line, " ")
 	return strings.TrimSpace(line)
+}
+
+func GenerateMissingImagesList(version string, concurrencyLimit int, images []string) ([]string, error) {
+	if !semver.IsValid(version) {
+		return nil, errors.New("version is not a valid semver: " + version)
+	}
+	if len(images) == 0 {
+		const rancherWindowsImagesFile = "rancher-windows-images.txt"
+		const rancherImagesFile = "rancher-images.txt"
+		rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
+		if err != nil {
+			return nil, errors.New("failed to get rancher windows images: " + err.Error())
+		}
+		rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
+		if err != nil {
+			return nil, errors.New("failed to get rancher images: " + err.Error())
+		}
+		images = append(rancherWindowsImages, rancherImages...)
+	}
+
+	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
+	ctx, cancel := context.WithCancel(context.Background())
+	errGroup, ctx := errgroup.WithContext(ctx)
+	errGroup.SetLimit(concurrencyLimit)
+	missingImagesChan := make(chan string, len(images))
+	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
+	repositoryAuths := make(map[string]string)
+	mu := sync.RWMutex{}
+
+	for _, imageAndVersion := range images {
+		if !strings.Contains(imageAndVersion, ":") {
+			cancel()
+			return nil, errors.New("malformed image name: , missing ':'")
+		}
+		splitImage := strings.Split(imageAndVersion, ":")
+		image := splitImage[0]
+		imageVersion := splitImage[1]
+
+		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, mu *sync.RWMutex) {
+			errGroup.Go(func() error {
+				// if any other check failed, stop running to prevent wasting resources
+				// this doesn't include 404's since it is expected it does include any other errors
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					mu.Lock()
+					var ok bool
+					var auth string
+					var err error
+					auth, ok = repositoryAuths[image]
+					if !ok {
+						auth, err = registryAuth(sccSUSEService, image)
+						if err != nil {
+							cancel()
+							return err
+						}
+						repositoryAuths[image] = auth
+					}
+					mu.Unlock()
+					exists, err := checkIfImageExists(image, imageVersion, auth)
+					if err != nil {
+						cancel()
+						return err
+					}
+					fullImage := image + ":" + imageVersion
+					if !exists {
+						missingImagesChan <- fullImage
+						log.Println(fullImage + " is missing")
+					} else {
+						log.Println(fullImage + " exists")
+					}
+					return nil
+				}
+			})
+		}(ctx, missingImagesChan, image, imageVersion, repositoryAuths, &mu)
+
+	}
+	if err := errGroup.Wait(); err != nil {
+		cancel()
+		return nil, err
+	}
+	cancel()
+	close(missingImagesChan)
+	missingImages := readStringChan(missingImagesChan)
+	return missingImages, nil
+}
+
+func checkIfImageExists(img, imgVersion, auth string) (bool, error) {
+	log.Println("checking image: " + img + ":" + imgVersion)
+	httpClient := ecmHTTP.NewClient(time.Second * 5)
+	req, err := http.NewRequest("GET", rancherRegistryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
+	req.Header.Add("Accept", "application/vnd.oci.image.manifest.v1+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v1+prettyjws")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v1+json")
+	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.list.v2+json")
+	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
+	req.Header.Add("Docker-Distribution-Api-Version", "registry/2.0")
+	req.Header.Add("Authorization", "Bearer "+auth)
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	if res.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if res.StatusCode != http.StatusOK {
+		return false, errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+	}
+	return true, nil
+}
+
+func registryAuth(service, image string) (string, error) {
+	httpClient := ecmHTTP.NewClient(time.Second * 5)
+	scope := "repository:" + image + ":pull"
+	res, err := httpClient.Get(sccSUSEBaseURL + "/api/registry/authorize?scope=" + scope + "&service=" + service)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+	}
+	decoder := json.NewDecoder(res.Body)
+	var auth registryAuthToken
+	if err := decoder.Decode(&auth); err != nil {
+		return "", err
+	}
+	return auth.Token, nil
+}
+
+func rancherPrimeArtifact(version, artifactName string) ([]string, error) {
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	res, err := httpClient.Get(rancherArtifactsBaseURL + "/rancher/" + version + "/" + artifactName)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	var file []string
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		file = append(file, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func readStringChan(ch <-chan string) []string {
+	var data []string
+	for s := range ch {
+		data = append(data, s)
+	}
+	return data
 }
 
 const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}

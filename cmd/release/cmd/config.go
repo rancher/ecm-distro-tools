@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
@@ -12,12 +11,6 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage the release cli config file",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			rootCmd.Help()
-			os.Exit(0)
-		}
-	},
 }
 
 var genConfigSubCmd = &cobra.Command{
