@@ -664,7 +664,10 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string, client *github.Client) (*string, error) {
 	var rcs []*github.RepositoryRelease
 
-	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
+	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{
+		Page:    0,
+		PerPage: 40,
+	})
 	if err != nil {
 		return nil, err
 	}
