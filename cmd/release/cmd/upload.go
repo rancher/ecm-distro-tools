@@ -31,8 +31,8 @@ var uploadRancherArtifactsCmd = &cobra.Command{
 			return errors.New("expected at least one argument: [version]")
 		}
 		version := args[0]
-		rancherRelease, found := rootConfig.Rancher.Versions[version]
-		if !found {
+		rancherRelease, ok := rootConfig.Rancher.Versions[version]
+		if !ok {
 			return errors.New("verify your config file, version not found: " + version)
 		}
 		ctx := context.Background()
