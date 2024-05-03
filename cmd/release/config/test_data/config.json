@@ -1,8 +1,10 @@
 {
     "user": {
-        "email": "your.name@suse.com"
+        "email": "your.name@suse.com",
+        "github_username": "myuser"
     },
     "k3s": {
+      "versions": {
         "v1.x": {
             "old_k8s_version": "1.x.y",
             "new_k8s_version": "1.x.z",
@@ -11,12 +13,30 @@
             "old_suffix": "k3s1",
             "new_suffix": "k3s1",
             "release_branch": "release-1.x",
-            "dry_run": true
-        },
-        "workspace": "/Users/pedrosuse/go/src/github.com/src/kubernetes"
+            "dry_run": true,
+            "system_agent_installer_repo_owner": "rancher",
+            "k8s_rancher_url": "git@github.com:k3s-io/kubernetes.git",
+            "workspace": "/Users/suse/go/src/github.com/v1.x.y"
+        }
+      }
     },
     "rke2": {
-        "versions": []
+        "versions": [
+          "v1.x.y"
+        ]
+    },
+    "rancher": {
+      "versions": {
+        "v2.x.y": {
+          "release_branch": "release/v2.x",
+          "dry_run": false,
+          "skip_status_check": false,
+          "rancher_repo_owner": "rancher",
+          "base_registry": "docker.io",
+          "registry": "registry.rancher.com",
+          "prime_artifacts_bucket": "prime-artifacts"
+        }
+      }
     },
     "auth": {
         "drone": {
