@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	htmlTemplate "html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -480,6 +485,59 @@ func readStringChan(ch <-chan string) []string {
 		data = append(data, s)
 	}
 	return data
+}
+
+func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uploader *manager.Uploader, rancherRelease *config.RancherRelease, releaseTag string) error {
+	fmt.Println("validating release tag: " + releaseTag)
+	if !semver.IsValid(releaseTag) {
+		return errors.New("the tag isn't a valid semver: " + releaseTag)
+	}
+	fmt.Println("getting release by tag: " + releaseTag)
+	release, _, err := ghClient.Repositories.GetReleaseByTag(ctx, rancherRelease.RancherRepoOwner, rancherRepo, releaseTag)
+	if err != nil {
+		return errors.New("failed to get release by tag: " + err.Error())
+	}
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
+	releaseAssets := make(map[string][]byte)
+	fmt.Println("donwloading release assets")
+	for _, asset := range release.Assets {
+		fmt.Println("downloading asset: " + *asset.Name)
+		rc, _, err := ghClient.Repositories.DownloadReleaseAsset(ctx, rancherRelease.RancherRepoOwner, rancherRepo, *asset.ID, &httpClient)
+		if err != nil {
+			return errors.New("failed to download release asset: " + err.Error())
+		}
+		fmt.Println("reading asset content")
+		releaseAssets[*asset.Name], err = io.ReadAll(rc)
+		if err != nil {
+			return errors.New("failed to read release asset content: " + err.Error())
+		}
+		if err := rc.Close(); err != nil {
+			return errors.New("failed to close reader body: " + err.Error())
+		}
+		// Only artifacts with "digests" in the name contain registry information
+		if strings.Contains(*asset.Name, "digests") {
+			fmt.Println("digests artifact, replacing registry from '" + rancherRelease.BaseRegistry + "' to '" + rancherRelease.Registry + "'")
+			stringContent := string(releaseAssets[*asset.Name])
+			releaseAssets[*asset.Name] = []byte(strings.ReplaceAll(stringContent, rancherRelease.BaseRegistry, rancherRelease.Registry))
+		}
+	}
+	fmt.Println("uploading artifacts")
+	for name, content := range releaseAssets {
+		fmt.Println("uploading: " + name)
+		if rancherRelease.DryRun {
+			fmt.Println("dry run, skipping upload")
+			continue
+		}
+		_, err := s3Uploader.Upload(ctx, &s3.PutObjectInput{
+			Bucket: &rancherRelease.PrimeArtifactsBucket,
+			Key:    aws.String(rancherRepo + "/" + name),
+			Body:   bytes.NewReader(content),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
