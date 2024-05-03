@@ -499,7 +499,7 @@ func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uplo
 	}
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	releaseAssets := make(map[string][]byte)
-	fmt.Println("donwloading release assets")
+	fmt.Println("downloading release assets")
 	for _, asset := range release.Assets {
 		fmt.Println("downloading asset: " + *asset.Name)
 		rc, _, err := ghClient.Repositories.DownloadReleaseAsset(ctx, rancherRelease.RancherRepoOwner, rancherRepo, *asset.ID, &httpClient)
