@@ -93,7 +93,7 @@ func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 		return err
 	}
 
-	ignore := make(map[string]bool)
+	ignore := make(map[string]bool, len(ignoreVersions))
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
