@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 
@@ -42,10 +41,7 @@ var uploadRancherArtifactsCmd = &cobra.Command{
 		if err != nil {
 			return errors.New("failed to load aws default config: " + err.Error())
 		}
-		s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String("https://localhost.localstack.cloud:4566")
-			o.UsePathStyle = true
-		})
+		s3Client := s3.NewFromConfig(cfg)
 		s3Uploader := manager.NewUploader(s3Client)
 		return rancher.UploadRancherArtifacts(ctx, ghClient, s3Uploader, &rancherRelease, version)
 	},
