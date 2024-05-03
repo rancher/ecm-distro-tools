@@ -74,8 +74,8 @@ steps:
       version: v0.27.0
     env:
       GH_TOKEN: ${{ github.token }}
-  - name: release notes
-    run: gen_release_notes -h
+  - name: release
+    run: release -h
 ```
 
 ## Contributing

@@ -3,10 +3,6 @@ include cmd/Makefile
 .PHONY: all
 all: $(BINARIES)
 
-.PHONY: gen_release_notes
-gen_release_notes:
-	cd cmd/$@ && $(MAKE)
-
 .PHONY: gen_release_report
 gen_release_report:
 	cd cmd/$@ && $(MAKE)

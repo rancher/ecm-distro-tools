@@ -49,13 +49,6 @@ jobs:
             ${{ github.workspace }}/cmd/release/bin/release-linux-amd64
             ${{ github.workspace }}/cmd/release/bin/release-linux-arm64
             ${{ github.workspace }}/cmd/release/bin/sha256sums-release.txt
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-darwin-amd64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-darwin-arm64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-freebsd-amd64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-freebsd-arm64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-linux-amd64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/gen_release_notes-linux-arm64
-            ${{ github.workspace }}/cmd/gen_release_notes/bin/sha256sums-gen_release_notes.txt
             ${{ github.workspace }}/cmd/gen_release_report/bin/gen_release_report-darwin-amd64
             ${{ github.workspace }}/cmd/gen_release_report/bin/gen_release_report-darwin-arm64
             ${{ github.workspace }}/cmd/gen_release_report/bin/gen_release_report-freebsd-amd64
