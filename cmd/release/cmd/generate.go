@@ -16,14 +16,15 @@ import (
 )
 
 var (
-	k3sPrevMilestone *string
-	k3sMilestone     *string
+	k3sPrevMilestone string
+	k3sMilestone     string
 
-	rke2PrevMilestone              *string
-	rke2Milestone                  *string
-	artifactsIndexWriteToPath      *string
-	concurrencyLimit               *int
-	rancherMissingImagesJSONOutput *bool
+	concurrencyLimit                    int
+	rancherMissingImagesJSONOutput      bool
+	rke2PrevMilestone                   string
+	rke2Milestone                       string
+	rancherArtifactsIndexWriteToPath    string
+	rancherArtifactsIndexIgnoreVersions []string
 )
 
 // generateCmd represents the generate command
@@ -44,7 +45,7 @@ var k3sGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", *k3sMilestone, *k3sPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", k3sMilestone, k3sPrevMilestone, client)
 		if err != nil {
 			return err
 		}
@@ -85,7 +86,7 @@ var rke2GenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", *rke2Milestone, *rke2PrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", rke2Milestone, rke2PrevMilestone, client)
 		if err != nil {
 			return err
 		}
@@ -105,7 +106,7 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	Use:   "artifacts-index",
 	Short: "Generate artifacts index page",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GeneratePrimeArtifactsIndex(*artifactsIndexWriteToPath)
+		return rancher.GeneratePrimeArtifactsIndex(rancherArtifactsIndexWriteToPath, rancherArtifactsIndexIgnoreVersions)
 	},
 }
 
@@ -121,15 +122,15 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if !found {
 			return errors.New("verify your config file, version not found: " + version)
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(version, *concurrencyLimit, rancherRelease.CheckImages)
+		missingImages, err := rancher.GenerateMissingImagesList(version, concurrencyLimit, rancherRelease.CheckImages)
 		if err != nil {
 			return err
 		}
 		// if there are missing images, return it as an error so CI also fails
-		if len(missingImages) != 0 && !*rancherMissingImagesJSONOutput {
+		if len(missingImages) != 0 && !rancherMissingImagesJSONOutput {
 			return errors.New("found missing images: " + strings.Join(missingImages, ","))
 		}
-		if *rancherMissingImagesJSONOutput {
+		if rancherMissingImagesJSONOutput {
 			b, err := json.MarshalIndent(missingImages, "", " ")
 			if err != nil {
 				return err
@@ -154,8 +155,8 @@ func init() {
 	generateCmd.AddCommand(rancherGenerateSubCmd)
 
 	// k3s release notes
-	k3sPrevMilestone = k3sGenerateReleaseNotesSubCmd.Flags().StringP("prev-milestone", "p", "", "Previous Milestone")
-	k3sMilestone = k3sGenerateReleaseNotesSubCmd.Flags().StringP("milestone", "m", "", "Milestone")
+	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
+	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sMilestone, "milestone", "m", "", "Milestone")
 	if err := k3sGenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -166,8 +167,8 @@ func init() {
 	}
 
 	// rke2 release notes
-	rke2PrevMilestone = rke2GenerateReleaseNotesSubCmd.Flags().StringP("prev-milestone", "p", "", "Previous Milestone")
-	rke2Milestone = rke2GenerateReleaseNotesSubCmd.Flags().StringP("milestone", "m", "", "Milestone")
+	rke2GenerateReleaseNotesSubCmd.Flags().StringVarP(&rke2PrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
+	rke2GenerateReleaseNotesSubCmd.Flags().StringVarP(&rke2Milestone, "milestone", "m", "", "Milestone")
 	if err := rke2GenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -178,13 +179,14 @@ func init() {
 	}
 
 	// rancher artifacts-index
-	artifactsIndexWriteToPath = rancherGenerateArtifactsIndexSubCmd.Flags().StringP("write-path", "w", "", "Write To Path")
+	rancherGenerateArtifactsIndexSubCmd.Flags().StringSliceVarP(&rancherArtifactsIndexIgnoreVersions, "ignore-versions", "i", []string{}, "Versions to ignore on the index")
+	rancherGenerateArtifactsIndexSubCmd.Flags().StringVarP(&rancherArtifactsIndexWriteToPath, "write-path", "w", "", "Write To Path")
 	if err := rancherGenerateArtifactsIndexSubCmd.MarkFlagRequired("write-path"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
 	// rancher generate-missing-images-list
-	concurrencyLimit = rancherGenerateMissingImagesListSubCmd.Flags().IntP("concurrency-limit", "c", 3, "Concurrency Limit")
-	rancherMissingImagesJSONOutput = rancherGenerateMissingImagesListSubCmd.Flags().BoolP("json", "j", false, "JSON Output")
+	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "c", 3, "Concurrency Limit")
+	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 }

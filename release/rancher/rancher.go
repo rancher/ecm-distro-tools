@@ -82,7 +82,7 @@ type registryAuthToken struct {
 	Token string `json:"token"`
 }
 
-func GeneratePrimeArtifactsIndex(path string) error {
+func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 	client := ecmHTTP.NewClient(time.Second * 15)
 	resp, err := client.Get(rancherArtifactsListURL)
 	if err != nil {
@@ -97,7 +97,13 @@ func GeneratePrimeArtifactsIndex(path string) error {
 	if err := contentDecoder.Decode(&listBucket); err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(listBucket)
+
+	ignore := make(map[string]bool, len(ignoreVersions))
+	for _, v := range ignoreVersions {
+		ignore[v] = true
+	}
+
+	content := generateArtifactsIndexContent(listBucket, ignore)
 	gaIndex, err := generatePrimeArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -112,7 +118,7 @@ func GeneratePrimeArtifactsIndex(path string) error {
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexContent {
+func generateArtifactsIndexContent(listBucket ListBucketResult, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Versions:      []string{},
@@ -138,6 +144,10 @@ func generateArtifactsIndexContent(listBucket ListBucketResult) ArtifactsIndexCo
 		}
 		version := keyFile[0]
 		file := keyFile[1]
+
+		if _, ok := ignoreVersions[version]; ok {
+			continue
+		}
 
 		if _, ok := versionsFiles[version]; !ok {
 			versions = append(versions, version)
@@ -550,7 +560,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     <title>Rancher Prime Artifacts</title>
     <link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
     <style>
-    body { font-family: Verdana, Geneneva; }
+    body { font-family: 'Courier New', monospace, Verdana, Geneneva; }
     header { display: flex; flex-direction: row; justify-items: center; }
     #rancher-logo { width: 200px; }
     .project { margin-left: 20px; }
@@ -558,7 +568,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     .release h3 { margin-bottom: 0px; }
     .files { margin-left: 60px; display: flex; flex-direction: column; }
     .release-title { display: flex; flex-direction: row; }
-    .release-title-tag { margin-right: 20px; }
+    .release-title-tag { margin-right: 20px; min-width: 70px; }
     .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
     .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
     .hidden { display: none; overflow: hidden; }
@@ -567,7 +577,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
   <body>
     <header>
       <img src="https://prime.ribs.rancher.io/assets/img/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
-      <h1>Prime Artifacts</h1>
+      <h1>PRIME ARTIFACTS</h1>
     </header>
     <main>
       <div class="project-rancher project">
@@ -578,7 +588,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
           </div>
-          <div class="files hidden" id="release-{{ $version }}-files">
+          <div class="files" id="release-{{ $version }}-files">
             <ul>
               {{ range index $.VersionsFiles $version }}
               <li><a href="{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
@@ -590,11 +600,16 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
       </div>
     </main>
   <script>
+    hideFiles()
     function expand(tag) {
       const filesId = "release-" + tag + "-files"
       const expandButtonId = "release-" + tag + "-expand"
       document.getElementById(filesId).classList.toggle("hidden")
       document.getElementById(expandButtonId).classList.toggle("expand-active")
+    }
+    function hideFiles() {
+        const fileDivs = document.querySelectorAll(".files")
+        fileDivs.forEach(f => f.classList.add("hidden"))
     }
   </script>
   </body>
