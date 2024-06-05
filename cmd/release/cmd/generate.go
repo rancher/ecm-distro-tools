@@ -25,6 +25,9 @@ var (
 	rke2Milestone                       string
 	rancherArtifactsIndexWriteToPath    string
 	rancherArtifactsIndexIgnoreVersions []string
+	rancherImagesDigestsOutputFile      string
+	rancherImagesDigestsRegistry        string
+	rancherImagesDigestsArtifactURL     string
 )
 
 // generateCmd represents the generate command
@@ -141,6 +144,14 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
+	Use:   "docker-images-digests",
+	Short: "Generate a file with images digests from an images list",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsArtifactURL, rancherImagesDigestsRegistry)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -149,6 +160,7 @@ func init() {
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -186,7 +198,24 @@ func init() {
 		os.Exit(1)
 	}
 
-	// rancher generate-missing-images-list
+	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "c", 3, "Concurrency Limit")
 	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
+
+	// rancher generate docker-images-digests
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsOutputFile, "output-file", "o", "", "Output file path")
+	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("output-file"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsArtifactURL, "artifact-url", "a", "", "Images list artifact URL")
+	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("artifact-url"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsRegistry, "registry", "r", "", "Docker Registry e.g: docker.io")
+	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("registry"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
