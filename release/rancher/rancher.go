@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -55,23 +56,23 @@ const (
 	dockerService                 = "registry.docker.io"
 )
 
-var (
-	rancherRegistryInfo = registryInfo{
+var registriesInfo = map[string]registryInfo{
+	"registry.rancher.com": {
 		BaseURL: rancherRegistryBaseURL,
 		AuthURL: sccSUSEURL,
 		Service: sccSUSEService,
-	}
-	stagingRancherRegistryInfo = registryInfo{
+	},
+	"stgregistry.suse.com": {
 		BaseURL: stagingRancherRegistryBaseURL,
 		AuthURL: stagingSccSUSEURL,
 		Service: sccSUSEService,
-	}
-	dockerRegistryInfo = registryInfo{
+	},
+	"docker.io": {
 		BaseURL: dockerRegistryURL,
 		AuthURL: dockerAuthURL,
 		Service: dockerService,
-	}
-)
+	},
+}
 
 type registryInfo struct {
 	BaseURL string
@@ -458,25 +459,25 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 }
 
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
+	slog.Info("getting images list from artifact: " + imagesFileURL)
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
 		return err
 	}
+	slog.Info("images: ", imagesList)
 
-	var rgInfo registryInfo
-
-	switch registry {
-	case "docker.io":
-		rgInfo = dockerRegistryInfo
-	case "registry.rancher.com":
-		rgInfo = rancherRegistryInfo
-	case "stgregistry.suse.com":
-		rgInfo = stagingRancherRegistryInfo
+	rgInfo, ok := registriesInfo[registry]
+	if !ok {
+		return errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
-	var digests imageDigest
+	var digests = make(imageDigest)
 
 	for _, imageAndVersion := range imagesList {
+		if imageAndVersion == "" || imageAndVersion == " " {
+			continue
+		}
+		slog.Info("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
 			return errors.New("malformed image name: , missing ':'")
 		}
@@ -488,7 +489,8 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		if err != nil {
 			return err
 		}
-		digest, _, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, auth)
+		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, auth)
+		slog.Info("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
 			return err
 		}
@@ -525,17 +527,17 @@ func artifactImageList(imagesFileURL, registry string) ([]string, error) {
 	}
 
 	for k, im := range list {
-		list[k] = cleanImage(im, registry)
+		if im == "" || im == " " {
+			continue
+		}
+		image := cleanImage(im, registry)
+		list[k] = image
 	}
 
 	return list, nil
 }
 
 func cleanImage(image, registry string) string {
-	if image == "" {
-		return ""
-	}
-
 	switch registry {
 	case "docker.io":
 		if len(strings.Split(image, "/")) == 1 {
@@ -543,7 +545,7 @@ func cleanImage(image, registry string) string {
 		}
 	}
 
-	return path.Join(registry, image)
+	return image
 }
 
 func (d imageDigest) String() string {
@@ -595,7 +597,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	}
 	dockerDigest := res.Header.Get("Docker-Content-Digest")
 	if dockerDigest == "" {
-		return "", 0, errors.New("missing digest header")
+		return "", res.StatusCode, errors.New("missing digest header")
 	}
 	return dockerDigest, res.StatusCode, nil
 }
@@ -618,7 +620,8 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 func registryAuth(authURL, service, image string) (string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	scope := "repository:" + image + ":pull"
-	res, err := httpClient.Get(authURL + "?scope=" + scope + "&service=" + service)
+	url := authURL + "?scope=" + scope + "&service=" + service
+	res, err := httpClient.Get(url)
 	if err != nil {
 		return "", err
 	}
