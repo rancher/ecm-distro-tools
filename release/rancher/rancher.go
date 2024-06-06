@@ -10,11 +10,15 @@ import (
 	"fmt"
 	htmlTemplate "html/template"
 	"io"
+	"io/ioutil"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,17 +39,48 @@ import (
 )
 
 const (
-	rancherOrg               = "rancher"
-	rancherRepo              = rancherOrg
-	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
-	rancherImagesFileName    = "/rancher-images.txt"
-	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
-	rancherArtifactsListURL  = "https://prime-artifacts.s3.amazonaws.com"
-	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
-	rancherRegistryBaseURL   = "https://registry.rancher.com"
-	sccSUSEBaseURL           = "https://scc.suse.com"
-	sccSUSEService           = "SUSE+Linux+Docker+Registry"
+	rancherOrg                    = "rancher"
+	rancherRepo                   = rancherOrg
+	rancherImagesBaseURL          = "https://github.com/rancher/rancher/releases/download/"
+	rancherImagesFileName         = "/rancher-images.txt"
+	rancherHelmRepositoryURL      = "https://releases.rancher.com/server-charts/latest/index.yaml"
+	rancherArtifactsListURL       = "https://prime-artifacts.s3.amazonaws.com"
+	rancherArtifactsBaseURL       = "https://prime.ribs.rancher.io"
+	rancherRegistryBaseURL        = "https://registry.rancher.com"
+	stagingRancherRegistryBaseURL = "https://stgregistry.suse.com"
+	sccSUSEURL                    = "https://scc.suse.com/api/registry/authorize"
+	stagingSccSUSEURL             = "https://stgscc.suse.com/api/registry/authorize"
+	dockerRegistryURL             = "https://registry-1.docker.io"
+	dockerAuthURL                 = "https://auth.docker.io/token"
+	sccSUSEService                = "SUSE+Linux+Docker+Registry"
+	dockerService                 = "registry.docker.io"
 )
+
+var registriesInfo = map[string]registryInfo{
+	"registry.rancher.com": {
+		BaseURL: rancherRegistryBaseURL,
+		AuthURL: sccSUSEURL,
+		Service: sccSUSEService,
+	},
+	"stgregistry.suse.com": {
+		BaseURL: stagingRancherRegistryBaseURL,
+		AuthURL: stagingSccSUSEURL,
+		Service: sccSUSEService,
+	},
+	"docker.io": {
+		BaseURL: dockerRegistryURL,
+		AuthURL: dockerAuthURL,
+		Service: dockerService,
+	},
+}
+
+type registryInfo struct {
+	BaseURL string
+	AuthURL string
+	Service string
+}
+
+type imageDigest map[string]string
 
 type RancherRCDepsLine struct {
 	Line    int    `json:"line"`
@@ -387,7 +422,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 					var err error
 					auth, ok = repositoryAuths[image]
 					if !ok {
-						auth, err = registryAuth(sccSUSEService, image)
+						auth, err = registryAuth(sccSUSEURL, sccSUSEService, image)
 						if err != nil {
 							cancel()
 							return err
@@ -395,7 +430,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 						repositoryAuths[image] = auth
 					}
 					mu.Unlock()
-					exists, err := checkIfImageExists(image, imageVersion, auth)
+					exists, err := checkIfImageExists(rancherRegistryBaseURL, image, imageVersion, auth)
 					if err != nil {
 						cancel()
 						return err
@@ -423,12 +458,129 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 	return missingImages, nil
 }
 
-func checkIfImageExists(img, imgVersion, auth string) (bool, error) {
-	log.Println("checking image: " + img + ":" + imgVersion)
-	httpClient := ecmHTTP.NewClient(time.Second * 5)
-	req, err := http.NewRequest("GET", rancherRegistryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
+	slog.Info("getting images list from artifact: " + imagesFileURL)
+	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
-		return false, err
+		return err
+	}
+
+	rgInfo, ok := registriesInfo[registry]
+	if !ok {
+		return errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+	}
+
+	var digests = make(imageDigest)
+	var repositoryAuths = make(map[string]string)
+
+	for _, imageAndVersion := range imagesList {
+		if imageAndVersion == "" || imageAndVersion == " " {
+			continue
+		}
+		slog.Info("image: " + imageAndVersion)
+		if !strings.Contains(imageAndVersion, ":") {
+			return errors.New("malformed image name: , missing ':'")
+		}
+		splitImage := strings.Split(imageAndVersion, ":")
+		image := splitImage[0]
+		imageVersion := splitImage[1]
+
+		if _, ok := repositoryAuths[image]; !ok {
+			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
+			if err != nil {
+				return err
+			}
+			repositoryAuths[image] = auth
+		}
+		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
+		slog.Info("status code: " + strconv.Itoa(statusCode))
+		if err != nil {
+			return err
+		}
+		digests[imageAndVersion] = digest
+	}
+	return createAssetFile(outputFile, digests)
+}
+
+func createAssetFile(outputFile string, contents fmt.Stringer) error {
+	fo, err := os.Create(outputFile)
+	if err != nil {
+		return err
+	}
+	defer fo.Close()
+	_, err = fo.Write([]byte(contents.String()))
+	return err
+}
+
+func artifactImageList(imagesFileURL, registry string) ([]string, error) {
+	client := http.Client{Timeout: time.Second * 15}
+	res, err := client.Get(imagesFileURL)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	list, err := getLinesFromReader(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(list) == 0 {
+		return list, fmt.Errorf("no outputFile %s found or contents were empty, can not proceed", imagesFileURL)
+	}
+
+	for k, im := range list {
+		if im == "" || im == " " {
+			continue
+		}
+		image := cleanImage(im, registry)
+		list[k] = image
+	}
+
+	return list, nil
+}
+
+func cleanImage(image, registry string) string {
+	switch registry {
+	case "docker.io":
+		if len(strings.Split(image, "/")) == 1 {
+			image = path.Join("library", image)
+		}
+	}
+
+	return image
+}
+
+func (d imageDigest) String() string {
+	var o strings.Builder
+	keys := make([]string, 0, len(d))
+	for k := range d {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintf(&o, "%s %s\n", k, d[k])
+	}
+	return o.String()
+}
+
+func getLinesFromReader(body io.Reader) ([]string, error) {
+	lines, err := ioutil.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+	if len(lines) == 0 {
+		return []string{}, errors.New("file was empty")
+	}
+
+	return strings.Split(string(lines), "\n"), nil
+}
+
+func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, int, error) {
+	httpClient := ecmHTTP.NewClient(time.Second * 5)
+	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
+	if err != nil {
+		return "", 0, err
 	}
 	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
 	req.Header.Add("Accept", "application/vnd.oci.image.manifest.v1+json")
@@ -441,21 +593,38 @@ func checkIfImageExists(img, imgVersion, auth string) (bool, error) {
 	req.Header.Add("Authorization", "Bearer "+auth)
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return false, err
+		return "", 0, err
 	}
 	if res.StatusCode == http.StatusNotFound {
+		return "", res.StatusCode, nil
+	}
+	dockerDigest := res.Header.Get("Docker-Content-Digest")
+	if dockerDigest == "" {
+		return "", res.StatusCode, errors.New("missing digest header")
+	}
+	return dockerDigest, res.StatusCode, nil
+}
+
+func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, error) {
+	log.Println("checking image: " + img + ":" + imgVersion)
+	_, statusCode, err := dockerImageDigest(registryBaseURL, img, imgVersion, auth)
+	if err != nil {
+		return false, err
+	}
+	if statusCode == http.StatusNotFound {
 		return false, nil
 	}
-	if res.StatusCode != http.StatusOK {
-		return false, errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+	if statusCode != http.StatusOK {
+		return false, errors.New("expected status code to be 200, got: " + strconv.Itoa(statusCode))
 	}
 	return true, nil
 }
 
-func registryAuth(service, image string) (string, error) {
+func registryAuth(authURL, service, image string) (string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	scope := "repository:" + image + ":pull"
-	res, err := httpClient.Get(sccSUSEBaseURL + "/api/registry/authorize?scope=" + scope + "&service=" + service)
+	url := authURL + "?scope=" + scope + "&service=" + service
+	res, err := httpClient.Get(url)
 	if err != nil {
 		return "", err
 	}
