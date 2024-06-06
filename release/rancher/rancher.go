@@ -485,15 +485,14 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		image := splitImage[0]
 		imageVersion := splitImage[1]
 
-		auth, ok := repositoryAuths[image]
-		if !ok {
+		if _, ok := repositoryAuths[image]; !ok {
 			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 			if err != nil {
 				return err
 			}
 			repositoryAuths[image] = auth
 		}
-		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, auth)
+		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		slog.Info("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
 			return err
