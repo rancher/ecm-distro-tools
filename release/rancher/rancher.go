@@ -50,7 +50,7 @@ const (
 	stagingRancherRegistryBaseURL = "https://stgregistry.suse.com"
 	sccSUSEURL                    = "https://scc.suse.com/api/registry/authorize"
 	stagingSccSUSEURL             = "https://stgscc.suse.com/api/registry/authorize"
-	dockerRegistryURL             = "https://registry.docker.io"
+	dockerRegistryURL             = "https://registry-1.docker.io"
 	dockerAuthURL                 = "https://auth.docker.io/token"
 	sccSUSEService                = "SUSE+Linux+Docker+Registry"
 	dockerService                 = "registry.docker.io"
