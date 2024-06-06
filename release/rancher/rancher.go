@@ -471,7 +471,6 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 	}
 
 	var digests = make(imageDigest)
-	var auth string
 	var repositoryAuths = make(map[string]string)
 
 	for _, imageAndVersion := range imagesList {
@@ -486,7 +485,7 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		image := splitImage[0]
 		imageVersion := splitImage[1]
 
-		auth, ok = repositoryAuths[image]
+		auth, ok := repositoryAuths[image]
 		if !ok {
 			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 			if err != nil {
