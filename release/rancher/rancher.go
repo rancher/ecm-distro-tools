@@ -464,7 +464,6 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 	if err != nil {
 		return err
 	}
-	slog.Info("images: ", imagesList)
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
