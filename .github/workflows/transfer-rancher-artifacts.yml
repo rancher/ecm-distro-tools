@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p ~/.aws
           echo "[default]" > ~/.aws/credentials
-          echo "aws_secret_access_key=$PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY" >> ~/.aws/credentials
+          echo "aws_access_key_id=$PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY" >> ~/.aws/credentials
           echo "aws_secret_access_key=$PRIME_ARTIFACTS_UPLOADER_SECRET_KEY" >> ~/.aws/credentials
       - name: Create ecm config file 
         run: |
@@ -93,7 +93,7 @@ jobs:
         run: |
           mkdir -p ~/.aws
           echo "[default]" > ~/.aws/credentials
-          echo "aws_secret_access_key=$PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY" >> ~/.aws/credentials
+          echo "aws_access_key_id=$PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY" >> ~/.aws/credentials
           echo "aws_secret_access_key=$PRIME_ARTIFACTS_UPLOADER_SECRET_KEY" >> ~/.aws/credentials
       - name: Upload Artifacts
         run: |
