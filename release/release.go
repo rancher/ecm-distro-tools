@@ -536,7 +536,7 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 
 	const (
 		repoName = "rancher/rke2"
-		regex    = `(?:FROM|RUN)\s(?:CHART_VERSION=\"|[\w-]+/[\w-]+:)(?P<version>.*?)([0-9][0-9])?(-build.*)?\"?\s`
+		regex    = `FROM\s+[\w-]+/[\w-]+:(.*?)(-build.*)?\s`
 	)
 
 	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
