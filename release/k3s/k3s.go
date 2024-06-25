@@ -274,7 +274,7 @@ func rebaseAndTag(r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) 
 // Finally, the function returns the publicKeys variable, which is now an ssh.AuthMethod, and a nil error.
 func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	if privateKey == "" {
-		privateKey = fmt.Sprintf("%s/.ssh/id_rsa", os.Getenv("HOME"))
+		privateKey = os.Getenv("HOME") + "/.ssh/id_rsa"
 	}
 
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", privateKey, "")
@@ -299,6 +299,7 @@ func gitRebaseOnto(r *ecmConfig.K3sRelease) (string, error) {
 		r.NewK8sVersion,
 		r.OldK8sVersion,
 		r.OldK8sVersion), " ")
+
 	fmt.Println("git ", commandArgs)
 	return ecmExec.RunCommand(dir, "git", commandArgs...)
 }

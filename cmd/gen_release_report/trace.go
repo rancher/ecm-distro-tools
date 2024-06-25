@@ -19,7 +19,7 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 		trace.WithAttributes(attribute.String("service", "github")),
 		trace.WithAttributes(attribute.String("repo", "rancher/rke2")),
 		trace.WithAttributes(attribute.String("event", "pull_request")),
-		trace.WithAttributes(attribute.String("ref", fmt.Sprintf("/refs/tags/%s", *r.ga.TagName))),
+		trace.WithAttributes(attribute.String("ref", "/refs/tags/"+*r.ga.TagName)),
 		trace.WithAttributes(attribute.String("tag", r.version)),
 		trace.WithAttributes(attribute.String("link", *r.ga.HTMLURL)),
 	}
@@ -39,6 +39,7 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 	for _, build := range builds {
 		buildCtx := build.trace(k8sCtx)
 		pkgBuilds := rke2PkgBuildsByBuild(build, r.builds)
+
 		for _, pkgBuild := range pkgBuilds {
 			pkgBuild.trace(buildCtx)
 		}
@@ -159,7 +160,7 @@ func rke2BuildsByRelease(builds []*Build, r *github.RepositoryRelease) []*Build 
 		if build.Owner != "rancher" || build.Repo != "rke2" {
 			continue
 		}
-		if build.Event == "tag" && build.Ref == fmt.Sprintf("refs/tags/%s", *r.TagName) {
+		if build.Event == "tag" && build.Ref == "refs/tags/"+*r.TagName {
 			result = append(result, build)
 		}
 	}
@@ -172,7 +173,7 @@ func k8sBuildsByRelease(builds []*Build, r *github.RepositoryRelease) []*Build {
 		if build.Owner != "rancher" || build.Repo != "image-build-kubernetes" {
 			continue
 		}
-		if build.Event == "tag" && strings.Contains(build.Ref, fmt.Sprintf("refs/tags/%s", *r.TagName)) {
+		if build.Event == "tag" && strings.Contains(build.Ref, "refs/tags/"+*r.TagName) {
 			result = append(result, build)
 		}
 	}
