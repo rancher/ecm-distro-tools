@@ -50,14 +50,18 @@ func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[str
 	if err != nil {
 		return nil, err
 	}
+
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to find docker tag \"%s\", unexpected status code: %d", tag, res.StatusCode)
 	}
+
 	var dt DockerTag
 	if err := json.NewDecoder(res.Body).Decode(&dt); err != nil {
 		return nil, err
@@ -67,5 +71,6 @@ func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[str
 	for _, image := range dt.Images {
 		images[image.Architecture] = image
 	}
+
 	return images, nil
 }

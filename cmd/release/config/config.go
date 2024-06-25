@@ -25,26 +25,26 @@ type K3sRelease struct {
 	OldSuffix                     string `json:"old_suffix"`
 	NewSuffix                     string `json:"new_suffix"`
 	ReleaseBranch                 string `json:"release_branch"`
-	DryRun                        bool   `json:"dry_run"`
 	Workspace                     string `json:"workspace"`
 	NewGoVersion                  string `json:"-"`
 	K3sRepoOwner                  string `json:"k3s_repo_owner"`
 	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner"`
 	K8sRancherURL                 string `json:"k8s_rancher_url"`
 	K3sUpstreamURL                string `json:"k3s_upstream_url"`
+	DryRun                        bool   `json:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
 	ReleaseBranch        string   `json:"release_branch"`
-	DryRun               bool     `json:"dry_run"`
-	SkipStatusCheck      bool     `json:"skip_status_check"`
 	RancherRepoOwner     string   `json:"rancher_repo_owner"`
 	IssueNumber          string   `json:"issue_number"`
 	CheckImages          []string `json:"check_images"`
 	BaseRegistry         string   `json:"base_registry"`
 	Registry             string   `json:"registry"`
 	PrimeArtifactsBucket string   `json:"prime_artifacts_bucket"`
+	DryRun               bool     `json:"dry_run"`
+	SkipStatusCheck      bool     `json:"skip_status_check"`
 }
 
 // RKE2
@@ -97,6 +97,7 @@ func DefaultConfigPath() (string, error) {
 	if err != nil {
 		return "", nil
 	}
+
 	return filepath.Join(homeDir, ecmDistroDir, configFileName), nil
 }
 
@@ -107,6 +108,7 @@ func Load(configFile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return read(f)
 }
 
@@ -115,6 +117,7 @@ func read(r io.Reader) (*Config, error) {
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
 		return nil, err
 	}
+
 	return &c, nil
 }
 
@@ -123,18 +126,22 @@ func OpenOnEditor() error {
 	if err != nil {
 		return err
 	}
+
 	cmd := exec.Command(textEditorName(), confPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
+
 	return cmd.Run()
 }
 
 func Generate() error {
 	configExists := true
+
 	configPath, err := DefaultConfigPath()
 	if err != nil {
 		return err
 	}
+
 	if _, err := os.Stat(configPath); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
 			return err
@@ -144,10 +151,12 @@ func Generate() error {
 	if configExists {
 		return errors.New("config already exists at " + configPath)
 	}
+
 	confB, err := json.MarshalIndent(exampleConfig(), "", " ")
 	if err != nil {
 		return err
 	}
+
 	return os.WriteFile(configPath, confB, 0644)
 }
 
@@ -156,11 +165,13 @@ func textEditorName() string {
 	if editor == "" {
 		editor = "vi"
 	}
+
 	return editor
 }
 
 func exampleConfig() Config {
 	gopath := os.Getenv("GOPATH")
+
 	return Config{
 		User: &User{
 			Email: "your.name@suse.com",
@@ -219,6 +230,7 @@ func View(config *Config) error {
 	if err != nil {
 		return err
 	}
+
 	return tmp.Execute(os.Stdout, config)
 }
 
