@@ -626,7 +626,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if err != nil {
 		return "", 0, err
 	}
-	res.Body.Close()
+	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
