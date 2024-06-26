@@ -474,9 +474,8 @@ Before making any pull requests, please make sure you understand:
    * example branch name: `june-rke2-release`
 1. Run the update script
    ```shell
-   export GHT='<your github token>'
-   alias edt='docker run --rm -it --env GITHUB_TOKEN=$GHT rancher/ecm-distro-tools'
-   edt gen_release_notes -r rke2 -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
+   export GITHUB_TOKEN='<your github token>'
+   ./release generate k3s|rke2 release-notes -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
    ```
    * the tool may not work on arm systems (like a Mac M1), in which case you will need to build the bin locally using make
      1. clone the [ecm distro tools repo](https://github.com/rancher/ecm-distro-tools)
