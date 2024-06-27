@@ -10,12 +10,12 @@ on:
         type: string
         description: "org that the rancher repo is located in"
         default: "rancher"
-        required: false
+        required: true
       prime_artifacts_bucket:
         type: string
         description: "name of the bucket to upload the files"
         default: "prime-artifacts"
-        required: false
+        required: true
 jobs:
   transfer:
     permissions:
