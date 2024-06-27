@@ -459,18 +459,25 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 }
 
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
-	slog.Info("getting images list from artifact: " + imagesFileURL)
-	imagesList, err := artifactImageList(imagesFileURL, registry)
+	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
 	if err != nil {
 		return err
+	}
+	return createAssetFile(outputFile, imagesDigests)
+}
+
+func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
+	imagesList, err := artifactImageList(imagesFileURL, registry)
+	if err != nil {
+		return nil, err
 	}
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
-		return errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
-	var digests = make(imageDigest)
+	imagesDigests := make(imageDigest)
 	var repositoryAuths = make(map[string]string)
 
 	for _, imageAndVersion := range imagesList {
@@ -479,7 +486,7 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		}
 		slog.Info("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
-			return errors.New("malformed image name: , missing ':'")
+			return nil, errors.New("malformed image name: , missing ':'")
 		}
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
@@ -488,18 +495,18 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		if _, ok := repositoryAuths[image]; !ok {
 			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			repositoryAuths[image] = auth
 		}
 		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		slog.Info("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		digests[imageAndVersion] = digest
+		imagesDigests[imageAndVersion] = digest
 	}
-	return createAssetFile(outputFile, digests)
+	return imagesDigests, nil
 }
 
 func createAssetFile(outputFile string, contents fmt.Stringer) error {
@@ -600,7 +607,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	}
 	dockerDigest := res.Header.Get("Docker-Content-Digest")
 	if dockerDigest == "" {
-		return "", res.StatusCode, errors.New("missing digest header")
+		return "", res.StatusCode, errors.New("empty digest header 'Docker-Content-Digest'")
 	}
 	return dockerDigest, res.StatusCode, nil
 }
