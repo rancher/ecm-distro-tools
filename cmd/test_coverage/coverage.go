@@ -283,6 +283,7 @@ func coverage(c *cli.Context) error {
 		for _, f := range usedFlags {
 			fmt.Println(f)
 		}
+
 		fmt.Printf("Unused flags:\n\n")
 		for _, f := range unusedFlags {
 			fmt.Println(f)

@@ -84,5 +84,6 @@ func goVersions(goDevURL string) ([]goVersionRecord, error) {
 	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
 		return nil, err
 	}
+
 	return versions, nil
 }
