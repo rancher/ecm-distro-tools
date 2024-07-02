@@ -98,9 +98,10 @@ type UpdateScriptVars struct {
 // generate tags to be pushed
 func GenerateTags(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
 	fmt.Println("setting up k8s remotes")
-	if err := setupK8sRemotes(ghClient, r, u, sshKeyPath); err != nil {
+	if err := setupK8sRemotes(r, u, sshKeyPath); err != nil {
 		return errors.New("failed to clone and setup remotes for k8s repos: " + err.Error())
 	}
+
 	tagsExists, err := tagsFileExists(r)
 	if err != nil {
 		return errors.New("failed to verify if tags file already exists: " + err.Error())
@@ -108,12 +109,15 @@ func GenerateTags(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3s
 	if tagsExists {
 		return errors.New("tag file already exists, skipping rebase and tag")
 	}
+
 	fmt.Println("rebasing and tagging")
-	tags, err := rebaseAndTag(ghClient, r, u)
+
+	tags, err := rebaseAndTag(r, u)
 	if err != nil {
 		return errors.New("failed to rebase and tag: " + err.Error())
 	}
 	fmt.Println("successfully rebased and tagged")
+
 	return writeTagsFile(r, tags)
 }
 
@@ -124,7 +128,7 @@ func writeTagsFile(r *ecmConfig.K3sRelease, tags []string) error {
 
 // setupK8sRemotes will clone the kubernetes upstream repo and proceed with setting up remotes
 // for rancher and user's forks, then it will fetch branches and tags for all remotes
-func setupK8sRemotes(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
+func setupK8sRemotes(r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
 	fmt.Println("verifying if the k8s dir already exists: " + k8sDir)
@@ -132,6 +136,7 @@ func setupK8sRemotes(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmCon
 		if !os.IsNotExist(err) {
 			return err
 		}
+
 		fmt.Println("dir doesn't exists, creating")
 		if err := os.MkdirAll(r.Workspace, 0755); err != nil {
 			return err
@@ -221,7 +226,7 @@ func setupK8sRemotes(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmCon
 	return nil
 }
 
-func rebaseAndTag(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
+func rebaseAndTag(r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
 	rebaseOut, err := gitRebaseOnto(r)
 	if err != nil {
 		return nil, err
@@ -269,7 +274,7 @@ func rebaseAndTag(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig
 // Finally, the function returns the publicKeys variable, which is now an ssh.AuthMethod, and a nil error.
 func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	if privateKey == "" {
-		privateKey = fmt.Sprintf("%s/.ssh/id_rsa", os.Getenv("HOME"))
+		privateKey = os.Getenv("HOME") + "/.ssh/id_rsa"
 	}
 
 	publicKeys, err := ssh.NewPublicKeysFromFile("git", privateKey, "")
@@ -294,6 +299,7 @@ func gitRebaseOnto(r *ecmConfig.K3sRelease) (string, error) {
 		r.NewK8sVersion,
 		r.OldK8sVersion,
 		r.OldK8sVersion), " ")
+
 	fmt.Println("git ", commandArgs)
 	return ecmExec.RunCommand(dir, "git", commandArgs...)
 }

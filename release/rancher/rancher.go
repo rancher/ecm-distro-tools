@@ -223,6 +223,7 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 		return errors.New("the tag isn't a valid semver: " + opts.Tag)
 	}
 	fmt.Println("getting remote branch information from " + r.RancherRepoOwner + "/" + rancherRepo)
+
 	branch, _, err := ghClient.Repositories.GetBranch(ctx, r.RancherRepoOwner, rancherRepo, r.ReleaseBranch, true)
 	if err != nil {
 		return err
@@ -230,6 +231,7 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	if branch.Commit.SHA == nil {
 		return errors.New("branch commit sha is nil")
 	}
+
 	fmt.Println("the latest commit on branch " + r.ReleaseBranch + " is: " + *branch.Commit.SHA)
 	if !r.SkipStatusCheck {
 		fmt.Println("checking if CI is passing")
@@ -246,11 +248,13 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 			}
 			releaseType = "debug-" + r.IssueNumber + "-"
 		}
+
 		latestVersionNumber := 1
 		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
 		if err != nil {
 			return err
 		}
+
 		if latestVersion != nil {
 			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, opts.Tag+"-"+releaseType)
 			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
@@ -273,11 +277,13 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 		fmt.Println("dry run, skipping tag creation")
 		return nil
 	}
+
 	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
 	if err != nil {
 		return err
 	}
 	fmt.Println("release created: " + *createdRelease.URL)
+
 	return nil
 }
 
@@ -286,9 +292,11 @@ func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, rep
 	if err != nil {
 		return err
 	}
+
 	if *status.State != "success" {
 		return errors.New("expected commit " + commit + " to have state 'success', instead, got " + *status.State)
 	}
+
 	return nil
 }
 
@@ -301,10 +309,12 @@ func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps
 
 	for _, filePath := range files {
 		var scanner *bufio.Scanner
+
 		fileContent, err := remoteGitContent(ctx, ghClient, org, rancherRepo, gitRef, filePath)
 		if err != nil {
 			return nil, err
 		}
+
 		scanner = bufio.NewScanner(strings.NewReader(fileContent))
 		lineNum := 1
 
@@ -313,9 +323,11 @@ func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps
 			if strings.Contains(line, "indirect") {
 				continue
 			}
+
 			if devDependencyPattern.MatchString(line) {
 				lineContent := RancherRCDepsLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				lineContentLower := strings.ToLower(lineContent.Content)
+
 				if strings.Contains(lineContentLower, "chart") {
 					content.ChartsWithDev = append(content.ChartsWithDev, lineContent)
 				} else if strings.Contains(lineContentLower, "kdm") {
@@ -328,10 +340,12 @@ func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps
 					content.MinFilesWithRC = append(content.MinFilesWithRC, lineContent)
 				}
 			}
+
 			if rcTagPattern.MatchString(line) {
 				lineContent := RancherRCDepsLine{File: filePath, Line: lineNum, Content: formatContentLine(line)}
 				content.FilesWithRC = append(content.FilesWithRC, lineContent)
 			}
+
 			lineNum++
 		}
 		if err := scanner.Err(); err != nil {
@@ -347,6 +361,7 @@ func (r *RancherRCDeps) ToString() (string, error) {
 	tmpl = template.Must(tmpl.Parse(checkRancherRCDepsTemplate))
 	buff := bytes.NewBuffer(nil)
 	err := tmpl.ExecuteTemplate(buff, "componentsFile", r)
+
 	return buff.String(), err
 }
 
@@ -355,16 +370,19 @@ func remoteGitContent(ctx context.Context, ghClient *github.Client, org, repo, g
 	if err != nil {
 		return "", err
 	}
+
 	decodedContent, err := content.GetContent()
 	if err != nil {
 		return "", err
 	}
+
 	return decodedContent, nil
 }
 
 func formatContentLine(line string) string {
 	re := regexp.MustCompile(`\s+`)
 	line = re.ReplaceAllString(line, " ")
+
 	return strings.TrimSpace(line)
 }
 
@@ -375,14 +393,17 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 	if len(images) == 0 {
 		const rancherWindowsImagesFile = "rancher-windows-images.txt"
 		const rancherImagesFile = "rancher-images.txt"
+
 		rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
 		if err != nil {
 			return nil, errors.New("failed to get rancher windows images: " + err.Error())
 		}
+
 		rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
 		if err != nil {
 			return nil, errors.New("failed to get rancher images: " + err.Error())
 		}
+
 		images = append(rancherWindowsImages, rancherImages...)
 	}
 
@@ -391,6 +412,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.SetLimit(concurrencyLimit)
 	missingImagesChan := make(chan string, len(images))
+
 	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
 	repositoryAuths := make(map[string]string)
 	mu := sync.RWMutex{}
@@ -400,6 +422,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 			cancel()
 			return nil, errors.New("malformed image name: , missing ':'")
 		}
+
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
 		imageVersion := splitImage[1]
@@ -413,9 +436,11 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 					return ctx.Err()
 				default:
 					mu.Lock()
+
 					var ok bool
 					var auth string
 					var err error
+
 					auth, ok = repositoryAuths[image]
 					if !ok {
 						auth, err = registryAuth(sccSUSEURL, sccSUSEService, image)
@@ -426,11 +451,13 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 						repositoryAuths[image] = auth
 					}
 					mu.Unlock()
+
 					exists, err := checkIfImageExists(rancherRegistryBaseURL, image, imageVersion, auth)
 					if err != nil {
 						cancel()
 						return err
 					}
+
 					fullImage := image + ":" + imageVersion
 					if !exists {
 						missingImagesChan <- fullImage
@@ -438,6 +465,7 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 					} else {
 						log.Println(fullImage + " exists")
 					}
+
 					return nil
 				}
 			})
@@ -449,8 +477,10 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 		return nil, err
 	}
 	cancel()
+
 	close(missingImagesChan)
 	missingImages := readStringChan(missingImagesChan)
+
 	return missingImages, nil
 }
 
@@ -585,6 +615,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if err != nil {
 		return "", 0, err
 	}
+
 	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
 	req.Header.Add("Accept", "application/vnd.oci.image.manifest.v1+json")
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
@@ -598,6 +629,8 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if err != nil {
 		return "", 0, err
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
 	}
@@ -620,6 +653,7 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 	if statusCode != http.StatusOK {
 		return false, errors.New("expected status code to be 200, got: " + strconv.Itoa(statusCode))
 	}
+
 	return true, nil
 }
 
@@ -632,14 +666,16 @@ func registryAuth(authURL, service, image string) (string, error) {
 		return "", err
 	}
 	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
-	decoder := json.NewDecoder(res.Body)
+
 	var auth registryAuthToken
-	if err := decoder.Decode(&auth); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
 		return "", err
 	}
+
 	return auth.Token, nil
 }
 
@@ -650,14 +686,17 @@ func rancherPrimeArtifact(version, artifactName string) ([]string, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+
 	var file []string
 	scanner := bufio.NewScanner(res.Body)
+
 	for scanner.Scan() {
 		file = append(file, scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+
 	return file, nil
 }
 
@@ -666,6 +705,7 @@ func readStringChan(ch <-chan string) []string {
 	for s := range ch {
 		data = append(data, s)
 	}
+
 	return data
 }
 
@@ -734,6 +774,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
   </body>
 </html>
 {{end}}`
+
 const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 # Images with -rc
 {{range .RancherImages}}

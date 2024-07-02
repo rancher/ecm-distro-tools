@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -15,9 +15,8 @@ import (
 	"time"
 	"unicode"
 
-	httpecm "github.com/rancher/ecm-distro-tools/http"
-
 	"github.com/google/go-github/v39/github"
+	httpecm "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
@@ -30,7 +29,7 @@ const (
 	rke2Repo               = "rke2"
 	alternateVersion       = "1.23"
 	rke2ChartsVersionsFile = "chart_versions.yaml"
-	DefaultTimeout         = 30 * time.Second
+	defaultTimeout         = 30 * time.Second
 )
 
 type charts struct {
@@ -49,26 +48,25 @@ type changeLogData struct {
 }
 
 type rke2ReleaseNoteData struct {
-	Milestone             string
-	K8sVersion            string
-	MajorMinor            string
-	EtcdVersion           string
-	ContainerdVersion     string
-	RuncVersion           string
-	MetricsServerVersion  string
-	CoreDNSVersion        string
-	ChangeLogVersion      string
-	IngressNginxVersion   string
-	HelmControllerVersion string
-	FlannelVersion        string
-	CanalCalicoVersion    string
-	CanalCalicoURL        string
-	CalicoVersion         string
-	CalicoURL             string
-	CiliumVersion         string
-	MultusVersion         string
-	ChangeLogData         changeLogData
-
+	Milestone                             string
+	K8sVersion                            string
+	MajorMinor                            string
+	EtcdVersion                           string
+	ContainerdVersion                     string
+	RuncVersion                           string
+	MetricsServerVersion                  string
+	CoreDNSVersion                        string
+	ChangeLogVersion                      string
+	IngressNginxVersion                   string
+	HelmControllerVersion                 string
+	FlannelVersion                        string
+	CanalCalicoVersion                    string
+	CanalCalicoURL                        string
+	CalicoVersion                         string
+	CalicoURL                             string
+	CiliumVersion                         string
+	MultusVersion                         string
+	ChangeLogData                         changeLogData
 	CiliumChartVersion                    string
 	CanalChartVersion                     string
 	CalicoChartVersion                    string
@@ -111,6 +109,7 @@ func majMin(v string) (string, error) {
 	if majMin == "" {
 		return "", errors.New("version is not valid")
 	}
+
 	return majMin, nil
 }
 
@@ -129,6 +128,7 @@ func capitalize(s string) string {
 			}
 		}
 	}
+
 	return s
 }
 
@@ -213,6 +213,7 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			},
 		)
 	}
+
 	return nil, errors.New("invalid repo: it must be either k3s or rke2")
 }
 
@@ -242,12 +243,12 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
 	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
 
-	buf := bytes.NewBuffer(nil)
-	err := tmpl.ExecuteTemplate(buf, k3sRepo, rd)
-	if err != nil {
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, k3sRepo, rd); err != nil {
 		return nil, err
 	}
-	return buf, nil
+
+	return b, nil
 }
 
 func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2ReleaseNoteData) (*bytes.Buffer, error) {
@@ -294,11 +295,12 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
 
-	buf := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(buf, rke2Repo, rd); err != nil {
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, rke2Repo, rd); err != nil {
 		return nil, err
 	}
-	return buf, nil
+
+	return b, nil
 }
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
@@ -480,7 +482,7 @@ func goModLibVersion(libraryName, repo, branchVersion string) string {
 		return ""
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logrus.Debugf("read body error: %v", err)
 		return ""
@@ -536,7 +538,7 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 
 	const (
 		repoName = "rancher/rke2"
-		regex    = `(?:FROM|RUN)\s(?:CHART_VERSION=\"|[\w-]+/[\w-]+:)(?P<version>.*?)([0-9][0-9])?(-build.*)?\"?\s`
+		regex    = `FROM\s+[\w-]+/[\w-]+:(.*?)(-build.*)?\s`
 	)
 
 	dockerfileURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/Dockerfile"
@@ -593,11 +595,9 @@ func createCalicoURL(calicoVersion string) string {
 		notFound = "Page Not Found"
 	)
 
-	var formattedVersion string
-
 	versionRegex := regexp.MustCompile(`^v(\d+\.\d+)(?:\.\d+)?$`)
 
-	formattedVersion = calicoVersion
+	formattedVersion := calicoVersion
 
 	// Check if the version matches the pattern
 	if versionRegex.MatchString(calicoVersion) {
@@ -623,23 +623,24 @@ func createCalicoURL(calicoVersion string) string {
 func findInURL(url, regex, str string, checkStatusCode bool) []string {
 	var submatch []string
 
-	resp, err := http.Get(url)
+	client := httpecm.NewClient(defaultTimeout)
+	resp, err := client.Get(url)
 	if err != nil {
 		logrus.Debugf("failed to fetch url %s: %v", url, err)
 		return nil
 	}
+	defer resp.Body.Close()
 
 	if checkStatusCode && resp.StatusCode != http.StatusOK {
 		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, url)
 		return nil
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logrus.Debugf("read body error: %v", err)
 		return nil
 	}
-	defer resp.Body.Close()
 
 	scanner := bufio.NewScanner(strings.NewReader(string(b)))
 	for scanner.Scan() {
@@ -671,11 +672,13 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string
 	if err != nil {
 		return nil, err
 	}
+
 	for _, release := range allReleases {
 		if strings.Contains(*release.TagName, k8sVersion+"-rc") && strings.Contains(*release.TagName, projectSuffix) {
 			rcs = append(rcs, release)
 		}
 	}
+
 	return latestRelease(rcs), nil
 }
 
@@ -686,11 +689,13 @@ func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, v
 	if err != nil {
 		return nil, err
 	}
+
 	for _, release := range allReleases {
 		if strings.Contains(*release.TagName, version+"-"+preReleaseSuffix) {
 			versions = append(versions, release)
 		}
 	}
+
 	return latestRelease(versions), nil
 }
 
@@ -698,9 +703,11 @@ func latestRelease(versions []*github.RepositoryRelease) *string {
 	sort.Slice(versions, func(i, j int) bool {
 		return versions[i].PublishedAt.Time.Before(versions[j].PublishedAt.Time)
 	})
+
 	if len(versions) == 0 {
 		return nil
 	}
+
 	return versions[len(versions)-1].TagName
 }
 
@@ -708,12 +715,13 @@ func latestRelease(versions []*github.RepositoryRelease) *string {
 func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 	chartVersionsURL := "https://raw.githubusercontent.com/rancher/rke2/" + branchVersion + "/charts/" + rke2ChartsVersionsFile
 
-	client := httpecm.NewClient(DefaultTimeout)
+	client := httpecm.NewClient(defaultTimeout)
 	resp, err := client.Get(chartVersionsURL)
 	if err != nil {
 		logrus.Debugf("failed to fetch url %s: %v", chartVersionsURL, err)
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, err)
@@ -721,10 +729,10 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 	}
 
 	var c charts
-	decoder := yaml.NewDecoder(resp.Body)
-	if err := decoder.Decode(&c); err != nil {
+	if err := yaml.NewDecoder(resp.Body).Decode(&c); err != nil {
 		return nil, err
 	}
+
 	chartsData := make(map[string]chart, len(c.Charts))
 	for _, chart := range c.Charts {
 		chartsData[filepath.Base(chart.Filename)] = chart

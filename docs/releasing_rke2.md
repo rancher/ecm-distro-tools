@@ -174,9 +174,8 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 
 1. Run the update script
    ```shell
-   export GHT='<your github token>'
-   alias edt='docker run --rm -it --env GITHUB_TOKEN=$GHT rancher/ecm-distro-tools'
-   edt gen_release_notes -r rke2 -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
+   export GITHUB_TOKEN='<your github token>'
+   ./release generate k3s|rke2 release-notes -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
    ```
 1. Copy the generated release notes
 1. Validate and update the release notes as necessary
