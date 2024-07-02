@@ -1,0 +1,39 @@
+name: Transfer Rancher artifacts to prime bucket
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: "e.g: v2.8.4"
+        required: true
+      rancher_repo_owner:
+        type: string
+        description: "org that the rancher repo is located in"
+        default: "rancher"
+        required: true
+      prime_artifacts_bucket:
+        type: string
+        description: "name of the bucket to upload the files"
+        default: "prime-artifacts"
+        required: true
+jobs:
+  transfer:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Rancher Artifacts
+        run: |
+          mkdir -p /tmp/artifacts
+          cd /tmp/artifacts
+          gh release download --repo ${{ github.event.inputs.rancher_repo_owner }}/rancher ${{ github.event.inputs.tag }}
+      - name: Load Secrets from Vault
+        uses: rancher-eio/read-vault-secrets@main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/prime-artifacts-uploader-access-key/credentials token | PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY ;
+            secret/data/github/repo/${{ github.repository }}/prime-artifacts-uploader-secret-key/credentials token | PRIME_ARTIFACTS_UPLOADER_SECRET_KEY ;
+      - name: Upload artifacts to s3
+        run: |
+          aws s3 cp --recursive /tmp/artifacts s3://${{ github.event.inputs.prime_artifacts_bucket }}/rancher/${{ github.event.inputs.tag }}

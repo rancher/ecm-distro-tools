@@ -25,11 +25,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -489,18 +485,25 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 }
 
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
-	slog.Info("getting images list from artifact: " + imagesFileURL)
-	imagesList, err := artifactImageList(imagesFileURL, registry)
+	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
 	if err != nil {
 		return err
+	}
+	return createAssetFile(outputFile, imagesDigests)
+}
+
+func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
+	imagesList, err := artifactImageList(imagesFileURL, registry)
+	if err != nil {
+		return nil, err
 	}
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
-		return errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
-	var digests = make(imageDigest)
+	imagesDigests := make(imageDigest)
 	var repositoryAuths = make(map[string]string)
 
 	for _, imageAndVersion := range imagesList {
@@ -509,7 +512,7 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		}
 		slog.Info("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
-			return errors.New("malformed image name: , missing ':'")
+			return nil, errors.New("malformed image name: , missing ':'")
 		}
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
@@ -518,18 +521,18 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		if _, ok := repositoryAuths[image]; !ok {
 			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			repositoryAuths[image] = auth
 		}
 		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		slog.Info("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		digests[imageAndVersion] = digest
+		imagesDigests[imageAndVersion] = digest
 	}
-	return createAssetFile(outputFile, digests)
+	return imagesDigests, nil
 }
 
 func createAssetFile(outputFile string, contents fmt.Stringer) error {
@@ -633,7 +636,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	}
 	dockerDigest := res.Header.Get("Docker-Content-Digest")
 	if dockerDigest == "" {
-		return "", res.StatusCode, errors.New("missing digest header")
+		return "", res.StatusCode, errors.New("empty digest header 'Docker-Content-Digest'")
 	}
 	return dockerDigest, res.StatusCode, nil
 }
@@ -704,68 +707,6 @@ func readStringChan(ch <-chan string) []string {
 	}
 
 	return data
-}
-
-func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uploader *manager.Uploader, rancherRelease *config.RancherRelease, releaseTag string) error {
-	fmt.Println("validating release tag: " + releaseTag)
-	if !semver.IsValid(releaseTag) {
-		return errors.New("the tag isn't a valid semver: " + releaseTag)
-	}
-
-	fmt.Println("getting release by tag: " + releaseTag)
-	release, _, err := ghClient.Repositories.GetReleaseByTag(ctx, rancherRelease.RancherRepoOwner, rancherRepo, releaseTag)
-	if err != nil {
-		return errors.New("failed to get release by tag: " + err.Error())
-	}
-
-	httpClient := ecmHTTP.NewClient(time.Second * 15)
-	releaseAssets := make(map[string][]byte)
-
-	fmt.Println("downloading release assets")
-	for _, asset := range release.Assets {
-		fmt.Println("downloading asset: " + *asset.Name)
-		rc, _, err := ghClient.Repositories.DownloadReleaseAsset(ctx, rancherRelease.RancherRepoOwner, rancherRepo, *asset.ID, &httpClient)
-		if err != nil {
-			return errors.New("failed to download release asset: " + err.Error())
-		}
-
-		fmt.Println("reading asset content")
-		releaseAssets[*asset.Name], err = io.ReadAll(rc)
-		if err != nil {
-			return errors.New("failed to read release asset content: " + err.Error())
-		}
-
-		if err := rc.Close(); err != nil {
-			return errors.New("failed to close reader body: " + err.Error())
-		}
-
-		// Only artifacts with "digests" in the name contain registry information
-		if strings.Contains(*asset.Name, "digests") {
-			fmt.Println("digests artifact, replacing registry from '" + rancherRelease.BaseRegistry + "' to '" + rancherRelease.Registry + "'")
-			stringContent := string(releaseAssets[*asset.Name])
-			releaseAssets[*asset.Name] = []byte(strings.ReplaceAll(stringContent, rancherRelease.BaseRegistry, rancherRelease.Registry))
-		}
-	}
-
-	fmt.Println("uploading artifacts")
-	for name, content := range releaseAssets {
-		fmt.Println("uploading: " + name)
-
-		if rancherRelease.DryRun {
-			fmt.Println("dry run, skipping upload")
-			continue
-		}
-		_, err := s3Uploader.Upload(ctx, &s3.PutObjectInput{
-			Bucket: &rancherRelease.PrimeArtifactsBucket,
-			Key:    aws.String(rancherRepo + "/" + name),
-			Body:   bytes.NewReader(content),
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
