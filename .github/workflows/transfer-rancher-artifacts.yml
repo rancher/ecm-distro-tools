@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Rancher Artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/artifacts
           cd /tmp/artifacts
