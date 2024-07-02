@@ -37,9 +37,9 @@ jobs:
       id-token: write
     steps:
       - name: setup ecm-distro-tools
-        uses: rancher/ecm-distro-tools@0.38.0
+        uses: rancher/ecm-distro-tools@v0.38.1
         with:
-          version: v0.38.0
+          version: v0.38.1
       - name: Create ecm config file 
         run: |
           mkdir -p ~/.ecm-distro-tools
