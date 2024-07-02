@@ -81,4 +81,4 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/prime-artifacts-uploader-secret-key/credentials token | PRIME_ARTIFACTS_UPLOADER_SECRET_KEY ;
       - name: Upload Artifacts to S3
         run: |
-          aws s3 cp --recursive /tmp/dist s3://${{ github.event.inputs.prime_artifacts_bucket }}/rancher/${{ github.event.inputs.tag }}
+          AWS_ACCESS_KEY_ID=$PRIME_ARTIFACTS_UPLOADER_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$PRIME_ARTIFACTS_UPLOADER_SECRET_KEY aws s3 cp --recursive /tmp/artifacts s3://${{ github.event.inputs.prime_artifacts_bucket }}/rancher/${{ github.event.inputs.tag }}
