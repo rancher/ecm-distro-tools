@@ -1,12 +1,12 @@
 {
     "variables": {
-        "name":"Rocky-8.8",
-        "source_ami":"ami-0425d70f0df70df0e",
+        "name":"SuseLiberty-8.9",
+        "source_ami":"ami-0649f5b1130930a5f",
         "access_key":"",
         "secret_key":"",
         "region":"us-east-2",
         "instance_type": "t3.medium",
-        "os_version": "8.8",
+        "os_version": "8.9",
         "arch_type": "x86_64"
     },
     "builders": [{
@@ -24,7 +24,7 @@
         "source_ami": "{{user `source_ami`}}",
         "instance_type": "{{user `instance_type`}}",
         "communicator": "ssh",
-        "ssh_username": "rocky",
+        "ssh_username": "ec2-user",
         "force_deregister": true,
         "run_tags":{"Name":"{{user `name`}}"}
     }],
@@ -37,15 +37,6 @@
     {
         "type": "shell",
         "inline": "sudo chmod +x /tmp/setup_rocky_repo_mirrors.sh && sudo /tmp/setup_rocky_repo_mirrors.sh {{user `os_version`}} {{user `arch_type`}}"
-    },
-    {
-        "type": "file",
-        "source": "enable_fips.sh",
-        "destination": "/tmp/enable_fips.sh"
-    },
-    {
-        "type": "shell",
-        "inline": "sudo chmod +x /tmp/enable_fips.sh && sudo /tmp/enable_fips.sh rhel8"
     },
     {
         "type": "file",
