@@ -1,7 +1,7 @@
 {
     "variables": {
-        "name":"Rocky-8.8",
-        "source_ami":"ami-0425d70f0df70df0e",
+        "name":"Rocky-9.3-Minimal-NM-Cloud-Disabled",
+        "source_ami":"ami-07035d7f5e09a5d19",
         "access_key":"",
         "secret_key":"",
         "region":"us-east-2",
