@@ -45,6 +45,6 @@
     },
     {
         "type": "shell",
-        "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh rhel9"
+        "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh"
     }]
 }
