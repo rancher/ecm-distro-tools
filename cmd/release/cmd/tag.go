@@ -177,16 +177,21 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
+
 		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
+
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
+
 		ctx := context.Background()
+
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 		opts := &repository.CreateReleaseOpts{
 			Tag:    tag,
@@ -194,6 +199,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 			Owner:  k3sRelease.SystemAgentInstallerRepoOwner,
 			Branch: "main",
 		}
+
 		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, rc)
 	},
 }
@@ -219,8 +225,10 @@ func releaseTypePreRelease(releaseType string) (bool, error) {
 	if releaseType == "rc" || releaseType == "debug" || releaseType == "alpha" {
 		return true, nil
 	}
+
 	if releaseType == "ga" {
 		return false, nil
 	}
+
 	return false, errors.New("release type must be either 'ga', 'debug', 'alpha' or 'rc', instead got: " + releaseType)
 }

@@ -26,13 +26,18 @@ var updateK3sReferencesCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
+
 		version := args[0]
+
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
 			return errors.New("verify your config file, version not found: " + version)
 		}
+
 		ctx := context.Background()
+
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
 		return k3s.UpdateK3sReferences(ctx, ghClient, &k3sRelease, rootConfig.User)
 	},
 }

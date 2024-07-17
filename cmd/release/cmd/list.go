@@ -27,15 +27,18 @@ var rancherListRCDepsSubCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [git-ref]")
 		}
+
 		rancherRCDeps, err := rancher.CheckRancherRCDeps(context.Background(), "rancher", args[0])
 		if err != nil {
 			return err
 		}
+
 		deps, err := rancherRCDeps.ToString()
 		if err != nil {
 			return err
 		}
 		fmt.Println(deps)
+
 		return nil
 	},
 }

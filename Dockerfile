@@ -1,3 +1,9 @@
+
+# https://github.com/rancher/shell/blob/master/package/Dockerfile#L23-L31
+# Needed to speed up the process of building
+
+
+
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
 ARG GO_IMAGE=rancher/hardened-build-base:v1.20.1b1
 FROM ${BCI_IMAGE} as bci

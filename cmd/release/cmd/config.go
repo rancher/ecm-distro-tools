@@ -20,9 +20,11 @@ var genConfigSubCmd = &cobra.Command{
 		if err := config.Generate(); err != nil {
 			return err
 		}
+
 		fmt.Println("config generated")
 		fmt.Println("to view it, run: release config view")
 		fmt.Println("to edit it, run: release config edit")
+
 		return nil
 	},
 }
