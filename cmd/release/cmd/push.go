@@ -26,13 +26,17 @@ var pushK3sTagsCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
+
 		version := args[0]
-		k3sRelease, found := rootConfig.K3s.Versions[version]
-		if !found {
+
+		k3sRelease, ok := rootConfig.K3s.Versions[version]
+		if !ok {
 			return errors.New("verify your config file, version not found: " + version)
 		}
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
 		return k3s.PushTags(ghClient, &k3sRelease, rootConfig.User, rootConfig.Auth.SSHKeyPath)
 	},
 }

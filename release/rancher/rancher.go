@@ -123,7 +123,9 @@ func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 		return errors.New("unexpected status code on " + rancherArtifactsListURL + " expected 200, got " + strconv.Itoa(resp.StatusCode))
 	}
 	defer resp.Body.Close()
+
 	contentDecoder := xml.NewDecoder(resp.Body)
+
 	var listBucket ListBucketResult
 	if err := contentDecoder.Decode(&listBucket); err != nil {
 		return err
@@ -139,6 +141,7 @@ func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 	if err != nil {
 		return err
 	}
+
 	preReleaseIndex, err := generatePrimeArtifactsHTML(content.PreRelease)
 	if err != nil {
 		return err
@@ -146,6 +149,7 @@ func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 	if err := os.WriteFile(filepath.Join(path, "index.html"), gaIndex, 0644); err != nil {
 		return err
 	}
+
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
@@ -162,6 +166,7 @@ func generateArtifactsIndexContent(listBucket ListBucketResult, ignoreVersions m
 			BaseURL:       rancherArtifactsBaseURL,
 		},
 	}
+
 	var versions []string
 	versionsFiles := make(map[string][]string)
 
@@ -209,18 +214,37 @@ func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	buff := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(buff, "release-artifacts-index", content); err != nil {
+
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, "release-artifacts-index", content); err != nil {
 		return nil, err
 	}
 
-	return buff.Bytes(), nil
+	return b.Bytes(), nil
+}
+
+func CreateUIRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) error {
+	fmt.Println("validating tag semver format")
+	if !semver.IsValid(opts.Tag) {
+		return errors.New("the tag isn't valid semver: " + opts.Tag)
+	}
+	fmt.Println("getting remote branch information from " + r.RancherRepoOwner + "/" + rancherRepo)
+
+	branch, _, err := ghClient.Repositories.GetBranch(ctx, r.RancherRepoOwner, rancherRepo, r.ReleaseBranch, true)
+	if err != nil {
+		return err
+	}
+	if branch.Commit.SHA == nil {
+		return errors.New("branch commit sha is nil")
+	}
+
+	return nil
 }
 
 func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) error {
 	fmt.Println("validating tag semver format")
 	if !semver.IsValid(opts.Tag) {
-		return errors.New("the tag isn't a valid semver: " + opts.Tag)
+		return errors.New("the tag isn't valid semver: " + opts.Tag)
 	}
 	fmt.Println("getting remote branch information from " + r.RancherRepoOwner + "/" + rancherRepo)
 

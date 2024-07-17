@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// tagRKE2CmdFlags
 type tagRKE2CmdFlags struct {
 	AlpineVersion  *string
 	ReleaseVersion *string
@@ -20,9 +21,7 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-var (
-	tagRKE2Flags tagRKE2CmdFlags
-)
+var tagRKE2Flags tagRKE2CmdFlags
 
 // tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
@@ -37,17 +36,22 @@ var k3sTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
+
 		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
-		k3sRelease, found := rootConfig.K3s.Versions[tag]
-		if !found {
+		k3sRelease, ok := rootConfig.K3s.Versions[tag]
+		if !ok {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
+
 		ctx := context.Background()
+
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
 		opts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   "k3s",
@@ -198,12 +202,49 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 	},
 }
 
+var rancherUITagSubCmd = &cobra.Command{
+	Use:   "rancher [ga, rc, debug, alpha] [version]",
+	Short: "Tag Rancher releases",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc,debug,alpha] [version]")
+		}
+
+		releaseType := args[0]
+
+		preRelease, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+
+		rancherRelease, ok := rootConfig.Rancher.Versions[tag]
+		if !ok {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "rancher",
+			Owner:  rancherRelease.RancherRepoOwner,
+			Branch: rancherRelease.ReleaseBranch,
+		}
+		return rancher.CreateUIRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
 	tagCmd.AddCommand(k3sTagSubCmd)
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
+	tagCmd.AddCommand(rancherUITagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 
 	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "dry run")
@@ -219,8 +260,10 @@ func releaseTypePreRelease(releaseType string) (bool, error) {
 	if releaseType == "rc" || releaseType == "debug" || releaseType == "alpha" {
 		return true, nil
 	}
+
 	if releaseType == "ga" {
 		return false, nil
 	}
+
 	return false, errors.New("release type must be either 'ga', 'debug', 'alpha' or 'rc', instead got: " + releaseType)
 }
