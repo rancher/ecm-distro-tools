@@ -1,5 +1,17 @@
 include cmd/Makefile
 
+ACTION ?= load
+MACHINE := rancher
+# Define the target platforms that can be used across the ecosystem.
+# Note that what would actually be used for a given project will be
+# defined in TARGET_PLATFORMS, and must be a subset of the below:
+DEFAULT_PLATFORMS := linux/amd64,linux/arm64,darwin/arm64,darwin/amd64
+BUILDX_ARGS ?= --sbom=true --attest type=provenance,mode=max
+
+ifeq ($(TAG),)
+	TAG = $(shell git rev-parse HEAD)
+endif
+
 .PHONY: all
 all: $(BINARIES)
 
@@ -39,9 +51,13 @@ semv:
 test:
 	go test -v -cover ./...
 
-.PHONY: build-image
-build-image:
-	docker build -t rancher/ecm-distro-tools:$(shell git rev-parse HEAD) .
+.PHONY: buildx-machine
+buildx-machine: ## create rancher dockerbuildx machine targeting platform defined by DEFAULT_PLATFORMS.
+	@docker buildx ls | grep $(MACHINE) || docker buildx create --name=$(MACHINE) --platform=$(DEFAULT_PLATFORMS)
+
+.PHONY: build-image 
+build-image: buildx-machine
+	docker buildx build --builder=$(MACHINE) --$(ACTION) $(BUILDX_ARGS) -t rancher/ecm-distro-tools:$(TAG) .
 
 .PHONY: package-binaries
 package-binaries: $(BINARIES)
