@@ -61,7 +61,7 @@ build-image: buildx-machine
 
 .PHONY: push-image
 push-image: buildx-machine ## build the container image targeting all platforms defined by TARGET_PLATFORMS and push to a registry.
-	$(IMAGE_BUILDER) build -f Dockerfile \
+	docker buildx build -f Dockerfile \
 		--builder=$(MACHINE) $(IID_FILE_FLAG) $(BUILDX_ARGS) \
 		--platform=$(DEFAULT_PLATFORMS) -t $(REPO):$(TAG) --push .
 	@echo "Pushed $(REPO):$(TAG)"
