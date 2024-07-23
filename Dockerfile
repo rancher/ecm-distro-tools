@@ -2,12 +2,15 @@
 # https://github.com/rancher/shell/blob/master/package/Dockerfile#L23-L31
 # Needed to speed up the process of building
 
-
-
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
 ARG GO_IMAGE=rancher/hardened-build-base:v1.22.1b1
 FROM ${BCI_IMAGE} as bci
-FROM ${GO_IMAGE} as builder
+
+# Builder and xx only need to support the host architecture.
+FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.3.0 as xx
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} as builder 
+
+# https://github.com/tonistiigi/xx/?tab=readme-ov-file#xx-apk-xx-apt-xx-apt-get---installing-packages-for-target-architecture
 RUN apk --no-cache add \
     curl               \
     wget               \
@@ -22,6 +25,17 @@ RUN apk --no-cache add \
     yq
 COPY . /ecm-distro-tools
 WORKDIR /ecm-distro-tools
+
+COPY --from=xx / /
+
+# From this point onwards, although everything will be executed at the
+# host architecture, it will fork and run separately for each target
+# arch/platform.
+ARG TARGETPLATFORM TARGETARCH
+#RUN mkdir -p /run/lock
+
+RUN xx-go --wrap
+
 RUN make all
 ARG ETCD_VERSION=v3.5.7
 ARG GH_VERSION=2.23.0
