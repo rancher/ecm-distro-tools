@@ -1,11 +1,11 @@
 include cmd/Makefile
 
-ACTION ?= load
+ACTION ?= --load
 MACHINE := rancher
 # Define the target platforms that can be used across the ecosystem.
 # Note that what would actually be used for a given project will be
 # defined in TARGET_PLATFORMS, and must be a subset of the below:
-DEFAULT_PLATFORMS := linux/amd64,linux/arm64,darwin/arm64,darwin/amd64
+DEFAULT_PLATFORMS := linux/amd64,linux/arm64
 BUILDX_ARGS ?= --sbom=true --attest type=provenance,mode=max
 
 ifeq ($(TAG),)
@@ -57,7 +57,20 @@ buildx-machine: ## create rancher dockerbuildx machine targeting platform define
 
 .PHONY: build-image 
 build-image: buildx-machine
-	docker buildx build --builder=$(MACHINE) --$(ACTION) $(BUILDX_ARGS) -t rancher/ecm-distro-tools:$(TAG) .
+	docker buildx build --builder=$(MACHINE) $(ACTION) -t rancher/ecm-distro-tools:$(TAG) .
+
+.PHONY: push-image
+push-image: buildx-machine ## build the container image targeting all platforms defined by TARGET_PLATFORMS and push to a registry.
+	$(IMAGE_BUILDER) build -f Dockerfile \
+		--builder=$(MACHINE) $(IID_FILE_FLAG) $(BUILDX_ARGS) \
+		--platform=$(DEFAULT_PLATFORMS) -t $(REPO):$(TAG) --push .
+	@echo "Pushed $(REPO):$(TAG)"
+
+.PHONY: test-image
+test-image: buildx-machine ## build the container image for all target architecures.
+	# Instead of loading image, target all platforms, effectivelly testing
+	# the build for the target architectures.
+	$(MAKE) build-image ACTION="--platform=$(DEFAULT_PLATFORMS)"
 
 .PHONY: package-binaries
 package-binaries: $(BINARIES)
