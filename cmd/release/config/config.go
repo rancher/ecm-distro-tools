@@ -222,6 +222,13 @@ func exampleConfig() Config {
 				},
 			},
 		},
+		Charts: &ChartsRelease{
+			Workspace:     filepath.Join(gopath, "src", "github.com", "rancher", "charts"),
+			ChartsRepoURL: "https://github.com/rancher/charts",
+			ChartsForkURL: "",
+			DevBranch:     "dev-v2.9",
+			ReleaseBranch: "release-v2.9",
+		},
 		Auth: &Auth{
 			Drone: &Drone{
 				K3sPR:          "YOUR_TOKEN",
@@ -275,4 +282,11 @@ Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 
 RKE2{{ range .RKE2.Versions }}
 	{{ . }}{{ end}}
+
+Charts
+    Workspace:     {{.Charts.Workspace}}
+    ChartsRepoURL: {{.Charts.ChartsRepoURL}}
+    ChartsForkURL: {{.Charts.ChartsForkURL}}
+    DevBranch:     {{.Charts.DevBranch}}
+    ReleaseBranch: {{.Charts.ReleaseBranch}}
 `
