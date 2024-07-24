@@ -52,6 +52,15 @@ type RKE2 struct {
 	Versions []string `json:"versions"`
 }
 
+// ChartsRelease
+type ChartsRelease struct {
+	Workspace     string `json:"workspace"`
+	ChartsRepoURL string `json:"charts_repo_url"`
+	ChartsForkURL string `json:"charts_fork_url"`
+	DevBranch     string `json:"dev_branch"`
+	ReleaseBranch string `json:"release_branch"`
+}
+
 // User
 type User struct {
 	Email          string `json:"email"`
@@ -85,11 +94,12 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User    *User    `json:"user"`
-	K3s     *K3s     `json:"k3s"`
-	Rancher *Rancher `json:"rancher"`
-	RKE2    *RKE2    `json:"rke2"`
-	Auth    *Auth    `json:"auth"`
+	User    *User          `json:"user"`
+	K3s     *K3s           `json:"k3s"`
+	Rancher *Rancher       `json:"rancher"`
+	RKE2    *RKE2          `json:"rke2"`
+	Charts  *ChartsRelease `json:"charts"`
+	Auth    *Auth          `json:"auth"`
 }
 
 func DefaultConfigPath() (string, error) {
@@ -242,17 +252,17 @@ User
 
 K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
 	{{ $k3sVersion }}:
-		Old K8s Version:  {{ $k3sValue.OldK8sVersion}}	
-		New K8s Version:  {{ $k3sValue.NewK8sVersion}}	
-		Old K8s Client:   {{ $k3sValue.OldK8sClient}}	
-		New K8s Client:   {{ $k3sValue.NewK8sClient}}	
-		Old Suffix:       {{ $k3sValue.OldSuffix}}	
-		New Suffix:       {{ $k3sValue.NewSuffix}}	
-		Release Branch:   {{ $k3sValue.ReleaseBranch}}	
-		Dry Run:          {{ $k3sValue.DryRun}}	
-		K3s Repo Owner:   {{ $k3sValue.K3sRepoOwner}}	
-		K8s Rancher URL:  {{ $k3sValue.K8sRancherURL}}	
-		Workspace:        {{ $k3sValue.Workspace}}	
+		Old K8s Version:  {{ $k3sValue.OldK8sVersion}}
+		New K8s Version:  {{ $k3sValue.NewK8sVersion}}
+		Old K8s Client:   {{ $k3sValue.OldK8sClient}}
+		New K8s Client:   {{ $k3sValue.NewK8sClient}}
+		Old Suffix:       {{ $k3sValue.OldSuffix}}
+		New Suffix:       {{ $k3sValue.NewSuffix}}
+		Release Branch:   {{ $k3sValue.ReleaseBranch}}
+		Dry Run:          {{ $k3sValue.DryRun}}
+		K3s Repo Owner:   {{ $k3sValue.K3sRepoOwner}}
+		K8s Rancher URL:  {{ $k3sValue.K8sRancherURL}}
+		Workspace:        {{ $k3sValue.Workspace}}
 		K3s Upstream URL: {{ $k3sValue.K3sUpstreamURL}}{{ end }}
 
 Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
