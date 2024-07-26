@@ -46,7 +46,7 @@ var chartsListSubCmd = &cobra.Command{
 	Short: "List Charts assets versions state for release process",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		var branch, chart string = "", ""
+		var branch, chart string
 
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [branch]")
@@ -62,11 +62,7 @@ var chartsListSubCmd = &cobra.Command{
 			return errors.New("verify your config file, chart configuration not implemented correctly, you must insert workspace path and your forked repo url")
 		}
 
-		err := charts.ListLifecycleStatus(context.Background(), config, branch, chart)
-		if err != nil {
-			return err
-		}
-		return nil
+		return charts.ListLifecycleStatus(context.Background(), config, branch, chart)
 	},
 }
 
