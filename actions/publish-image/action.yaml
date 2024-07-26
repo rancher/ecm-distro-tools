@@ -1,0 +1,162 @@
+# This GitHub action aims to abstract the logic behind pushing container
+# images for projects within the Rancher ecosystem.
+# Depending on the project its images may need to be pushed to the Public
+# or Prime registry, in some cases both (default).
+# Use push-to-public and push-to-prime to pick the target registries.
+#
+# Reference usage:
+#     - name: Publish manifest
+#       uses: rancher/ecm-distro-tools/actions/publish-image@master
+#       with:
+#         image: security-scan
+#         tag: ${{ github.ref_name }}${{ matrix.tag-suffix }}
+#         platforms: ${{ matrix.platforms }}
+#
+#         public-registry: ${{ vars.PUBLIC_REGISTRY }}
+#         public-repo: ${{ vars.PUBLIC_REGISTRY_REPO }}
+#         public-username: ${{ secrets.PUBLIC_REGISTRY_USERNAME }}
+#         public-password: ${{ secrets.PUBLIC_REGISTRY_PASSWORD }}
+#
+#         prime-registry: ${{ secrets.PRIME_REGISTRY }}
+#         prime-repo: ${{ secrets.PRIME_REGISTRY_REPO }}
+#         prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
+#         prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
+
+name: publish-image
+
+inputs:
+  image:
+    description: |
+      The image name component in a fully qualified image. For reference:
+      <registry>/<repo>/<image>:<tag>.
+    required: true
+    type: string
+
+  tag:
+    description: |
+      The tag used for the image to be published. Most often its value
+      will be either ${{ github.ref_name }} or that with an architecture
+      specific suffix.
+    required: true
+    type: string
+
+  platforms:
+    description: |
+      The Docker buildx platforms for the images to target.
+    type: string
+    default: linux/amd64,linux/arm64
+
+  push-to-public:
+    description: |
+      Indicates whether the image should be pushed to the Public container
+      registry.
+    default: true
+    type: boolean
+  
+  public-registry:
+    description: The container registry used for Public images.
+    type: string
+    default: docker.io
+
+  public-repo:
+    description: |
+      The repository component in a fully qualified image. For reference:
+      <public-registry>/<public-repo>/<image>:<tag>.
+    type: string
+
+  public-username:
+    description: |
+      The username used to authenticate against the Public registry.
+    type: string
+
+  public-password:
+    description: |
+      The password used to authenticate against the Public registry.
+    type: string
+
+  push-to-prime:
+    description: |
+      Indicates whether the image should be pushed to the Prime container
+      registry.
+    default: true
+    type: boolean
+
+  prime-registry:
+    description: The container registry used for Prime images.
+    type: string
+
+  prime-repo:
+    description: |
+      The repository component in a fully qualified image. For reference:
+      <prime-registry>/<prime-repo>/<image>:<tag>.
+    type: string
+
+  prime-username:
+    description: |
+      The username used to authenticate against the Prime registry.
+    type: string
+
+  prime-password:
+    description: |
+      The password used to authenticate against the Prime registry.
+    type: string
+
+  make-target:
+    description: |
+      The make target used to build and push the container image.
+    default: push-image
+    type: string
+
+runs:
+  using: composite
+
+  steps:
+  # Login to all registries before starting the pushing process.
+  # Short-circuit if either fails. This should decrease the likelihood
+  # of only one registry getting updated while the other fails.
+  - name: Login to registry [Public]
+    if: ${{ inputs.push-to-public }}
+    uses: docker/login-action@v3
+    with:
+      registry: ${{ inputs.public-registry }}
+      username: ${{ inputs.public-username }}
+      password: ${{ inputs.public-password }}
+
+  - name: Login to registry [Prime]
+    if: ${{ inputs.push-to-prime }}
+    uses: docker/login-action@v3
+    with:
+      registry: ${{ inputs.prime-registry }}
+      username: ${{ inputs.prime-username }}
+      password: ${{ inputs.prime-password }}
+
+  - name: Setup QEMU
+    uses: docker/setup-qemu-action@v3
+  - name: Setup Docker Buildx
+    uses: docker/setup-buildx-action@v3
+  - name: Install Cosign
+    uses: sigstore/cosign-installer@v3.5.0
+
+  - name: Build and push image [Public]
+    shell: bash
+    if: ${{ inputs.push-to-public }}
+    run: |
+      make ${{ inputs.make-target }}
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET_PLATFORMS: ${{ inputs.platforms }}
+      REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
+
+  - name: Build and push image [Prime]
+    shell: bash
+    if: ${{ inputs.push-to-prime }}
+    run: |
+      IID_FILE=$(mktemp)
+      export IID_FILE_FLAG="--iidfile ${IID_FILE}"
+      
+      make ${{ inputs.make-target }}
+      cosign sign --oidc-provider=github-actions --yes "${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET_PLATFORMS: ${{ inputs.platforms }}
+      REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
