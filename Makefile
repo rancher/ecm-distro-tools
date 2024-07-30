@@ -75,7 +75,7 @@ test-image: buildx-machine ## build the container image for all target architecu
 .PHONY: package-binaries
 package-binaries: $(BINARIES)
 	mkdir -p dist
-	@$(eval export BIN_FILES = $(shell ls -d bin/*))
+	@$(eval export BIN_FILES = $(shell ls bin/))
 
 	for binary in $(BINARIES); do \
 		mv cmd/$${binary}/bin/sha256sums-$${binary}.txt dist/sha256sums-$${binary}.txt; \
@@ -86,10 +86,14 @@ package-binaries: $(BINARIES)
 	for arch in $(ARCHS); do \
 		for os in $(OSs); do \
 			SUFFIX=$${os}-$${arch}; \
-			tar cvf dist/ecm-distro-tools.$${SUFFIX}.tar $(BIN_FILES); \
+			cd bin && \
+			tar cvf ../dist/ecm-distro-tools.$${SUFFIX}.tar $(BIN_FILES); \
+			cd ..; \
 			for binary in $(BINARIES); do \
 				mv cmd/$${binary}/bin/$${binary}-$${SUFFIX} dist/$${binary}-$${SUFFIX} && \
-				tar rvf dist/ecm-distro-tools.$${SUFFIX}.tar dist/$${binary}-$${SUFFIX}; \
+				cd dist && \
+				tar rvf ecm-distro-tools.$${SUFFIX}.tar $${binary}-$${SUFFIX}; \
+				cd ..; \
 			done; \
 			gzip < dist/ecm-distro-tools.$${SUFFIX}.tar > dist/ecm-distro-tools.$${SUFFIX}.tar.gz && \
 			rm -f dist/ecm-distro-tools.$${SUFFIX}.tar; \
