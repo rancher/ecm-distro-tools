@@ -62,7 +62,13 @@ var chartsListSubCmd = &cobra.Command{
 			return errors.New("verify your config file, chart configuration not implemented correctly, you must insert workspace path and your forked repo url")
 		}
 
-		return charts.ListLifecycleStatus(context.Background(), config, branch, chart)
+		resp, err := charts.List(context.Background(), config, branch, chart)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(resp)
+		return nil
 	},
 }
 

@@ -10,8 +10,8 @@ import (
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 )
 
-// ListLifecycleStatus prints the lifecycle status of the charts
-func ListLifecycleStatus(ctx context.Context, c *config.ChartsRelease, branch, chart string) error {
+// List prints the lifecycle status of the charts
+func List(ctx context.Context, c *config.ChartsRelease, branch, chart string) (string, error) {
 	var branchArg, chartArg string
 
 	branchArg = "--branch-version=" + branch
@@ -21,12 +21,11 @@ func ListLifecycleStatus(ctx context.Context, c *config.ChartsRelease, branch, c
 
 	output, err := runChartsBuildScripts(c.Workspace, "lifecycle-status", branchArg, chartArg)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	fmt.Println(string(output))
-	fmt.Printf("generated log files for inspection at: \n%s\n", c.Workspace+"/logs/")
-	return nil
+	response := string(output) + fmt.Sprintf("\ngenerated log files for inspection at: \n%s\n", c.Workspace+"/logs/")
+	return response, nil
 }
 
 func runChartsBuildScripts(chartsRepoPath string, args ...string) ([]byte, error) {
