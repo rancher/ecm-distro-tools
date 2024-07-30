@@ -20,6 +20,7 @@ var (
 	k3sMilestone     string
 
 	concurrencyLimit                    int
+	imagesListURL                       string
 	rancherMissingImagesJSONOutput      bool
 	rke2PrevMilestone                   string
 	rke2Milestone                       string
@@ -120,12 +121,13 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
+		checkImages := make([]string, 0)
 		version := args[0]
 		rancherRelease, found := rootConfig.Rancher.Versions[version]
-		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+		if found {
+			checkImages = rancherRelease.CheckImages
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(version, concurrencyLimit, rancherRelease.CheckImages)
+		missingImages, err := rancher.GenerateMissingImagesList(version, imagesListURL, concurrencyLimit, checkImages)
 		if err != nil {
 			return err
 		}
@@ -201,6 +203,11 @@ func init() {
 	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "c", 3, "Concurrency Limit")
 	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
+	if err := rancherGenerateMissingImagesListSubCmd.MarkFlagRequired("images-list-url"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
 	// rancher generate docker-images-digests
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsOutputFile, "output-file", "o", "", "Output file with images digests")
