@@ -386,7 +386,7 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(version string, concurrencyLimit int, images []string) ([]string, error) {
+func GenerateMissingImagesList(version, imagesListURL string, concurrencyLimit int, images []string) ([]string, error) {
 	if !semver.IsValid(version) {
 		return nil, errors.New("version is not a valid semver: " + version)
 	}
@@ -394,12 +394,12 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 		const rancherWindowsImagesFile = "rancher-windows-images.txt"
 		const rancherImagesFile = "rancher-images.txt"
 
-		rancherWindowsImages, err := rancherPrimeArtifact(version, rancherWindowsImagesFile)
+		rancherWindowsImages, err := rancherPrimeArtifact(imagesListURL)
 		if err != nil {
 			return nil, errors.New("failed to get rancher windows images: " + err.Error())
 		}
 
-		rancherImages, err := rancherPrimeArtifact(version, rancherImagesFile)
+		rancherImages, err := rancherPrimeArtifact(imagesListURL)
 		if err != nil {
 			return nil, errors.New("failed to get rancher images: " + err.Error())
 		}
@@ -679,9 +679,9 @@ func registryAuth(authURL, service, image string) (string, error) {
 	return auth.Token, nil
 }
 
-func rancherPrimeArtifact(version, artifactName string) ([]string, error) {
+func rancherPrimeArtifact(url string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
-	res, err := httpClient.Get(rancherArtifactsBaseURL + "/rancher/" + version + "/" + artifactName)
+	res, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
