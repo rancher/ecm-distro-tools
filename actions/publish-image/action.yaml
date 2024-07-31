@@ -35,7 +35,7 @@ inputs:
   tag:
     description: |
       The tag used for the image to be published. Most often its value
-      will be either ${{ github.ref_name }} or that with an architecture
+      will be either github.ref_name or that with an architecture
       specific suffix.
     required: true
     type: string
