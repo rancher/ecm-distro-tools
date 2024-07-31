@@ -5,22 +5,38 @@
 # Use push-to-public and push-to-prime to pick the target registries.
 #
 # Reference usage:
-#     - name: Publish manifest
-#       uses: rancher/ecm-distro-tools/actions/publish-image@master
-#       with:
-#         image: security-scan
-#         tag: ${{ github.ref_name }}${{ matrix.tag-suffix }}
-#         platforms: ${{ matrix.platforms }}
 #
-#         public-registry: ${{ vars.PUBLIC_REGISTRY }}
-#         public-repo: ${{ vars.PUBLIC_REGISTRY_REPO }}
-#         public-username: ${{ secrets.PUBLIC_REGISTRY_USERNAME }}
-#         public-password: ${{ secrets.PUBLIC_REGISTRY_PASSWORD }}
+#    strategy:
+#      matrix:
+#        include:
+#          # Three images are created:
+#          # - Multi-arch manifest for both amd64 and arm64
+#          - tag-suffix: ""
+#            platforms: linux/amd64,linux/arm64
+#          # - arm64 manifest
+#          - tag-suffix: "-arm64"
+#            platforms: linux/arm64
+#          # - amd64 manifest
+#          - tag-suffix: "-amd64"
+#            platforms: linux/amd64
+#    steps:
+#      ...
+#      - name: Publish manifest
+#        uses: rancher/ecm-distro-tools/actions/publish-image@master
+#        with:
+#          image: security-scan
+#          tag: ${{ github.ref_name }}${{ matrix.tag-suffix }}
+#          platforms: ${{ matrix.platforms }}
 #
-#         prime-registry: ${{ secrets.PRIME_REGISTRY }}
-#         prime-repo: ${{ secrets.PRIME_REGISTRY_REPO }}
-#         prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
-#         prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
+#          public-registry: ${{ vars.PUBLIC_REGISTRY }}
+#          public-repo: ${{ vars.PUBLIC_REGISTRY_REPO }}
+#          public-username: ${{ secrets.PUBLIC_REGISTRY_USERNAME }}
+#          public-password: ${{ secrets.PUBLIC_REGISTRY_PASSWORD }}
+#
+#          prime-registry: ${{ secrets.PRIME_REGISTRY }}
+#          prime-repo: ${{ secrets.PRIME_REGISTRY_REPO }}
+#          prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
+#          prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
 
 name: publish-image
 
@@ -35,7 +51,7 @@ inputs:
   tag:
     description: |
       The tag used for the image to be published. Most often its value
-      will be either ${{ github.ref_name }} or that with an architecture
+      will be either github.ref_name or that with an architecture
       specific suffix.
     required: true
     type: string
