@@ -386,46 +386,44 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(version, imagesListURL string, concurrencyLimit int, images []string) ([]string, error) {
-	if !semver.IsValid(version) {
-		return nil, errors.New("version is not a valid semver: " + version)
-	}
-	if len(images) == 0 {
-		const rancherWindowsImagesFile = "rancher-windows-images.txt"
-		const rancherImagesFile = "rancher-images.txt"
-
-		rancherWindowsImages, err := rancherPrimeArtifact(imagesListURL)
-		if err != nil {
-			return nil, errors.New("failed to get rancher windows images: " + err.Error())
+func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+	if len(checkImages) == 0 {
+		if imagesListURL == "" {
+			return nil, errors.New("if no images are provided, an images list URL must be provided")
 		}
-
 		rancherImages, err := rancherPrimeArtifact(imagesListURL)
 		if err != nil {
 			return nil, errors.New("failed to get rancher images: " + err.Error())
 		}
+		checkImages = append(checkImages, rancherImages...)
+	}
 
-		images = append(rancherWindowsImages, rancherImages...)
+	ignore, err := imageSliceToMap(ignoreImages)
+	if err != nil {
+		return nil, err
 	}
 
 	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
 	ctx, cancel := context.WithCancel(context.Background())
 	errGroup, ctx := errgroup.WithContext(ctx)
 	errGroup.SetLimit(concurrencyLimit)
-	missingImagesChan := make(chan string, len(images))
+	missingImagesChan := make(chan string, len(checkImages))
 
 	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
 	repositoryAuths := make(map[string]string)
 	mu := sync.RWMutex{}
 
-	for _, imageAndVersion := range images {
-		if !strings.Contains(imageAndVersion, ":") {
+	for _, imageAndVersion := range checkImages {
+		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
+		if err != nil {
 			cancel()
-			return nil, errors.New("malformed image name: , missing ':'")
+			return nil, err
 		}
 
-		splitImage := strings.Split(imageAndVersion, ":")
-		image := splitImage[0]
-		imageVersion := splitImage[1]
+		if _, ok := ignore[image]; ok {
+			log.Println("skipping ignored image: " + imageAndVersion)
+			continue
+		}
 
 		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, mu *sync.RWMutex) {
 			errGroup.Go(func() error {
@@ -482,6 +480,45 @@ func GenerateMissingImagesList(version, imagesListURL string, concurrencyLimit i
 	missingImages := readStringChan(missingImagesChan)
 
 	return missingImages, nil
+}
+
+func imageSliceToMap(images []string) (map[string]bool, error) {
+	imagesMap := make(map[string]bool, len(images))
+	for _, image := range images {
+		if err := validateRepoImage(image); err != nil {
+			return nil, err
+		}
+		imagesMap[image] = true
+	}
+	return imagesMap, nil
+}
+
+// splitImageAndVersion will validate the image format and return
+// repo/image, version and any validation errors
+// e.g: rancher/rancher-agent:v2.9.0
+func splitImageAndVersion(image string) (string, string, error) {
+	if !strings.Contains(image, ":") {
+		return "", "", errors.New("malformed image name, missing ':' " + image)
+	}
+	splitImage := strings.Split(image, ":")
+	repoImage := splitImage[0]
+	if err := validateRepoImage(repoImage); err != nil {
+		return "", "", err
+	}
+	imageVersion := splitImage[1]
+	return repoImage, imageVersion, nil
+}
+
+// validateRepoImage will validate that a given string only contains
+// the repo and image names and not the version. e.g: rancher/rancher
+func validateRepoImage(repoImage string) error {
+	if !strings.Contains(repoImage, "/") {
+		return errors.New("malformed image name, missing '/' " + repoImage)
+	}
+	if strings.Contains(repoImage, ":") {
+		return errors.New("malformed image name, the repo and image name shouldn't contain versions + " + repoImage)
+	}
+	return nil
 }
 
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {

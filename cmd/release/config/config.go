@@ -31,15 +31,14 @@ type K3sRelease struct {
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch        string   `json:"release_branch" validate:"required"`
-	RancherRepoOwner     string   `json:"rancher_repo_owner" validate:"required"`
-	IssueNumber          string   `json:"issue_number" validate:"number"`
-	CheckImages          []string `json:"check_images" validate:"required"`
-	BaseRegistry         string   `json:"base_registry" validate:"required,hostname"`
-	Registry             string   `json:"registry" validate:"required,hostname"`
-	PrimeArtifactsBucket string   `json:"prime_artifacts_bucket" validate:"required"`
-	DryRun               bool     `json:"dry_run"`
-	SkipStatusCheck      bool     `json:"skip_status_check"`
+	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	RancherRepoOwner     string `json:"rancher_repo_owner" validate:"required"`
+	IssueNumber          string `json:"issue_number" validate:"number"`
+	BaseRegistry         string `json:"base_registry" validate:"required,hostname"`
+	Registry             string `json:"registry" validate:"required,hostname"`
+	PrimeArtifactsBucket string `json:"prime_artifacts_bucket" validate:"required"`
+	DryRun               bool   `json:"dry_run"`
+	SkipStatusCheck      bool   `json:"skip_status_check"`
 }
 
 // RKE2
@@ -165,7 +164,6 @@ func ExampleConfig() (string, error) {
 					DryRun:               false,
 					SkipStatusCheck:      false,
 					RancherRepoOwner:     "rancher",
-					CheckImages:          []string{},
 					IssueNumber:          "1234",
 					BaseRegistry:         "stgregistry.suse.com",
 					Registry:             "registry.rancher.com",
