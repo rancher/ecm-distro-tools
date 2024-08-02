@@ -10,11 +10,12 @@ import (
 )
 
 var (
-	debug        bool
-	dryRun       bool
-	rootConfig   *config.Config
-	configFile   string
-	stringConfig string
+	debug          bool
+	dryRun         bool
+	ignoreValidate bool
+	rootConfig     *config.Config
+	configFile     string
+	stringConfig   string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -38,8 +39,9 @@ func SetVersion(version string) {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug")
-	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "r", false, "Drun Run")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "D", false, "Debug")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Drun Run")
+	rootCmd.PersistentFlags().BoolVarP(&ignoreValidate, "ignore-validate", "I", false, "Ignore the validate config step")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
 }
@@ -68,7 +70,9 @@ func initConfig() {
 
 	rootConfig = conf
 
-	if err := rootConfig.Validate(); err != nil {
-		panic(err)
+	if !ignoreValidate {
+		if err := rootConfig.Validate(); err != nil {
+			panic(err)
+		}
 	}
 }

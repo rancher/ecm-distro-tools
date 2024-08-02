@@ -2,6 +2,22 @@
 
 ECM Distro Tools is a collection of utilities that provide for easier administration, management, and interaction with the great Rancher ecosystems, including RKE2 and K3s.
 
+## Release CLI
+### Configuration
+**New Configuration File**
+```bash
+release config gen > $HOME/.ecm-distro-tools/config.json
+```
+**Load config from custom path**
+```bash
+release config view -c ./config.json
+```
+**Load config from string
+```bash
+release generate rancher missing-images-list v2.7.15 -C '{"rancher": { "versions": {"v2.7.15": {"check_images": ["rancher/rancher:v2.7.15"]}}}}' -i "https://prime.ribs.rancher.io/rancher/v2.7.15/rancher-images.txt" --ignore-validate
+```
+
+
 ## Building
 
 There's a mix of code in this repository. The shell scripts and shell libraries reside in the `bin` directory and are ready to use. The Go programs are rooted in the `cmd` directory and need to be compiled.
