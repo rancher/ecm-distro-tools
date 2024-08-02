@@ -12,31 +12,31 @@ import (
 
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion                 string `mapstructure:"old_k8s_version"`
-	NewK8sVersion                 string `mapstructure:"new_k8s_version"`
-	OldK8sClient                  string `mapstructure:"old_k8s_client"`
-	NewK8sClient                  string `mapstructure:"new_k8s_client"`
-	OldSuffix                     string `mapstructure:"old_suffix"`
-	NewSuffix                     string `mapstructure:"new_suffix"`
-	ReleaseBranch                 string `mapstructure:"release_branch"`
-	Workspace                     string `mapstructure:"workspace"`
+	OldK8sVersion                 string `mapstructure:"old_k8s_version" validate:"required"`
+	NewK8sVersion                 string `mapstructure:"new_k8s_version" validate:"required"`
+	OldK8sClient                  string `mapstructure:"old_k8s_client" validate:"required"`
+	NewK8sClient                  string `mapstructure:"new_k8s_client" validate:"required"`
+	OldSuffix                     string `mapstructure:"old_suffix" validate:"required,startswith=k3s"`
+	NewSuffix                     string `mapstructure:"new_suffix" validate:"required,startswith=k3s"`
+	ReleaseBranch                 string `mapstructure:"release_branch" validate:"required"`
+	Workspace                     string `mapstructure:"workspace" validate:"required,dirpath"`
 	NewGoVersion                  string `mapstructure:"-"`
-	K3sRepoOwner                  string `mapstructure:"k3s_repo_owner"`
-	SystemAgentInstallerRepoOwner string `mapstructure:"system_agent_installer_repo_owner"`
-	K8sRancherURL                 string `mapstructure:"k8s_rancher_url"`
-	K3sUpstreamURL                string `mapstructure:"k3s_upstream_url"`
+	K3sRepoOwner                  string `mapstructure:"k3s_repo_owner" validate:"required"`
+	SystemAgentInstallerRepoOwner string `mapstructure:"system_agent_installer_repo_owner" validate:"required"`
+	K8sRancherURL                 string `mapstructure:"k8s_rancher_url" validate:"required"`
+	K3sUpstreamURL                string `mapstructure:"k3s_upstream_url" validate:"required"`
 	DryRun                        bool   `mapstructure:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch        string   `mapstructure:"release_branch"`
-	RancherRepoOwner     string   `mapstructure:"rancher_repo_owner"`
-	IssueNumber          string   `mapstructure:"issue_number"`
-	CheckImages          []string `mapstructure:"check_images"`
-	BaseRegistry         string   `mapstructure:"base_registry"`
-	Registry             string   `mapstructure:"registry"`
-	PrimeArtifactsBucket string   `mapstructure:"prime_artifacts_bucket"`
+	ReleaseBranch        string   `mapstructure:"release_branch" validate:"required"`
+	RancherRepoOwner     string   `mapstructure:"rancher_repo_owner" validate:"required"`
+	IssueNumber          string   `mapstructure:"issue_number" validate:"number"`
+	CheckImages          []string `mapstructure:"check_images" validate:"required"`
+	BaseRegistry         string   `mapstructure:"base_registry" validate:"required,hostname"`
+	Registry             string   `mapstructure:"registry" validate:"required,hostname"`
+	PrimeArtifactsBucket string   `mapstructure:"prime_artifacts_bucket" validate:"required"`
 	DryRun               bool     `mapstructure:"dry_run"`
 	SkipStatusCheck      bool     `mapstructure:"skip_status_check"`
 }
@@ -48,42 +48,33 @@ type RKE2 struct {
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string `mapstructure:"workspace"`
-	ChartsRepoURL string `mapstructure:"charts_repo_url"`
-	ChartsForkURL string `mapstructure:"charts_fork_url"`
-	DevBranch     string `mapstructure:"dev_branch"`
-	ReleaseBranch string `mapstructure:"release_branch"`
+	Workspace     string `mapstructure:"workspace" validate:"required,dirpath"`
+	ChartsRepoURL string `mapstructure:"charts_repo_url" validate:"required"`
+	ChartsForkURL string `mapstructure:"charts_fork_url" validate:"required"`
+	DevBranch     string `mapstructure:"dev_branch" validate:"required"`
+	ReleaseBranch string `mapstructure:"release_branch" validate:"required"`
 }
 
 // User
 type User struct {
-	Email          string `mapstructure:"email"`
-	GithubUsername string `mapstructure:"github_username"`
+	Email          string `mapstructure:"email" validate:"required,email"`
+	GithubUsername string `mapstructure:"github_username" validate:"required"`
 }
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `mapstructure:"versions"`
+	Versions map[string]K3sRelease `mapstructure:"versions" validate:"dive"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `mapstructure:"versions"`
-}
-
-// Drone
-type Drone struct {
-	K3sPR          string `mapstructure:"k3s_pr"`
-	K3sPublish     string `mapstructure:"k3s_publish"`
-	RancherPR      string `mapstructure:"rancher_pr"`
-	RancherPublish string `mapstructure:"rancher_publish"`
+	Versions map[string]RancherRelease `mapstructure:"versions" validate:"dive"`
 }
 
 // Auth
 type Auth struct {
-	Drone       *Drone `mapstructure:"drone"`
 	GithubToken string `mapstructure:"github_token"`
-	SSHKeyPath  string `mapstructure:"ssh_key_path"`
+	SSHKeyPath  string `mapstructure:"ssh_key_path" validate:"file"`
 }
 
 // Config

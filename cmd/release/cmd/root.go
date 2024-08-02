@@ -3,12 +3,14 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
+	v          *viper.Viper
 	debug      bool
 	dryRun     bool
 	rootConfig *config.Config
@@ -39,7 +41,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "r", false, "Drun Run")
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "$HOME/.ecm-distro-tools", "path for the config.json file")
 
-	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
+	v = viper.NewWithOptions(viper.KeyDelimiter("::"))
 	v.SetConfigName("config")
 	v.SetConfigType("json")
 	v.AddConfigPath(configPath)
@@ -51,5 +53,9 @@ func init() {
 		fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configPath)
 		panic(err)
 	}
-	fmt.Printf("%+v", rootConfig.K3s)
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	if err = validate.Struct(rootConfig); err != nil {
+		panic(err)
+	}
 }
