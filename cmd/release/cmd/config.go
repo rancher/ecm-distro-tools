@@ -17,7 +17,7 @@ var genConfigSubCmd = &cobra.Command{
 	Use:   "gen",
 	Short: "Generates a config file in the default location if it doesn't exists",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := config.Generate(); err != nil {
+		if err := config.Generate(configPath); err != nil {
 			return err
 		}
 
@@ -42,7 +42,7 @@ var editConfigSubCmd = &cobra.Command{
 	Short: "Open the config file in your default editor",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return config.OpenOnEditor()
+		return config.OpenOnEditor(configPath)
 	},
 }
 

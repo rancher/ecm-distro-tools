@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,146 +10,104 @@ import (
 	"text/template"
 )
 
-const (
-	ecmDistroDir   = ".ecm-distro-tools"
-	configFileName = "config.json"
-)
-
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion                 string `json:"old_k8s_version"`
-	NewK8sVersion                 string `json:"new_k8s_version"`
-	OldK8sClient                  string `json:"old_k8s_client"`
-	NewK8sClient                  string `json:"new_k8s_client"`
-	OldSuffix                     string `json:"old_suffix"`
-	NewSuffix                     string `json:"new_suffix"`
-	ReleaseBranch                 string `json:"release_branch"`
-	Workspace                     string `json:"workspace"`
-	NewGoVersion                  string `json:"-"`
-	K3sRepoOwner                  string `json:"k3s_repo_owner"`
-	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner"`
-	K8sRancherURL                 string `json:"k8s_rancher_url"`
-	K3sUpstreamURL                string `json:"k3s_upstream_url"`
-	DryRun                        bool   `json:"dry_run"`
+	OldK8sVersion                 string `mapstructure:"old_k8s_version"`
+	NewK8sVersion                 string `mapstructure:"new_k8s_version"`
+	OldK8sClient                  string `mapstructure:"old_k8s_client"`
+	NewK8sClient                  string `mapstructure:"new_k8s_client"`
+	OldSuffix                     string `mapstructure:"old_suffix"`
+	NewSuffix                     string `mapstructure:"new_suffix"`
+	ReleaseBranch                 string `mapstructure:"release_branch"`
+	Workspace                     string `mapstructure:"workspace"`
+	NewGoVersion                  string `mapstructure:"-"`
+	K3sRepoOwner                  string `mapstructure:"k3s_repo_owner"`
+	SystemAgentInstallerRepoOwner string `mapstructure:"system_agent_installer_repo_owner"`
+	K8sRancherURL                 string `mapstructure:"k8s_rancher_url"`
+	K3sUpstreamURL                string `mapstructure:"k3s_upstream_url"`
+	DryRun                        bool   `mapstructure:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch        string   `json:"release_branch"`
-	RancherRepoOwner     string   `json:"rancher_repo_owner"`
-	IssueNumber          string   `json:"issue_number"`
-	CheckImages          []string `json:"check_images"`
-	BaseRegistry         string   `json:"base_registry"`
-	Registry             string   `json:"registry"`
-	PrimeArtifactsBucket string   `json:"prime_artifacts_bucket"`
-	DryRun               bool     `json:"dry_run"`
-	SkipStatusCheck      bool     `json:"skip_status_check"`
+	ReleaseBranch        string   `mapstructure:"release_branch"`
+	RancherRepoOwner     string   `mapstructure:"rancher_repo_owner"`
+	IssueNumber          string   `mapstructure:"issue_number"`
+	CheckImages          []string `mapstructure:"check_images"`
+	BaseRegistry         string   `mapstructure:"base_registry"`
+	Registry             string   `mapstructure:"registry"`
+	PrimeArtifactsBucket string   `mapstructure:"prime_artifacts_bucket"`
+	DryRun               bool     `mapstructure:"dry_run"`
+	SkipStatusCheck      bool     `mapstructure:"skip_status_check"`
 }
 
 // RKE2
 type RKE2 struct {
-	Versions []string `json:"versions"`
+	Versions []string `mapstructure:"versions"`
 }
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string `json:"workspace"`
-	ChartsRepoURL string `json:"charts_repo_url"`
-	ChartsForkURL string `json:"charts_fork_url"`
-	DevBranch     string `json:"dev_branch"`
-	ReleaseBranch string `json:"release_branch"`
+	Workspace     string `mapstructure:"workspace"`
+	ChartsRepoURL string `mapstructure:"charts_repo_url"`
+	ChartsForkURL string `mapstructure:"charts_fork_url"`
+	DevBranch     string `mapstructure:"dev_branch"`
+	ReleaseBranch string `mapstructure:"release_branch"`
 }
 
 // User
 type User struct {
-	Email          string `json:"email"`
-	GithubUsername string `json:"github_username"`
+	Email          string `mapstructure:"email"`
+	GithubUsername string `mapstructure:"github_username"`
 }
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `json:"versions"`
+	Versions map[string]K3sRelease `mapstructure:"versions"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `json:"versions"`
+	Versions map[string]RancherRelease `mapstructure:"versions"`
 }
 
 // Drone
 type Drone struct {
-	K3sPR          string `json:"k3s_pr"`
-	K3sPublish     string `json:"k3s_publish"`
-	RancherPR      string `json:"rancher_pr"`
-	RancherPublish string `json:"rancher_publish"`
+	K3sPR          string `mapstructure:"k3s_pr"`
+	K3sPublish     string `mapstructure:"k3s_publish"`
+	RancherPR      string `mapstructure:"rancher_pr"`
+	RancherPublish string `mapstructure:"rancher_publish"`
 }
 
 // Auth
 type Auth struct {
-	Drone       *Drone `json:"drone"`
-	GithubToken string `json:"github_token"`
-	SSHKeyPath  string `json:"ssh_key_path"`
+	Drone       *Drone `mapstructure:"drone"`
+	GithubToken string `mapstructure:"github_token"`
+	SSHKeyPath  string `mapstructure:"ssh_key_path"`
 }
 
 // Config
 type Config struct {
-	User    *User          `json:"user"`
-	K3s     *K3s           `json:"k3s"`
-	Rancher *Rancher       `json:"rancher"`
-	RKE2    *RKE2          `json:"rke2"`
-	Charts  *ChartsRelease `json:"charts"`
-	Auth    *Auth          `json:"auth"`
-}
-
-func DefaultConfigPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", nil
-	}
-
-	return filepath.Join(homeDir, ecmDistroDir, configFileName), nil
+	User    *User          `mapstructure:"user"`
+	K3s     *K3s           `mapstructure:"k3s"`
+	Rancher *Rancher       `mapstructure:"rancher"`
+	RKE2    *RKE2          `mapstructure:"rke2"`
+	Charts  *ChartsRelease `mapstructure:"charts"`
+	Auth    *Auth          `mapstructure:"auth"`
 }
 
 // Load reads the given config file and returns a struct
 // containing the necessary values to perform a release.
-func Load(configFile string) (*Config, error) {
-	f, err := os.Open(configFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return read(f)
-}
-
-func read(r io.Reader) (*Config, error) {
-	var c Config
-	if err := json.NewDecoder(r).Decode(&c); err != nil {
-		return nil, err
-	}
-
-	return &c, nil
-}
-
-func OpenOnEditor() error {
-	confPath, err := DefaultConfigPath()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(textEditorName(), confPath)
+func OpenOnEditor(configPath string) error {
+	cmd := exec.Command(textEditorName(), filepath.Join(os.ExpandEnv(configPath), "config.json"))
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 
 	return cmd.Run()
 }
 
-func Generate() error {
+func Generate(configPath string) error {
 	configExists := true
-
-	configPath, err := DefaultConfigPath()
-	if err != nil {
-		return err
-	}
 
 	if _, err := os.Stat(configPath); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
@@ -230,12 +187,6 @@ func exampleConfig() Config {
 			ReleaseBranch: "release-v2.9",
 		},
 		Auth: &Auth{
-			Drone: &Drone{
-				K3sPR:          "YOUR_TOKEN",
-				K3sPublish:     "YOUR_TOKEN",
-				RancherPR:      "YOUR_TOKEN",
-				RancherPublish: "YOUR_TOKEN",
-			},
 			GithubToken: "YOUR_TOKEN",
 			SSHKeyPath:  "path/to/your/ssh/key",
 		},

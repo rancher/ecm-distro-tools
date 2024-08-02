@@ -71,14 +71,14 @@ var rke2TagSubCmd = &cobra.Command{
 
 		switch args[0] {
 		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2Flags.AlpineVersion, *dryRun); err != nil {
+			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2Flags.AlpineVersion, dryRun); err != nil {
 				return err
 			}
 		case "image-build-kubernetes":
 			now := time.Now().UTC().Format("20060102")
 			suffix := "-rke2" + *tagRKE2Flags.ReleaseVersion + "-build" + now
 
-			if *dryRun {
+			if dryRun {
 				fmt.Println("dry-run:")
 				for _, version := range rootConfig.RKE2.Versions {
 					fmt.Println("\t" + version + suffix)
@@ -111,7 +111,7 @@ var rke2TagSubCmd = &cobra.Command{
 				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *tagRKE2Flags.ReleaseVersion, *tagRKE2Flags.RCVersion, args[1], *tagRKE2Flags.RPMVersion)
 			}
 
-			if *dryRun {
+			if dryRun {
 				fmt.Print("(dry-run)\n\nTagging github.com/rancher/rke2-packaging:\n\n")
 				for _, version := range rootConfig.RKE2.Versions {
 					fmt.Println("\t" + version + rpmTag)
@@ -211,8 +211,6 @@ func init() {
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
-
-	dryRun = tagCmd.PersistentFlags().BoolP("dry-run", "r", false, "dry run")
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")

@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var dryRun *bool
-var rootConfig *config.Config
+var (
+	debug      bool
+	dryRun     bool
+	rootConfig *config.Config
+	configPath string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -22,8 +26,7 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println("error: " + err.Error())
-		os.Exit(1)
+		panic(err)
 	}
 }
 
@@ -32,26 +35,21 @@ func SetVersion(version string) {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "r", false, "Drun Run")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "$HOME/.ecm-distro-tools", "path for the config.json file")
 
-	configPath, err := config.DefaultConfigPath()
+	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
+	v.SetConfigName("config")
+	v.SetConfigType("json")
+	v.AddConfigPath(configPath)
+	err := v.ReadInConfig()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(fmt.Errorf("fatal error config file: %w", err))
 	}
-
-	if len(os.Args) >= 2 {
-		if os.Args[1] == "config" && os.Args[2] == "gen" {
-			fmt.Println("running release config gen, skipping config load")
-			return
-		}
-	}
-	conf, err := config.Load(configPath)
-	if err != nil {
+	if err = v.Unmarshal(&rootConfig); err != nil {
 		fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configPath)
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
-
-	rootConfig = conf
+	fmt.Printf("%+v", rootConfig.K3s)
 }
