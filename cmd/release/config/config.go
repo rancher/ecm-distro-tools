@@ -2,120 +2,100 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"text/template"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion                 string `mapstructure:"old_k8s_version" validate:"required"`
-	NewK8sVersion                 string `mapstructure:"new_k8s_version" validate:"required"`
-	OldK8sClient                  string `mapstructure:"old_k8s_client" validate:"required"`
-	NewK8sClient                  string `mapstructure:"new_k8s_client" validate:"required"`
-	OldSuffix                     string `mapstructure:"old_suffix" validate:"required,startswith=k3s"`
-	NewSuffix                     string `mapstructure:"new_suffix" validate:"required,startswith=k3s"`
-	ReleaseBranch                 string `mapstructure:"release_branch" validate:"required"`
-	Workspace                     string `mapstructure:"workspace" validate:"required,dirpath"`
-	NewGoVersion                  string `mapstructure:"-"`
-	K3sRepoOwner                  string `mapstructure:"k3s_repo_owner" validate:"required"`
-	SystemAgentInstallerRepoOwner string `mapstructure:"system_agent_installer_repo_owner" validate:"required"`
-	K8sRancherURL                 string `mapstructure:"k8s_rancher_url" validate:"required"`
-	K3sUpstreamURL                string `mapstructure:"k3s_upstream_url" validate:"required"`
-	DryRun                        bool   `mapstructure:"dry_run"`
+	OldK8sVersion                 string `json:"old_k8s_version" validate:"required"`
+	NewK8sVersion                 string `json:"new_k8s_version" validate:"required"`
+	OldK8sClient                  string `json:"old_k8s_client" validate:"required"`
+	NewK8sClient                  string `json:"new_k8s_client" validate:"required"`
+	OldSuffix                     string `json:"old_suffix" validate:"required,startswith=k3s"`
+	NewSuffix                     string `json:"new_suffix" validate:"required,startswith=k3s"`
+	ReleaseBranch                 string `json:"release_branch" validate:"required"`
+	Workspace                     string `json:"workspace" validate:"required,dirpath"`
+	NewGoVersion                  string `json:"-"`
+	K3sRepoOwner                  string `json:"k3s_repo_owner" validate:"required"`
+	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner" validate:"required"`
+	K8sRancherURL                 string `json:"k8s_rancher_url" validate:"required"`
+	K3sUpstreamURL                string `json:"k3s_upstream_url" validate:"required"`
+	DryRun                        bool   `json:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch        string   `mapstructure:"release_branch" validate:"required"`
-	RancherRepoOwner     string   `mapstructure:"rancher_repo_owner" validate:"required"`
-	IssueNumber          string   `mapstructure:"issue_number" validate:"number"`
-	CheckImages          []string `mapstructure:"check_images" validate:"required"`
-	BaseRegistry         string   `mapstructure:"base_registry" validate:"required,hostname"`
-	Registry             string   `mapstructure:"registry" validate:"required,hostname"`
-	PrimeArtifactsBucket string   `mapstructure:"prime_artifacts_bucket" validate:"required"`
-	DryRun               bool     `mapstructure:"dry_run"`
-	SkipStatusCheck      bool     `mapstructure:"skip_status_check"`
+	ReleaseBranch        string   `json:"release_branch" validate:"required"`
+	RancherRepoOwner     string   `json:"rancher_repo_owner" validate:"required"`
+	IssueNumber          string   `json:"issue_number" validate:"number"`
+	CheckImages          []string `json:"check_images" validate:"required"`
+	BaseRegistry         string   `json:"base_registry" validate:"required,hostname"`
+	Registry             string   `json:"registry" validate:"required,hostname"`
+	PrimeArtifactsBucket string   `json:"prime_artifacts_bucket" validate:"required"`
+	DryRun               bool     `json:"dry_run"`
+	SkipStatusCheck      bool     `json:"skip_status_check"`
 }
 
 // RKE2
 type RKE2 struct {
-	Versions []string `mapstructure:"versions"`
+	Versions []string `json:"versions"`
 }
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string `mapstructure:"workspace" validate:"required,dirpath"`
-	ChartsRepoURL string `mapstructure:"charts_repo_url" validate:"required"`
-	ChartsForkURL string `mapstructure:"charts_fork_url" validate:"required"`
-	DevBranch     string `mapstructure:"dev_branch" validate:"required"`
-	ReleaseBranch string `mapstructure:"release_branch" validate:"required"`
+	Workspace     string `json:"workspace" validate:"required,dirpath"`
+	ChartsRepoURL string `json:"charts_repo_url" validate:"required"`
+	ChartsForkURL string `json:"charts_fork_url" validate:"required"`
+	DevBranch     string `json:"dev_branch" validate:"required"`
+	ReleaseBranch string `json:"release_branch" validate:"required"`
 }
 
 // User
 type User struct {
-	Email          string `mapstructure:"email" validate:"required,email"`
-	GithubUsername string `mapstructure:"github_username" validate:"required"`
+	Email          string `json:"email" validate:"required,email"`
+	GithubUsername string `json:"github_username" validate:"required"`
 }
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `mapstructure:"versions" validate:"dive"`
+	Versions map[string]K3sRelease `json:"versions" validate:"dive"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `mapstructure:"versions" validate:"dive"`
+	Versions map[string]RancherRelease `json:"versions" validate:"dive"`
 }
 
 // Auth
 type Auth struct {
-	GithubToken string `mapstructure:"github_token"`
-	SSHKeyPath  string `mapstructure:"ssh_key_path" validate:"file"`
+	GithubToken string `json:"github_token"`
+	SSHKeyPath  string `json:"ssh_key_path" validate:"filepath"`
 }
 
 // Config
 type Config struct {
-	User    *User          `mapstructure:"user"`
-	K3s     *K3s           `mapstructure:"k3s"`
-	Rancher *Rancher       `mapstructure:"rancher"`
-	RKE2    *RKE2          `mapstructure:"rke2"`
-	Charts  *ChartsRelease `mapstructure:"charts"`
-	Auth    *Auth          `mapstructure:"auth"`
+	User    *User          `json:"user"`
+	K3s     *K3s           `json:"k3s"`
+	Rancher *Rancher       `json:"rancher"`
+	RKE2    *RKE2          `json:"rke2"`
+	Charts  *ChartsRelease `json:"charts"`
+	Auth    *Auth          `json:"auth"`
 }
 
 // Load reads the given config file and returns a struct
 // containing the necessary values to perform a release.
-func OpenOnEditor(configPath string) error {
-	cmd := exec.Command(textEditorName(), filepath.Join(os.ExpandEnv(configPath), "config.json"))
+func OpenOnEditor(configFile string) error {
+	cmd := exec.Command(textEditorName(), configFile)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 
 	return cmd.Run()
-}
-
-func Generate(configPath string) error {
-	configExists := true
-
-	if _, err := os.Stat(configPath); err != nil {
-		if !strings.Contains(err.Error(), "no such file or directory") {
-			return err
-		}
-		configExists = false
-	}
-	if configExists {
-		return errors.New("config already exists at " + configPath)
-	}
-
-	confB, err := json.MarshalIndent(exampleConfig(), "", " ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(configPath, confB, 0644)
 }
 
 func textEditorName() string {
@@ -126,13 +106,31 @@ func textEditorName() string {
 
 	return editor
 }
+func Load(configFile string) (*Config, error) {
+	f, err := os.Open(configFile)
+	if err != nil {
+		return nil, err
+	}
 
-func exampleConfig() Config {
+	return Read(f)
+}
+
+func Read(r io.Reader) (*Config, error) {
+	var c Config
+	if err := json.NewDecoder(r).Decode(&c); err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+func ExampleConfig() (string, error) {
 	gopath := os.Getenv("GOPATH")
 
-	return Config{
+	conf := Config{
 		User: &User{
-			Email: "your.name@suse.com",
+			Email:          "your.name@suse.com",
+			GithubUsername: "your-github-username",
 		},
 		K3s: &K3s{
 			Versions: map[string]K3sRelease{
@@ -145,7 +143,7 @@ func exampleConfig() Config {
 					NewSuffix:                     "k3s1",
 					ReleaseBranch:                 "release-1.x",
 					DryRun:                        false,
-					Workspace:                     filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes", "v1.x.z"),
+					Workspace:                     filepath.Join(gopath, "src", "github.com", "k3s-io", "kubernetes", "v1.x.z") + "/",
 					SystemAgentInstallerRepoOwner: "rancher",
 					K3sRepoOwner:                  "k3s-io",
 					K8sRancherURL:                 "git@github.com:k3s-io/kubernetes.git",
@@ -164,6 +162,7 @@ func exampleConfig() Config {
 					SkipStatusCheck:      false,
 					RancherRepoOwner:     "rancher",
 					CheckImages:          []string{},
+					IssueNumber:          "1234",
 					BaseRegistry:         "stgregistry.suse.com",
 					Registry:             "registry.rancher.com",
 					PrimeArtifactsBucket: "prime-artifacts",
@@ -171,9 +170,9 @@ func exampleConfig() Config {
 			},
 		},
 		Charts: &ChartsRelease{
-			Workspace:     filepath.Join(gopath, "src", "github.com", "rancher", "charts"),
+			Workspace:     filepath.Join(gopath, "src", "github.com", "rancher", "charts") + "/",
 			ChartsRepoURL: "https://github.com/rancher/charts",
-			ChartsForkURL: "",
+			ChartsForkURL: "https://github.com/your-github-username/charts",
 			DevBranch:     "dev-v2.9",
 			ReleaseBranch: "release-v2.9",
 		},
@@ -182,6 +181,11 @@ func exampleConfig() Config {
 			SSHKeyPath:  "path/to/your/ssh/key",
 		},
 	}
+	confBytes, err := json.MarshalIndent(conf, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(confBytes), nil
 }
 
 func View(config *Config) error {
@@ -191,6 +195,10 @@ func View(config *Config) error {
 	}
 
 	return tmp.Execute(os.Stdout, config)
+}
+
+func (c *Config) Validate() error {
+	return validator.New(validator.WithRequiredStructEnabled()).Struct(c)
 }
 
 const configViewTemplate = `Release config
