@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -54,17 +53,15 @@ func initConfig() {
 	var conf *config.Config
 	var err error
 	if stringConfig != "" {
-		log.Println("loading string config")
 		conf, err = config.Read(strings.NewReader(stringConfig))
 		if err != nil {
-			fmt.Println("failed to load string config")
 			panic(err)
 		}
 	} else {
 		configFile = os.ExpandEnv(configFile)
 		conf, err = config.Load(configFile)
 		if err != nil {
-			fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
+			log.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
 			panic(err)
 		}
 	}
