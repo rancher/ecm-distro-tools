@@ -12,7 +12,7 @@ release config gen > $HOME/.ecm-distro-tools/config.json
 ```bash
 release config view -c ./config.json
 ```
-**Load config from string
+**Load config from string**
 ```bash
 release generate rancher missing-images-list v2.7.15 -C '{"rancher": { "versions": {"v2.7.15": {"check_images": ["rancher/rancher:v2.7.15"]}}}}' -i "https://prime.ribs.rancher.io/rancher/v2.7.15/rancher-images.txt" --ignore-validate
 ```
