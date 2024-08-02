@@ -19,7 +19,7 @@ func List(ctx context.Context, c *config.ChartsRelease, branch, chart string) (s
 		chartArg = "--chart=" + chart
 	}
 
-	output, err := runChartsBuildScripts(c.Workspace, "lifecycle-status", branchArg, chartArg)
+	output, err := runChartsBuild(c.Workspace, "lifecycle-status", branchArg, chartArg)
 	if err != nil {
 		return "", err
 	}
@@ -28,16 +28,16 @@ func List(ctx context.Context, c *config.ChartsRelease, branch, chart string) (s
 	return response, nil
 }
 
-func runChartsBuildScripts(chartsRepoPath string, args ...string) ([]byte, error) {
+func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
 	// save current working dir
 	ecmWorkDir, err := os.Getwd()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	// change working dir to the charts repo
 	if err := os.Chdir(chartsRepoPath); err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	bin := strings.Join([]string{chartsRepoPath, "bin", "charts-build-scripts"}, string(os.PathSeparator))
@@ -45,12 +45,12 @@ func runChartsBuildScripts(chartsRepoPath string, args ...string) ([]byte, error
 	cmd := exec.Command(bin, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	// Change back working dir for the caller
 	if err := os.Chdir(ecmWorkDir); err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	return output, nil

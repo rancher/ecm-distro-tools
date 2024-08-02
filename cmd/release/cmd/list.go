@@ -45,7 +45,6 @@ var chartsListSubCmd = &cobra.Command{
 	Use:   "charts [branch] [charts](optional)",
 	Short: "List Charts assets versions state for release process",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		var branch, chart string
 
 		if len(args) < 1 {
