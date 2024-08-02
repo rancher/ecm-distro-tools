@@ -88,8 +88,7 @@ type Config struct {
 	Auth    *Auth          `json:"auth"`
 }
 
-// Load reads the given config file and returns a struct
-// containing the necessary values to perform a release.
+// OpenOnEditor opens the given config file on the user's default text editor.
 func OpenOnEditor(configFile string) error {
 	cmd := exec.Command(textEditorName(), configFile)
 	cmd.Stdin = os.Stdin
@@ -106,6 +105,9 @@ func textEditorName() string {
 
 	return editor
 }
+
+// Load reads the given config file and returns a struct
+// containing the necessary values to perform a release.
 func Load(configFile string) (*Config, error) {
 	f, err := os.Open(configFile)
 	if err != nil {
@@ -115,6 +117,7 @@ func Load(configFile string) (*Config, error) {
 	return Read(f)
 }
 
+// Read reads the given JSON file with the config and returns a struct
 func Read(r io.Reader) (*Config, error) {
 	var c Config
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
@@ -124,6 +127,7 @@ func Read(r io.Reader) (*Config, error) {
 	return &c, nil
 }
 
+// ExampleConfig returns a valid JSON string with the config structure
 func ExampleConfig() (string, error) {
 	gopath := os.Getenv("GOPATH")
 
@@ -188,6 +192,7 @@ func ExampleConfig() (string, error) {
 	return string(b), nil
 }
 
+// View prints a simplified view of the config to the standard output
 func View(config *Config) error {
 	tmp, err := template.New("ecm").Parse(configViewTemplate)
 	if err != nil {
