@@ -181,11 +181,11 @@ func ExampleConfig() (string, error) {
 			SSHKeyPath:  "path/to/your/ssh/key",
 		},
 	}
-	confBytes, err := json.MarshalIndent(conf, "", "  ")
+	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	return string(confBytes), nil
+	return string(b), nil
 }
 
 func View(config *Config) error {
