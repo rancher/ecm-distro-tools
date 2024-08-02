@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	cobra.OnInitialize(initConfig)
 	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -40,7 +40,7 @@ func SetVersion(version string) {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "D", false, "Debug")
-	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Drun Run")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Dry Run")
 	rootCmd.PersistentFlags().BoolVarP(&ignoreValidate, "ignore-validate", "I", false, "Ignore the validate config step")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
