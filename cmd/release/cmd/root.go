@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -38,7 +39,7 @@ func SetVersion(version string) {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "D", false, "Debug")
-	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Dry Run")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Drun Run")
 	rootCmd.PersistentFlags().BoolVarP(&ignoreValidate, "ignore-validate", "I", false, "Ignore the validate config step")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
@@ -55,14 +56,16 @@ func initConfig() {
 	if stringConfig != "" {
 		conf, err = config.Read(strings.NewReader(stringConfig))
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	} else {
 		configFile = os.ExpandEnv(configFile)
 		conf, err = config.Load(configFile)
 		if err != nil {
 			log.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 
@@ -70,7 +73,8 @@ func initConfig() {
 
 	if !ignoreValidate {
 		if err := rootConfig.Validate(); err != nil {
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 }
