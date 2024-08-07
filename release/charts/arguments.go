@@ -3,7 +3,6 @@ package charts
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,12 +28,7 @@ func loadState(filePath string) (*status, error) {
 		return nil, err
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(data, &s); err != nil {
+	if err := json.NewDecoder(file).Decode(&s); err != nil {
 		return nil, err
 	}
 
