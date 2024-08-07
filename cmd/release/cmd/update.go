@@ -122,7 +122,6 @@ var updateChartsCmd = &cobra.Command{
 
 		output, err := charts.Update(context.Background(), rootConfig.Charts, branch, chart, version)
 		if err != nil {
-			fmt.Println(output)
 			return err
 		}
 

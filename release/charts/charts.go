@@ -82,12 +82,14 @@ func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
 	cmd := exec.Command(bin, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return output, err
+		err = fmt.Errorf("error: %w; log: %s", err, output)
+		return nil, err
 	}
 
 	// Change back working dir for the caller
 	if err := os.Chdir(ecmWorkDir); err != nil {
-		return output, err
+		err = fmt.Errorf("error: %w; log: %s", err, output)
+		return nil, err
 	}
 
 	return output, nil
