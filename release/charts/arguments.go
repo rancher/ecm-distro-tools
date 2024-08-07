@@ -89,51 +89,44 @@ func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]str
 
 // CheckBranchArgs will check if the branch line exists
 func CheckBranchArgs(branch string) bool {
-	var found bool
 	availableBranches := BranchArgs()
-
 	for _, b := range availableBranches {
 		if b == branch {
-			found = true
-			break
+			return true
 		}
 	}
 
-	return found
+	return false
 }
 
 // CheckChartArgs will check if the chart exists in the available charts
 func CheckChartArgs(ctx context.Context, conf *config.ChartsRelease, ch string) (bool, error) {
-	var found bool
 	availableCharts, err := ChartArgs(ctx, conf)
 	if err != nil {
-		return found, err
+		return false, err
 	}
 
 	for _, c := range availableCharts {
 		if c == ch {
-			found = true
-			break
+			return true, nil
 		}
 	}
 
-	return found, nil
+	return false, nil
 }
 
 // CheckVersionArgs exists to be released or forward ported
 func CheckVersionArgs(ctx context.Context, conf *config.ChartsRelease, ch, v string) (bool, error) {
-	var found bool
 	availableVersions, err := VersionArgs(ctx, conf, ch)
 	if err != nil {
-		return found, err
+		return false, err
 	}
 
 	for _, c := range availableVersions {
 		if c == v {
-			found = true
-			break
+			return true, nil
 		}
 	}
 
-	return found, nil
+	return false, nil
 }
