@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 )
 
@@ -31,7 +30,7 @@ func List(ctx context.Context, c *config.ChartsRelease, branch, chart string) (s
 }
 
 // Update will pull the target chart version to the local branch and create a PR to release the chart
-func Update(ctx context.Context, gh *github.Client, c *config.ChartsRelease, br, ch, vr string) (string, error) {
+func Update(ctx context.Context, c *config.ChartsRelease, br, ch, vr string) (string, error) {
 	var branchArg, chartArg, versionArg, forkArg string
 
 	branchArg = "--branch-version=" + br
