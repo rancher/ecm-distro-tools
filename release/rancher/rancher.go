@@ -516,7 +516,7 @@ func validateRepoImage(repoImage string) error {
 		return errors.New("malformed image name, missing '/' " + repoImage)
 	}
 	if strings.Contains(repoImage, ":") {
-		return errors.New("malformed image name, the repo and image name shouldn't contain versions + " + repoImage)
+		return errors.New("malformed image name, the repo and image name shouldn't contain versions: " + repoImage)
 	}
 	return nil
 }
