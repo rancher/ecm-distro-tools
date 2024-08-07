@@ -21,6 +21,9 @@ var (
 
 	concurrencyLimit                    int
 	imagesListURL                       string
+	ignoreImages                        []string
+	checkImages                         []string
+	registry                            string
 	rancherMissingImagesJSONOutput      bool
 	rke2PrevMilestone                   string
 	rke2Milestone                       string
@@ -115,19 +118,13 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 }
 
 var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
-	Use:   "missing-images-list [version]",
+	Use:   "missing-images-list",
 	Short: "Generate a missing images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("expected at least one argument: [version]")
+		if len(checkImages) == 0 && imagesListURL == "" {
+			return errors.New("either --images-list-url or --check-images must be provided")
 		}
-		checkImages := make([]string, 0)
-		version := args[0]
-		rancherRelease, found := rootConfig.Rancher.Versions[version]
-		if found {
-			checkImages = rancherRelease.CheckImages
-		}
-		missingImages, err := rancher.GenerateMissingImagesList(version, imagesListURL, concurrencyLimit, checkImages)
+		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, concurrencyLimit, checkImages, ignoreImages)
 		if err != nil {
 			return err
 		}
@@ -204,10 +201,9 @@ func init() {
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", 3, "Concurrency Limit")
 	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
-	if err := rancherGenerateMissingImagesListSubCmd.MarkFlagRequired("images-list-url"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located at")
 
 	// rancher generate docker-images-digests
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsOutputFile, "output-file", "o", "", "Output file with images digests")
