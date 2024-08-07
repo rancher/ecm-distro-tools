@@ -2,6 +2,7 @@ package charts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -82,14 +83,12 @@ func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
 	cmd := exec.Command(bin, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("error: %w; log: %s", err, output)
-		return nil, err
+		return nil, errors.New(err.Error() + ": " + string(output))
 	}
 
 	// Change back working dir for the caller
 	if err := os.Chdir(ecmWorkDir); err != nil {
-		err = fmt.Errorf("error: %w; log: %s", err, output)
-		return nil, err
+		return nil, errors.New(err.Error() + ": " + string(output))
 	}
 
 	return output, nil
