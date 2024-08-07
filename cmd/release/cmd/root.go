@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -20,9 +21,10 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:          "release",
-	Short:        "Central command to perform RKE2, K3s and Rancher Releases",
-	SilenceUsage: true,
+	Use:           "release",
+	Short:         "Central command to perform RKE2, K3s, Rancher and Chart Releases",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -30,7 +32,8 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	cobra.OnInitialize(initConfig)
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		fmt.Println("error: ", err)
+		os.Exit(1)
 	}
 }
 
@@ -57,14 +60,16 @@ func initConfig() {
 	if stringConfig != "" {
 		conf, err = config.Read(strings.NewReader(stringConfig))
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	} else {
 		configFile = os.ExpandEnv(configFile)
 		conf, err = config.Load(configFile)
 		if err != nil {
 			log.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 
@@ -72,7 +77,8 @@ func initConfig() {
 
 	if !ignoreValidate {
 		if err := rootConfig.Validate(); err != nil {
-			panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 }
