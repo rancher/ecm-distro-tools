@@ -46,7 +46,7 @@ var updateK3sReferencesCmd = &cobra.Command{
 }
 
 var updateChartsCmd = &cobra.Command{
-	Use:     "charts [branch] [chart] [version]",
+	Use:     "charts [branch-line] [chart] [version]",
 	Short:   "Update charts files locally, stage and commit the changes.",
 	Example: "release update charts 2.9 rancher-istio 104.0.0+up1.21.1",
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -55,7 +55,7 @@ var updateChartsCmd = &cobra.Command{
 		}
 
 		if len(args) != 3 {
-			return errors.New("expected 3 arguments: [branch] [chart] [version]")
+			return errors.New("expected 3 arguments: [branch-line] [chart] [version]")
 		}
 
 		var branch, chart, version string
@@ -66,7 +66,7 @@ var updateChartsCmd = &cobra.Command{
 		chart = args[1]
 		version = args[2]
 
-		found = charts.CheckBranchArgs(branch)
+		found = charts.CheckBranchArgs(branch, rootConfig.Charts.BranchLines)
 		if !found {
 			return errors.New("branch not available: " + branch)
 		}
@@ -95,7 +95,7 @@ var updateChartsCmd = &cobra.Command{
 		}
 
 		if len(args) == 0 {
-			return charts.BranchArgs(), cobra.ShellCompDirectiveNoFileComp
+			return rootConfig.Charts.BranchLines, cobra.ShellCompDirectiveNoFileComp
 		} else if len(args) == 1 {
 			chArgs, err := charts.ChartArgs(context.Background(), rootConfig.Charts)
 			if err != nil {

@@ -35,11 +35,6 @@ func loadState(filePath string) (*status, error) {
 	return s, nil
 }
 
-// BranchArgs will return the list of available branch version lines
-func BranchArgs() []string {
-	return []string{"2.9", "2.8"}
-}
-
 // ChartArgs will return the list of available charts in the current branch
 func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
 	assets := filepath.Join(c.Workspace, "assets")
@@ -88,8 +83,7 @@ func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]str
 }
 
 // CheckBranchArgs will check if the branch line exists
-func CheckBranchArgs(branch string) bool {
-	availableBranches := BranchArgs()
+func CheckBranchArgs(branch string, availableBranches []string) bool {
 	for _, b := range availableBranches {
 		if b == branch {
 			return true

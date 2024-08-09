@@ -48,11 +48,10 @@ type RKE2 struct {
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string `json:"workspace" validate:"required,dirpath"`
-	ChartsRepoURL string `json:"charts_repo_url" validate:"required"`
-	ChartsForkURL string `json:"charts_fork_url" validate:"required"`
-	DevBranch     string `json:"dev_branch" validate:"required"`
-	ReleaseBranch string `json:"release_branch" validate:"required"`
+	Workspace     string   `json:"workspace" validate:"required,dirpath"`
+	ChartsRepoURL string   `json:"charts_repo_url" validate:"required"`
+	ChartsForkURL string   `json:"charts_fork_url" validate:"required"`
+	BranchLines   []string `json:"branch_lines" validate:"required"`
 }
 
 // User
@@ -175,8 +174,7 @@ func ExampleConfig() (string, error) {
 			Workspace:     filepath.Join(gopath, "src", "github.com", "rancher", "charts") + "/",
 			ChartsRepoURL: "https://github.com/rancher/charts",
 			ChartsForkURL: "https://github.com/your-github-username/charts",
-			DevBranch:     "dev-v2.9",
-			ReleaseBranch: "release-v2.9",
+			BranchLines:   []string{"2.10", "2.9", "2.8"},
 		},
 		Auth: &Auth{
 			GithubToken: "YOUR_TOKEN",
@@ -240,6 +238,5 @@ Charts
     Workspace:     {{.Charts.Workspace}}
     ChartsRepoURL: {{.Charts.ChartsRepoURL}}
     ChartsForkURL: {{.Charts.ChartsForkURL}}
-    DevBranch:     {{.Charts.DevBranch}}
-    ReleaseBranch: {{.Charts.ReleaseBranch}}
+    BranchLines:     {{.Charts.BranchLines}}
 `
