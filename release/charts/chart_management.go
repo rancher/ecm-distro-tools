@@ -21,15 +21,20 @@ type asset struct {
 
 // ChartArgs will return the list of available charts in the current branch
 func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
-	assets := filepath.Join(c.Workspace, "assets")
+	var (
+		assets string
+		files  []os.DirEntry
+		dirs   []string
+		err    error
+	)
 
-	// Read the directory assets contents
-	files, err := os.ReadDir(assets)
+	assets = filepath.Join(c.Workspace, "assets")
+
+	files, err = os.ReadDir(assets)
 	if err != nil {
 		return nil, err
 	}
 
-	var dirs []string
 	for _, file := range files {
 		if file.IsDir() {
 			dirs = append(dirs, file.Name())
@@ -43,7 +48,12 @@ func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
 
 // VersionArgs will return the list of available versions for the target chart
 func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]string, error) {
-	status, err := loadState(filepath.Join(c.Workspace, "state.json"))
+	var (
+		status *status
+		err    error
+	)
+
+	status, err = loadState(filepath.Join(c.Workspace, "state.json"))
 	if err != nil {
 		return nil, err
 	}
