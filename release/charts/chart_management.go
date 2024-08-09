@@ -19,22 +19,6 @@ type asset struct {
 	Version string `json:"version"`
 }
 
-// loadState will load the lifecycle-status state from an existing state.json file at charts repo
-func loadState(filePath string) (*status, error) {
-	s := &status{}
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.NewDecoder(file).Decode(&s); err != nil {
-		return nil, err
-	}
-
-	return s, nil
-}
-
 // ChartArgs will return the list of available charts in the current branch
 func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
 	assets := filepath.Join(c.Workspace, "assets")
@@ -82,8 +66,8 @@ func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]str
 	return versions, nil
 }
 
-// CheckBranchArgs will check if the branch line exists
-func CheckBranchArgs(branch string, availableBranches []string) bool {
+// IsBranchAvailable will check if the branch line exists
+func IsBranchAvailable(branch string, availableBranches []string) bool {
 	for _, b := range availableBranches {
 		if b == branch {
 			return true
@@ -93,8 +77,8 @@ func CheckBranchArgs(branch string, availableBranches []string) bool {
 	return false
 }
 
-// CheckChartArgs will check if the chart exists in the available charts
-func CheckChartArgs(ctx context.Context, conf *config.ChartsRelease, ch string) (bool, error) {
+// IsChartAvailable will check if the chart exists in the available charts
+func IsChartAvailable(ctx context.Context, conf *config.ChartsRelease, ch string) (bool, error) {
 	availableCharts, err := ChartArgs(ctx, conf)
 	if err != nil {
 		return false, err
@@ -109,8 +93,8 @@ func CheckChartArgs(ctx context.Context, conf *config.ChartsRelease, ch string) 
 	return false, nil
 }
 
-// CheckVersionArgs exists to be released or forward ported
-func CheckVersionArgs(ctx context.Context, conf *config.ChartsRelease, ch, v string) (bool, error) {
+// IsVersionAvailable exists to be released or forward ported
+func IsVersionAvailable(ctx context.Context, conf *config.ChartsRelease, ch, v string) (bool, error) {
 	availableVersions, err := VersionArgs(ctx, conf, ch)
 	if err != nil {
 		return false, err
@@ -123,4 +107,20 @@ func CheckVersionArgs(ctx context.Context, conf *config.ChartsRelease, ch, v str
 	}
 
 	return false, nil
+}
+
+// loadState will load the lifecycle-status state from an existing state.json file at charts repo
+func loadState(filePath string) (*status, error) {
+	s := &status{}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.NewDecoder(file).Decode(&s); err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
