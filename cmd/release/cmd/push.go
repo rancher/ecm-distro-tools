@@ -3,10 +3,15 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 
+	"github.com/google/go-github/v39/github"
+	"github.com/spf13/cobra"
+
+	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/spf13/cobra"
 )
 
 var pushCmd = &cobra.Command{
@@ -37,8 +42,80 @@ var pushK3sTagsCmd = &cobra.Command{
 	},
 }
 
+var pushChartsCmd = &cobra.Command{
+	Use:     "charts [release_branch] [debug (optional)]",
+	Short:   "Push charts updates to remote upstream charts repository",
+	Example: "release push charts release-v2.9",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if err := validateChartConfig(); err != nil {
+			log.Fatal(err)
+		}
+
+		if len(args) == 0 {
+			return charts.ReleaseBranches(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if err := validateChartConfig(); err != nil {
+			log.Fatal(err)
+		}
+
+		if len(args) < 1 {
+			return errors.New("expected 1 argument: [release_branch]")
+		}
+
+		var (
+			releaseBranch string
+			found         bool
+		)
+
+		releaseBranch = args[0]
+
+		found = charts.CheckReleaseBranchArgs(releaseBranch)
+		if !found {
+			return errors.New("release branch not available: " + releaseBranch)
+		}
+
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var (
+			releaseBranch string          // given release branch
+			debug         bool            // debug mode
+			ctx           context.Context // background context
+			t             string          // token
+			ghc           *github.Client  // github client
+			prURL         string          // created PR Url to be printed
+			err           error
+		)
+
+		// arguments
+		releaseBranch = args[0]
+		if len(args) > 1 {
+			if args[1] == "debug" || args[1] == "d" {
+				debug = true
+			}
+		}
+
+		ctx = context.Background()
+		t = rootConfig.Auth.GithubToken
+		ghc = repository.NewGithub(ctx, t)
+
+		prURL, err = charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, t, debug)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Pull request created: %s\n", prURL)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(pushCmd)
 	pushCmd.AddCommand(pushK3sCmd)
+	pushCmd.AddCommand(pushChartsCmd)
 	pushK3sCmd.AddCommand(pushK3sTagsCmd)
 }
