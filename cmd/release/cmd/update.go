@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -51,7 +51,8 @@ var updateChartsCmd = &cobra.Command{
 	Example: "release update charts 2.9 rancher-istio 104.0.0+up1.21.1",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if err := validateChartConfig(); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		if len(args) != 3 {
@@ -91,7 +92,8 @@ var updateChartsCmd = &cobra.Command{
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if err := validateChartConfig(); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		if len(args) == 0 {
@@ -99,14 +101,16 @@ var updateChartsCmd = &cobra.Command{
 		} else if len(args) == 1 {
 			chArgs, err := charts.ChartArgs(context.Background(), rootConfig.Charts)
 			if err != nil {
-				log.Fatalf("failed to get available charts: %v", err)
+				fmt.Printf("failed to get available charts: %v\n", err)
+				os.Exit(1)
 			}
 
 			return chArgs, cobra.ShellCompDirectiveNoFileComp
 		} else if len(args) == 2 {
 			vArgs, err := charts.VersionArgs(context.Background(), rootConfig.Charts, args[1])
 			if err != nil {
-				log.Fatalf("failed to get available versions: %v", err)
+				fmt.Printf("failed to get available versions: %v", err)
+				os.Exit(1)
 			}
 
 			return vArgs, cobra.ShellCompDirectiveNoFileComp
