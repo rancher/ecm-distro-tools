@@ -413,6 +413,11 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 	repositoryAuths := make(map[string]string)
 	mu := sync.RWMutex{}
 
+	rgInfo, ok := registriesInfo[registry]
+	if !ok {
+		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+	}
+
 	for _, imageAndVersion := range checkImages {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
 		if err != nil {
@@ -441,7 +446,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 
 					auth, ok = repositoryAuths[image]
 					if !ok {
-						auth, err = registryAuth(sccSUSEURL, sccSUSEService, image)
+						auth, err = registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 						if err != nil {
 							cancel()
 							return err
@@ -450,7 +455,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 					}
 					mu.Unlock()
 
-					exists, err := checkIfImageExists(rancherRegistryBaseURL, image, imageVersion, auth)
+					exists, err := checkIfImageExists(rgInfo.BaseURL, image, imageVersion, auth)
 					if err != nil {
 						cancel()
 						return err
