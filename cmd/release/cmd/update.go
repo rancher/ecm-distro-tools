@@ -60,19 +60,15 @@ var updateChartsCmd = &cobra.Command{
 		}
 
 		var branch, chart, version string
-		var found bool
-		var err error
-
 		branch = args[0]
 		chart = args[1]
 		version = args[2]
 
-		found = charts.IsBranchAvailable(branch, rootConfig.Charts.BranchLines)
-		if !found {
+		if found := charts.IsBranchAvailable(branch, rootConfig.Charts.BranchLines); !found {
 			return errors.New("branch not available: " + branch)
 		}
 
-		found, err = charts.IsChartAvailable(context.Background(), rootConfig.Charts, chart)
+		found, err := charts.IsChartAvailable(context.Background(), rootConfig.Charts, chart)
 		if err != nil {
 			return err
 		}
