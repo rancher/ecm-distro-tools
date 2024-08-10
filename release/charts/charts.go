@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -103,34 +102,6 @@ func Update(ctx context.Context, c *config.ChartsRelease, br, ch, vr string) (st
 	return string(output), nil
 }
 
-func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
-	// save current working dir
-	ecmWorkDir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	// change working dir to the charts repo
-	if err := os.Chdir(chartsRepoPath); err != nil {
-		return nil, err
-	}
-
-	bin := strings.Join([]string{chartsRepoPath, "bin", "charts-build-scripts"}, string(os.PathSeparator))
-
-	cmd := exec.Command(bin, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, errors.New(err.Error() + ": " + string(output))
-	}
-
-	// Change back working dir for the caller
-	if err := os.Chdir(ecmWorkDir); err != nil {
-		return nil, errors.New(err.Error() + ": " + string(output))
-	}
-
-	return output, nil
-}
-
 // Push will push the charts updates to the remote upstream charts repository
 func Push(ctx context.Context, c *config.ChartsRelease, u *config.User, ghc *github.Client, b, t string, d bool) (string, error) {
 	const repoOwner = "rancher"
@@ -140,10 +111,9 @@ func Push(ctx context.Context, c *config.ChartsRelease, u *config.User, ghc *git
 		r      *git.Repository     // local opened repository
 		h      *plumbing.Reference // local head reference
 		remote string              // remote repository name
-		err    error
 	)
 
-	r, err = git.PlainOpen(c.Workspace)
+	r, err := git.PlainOpen(c.Workspace)
 	if err != nil {
 		return "", err
 	}
@@ -186,17 +156,43 @@ func Push(ctx context.Context, c *config.ChartsRelease, u *config.User, ghc *git
 	return prResp.GetHTMLURL(), nil
 }
 
+func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
+	// save current working dir
+	ecmWorkDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	// change working dir to the charts repo
+	if err := os.Chdir(chartsRepoPath); err != nil {
+		return nil, err
+	}
+
+	bin := strings.Join([]string{chartsRepoPath, "bin", "charts-build-scripts"}, string(os.PathSeparator))
+
+	cmd := exec.Command(bin, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.New(err.Error() + ": " + string(output))
+	}
+
+	// Change back working dir for the caller
+	if err := os.Chdir(ecmWorkDir); err != nil {
+		return nil, errors.New(err.Error() + ": " + string(output))
+	}
+
+	return output, nil
+}
+
 // debugPullRequest will prompt the user to check the files and commits that will be pushed to the remote repository
 func debugPullRequest(r *git.Repository, remote, b string) error {
 	var (
 		execute bool
-		iter    object.CommitIter
-		err     error
 	)
 
 	if execute = ecmExec.UserInput("Check files that will be pushed?"); execute {
 		// commit history
-		iter, err = r.Log(&git.LogOptions{})
+		iter, err := r.Log(&git.LogOptions{})
 		if err != nil {
 			return err
 		}
@@ -204,7 +200,8 @@ func debugPullRequest(r *git.Repository, remote, b string) error {
 		err = iter.ForEach(func(c *object.Commit) error {
 			fileStats, err := c.Stats()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err)
+				os.Exit(1)
 			}
 
 			fmt.Println(c)

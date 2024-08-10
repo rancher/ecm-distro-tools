@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/google/go-github/v39/github"
 	"github.com/spf13/cobra"
@@ -43,27 +43,29 @@ var pushK3sTagsCmd = &cobra.Command{
 }
 
 var pushChartsCmd = &cobra.Command{
-	Use:     "charts [release_branch] [debug (optional)]",
+	Use:     "charts [branch-line] [debug (optional)]",
 	Short:   "Push charts updates to remote upstream charts repository",
-	Example: "release push charts release-v2.9",
+	Example: "release push charts 2.9",
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if err := validateChartConfig(); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		if len(args) == 0 {
-			return charts.ReleaseBranches(), cobra.ShellCompDirectiveNoFileComp
+			return rootConfig.Charts.BranchLines, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if err := validateChartConfig(); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		if len(args) < 1 {
-			return errors.New("expected 1 argument: [release_branch]")
+			return errors.New("expected 1 argument: [branch-line]")
 		}
 
 		var (
@@ -71,9 +73,7 @@ var pushChartsCmd = &cobra.Command{
 			found         bool
 		)
 
-		releaseBranch = args[0]
-
-		found = charts.CheckReleaseBranchArgs(releaseBranch)
+		found = charts.IsBranchAvailable(args[0], rootConfig.Charts.BranchLines)
 		if !found {
 			return errors.New("release branch not available: " + releaseBranch)
 		}
@@ -82,17 +82,16 @@ var pushChartsCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var (
-			releaseBranch string          // given release branch
-			debug         bool            // debug mode
-			ctx           context.Context // background context
-			t             string          // token
-			ghc           *github.Client  // github client
-			prURL         string          // created PR Url to be printed
-			err           error
+			releaseBranch string // given release branch
+			debug         bool   // debug mode
+
+			ctx context.Context // background context
+			t   string          // token
+			ghc *github.Client  // github client
 		)
 
 		// arguments
-		releaseBranch = args[0]
+		releaseBranch = charts.MountReleaseBranch(args[0])
 		if len(args) > 1 {
 			if args[1] == "debug" || args[1] == "d" {
 				debug = true
@@ -103,7 +102,7 @@ var pushChartsCmd = &cobra.Command{
 		t = rootConfig.Auth.GithubToken
 		ghc = repository.NewGithub(ctx, t)
 
-		prURL, err = charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, t, debug)
+		prURL, err := charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, t, debug)
 		if err != nil {
 			return err
 		}

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,7 +65,8 @@ func UserInput(title string) bool {
 
 	input, err = reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	input = strings.TrimSpace(input)
 	input = strings.ToLower(input)

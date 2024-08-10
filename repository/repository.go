@@ -545,10 +545,9 @@ func PushRemoteBranch(r *git.Repository, remote, u, t string, debug bool) error 
 	var (
 		branchRef string
 		h         *plumbing.Reference
-		err       error
 	)
 
-	h, err = r.Head()
+	h, err := r.Head()
 	if err != nil {
 		return err
 	}

@@ -76,6 +76,11 @@ func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]str
 	return versions, nil
 }
 
+// MountReleaseBranch will mount the release branch name from the line provided
+func MountReleaseBranch(line string) string {
+	return "release-v" + line
+}
+
 // IsBranchAvailable will check if the branch line exists
 func IsBranchAvailable(branch string, availableBranches []string) bool {
 	for _, b := range availableBranches {
