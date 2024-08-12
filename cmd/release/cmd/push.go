@@ -83,7 +83,6 @@ var pushChartsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var (
 			releaseBranch string // given release branch
-			debug         bool   // debug mode
 
 			ctx context.Context // background context
 			t   string          // token
@@ -92,10 +91,9 @@ var pushChartsCmd = &cobra.Command{
 
 		// arguments
 		releaseBranch = charts.MountReleaseBranch(args[0])
-		if len(args) > 1 {
-			if args[1] == "debug" || args[1] == "d" {
-				debug = true
-			}
+		debug, err := cmd.Flags().GetBool("debug")
+		if err != nil {
+			return err
 		}
 
 		ctx = context.Background()
