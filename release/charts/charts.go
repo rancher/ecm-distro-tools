@@ -22,7 +22,7 @@ import (
 
 // body is the default PR body for the charts release PR
 const body string = `
-## Charts Checklist (built for v0.9.5 charts-build-scripts)
+## Charts Checklist (built for v0.9.X charts-build-scripts)
 
 ### Checkpoint 0: Validate **release.yaml**
 
