@@ -102,7 +102,14 @@ func Update(ctx context.Context, c *config.ChartsRelease, br, ch, vr string) (st
 	return string(output), nil
 }
 
-// Push will push the charts updates to the remote upstream charts repository
+// Push will push the charts updates to the remote upstream charts repository and create a PR.
+//   - ctx: background context.
+//   - c: charts release configuration.
+//   - u: user configuration with username and email.
+//   - ghc: github client, to be used to interact with github API.
+//   - b: release branch name.
+//   - t: token from github.
+//   - d: debug mode.
 func Push(ctx context.Context, c *config.ChartsRelease, u *config.User, ghc *github.Client, b, t string, d bool) (string, error) {
 	const repoOwner = "rancher"
 	const repoName = "charts"
