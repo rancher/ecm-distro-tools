@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -624,10 +625,20 @@ func getCommits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
 
 	iter = object.NewCommitPreorderIter(firstCommit, nil, nil)
 
+	limit := 100
+	count := 0
 	err = iter.ForEach(func(c *object.Commit) error {
+		if count >= limit {
+			return io.EOF
+		}
 		commits = append(commits, c)
+		count++
 		return nil
 	})
+
+	if err == io.EOF {
+		err = nil // Reset error if it was forced by the limit
+	}
 
 	return commits, err
 }
