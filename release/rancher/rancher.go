@@ -528,15 +528,14 @@ func validateRepoImage(repoImage string) error {
 }
 
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verbose bool) error {
-	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry, verbose)
+	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
 	if err != nil {
 		return err
 	}
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func dockerImagesDigests(imagesFileURL, registry string, verbose bool) (imageDigest, error) {
-	log := ecmLog.NewLogger(verbose)
+func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
 		return nil, err
@@ -554,7 +553,6 @@ func dockerImagesDigests(imagesFileURL, registry string, verbose bool) (imageDig
 		if imageAndVersion == "" || imageAndVersion == " " {
 			continue
 		}
-		log.Println("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
 			return nil, errors.New("malformed image name: , missing ':'")
 		}
@@ -569,8 +567,7 @@ func dockerImagesDigests(imagesFileURL, registry string, verbose bool) (imageDig
 			}
 			repositoryAuths[image] = auth
 		}
-		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
-		log.Println("status code: " + strconv.Itoa(statusCode))
+		digest, _, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		if err != nil {
 			return nil, err
 		}
