@@ -24,11 +24,10 @@ import (
 	"text/template"
 	"time"
 
-	ecmLog "github.com/rancher/ecm-distro-tools/log"
-
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	ecmLog "github.com/rancher/ecm-distro-tools/log"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
