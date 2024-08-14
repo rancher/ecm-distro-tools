@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -69,7 +68,7 @@ func initConfig() {
 		configFile = os.ExpandEnv(configFile)
 		conf, err = config.Load(configFile)
 		if err != nil {
-			log.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
+			fmt.Println("failed to load config, use 'release config gen' to create a new one at: " + configFile)
 			fmt.Println(err)
 			os.Exit(1)
 		}
