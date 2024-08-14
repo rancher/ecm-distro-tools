@@ -15,6 +15,7 @@ var (
 	dryRun         bool
 	ignoreValidate bool
 	rootConfig     *config.Config
+	verbose        bool
 	configFile     string
 	stringConfig   string
 )
@@ -44,6 +45,7 @@ func SetVersion(version string) {
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "D", false, "Debug")
 	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Dry Run")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "V", false, "Verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&ignoreValidate, "ignore-validate", "I", false, "Ignore the validate config step")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
