@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -24,6 +23,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	ecmLog "github.com/rancher/ecm-distro-tools/log"
 
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
@@ -386,7 +387,8 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
+	log := ecmLog.NewLogger(verbose)
 	if len(checkImages) == 0 {
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
@@ -526,15 +528,16 @@ func validateRepoImage(repoImage string) error {
 	return nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
-	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verbose bool) error {
+	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry, verbose)
 	if err != nil {
 		return err
 	}
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
+func dockerImagesDigests(imagesFileURL, registry string, verbose bool) (imageDigest, error) {
+	log := ecmLog.NewLogger(verbose)
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
 		return nil, err
@@ -552,7 +555,7 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 		if imageAndVersion == "" || imageAndVersion == " " {
 			continue
 		}
-		slog.Info("image: " + imageAndVersion)
+		log.Println("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
 			return nil, errors.New("malformed image name: , missing ':'")
 		}
@@ -568,11 +571,12 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 			repositoryAuths[image] = auth
 		}
 		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
-		slog.Info("status code: " + strconv.Itoa(statusCode))
+		log.Println("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
 			return nil, err
 		}
-		imagesDigests[imageAndVersion] = digest
+		// e.g: registry.rancher.com/rancher/rancher:v2.9.0 = sha256:1234567890
+		imagesDigests[registry+"/"+imageAndVersion] = digest
 	}
 	return imagesDigests, nil
 }
