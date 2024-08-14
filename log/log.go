@@ -10,23 +10,23 @@ func NewLogger(verbose bool) Logger {
 	return Logger{verbose: verbose}
 }
 
-func (l Logger) Print(a ...any) (n int, err error) {
+func (l Logger) Print(a ...any) (int, error) {
 	if l.verbose {
 		return fmt.Print(a...)
 	}
-	return
+	return 0, nil
 }
 
-func (l Logger) Printf(format string, a ...any) (n int, err error) {
+func (l Logger) Printf(format string, a ...any) (int, error) {
 	if l.verbose {
 		return fmt.Printf(format, a...)
 	}
-	return
+	return 0, nil
 }
 
-func (l Logger) Println(a ...any) (n int, err error) {
+func (l Logger) Println(a ...any) (int, error) {
 	if l.verbose {
 		return fmt.Println(a...)
 	}
-	return
+	return 0, nil
 }
