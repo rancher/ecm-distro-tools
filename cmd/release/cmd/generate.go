@@ -124,7 +124,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(checkImages) == 0 && imagesListURL == "" {
 			return errors.New("either --images-list-url or --check-images must be provided")
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, concurrencyLimit, checkImages, ignoreImages)
+		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, concurrencyLimit, checkImages, ignoreImages, verbose)
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	Use:   "docker-images-digests",
 	Short: "Generate a file with images digests from an images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry)
+		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, verbose)
 	},
 }
 

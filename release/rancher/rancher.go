@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	ecmLog "github.com/rancher/ecm-distro-tools/log"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -386,7 +386,8 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
+	log := ecmLog.NewLogger(verbose)
 	if len(checkImages) == 0 {
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
@@ -412,6 +413,11 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 	// auth tokens can be reused, but maps need a lock for reading and writing in go routines
 	repositoryAuths := make(map[string]string)
 	mu := sync.RWMutex{}
+
+	rgInfo, ok := registriesInfo[registry]
+	if !ok {
+		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+	}
 
 	for _, imageAndVersion := range checkImages {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
@@ -441,7 +447,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 
 					auth, ok = repositoryAuths[image]
 					if !ok {
-						auth, err = registryAuth(sccSUSEURL, sccSUSEService, image)
+						auth, err = registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 						if err != nil {
 							cancel()
 							return err
@@ -450,7 +456,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 					}
 					mu.Unlock()
 
-					exists, err := checkIfImageExists(rancherRegistryBaseURL, image, imageVersion, auth)
+					exists, err := checkIfImageExists(rgInfo.BaseURL, image, imageVersion, auth)
 					if err != nil {
 						cancel()
 						return err
@@ -521,7 +527,7 @@ func validateRepoImage(repoImage string) error {
 	return nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verbose bool) error {
 	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
 	if err != nil {
 		return err
@@ -547,7 +553,6 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 		if imageAndVersion == "" || imageAndVersion == " " {
 			continue
 		}
-		slog.Info("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
 			return nil, errors.New("malformed image name: , missing ':'")
 		}
@@ -562,12 +567,12 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 			}
 			repositoryAuths[image] = auth
 		}
-		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
-		slog.Info("status code: " + strconv.Itoa(statusCode))
+		digest, _, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		if err != nil {
 			return nil, err
 		}
-		imagesDigests[imageAndVersion] = digest
+		// e.g: registry.rancher.com/rancher/rancher:v2.9.0 = sha256:1234567890
+		imagesDigests[registry+"/"+imageAndVersion] = digest
 	}
 	return imagesDigests, nil
 }
