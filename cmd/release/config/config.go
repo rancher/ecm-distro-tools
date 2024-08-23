@@ -76,6 +76,7 @@ type Auth struct {
 	SSHKeyPath         string `json:"ssh_key_path" validate:"filepath"`
 	AWSAccessKeyID     string `json:"aws_access_key_id"`
 	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	AWSSessionToken    string `json:"aws_session_token"`
 	AWSDefaultRegion   string `json:"aws_default_region"`
 }
 
@@ -184,6 +185,7 @@ func ExampleConfig() (string, error) {
 			SSHKeyPath:         "path/to/your/ssh/key",
 			AWSAccessKeyID:     "XXXXXXXXXXXXXXXXXXX",
 			AWSSecretAccessKey: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			AWSSessionToken:    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 			AWSDefaultRegion:   "us-east-1",
 		},
 	}

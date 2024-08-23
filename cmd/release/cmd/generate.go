@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -113,7 +116,13 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	Use:   "artifacts-index",
 	Short: "Generate artifacts index page",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GeneratePrimeArtifactsIndex(rancherArtifactsIndexWriteToPath, rancherArtifactsIndexIgnoreVersions)
+		ctx := context.Background()
+		cfg, err := config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(rootConfig.Auth.AWSAccessKeyID, rootConfig.Auth.AWSSecretAccessKey, rootConfig.Auth.AWSSessionToken)), config.WithDefaultRegion(rootConfig.Auth.AWSDefaultRegion))
+		if err != nil {
+			return err
+		}
+		client := s3.NewFromConfig(cfg)
+		return rancher.GeneratePrimeArtifactsIndex(ctx, rancherArtifactsIndexWriteToPath, rancherArtifactsIndexIgnoreVersions, client)
 	},
 }
 

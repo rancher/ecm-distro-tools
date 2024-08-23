@@ -55,9 +55,6 @@ func initConfig() {
 		if os.Args[1] == "config" && os.Args[2] == "gen" {
 			return
 		}
-		if os.Args[1] == "config" && os.Args[2] == "edit" {
-			ignoreValidate = true
-		}
 	}
 	var conf *config.Config
 	var err error
