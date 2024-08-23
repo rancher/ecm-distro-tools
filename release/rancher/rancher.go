@@ -109,7 +109,7 @@ type registryAuthToken struct {
 }
 
 func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
-	keys := []string{}
+	var keys []string
 	var continuationToken *string
 	isTruncated := true
 	for isTruncated {
