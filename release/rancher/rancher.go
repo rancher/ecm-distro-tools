@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	htmlTemplate "html/template"
@@ -24,6 +23,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -40,7 +40,8 @@ const (
 	rancherImagesBaseURL          = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName         = "/rancher-images.txt"
 	rancherHelmRepositoryURL      = "https://releases.rancher.com/server-charts/latest/index.yaml"
-	rancherArtifactsListURL       = "https://prime-artifacts.s3.amazonaws.com"
+	rancherArtifactsBucket        = "prime-artifacts"
+	rancherArtifactsPrefix        = "rancher/v"
 	rancherArtifactsBaseURL       = "https://prime.ribs.rancher.io"
 	rancherRegistryBaseURL        = "https://registry.rancher.com"
 	stagingRancherRegistryBaseURL = "https://stgregistry.suse.com"
@@ -92,12 +93,6 @@ type RancherRCDeps struct {
 	KDMWithDev     []RancherRCDepsLine `json:"kdmWithDev"`
 }
 
-type ListBucketResult struct {
-	Contents []struct {
-		Key string `xml:"Key"`
-	} `xml:"Contents"`
-}
-
 type ArtifactsIndexContent struct {
 	GA         ArtifactsIndexContentGroup `json:"ga"`
 	PreRelease ArtifactsIndexContentGroup `json:"preRelease"`
@@ -113,28 +108,42 @@ type registryAuthToken struct {
 	Token string `json:"token"`
 }
 
-func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
-	client := ecmHTTP.NewClient(time.Second * 15)
-	resp, err := client.Get(rancherArtifactsListURL)
-	if err != nil {
-		return err
+func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
+	var keys []string
+	var continuationToken *string
+	isTruncated := true
+	for isTruncated {
+		objects, err := s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket:            &bucketName,
+			Prefix:            &prefix,
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, object := range objects.Contents {
+			keys = append(keys, *object.Key)
+		}
+		// used for pagination
+		continuationToken = objects.NextContinuationToken
+		// if the bucket has more keys
+		if objects.IsTruncated != nil && !*objects.IsTruncated {
+			isTruncated = false
+		}
 	}
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("unexpected status code on " + rancherArtifactsListURL + " expected 200, got " + strconv.Itoa(resp.StatusCode))
-	}
-	defer resp.Body.Close()
-	contentDecoder := xml.NewDecoder(resp.Body)
-	var listBucket ListBucketResult
-	if err := contentDecoder.Decode(&listBucket); err != nil {
-		return err
-	}
+	return keys, nil
+}
 
+func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersions []string, s3Client *s3.Client) error {
 	ignore := make(map[string]bool, len(ignoreVersions))
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
-
-	content := generateArtifactsIndexContent(listBucket, ignore)
+	keys, err := listS3Objects(ctx, s3Client, rancherArtifactsBucket, rancherArtifactsPrefix)
+	if err != nil {
+		return err
+	}
+	content := generateArtifactsIndexContent(keys, ignore)
 	gaIndex, err := generatePrimeArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -149,7 +158,7 @@ func GeneratePrimeArtifactsIndex(path string, ignoreVersions []string) error {
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func generateArtifactsIndexContent(listBucket ListBucketResult, ignoreVersions map[string]bool) ArtifactsIndexContent {
+func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Versions:      []string{},
@@ -165,11 +174,11 @@ func generateArtifactsIndexContent(listBucket ListBucketResult, ignoreVersions m
 	var versions []string
 	versionsFiles := make(map[string][]string)
 
-	for _, content := range listBucket.Contents {
-		if !strings.Contains(content.Key, "rancher/") {
+	for _, key := range keys {
+		if !strings.Contains(key, "rancher/") {
 			continue
 		}
-		keyFile := strings.Split(strings.TrimPrefix(content.Key, "rancher/"), "/")
+		keyFile := strings.Split(strings.TrimPrefix(key, "rancher/"), "/")
 		if len(keyFile) < 2 || keyFile[1] == "" {
 			continue
 		}

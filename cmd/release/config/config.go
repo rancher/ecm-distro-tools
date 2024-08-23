@@ -62,27 +62,31 @@ type User struct {
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `json:"versions" validate:"dive"`
+	Versions map[string]K3sRelease `json:"versions" validate:"dive,omitempty"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `json:"versions" validate:"dive"`
+	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
 }
 
 // Auth
 type Auth struct {
-	GithubToken string `json:"github_token"`
-	SSHKeyPath  string `json:"ssh_key_path" validate:"filepath"`
+	GithubToken        string `json:"github_token"`
+	SSHKeyPath         string `json:"ssh_key_path" validate:"filepath"`
+	AWSAccessKeyID     string `json:"aws_access_key_id"`
+	AWSSecretAccessKey string `json:"aws_secret_access_key"`
+	AWSSessionToken    string `json:"aws_session_token"`
+	AWSDefaultRegion   string `json:"aws_default_region"`
 }
 
 // Config
 type Config struct {
 	User    *User          `json:"user"`
-	K3s     *K3s           `json:"k3s"`
-	Rancher *Rancher       `json:"rancher"`
-	RKE2    *RKE2          `json:"rke2"`
-	Charts  *ChartsRelease `json:"charts"`
+	K3s     *K3s           `json:"k3s" validate:"omitempty"`
+	Rancher *Rancher       `json:"rancher" validate:"omitempty"`
+	RKE2    *RKE2          `json:"rke2" validate:"omitempty"`
+	Charts  *ChartsRelease `json:"charts" validate:"omitempty"`
 	Auth    *Auth          `json:"auth"`
 }
 
@@ -177,8 +181,12 @@ func ExampleConfig() (string, error) {
 			BranchLines:   []string{"2.10", "2.9", "2.8"},
 		},
 		Auth: &Auth{
-			GithubToken: "YOUR_TOKEN",
-			SSHKeyPath:  "path/to/your/ssh/key",
+			GithubToken:        "YOUR_TOKEN",
+			SSHKeyPath:         "path/to/your/ssh/key",
+			AWSAccessKeyID:     "XXXXXXXXXXXXXXXXXXX",
+			AWSSecretAccessKey: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			AWSSessionToken:    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			AWSDefaultRegion:   "us-east-1",
 		},
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
