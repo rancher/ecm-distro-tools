@@ -21,15 +21,15 @@ type asset struct {
 
 // ChartArgs will return the list of available charts in the current branch
 func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
+	var dirs []string
+
 	assets := filepath.Join(c.Workspace, "assets")
 
-	// Read the directory assets contents
 	files, err := os.ReadDir(assets)
 	if err != nil {
 		return nil, err
 	}
 
-	var dirs []string
 	for _, file := range files {
 		if file.IsDir() {
 			dirs = append(dirs, file.Name())
@@ -66,6 +66,11 @@ func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]str
 	return versions, nil
 }
 
+// MountReleaseBranch will mount the release branch name from the line provided
+func MountReleaseBranch(line string) string {
+	return "release-v" + line
+}
+
 // IsBranchAvailable will check if the branch line exists
 func IsBranchAvailable(branch string, availableBranches []string) bool {
 	for _, b := range availableBranches {
@@ -94,14 +99,14 @@ func IsChartAvailable(ctx context.Context, conf *config.ChartsRelease, ch string
 }
 
 // IsVersionAvailable exists to be released or forward ported
-func IsVersionAvailable(ctx context.Context, conf *config.ChartsRelease, ch, v string) (bool, error) {
+func IsVersionAvailable(ctx context.Context, conf *config.ChartsRelease, ch, version string) (bool, error) {
 	availableVersions, err := VersionArgs(ctx, conf, ch)
 	if err != nil {
 		return false, err
 	}
 
 	for _, c := range availableVersions {
-		if c == v {
+		if c == version {
 			return true, nil
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
@@ -453,7 +456,7 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] Release Captain: Tag new RKE2 packaging RC "testing"
 - [ ] Release Captain: Prepare PRs as needed to update [KDM](https://github.com/rancher/kontainer-driver-metadata/) in the appropriate dev branches using an RC.  For more information on the structure of the PR, see the [docs](https://github.com/rancher/rke2/blob/master/developer-docs/upgrading_kubernetes.md#update-rancher-kdm)
   - [ ] If server args, agent args, or charts are changed, link relevant rancher/rancher issue or create new rancher/rancher issue
-  - [ ] If any new issues are created, escalated to Rancher PJM so they know and can plan for it 
+  - [ ] If any new issues are created, escalated to Rancher PJM so they know and can plan for it
 - [ ] EM: Review and merge above PR
 - [ ] QA: Post merge, run rancher with KDM pointed at the dev branch (where the PR in the previous step was merged) and test import, upgrade, and provisioning against those RCs. This work may be split between Rancher and RKE2 QAs.
 - [ ] Release Captain: Tag the RKE2 release
@@ -470,3 +473,149 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] QA: Final validation of above PR and tracked through the linked ticket
 - [ ] PJM: Close the milestone in GitHub.
 `
+
+// UpstreamRemote will return the remote name for a given configured remote URL
+func UpstreamRemote(r *git.Repository, remoteURL string) (string, error) {
+	remotes, err := r.Remotes()
+	if err != nil {
+		return "", err
+	}
+
+	for _, remote := range remotes {
+		if remote.Config().URLs[0] == remoteURL {
+			return remote.Config().Name, nil
+		}
+	}
+
+	return "", errors.New("upstream remote not found")
+}
+
+// DiffLocalToRemote will get the commits from the local branch and from the target remote branch,
+// will return the commits that are present in the local branch but not in the remote branch.
+func DiffLocalToRemote(r *git.Repository, remote, releaseBranch string) error {
+	refSpec := "refs/heads/" + releaseBranch + ":refs/remotes/" + remote + "/" + releaseBranch
+
+	fetchOpts := &git.FetchOptions{
+		RemoteName: remote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(refSpec)},
+		Force:      true,
+	}
+
+	// Fetch the remote branch
+	if err := r.Fetch(fetchOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+		return err
+	}
+
+	// Get the local and remote branch references
+	localRef, err := r.Head()
+	if err != nil {
+		return err
+	}
+
+	remoteRef, err := r.Reference(plumbing.NewRemoteReferenceName(remote, releaseBranch), true)
+	if err != nil {
+		return err
+	}
+
+	// Find the commits that are in the local branch but not in the remote branch
+	uniqueCommits, err := findUniqueCommits(r, localRef, remoteRef)
+	if err != nil {
+		return err
+	}
+
+	// Print the commit message and hash for each unique commit
+	for _, commit := range uniqueCommits {
+		fmt.Printf("Commit: %s\nMessage: %s\n\n", commit.Hash, commit.Message)
+	}
+
+	return nil
+}
+
+// PushRemoteBranch will push the local branch to the remote repository
+func PushRemoteBranch(r *git.Repository, remote, user, token string, debug bool) error {
+	h, err := r.Head()
+	if err != nil {
+		return err
+	}
+
+	branchRef := h.Name().String()
+
+	auth := &http.BasicAuth{
+		Username: user,
+		Password: token,
+	}
+
+	opts := &git.PushOptions{
+		RemoteName: remote,
+		Force:      true,
+		RefSpecs:   []config.RefSpec{config.RefSpec(branchRef + ":" + branchRef)},
+		Auth:       auth,
+	}
+
+	if debug {
+		opts.Progress = os.Stdout
+	}
+
+	return r.Push(opts)
+}
+
+// findUniqueCommits returns the commits that are in the first reference but not in the second.
+func findUniqueCommits(r *git.Repository, localRef, remoteRef *plumbing.Reference) ([]*object.Commit, error) {
+	var uniqueCommits []*object.Commit
+
+	// Get the local and remote commits
+	localCommits, err := commits(r, localRef.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	remoteCommits, err := commits(r, remoteRef.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	var remoteCommitMap = make(map[plumbing.Hash]struct{}, len(remoteCommits))
+
+	for _, c := range remoteCommits {
+		remoteCommitMap[c.Hash] = struct{}{}
+	}
+
+	for _, c := range localCommits {
+		if _, found := remoteCommitMap[c.Hash]; !found {
+			uniqueCommits = append(uniqueCommits, c)
+		}
+	}
+
+	return uniqueCommits, nil
+}
+
+// commits returns the commits beginning at the given hash
+func commits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
+	var commits []*object.Commit
+
+	firstCommit, err := r.CommitObject(h)
+	if err != nil {
+		return nil, err
+	}
+
+	iter := object.NewCommitPreorderIter(firstCommit, nil, nil)
+
+	limit := 100
+	count := 0
+	err = iter.ForEach(func(c *object.Commit) error {
+		if count >= limit {
+			return io.EOF
+		}
+		commits = append(commits, c)
+		count++
+		return nil
+	})
+
+	if err != nil {
+		if err != io.EOF {
+			return commits, err
+		}
+	}
+	// Handle error as nil if it was forced by the limit (i.e: err == io.EOF)
+	return commits, nil
+}

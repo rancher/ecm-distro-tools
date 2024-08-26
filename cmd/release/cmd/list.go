@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -45,13 +46,26 @@ var rancherListRCDepsSubCmd = &cobra.Command{
 }
 
 var chartsListSubCmd = &cobra.Command{
-	Use:   "charts [branch] [charts](optional)",
-	Short: "List Charts assets versions state for release process",
+	Use:     "charts [branch-line] [charts](optional)",
+	Short:   "List Charts assets versions state for release process",
+	Example: "release list charts 2.9",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if err := validateChartConfig(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		if len(args) == 0 {
+			return rootConfig.Charts.BranchLines, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var branch, chart string
 
 		if len(args) < 1 {
-			return errors.New("expected at least one argument: [branch]")
+			return errors.New("expected at least one argument: [branch-line]")
 		}
 		branch = args[0]
 
