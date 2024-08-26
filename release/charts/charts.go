@@ -8,20 +8,17 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/google/go-github/v39/github"
-
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
-
+	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/repository"
 )
 
-// body is the default PR body for the charts release PR
-const body string = `
+// chartsReleasePRBody is the default PR body for the charts release PR
+const chartsReleasePRBody = `
 ## Charts Checklist (built for v0.9.X charts-build-scripts)
 
 ### Checkpoint 0: Validate **release.yaml**
@@ -103,55 +100,42 @@ func Update(ctx context.Context, c *config.ChartsRelease, br, ch, vr string) (st
 }
 
 // Push will push the charts updates to the remote upstream charts repository and create a PR.
-//   - ctx: background context.
-//   - c: charts release configuration.
-//   - u: user configuration with username and email.
-//   - ghc: github client, to be used to interact with github API.
-//   - b: release branch name.
-//   - t: token from github.
-//   - d: debug mode.
-func Push(ctx context.Context, c *config.ChartsRelease, u *config.User, ghc *github.Client, b, t string, d bool) (string, error) {
+func Push(ctx context.Context, conf *config.ChartsRelease, user *config.User, ghc *github.Client, branch, token string, debug bool) (string, error) {
 	const repoOwner = "rancher"
 	const repoName = "charts"
 
-	var (
-		r      *git.Repository     // local opened repository
-		h      *plumbing.Reference // local head reference
-		remote string              // remote repository name
-	)
-
-	r, err := git.PlainOpen(c.Workspace)
+	r, err := git.PlainOpen(conf.Workspace)
 	if err != nil {
 		return "", err
 	}
 
-	remote, err = repository.GetUpstreamRemote(r, c.ChartsRepoURL)
+	remote, err := repository.UpstreamRemote(r, conf.ChartsRepoURL)
 	if err != nil {
 		return "", err
 	}
 
-	h, err = r.Head()
+	h, err := r.Head()
 	if err != nil {
 		return "", err
 	}
 
 	// create a new PR
 	pr := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("[%s] batch release", b)),
-		Base:                github.String(b),
+		Title:               github.String("[" + branch + "] batch release"),
+		Base:                github.String(branch),
 		Head:                github.String(h.Name().Short()),
-		Body:                github.String(body),
+		Body:                github.String(chartsReleasePRBody),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// debug mode
-	if d {
-		if err := debugPullRequest(r, remote, b); err != nil {
+	if debug {
+		if err := debugPullRequest(r, remote, branch); err != nil {
 			return "", err
 		}
 	}
 
-	if err := repository.PushRemoteBranch(r, remote, u.GithubUsername, t, d); err != nil {
+	if err := repository.PushRemoteBranch(r, remote, user.GithubUsername, token, debug); err != nil {
 		return "", err
 	}
 
@@ -192,12 +176,8 @@ func runChartsBuild(chartsRepoPath string, args ...string) ([]byte, error) {
 }
 
 // debugPullRequest will prompt the user to check the files and commits that will be pushed to the remote repository
-func debugPullRequest(r *git.Repository, remote, b string) error {
-	var (
-		execute bool
-	)
-
-	if execute = ecmExec.UserInput("Check files that will be pushed?"); execute {
+func debugPullRequest(r *git.Repository, remote, branch string) error {
+	if execute := ecmExec.UserInput("Check files that will be pushed?"); execute {
 		// commit history
 		iter, err := r.Log(&git.LogOptions{})
 		if err != nil {
@@ -220,15 +200,19 @@ func debugPullRequest(r *git.Repository, remote, b string) error {
 
 			return nil
 		})
-	}
 
-	if execute = ecmExec.UserInput("Check commits that will be pushed?"); execute {
-		if err := repository.DiffLocalToRemote(r, remote, b); err != nil {
+		if err != nil {
 			return err
 		}
 	}
 
-	if execute = ecmExec.UserInput("Push and Create PR to the remote repository?"); !execute {
+	if execute := ecmExec.UserInput("Check commits that will be pushed?"); execute {
+		if err := repository.DiffLocalToRemote(r, remote, branch); err != nil {
+			return err
+		}
+	}
+
+	if execute := ecmExec.UserInput("Push and Create PR to the remote repository?"); !execute {
 		return errors.New("user aborted the push")
 	}
 

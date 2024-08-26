@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/v39/github"
-	"github.com/spf13/cobra"
-
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/spf13/cobra"
 )
 
 var pushCmd = &cobra.Command{
@@ -68,44 +66,31 @@ var pushChartsCmd = &cobra.Command{
 			return errors.New("expected 1 argument: [branch-line]")
 		}
 
-		var (
-			releaseBranch string
-			found         bool
-		)
-
-		found = charts.IsBranchAvailable(args[0], rootConfig.Charts.BranchLines)
-		if !found {
-			return errors.New("release branch not available: " + releaseBranch)
+		if found := charts.IsBranchAvailable(args[0], rootConfig.Charts.BranchLines); !found {
+			return errors.New("release branch not available: " + args[0])
 		}
 
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var (
-			releaseBranch string // given release branch
-
-			ctx context.Context // background context
-			t   string          // token
-			ghc *github.Client  // github client
-		)
-
 		// arguments
-		releaseBranch = charts.MountReleaseBranch(args[0])
+		releaseBranch := charts.MountReleaseBranch(args[0])
 		debug, err := cmd.Flags().GetBool("debug")
 		if err != nil {
 			return err
 		}
 
-		ctx = context.Background()
-		t = rootConfig.Auth.GithubToken
-		ghc = repository.NewGithub(ctx, t)
+		token := rootConfig.Auth.GithubToken
 
-		prURL, err := charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, t, debug)
+		ctx := context.Background()
+		ghc := repository.NewGithub(ctx, token)
+
+		prURL, err := charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, token, debug)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Pull request created: %s\n", prURL)
+		fmt.Println("Pull request created: " + prURL)
 		return nil
 	},
 }

@@ -14,12 +14,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-
 	"github.com/google/go-github/v39/github"
-
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
-
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/text/cases"
@@ -477,15 +474,15 @@ To find more information on specific steps, please see documentation [here](http
 - [ ] PJM: Close the milestone in GitHub.
 `
 
-// GetUpstreamRemote will return the remote name for a given configured remote URL
-func GetUpstreamRemote(r *git.Repository, rURL string) (string, error) {
+// UpstreamRemote will return the remote name for a given configured remote URL
+func UpstreamRemote(r *git.Repository, remoteURL string) (string, error) {
 	remotes, err := r.Remotes()
 	if err != nil {
 		return "", err
 	}
 
 	for _, remote := range remotes {
-		if remote.Config().URLs[0] == rURL {
+		if remote.Config().URLs[0] == remoteURL {
 			return remote.Config().Name, nil
 		}
 	}
@@ -495,15 +492,8 @@ func GetUpstreamRemote(r *git.Repository, rURL string) (string, error) {
 
 // DiffLocalToRemote will get the commits from the local branch and from the target remote branch,
 // will return the commits that are present in the local branch but not in the remote branch.
-func DiffLocalToRemote(r *git.Repository, remote, rb string) error {
-	var (
-		refSpec   string
-		localRef  *plumbing.Reference
-		remoteRef *plumbing.Reference
-		err       error
-	)
-
-	refSpec = "refs/heads/" + rb + ":refs/remotes/" + remote + "/" + rb
+func DiffLocalToRemote(r *git.Repository, remote, releaseBranch string) error {
+	refSpec := "refs/heads/" + releaseBranch + ":refs/remotes/" + remote + "/" + releaseBranch
 
 	fetchOpts := &git.FetchOptions{
 		RemoteName: remote,
@@ -512,17 +502,17 @@ func DiffLocalToRemote(r *git.Repository, remote, rb string) error {
 	}
 
 	// Fetch the remote branch
-	if err = r.Fetch(fetchOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+	if err := r.Fetch(fetchOpts); err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
 	}
 
 	// Get the local and remote branch references
-	localRef, err = r.Head()
+	localRef, err := r.Head()
 	if err != nil {
 		return err
 	}
 
-	remoteRef, err = r.Reference(plumbing.NewRemoteReferenceName(remote, rb), true)
+	remoteRef, err := r.Reference(plumbing.NewRemoteReferenceName(remote, releaseBranch), true)
 	if err != nil {
 		return err
 	}
@@ -542,22 +532,17 @@ func DiffLocalToRemote(r *git.Repository, remote, rb string) error {
 }
 
 // PushRemoteBranch will push the local branch to the remote repository
-func PushRemoteBranch(r *git.Repository, remote, u, t string, debug bool) error {
-	var (
-		branchRef string
-		h         *plumbing.Reference
-	)
-
+func PushRemoteBranch(r *git.Repository, remote, user, token string, debug bool) error {
 	h, err := r.Head()
 	if err != nil {
 		return err
 	}
 
-	branchRef = h.Name().String()
+	branchRef := h.Name().String()
 
 	auth := &http.BasicAuth{
-		Username: u,
-		Password: t,
+		Username: user,
+		Password: token,
 	}
 
 	opts := &git.PushOptions{
@@ -576,20 +561,15 @@ func PushRemoteBranch(r *git.Repository, remote, u, t string, debug bool) error 
 
 // findUniqueCommits returns the commits that are in the first reference but not in the second.
 func findUniqueCommits(r *git.Repository, localRef, remoteRef *plumbing.Reference) ([]*object.Commit, error) {
-	var (
-		localCommits  []*object.Commit
-		remoteCommits []*object.Commit
-		uniqueCommits []*object.Commit
-		err           error
-	)
+	var uniqueCommits []*object.Commit
 
 	// Get the local and remote commits
-	localCommits, err = getCommits(r, localRef.Hash())
+	localCommits, err := commits(r, localRef.Hash())
 	if err != nil {
 		return nil, err
 	}
 
-	remoteCommits, err = getCommits(r, remoteRef.Hash())
+	remoteCommits, err := commits(r, remoteRef.Hash())
 	if err != nil {
 		return nil, err
 	}
@@ -609,21 +589,16 @@ func findUniqueCommits(r *git.Repository, localRef, remoteRef *plumbing.Referenc
 	return uniqueCommits, nil
 }
 
-// getCommits returns the commits beginning at the given hash
-func getCommits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
-	var (
-		firstCommit *object.Commit
-		commits     []*object.Commit
-		iter        object.CommitIter
-		err         error
-	)
+// commits returns the commits beginning at the given hash
+func commits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
+	var commits []*object.Commit
 
-	firstCommit, err = r.CommitObject(h)
+	firstCommit, err := r.CommitObject(h)
 	if err != nil {
 		return nil, err
 	}
 
-	iter = object.NewCommitPreorderIter(firstCommit, nil, nil)
+	iter := object.NewCommitPreorderIter(firstCommit, nil, nil)
 
 	limit := 100
 	count := 0
@@ -636,9 +611,11 @@ func getCommits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
 		return nil
 	})
 
-	if err == io.EOF {
-		err = nil // Reset error if it was forced by the limit
+	if err != nil {
+		if err != io.EOF {
+			return commits, err
+		}
 	}
-
-	return commits, err
+	// Handle error as nil if it was forced by the limit (i.e: err == io.EOF)
+	return commits, nil
 }

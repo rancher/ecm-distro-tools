@@ -55,15 +55,12 @@ func RunTemplatedScript(dir, fileName, scriptTemplate string, funcMap template.F
 
 // UserInput will ask for user input with a given title
 func UserInput(title string) bool {
-	var input string
-	var err error
-
 	fmt.Println(title)
 
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("([Y]es/[N]o/[A]bort) Enter: ")
 
-	input, err = reader.ReadString('\n')
+	input, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
