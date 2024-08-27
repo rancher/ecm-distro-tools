@@ -539,13 +539,28 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 }
 
 func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, outputPath string) error {
+	config, err := generateRegsyncConfig(images, sourceRegistry, targetRegistry)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return yaml.NewEncoder(f).Encode(config)
+}
+
+func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
 	sourceRegistryInfo, ok := registriesInfo[sourceRegistry]
 	if !ok {
-		return errors.New("source registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+		return nil, errors.New("invalid source registry")
 	}
 	targetRegistryInfo, ok := registriesInfo[targetRegistry]
 	if !ok {
-		return errors.New("target registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+		return nil, errors.New("invalid target registry")
 	}
 
 	config := regsyncConfig{
@@ -572,7 +587,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 	for i, imageAndVersion := range images {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		config.Sync[i] = regsyncSync{
 			Source: image,
@@ -581,14 +596,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 			Tags:   regsyncTags{Allow: []string{imageVersion}},
 		}
 	}
-
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return yaml.NewEncoder(f).Encode(config)
+	return &config, nil
 }
 
 func imageSliceToMap(images []string) (map[string]bool, error) {

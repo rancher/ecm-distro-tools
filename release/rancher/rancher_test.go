@@ -58,3 +58,29 @@ func TestSplitImageAndVersion(t *testing.T) {
 		t.Error("expected to flag image without version as malformed " + imagesWithoutVersion[0])
 	}
 }
+
+func TestGenerateRegsyncConfig(t *testing.T) {
+	rancherImage := "rancher/rancher"
+	rancherAgentImage := "rancher/rancher-agent"
+	rancherVersion := "v2.9.0"
+	images := []string{rancherImage + ":" + rancherVersion, rancherAgentImage + ":" + rancherVersion}
+	sourceRegistry := "docker.io"
+	targetRegistry := "registry.rancher.com"
+	targetRancherImage := targetRegistry + "/" + rancherImage
+	config, err := generateRegsyncConfig(images, sourceRegistry, targetRegistry)
+	if err != nil {
+		t.Error(err)
+	}
+	if config.Sync[0].Source != rancherImage {
+		t.Error("rancher image should be: '" + rancherImage + "' instead, got: '" + config.Sync[0].Source + "'")
+	}
+	if config.Sync[0].Target != targetRancherImage {
+		t.Error("target rancher image should be: '" + targetRancherImage + "' instead, got: '" + config.Sync[0].Target + "'")
+	}
+	if config.Sync[0].Tags.Allow[0] != rancherVersion {
+		t.Error("rancher version should be: '" + rancherVersion + "' instead, got: '" + config.Sync[0].Tags.Allow[0] + "'")
+	}
+	if config.Sync[1].Source != rancherAgentImage {
+		t.Error("rancher agent image should be: '" + rancherAgentImage + "' instead, got: '" + config.Sync[1].Source + "'")
+	}
+}
