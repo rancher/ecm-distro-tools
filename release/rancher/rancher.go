@@ -566,20 +566,20 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 			Parallel:   1,
 			MediaTypes: regsyncDefaultMediaTypes,
 		},
-		Sync: make([]regsyncSync, 0),
+		Sync: make([]regsyncSync, len(images)),
 	}
 
-	for _, imageAndVersion := range images {
+	for i, imageAndVersion := range images {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
 		if err != nil {
 			return err
 		}
-		config.Sync = append(config.Sync, regsyncSync{
+		config.Sync[i] = regsyncSync{
 			Source: image,
 			Target: targetRegistry + "/" + image,
 			Type:   "repository",
 			Tags:   regsyncTags{Allow: []string{imageVersion}},
-		})
+		}
 	}
 
 	f, err := os.Create(outputPath)
