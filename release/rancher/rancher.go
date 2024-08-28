@@ -130,18 +130,22 @@ type regsyncConfig struct {
 	Defaults regsyncDefaults `yaml:"defaults"`
 	Sync     []regsyncSync   `yaml:"sync"`
 }
+
 type regsyncCreds struct {
 	Registry string `yaml:"registry"`
 	User     string `yaml:"user"`
 	Pass     string `yaml:"pass"`
 }
+
 type regsyncDefaults struct {
 	Parallel   int      `yaml:"parallel"`
 	MediaTypes []string `yaml:"mediaTypes"`
 }
+
 type regsyncTags struct {
 	Allow []string `yaml:"allow"`
 }
+
 type regsyncSync struct {
 	Source string      `yaml:"source"`
 	Target string      `yaml:"target"`
