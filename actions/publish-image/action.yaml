@@ -131,7 +131,7 @@ runs:
   # Short-circuit if either fails. This should decrease the likelihood
   # of only one registry getting updated while the other fails.
   - name: Login to registry [Public]
-    if: ${{ inputs.push-to-public }}
+    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     uses: docker/login-action@v3
     with:
       registry: ${{ inputs.public-registry }}
@@ -139,7 +139,7 @@ runs:
       password: ${{ inputs.public-password }}
 
   - name: Login to registry [Prime]
-    if: ${{ inputs.push-to-prime }}
+    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     uses: docker/login-action@v3
     with:
       registry: ${{ inputs.prime-registry }}
@@ -155,7 +155,7 @@ runs:
 
   - name: Build and push image [Public]
     shell: bash
-    if: ${{ inputs.push-to-public }}
+    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     run: |
       make ${{ inputs.make-target }}
     env:
@@ -165,7 +165,7 @@ runs:
 
   - name: Build and push image [Prime]
     shell: bash
-    if: ${{ inputs.push-to-prime }}
+    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
       IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
