@@ -590,7 +590,7 @@ func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry strin
 			return nil, err
 		}
 		config.Sync[i] = regsyncSync{
-			Source: image,
+			Source: sourceRegistry + "/" + image,
 			Target: targetRegistry + "/" + image,
 			Type:   "repository",
 			Tags:   regsyncTags{Allow: []string{imageVersion}},
