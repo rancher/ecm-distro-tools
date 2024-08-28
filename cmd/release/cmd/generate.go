@@ -35,6 +35,10 @@ var (
 	rancherImagesDigestsOutputFile      string
 	rancherImagesDigestsRegistry        string
 	rancherImagesDigestsImagesURL       string
+	rancherSyncImages                   []string
+	rancherSourceRegistry               string
+	rancherTargetRegistry               string
+	rancherSyncConfigOutputPath         string
 )
 
 // generateCmd represents the generate command
@@ -160,6 +164,14 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateImagesSyncConfigSubCmd = &cobra.Command{
+	Use:   "images-sync-config",
+	Short: "Generate a regsync config file for images sync",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return rancher.GenerateImagesSyncConfig(rancherSyncImages, rancherSourceRegistry, rancherTargetRegistry, rancherSyncConfigOutputPath)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -169,6 +181,7 @@ func init() {
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesSyncConfigSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -227,6 +240,23 @@ func init() {
 	}
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsRegistry, "registry", "r", "", "Docker Registry e.g: docker.io")
 	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("registry"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	// rancher generate images-sync-config
+	rancherGenerateImagesSyncConfigSubCmd.Flags().StringSliceVarP(&rancherSyncImages, "images", "k", make([]string, 0), "List of images to sync to a registry")
+	rancherGenerateImagesSyncConfigSubCmd.Flags().StringVarP(&rancherSourceRegistry, "source-registry", "s", "", "Source registry, where the images are located")
+	rancherGenerateImagesSyncConfigSubCmd.Flags().StringVarP(&rancherTargetRegistry, "target-registry", "t", "", "Target registry, where the images should be synced to")
+	rancherGenerateImagesSyncConfigSubCmd.Flags().StringVarP(&rancherSyncConfigOutputPath, "output", "o", "./config.yaml", "Output path of the generated config file")
+	if err := rancherGenerateImagesSyncConfigSubCmd.MarkFlagRequired("images"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateImagesSyncConfigSubCmd.MarkFlagRequired("source-registry"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateImagesSyncConfigSubCmd.MarkFlagRequired("target-registry"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}

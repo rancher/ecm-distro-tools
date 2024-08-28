@@ -32,6 +32,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -53,28 +54,43 @@ const (
 	dockerService                 = "registry.docker.io"
 )
 
+var regsyncDefaultMediaTypes = []string{
+	"application/vnd.docker.distribution.manifest.v2+json",
+	"application/vnd.docker.distribution.manifest.list.v2+json",
+	"application/vnd.oci.image.manifest.v1+json",
+	"application/vnd.oci.image.index.v1+json",
+}
+
 var registriesInfo = map[string]registryInfo{
 	"registry.rancher.com": {
-		BaseURL: rancherRegistryBaseURL,
-		AuthURL: sccSUSEURL,
-		Service: sccSUSEService,
+		BaseURL:     rancherRegistryBaseURL,
+		AuthURL:     sccSUSEURL,
+		Service:     sccSUSEService,
+		UserEnv:     `{{env "PRIME_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "PRIME_REGISTRY_PASSWORD"}}`,
 	},
 	"stgregistry.suse.com": {
-		BaseURL: stagingRancherRegistryBaseURL,
-		AuthURL: stagingSccSUSEURL,
-		Service: sccSUSEService,
+		BaseURL:     stagingRancherRegistryBaseURL,
+		AuthURL:     stagingSccSUSEURL,
+		Service:     sccSUSEService,
+		UserEnv:     `{{env "STAGING_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "STAGING_REGISTRY_PASSWORD"}}`,
 	},
 	"docker.io": {
-		BaseURL: dockerRegistryURL,
-		AuthURL: dockerAuthURL,
-		Service: dockerService,
+		BaseURL:     dockerRegistryURL,
+		AuthURL:     dockerAuthURL,
+		Service:     dockerService,
+		UserEnv:     `{{env "DOCKERIO_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`,
 	},
 }
 
 type registryInfo struct {
-	BaseURL string
-	AuthURL string
-	Service string
+	BaseURL     string
+	AuthURL     string
+	Service     string
+	UserEnv     string
+	PasswordEnv string
 }
 
 type imageDigest map[string]string
@@ -106,6 +122,35 @@ type ArtifactsIndexContentGroup struct {
 
 type registryAuthToken struct {
 	Token string `json:"token"`
+}
+
+type regsyncConfig struct {
+	Version  int             `yaml:"version"`
+	Creds    []regsyncCreds  `yaml:"creds"`
+	Defaults regsyncDefaults `yaml:"defaults"`
+	Sync     []regsyncSync   `yaml:"sync"`
+}
+
+type regsyncCreds struct {
+	Registry string `yaml:"registry"`
+	User     string `yaml:"user"`
+	Pass     string `yaml:"pass"`
+}
+
+type regsyncDefaults struct {
+	Parallel   int      `yaml:"parallel"`
+	MediaTypes []string `yaml:"mediaTypes"`
+}
+
+type regsyncTags struct {
+	Allow []string `yaml:"allow"`
+}
+
+type regsyncSync struct {
+	Source string      `yaml:"source"`
+	Target string      `yaml:"target"`
+	Type   string      `yaml:"type"`
+	Tags   regsyncTags `yaml:"tags"`
 }
 
 func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
@@ -495,6 +540,67 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 	missingImages := readStringChan(missingImagesChan)
 
 	return missingImages, nil
+}
+
+func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, outputPath string) error {
+	config, err := generateRegsyncConfig(images, sourceRegistry, targetRegistry)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return yaml.NewEncoder(f).Encode(config)
+}
+
+func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
+	sourceRegistryInfo, ok := registriesInfo[sourceRegistry]
+	if !ok {
+		return nil, errors.New("invalid source registry")
+	}
+	targetRegistryInfo, ok := registriesInfo[targetRegistry]
+	if !ok {
+		return nil, errors.New("invalid target registry")
+	}
+
+	config := regsyncConfig{
+		Version: 1,
+		Creds: []regsyncCreds{
+			{
+				Registry: sourceRegistry,
+				User:     sourceRegistryInfo.UserEnv,
+				Pass:     sourceRegistryInfo.PasswordEnv,
+			},
+			{
+				Registry: targetRegistry,
+				User:     targetRegistryInfo.UserEnv,
+				Pass:     targetRegistryInfo.PasswordEnv,
+			},
+		},
+		Defaults: regsyncDefaults{
+			Parallel:   1,
+			MediaTypes: regsyncDefaultMediaTypes,
+		},
+		Sync: make([]regsyncSync, len(images)),
+	}
+
+	for i, imageAndVersion := range images {
+		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
+		if err != nil {
+			return nil, err
+		}
+		config.Sync[i] = regsyncSync{
+			Source: sourceRegistry + "/" + image,
+			Target: targetRegistry + "/" + image,
+			Type:   "repository",
+			Tags:   regsyncTags{Allow: []string{imageVersion}},
+		}
+	}
+	return &config, nil
 }
 
 func imageSliceToMap(images []string) (map[string]bool, error) {
