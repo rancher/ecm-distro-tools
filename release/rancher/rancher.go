@@ -66,22 +66,22 @@ var registriesInfo = map[string]registryInfo{
 		BaseURL:     rancherRegistryBaseURL,
 		AuthURL:     sccSUSEURL,
 		Service:     sccSUSEService,
-		UserEnv:     "{{env \"PRIME_REGISTRY_USERNAME\"}}",
-		PasswordEnv: "{{env \"PRIME_REGISTRY_PASSWORD\"}}",
+		UserEnv:     `{{env "PRIME_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "PRIME_REGISTRY_PASSWORD"}}`,
 	},
 	"stgregistry.suse.com": {
 		BaseURL:     stagingRancherRegistryBaseURL,
 		AuthURL:     stagingSccSUSEURL,
 		Service:     sccSUSEService,
-		UserEnv:     "{{env \"STAGING_REGISTRY_USERNAME\"}}",
-		PasswordEnv: "{{env \"STAGING_REGISTRY_PASSWORD\"}}",
+		UserEnv:     `{{env "STAGING_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "STAGING_REGISTRY_PASSWORD"}}`,
 	},
 	"docker.io": {
 		BaseURL:     dockerRegistryURL,
 		AuthURL:     dockerAuthURL,
 		Service:     dockerService,
-		UserEnv:     "{{env \"DOCKERIO_REGISTRY_USERNAME\"}}",
-		PasswordEnv: "{{env \"DOCKERIO_REGISTRY_PASSWORD\"}}",
+		UserEnv:     `{{env "DOCKERIO_REGISTRY_USERNAME"}}`,
+		PasswordEnv: `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`,
 	},
 }
 
