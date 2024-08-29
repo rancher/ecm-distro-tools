@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/release/rke2"
+	"github.com/rancher/ecm-distro-tools/release/ui"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -204,6 +206,62 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 	},
 }
 
+var uiTagSubCmd = &cobra.Command{
+	Use:   "ui [ga,rc] [version]",
+	Short: "Tag ui releases",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
+		}
+		rc, err := releaseTypePreRelease(args[0])
+		if err != nil {
+			return err
+		}
+		tag := args[1]
+		uiRelease, found := rootConfig.UI.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "ui",
+			Owner:  uiRelease.UIRepoOwner,
+			Branch: uiRelease.ReleaseBranch,
+		}
+		return ui.CreateRelease(ctx, ghClient, &uiRelease, opts, rc)
+	},
+}
+
+var dashboardTagSubCmd = &cobra.Command{
+	Use:   "dashboard [ga,rc] [version]",
+	Short: "Tag dashboard releases",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
+		}
+		rc, err := releaseTypePreRelease(args[0])
+		if err != nil {
+			return err
+		}
+		tag := args[1]
+		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		opts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   "dashboard",
+			Owner:  dashboardRelease.DashboardRepoOwner,
+			Branch: dashboardRelease.ReleaseBranch,
+		}
+		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, opts, rc)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
@@ -211,6 +269,8 @@ func init() {
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
+	tagCmd.AddCommand(uiTagSubCmd)
+	tagCmd.AddCommand(dashboardTagSubCmd)
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")

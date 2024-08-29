@@ -41,6 +41,22 @@ type RancherRelease struct {
 	SkipStatusCheck      bool   `json:"skip_status_check"`
 }
 
+type UIRelease struct {
+	UIRepoOwner   string `json:"ui_repo_owner" validate:"required"`
+	UIRepoName    string `json:"ui_repo_name"`
+	PreviousTag   string `json:"previous_tag"`
+	ReleaseBranch string `json:"release_branch" validate:"required"`
+	DryRun        bool   `json:"dry_run"`
+}
+
+type DashboardRelease struct {
+	DashboardRepoOwner string `json:"dashboard_repo_owner" validate:"required"`
+	DashboardRepoName  string `json:"dashboard_repo_name"`
+	PreviousTag        string `json:"previous_tag"`
+	ReleaseBranch      string `json:"release_branch" validate:"required"`
+	DryRun             bool   `json:"dry_run"`
+}
+
 // RKE2
 type RKE2 struct {
 	Versions []string `json:"versions"`
@@ -70,6 +86,16 @@ type Rancher struct {
 	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
 }
 
+// UI
+type UI struct {
+	Versions map[string]UIRelease `json:"versions" validate:"dive"`
+}
+
+// Dashboard
+type Dashboard struct {
+	Versions map[string]DashboardRelease `json:"versions" validate:"dive"`
+}
+
 // Auth
 type Auth struct {
 	GithubToken        string `json:"github_token"`
@@ -82,12 +108,14 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User    *User          `json:"user"`
-	K3s     *K3s           `json:"k3s" validate:"omitempty"`
-	Rancher *Rancher       `json:"rancher" validate:"omitempty"`
-	RKE2    *RKE2          `json:"rke2" validate:"omitempty"`
-	Charts  *ChartsRelease `json:"charts" validate:"omitempty"`
-	Auth    *Auth          `json:"auth"`
+	User      *User          `json:"user"`
+	K3s       *K3s           `json:"k3s" validate:"omitempty"`
+	Rancher   *Rancher       `json:"rancher" validate:"omitempty"`
+	RKE2      *RKE2          `json:"rke2" validate:"omitempty"`
+	Charts    *ChartsRelease `json:"charts" validate:"omitempty"`
+	Auth      *Auth          `json:"auth"`
+	UI        *UI            `json:"ui"`
+	Dashboard *Dashboard     `json:"dashboard"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
