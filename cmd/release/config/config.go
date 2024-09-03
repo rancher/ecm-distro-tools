@@ -50,11 +50,14 @@ type UIRelease struct {
 }
 
 type DashboardRelease struct {
-	DashboardRepoOwner string `json:"dashboard_repo_owner" validate:"required"`
-	DashboardRepoName  string `json:"dashboard_repo_name"`
-	PreviousTag        string `json:"previous_tag"`
-	ReleaseBranch      string `json:"release_branch" validate:"required"`
-	DryRun             bool   `json:"dry_run"`
+	DashboardRepoOwner   string `json:"dashboard_repo_owner" validate:"required"`
+	DashboardRepoName    string `json:"dashboard_repo_name"`
+	PreviousTag          string `json:"previous_tag"`
+	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	Tag                  string
+	RancherUpstreamURL   string `json:"rancher_upstream_url" validate:"required"`
+	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
+	DryRun               bool   `json:"dry_run"`
 }
 
 // RKE2

@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
+	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -130,11 +132,44 @@ var updateChartsCmd = &cobra.Command{
 	},
 }
 
+var updateRancherCmd = &cobra.Command{
+	Use:   "rancher",
+	Short: "Update rancher files",
+}
+
+var updateRancherDashboardCmd = &cobra.Command{
+	Use:   "dashboard [version]",
+	Short: "Update Rancher's Dashboard and UI references and create a PR",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+
+		version := args[0]
+		versionTrimmed, _, _ := strings.Cut(version, "-rc")
+
+		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
+		if !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+
+		dashboardRelease.Tag = version
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.AddCommand(updateChartsCmd)
 	updateCmd.AddCommand(updateK3sCmd)
 	updateK3sCmd.AddCommand(updateK3sReferencesCmd)
+	updateCmd.AddCommand(updateRancherCmd)
+	updateRancherCmd.AddCommand(updateRancherDashboardCmd)
 }
 
 func validateChartConfig() error {

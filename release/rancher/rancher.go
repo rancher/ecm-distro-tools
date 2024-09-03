@@ -9,7 +9,6 @@ import (
 	"fmt"
 	htmlTemplate "html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +24,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v39/github"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
+	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	ecmLog "github.com/rancher/ecm-distro-tools/log"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -201,6 +202,47 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 		return err
 	}
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
+}
+
+func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *config.DashboardRelease, u *config.User) error {
+	if err := updateDashboardReferencesAndPush(r, u); err != nil {
+		return err
+	}
+
+	if r.DryRun {
+		fmt.Println("dry run, skipping creating PR")
+		return nil
+	}
+	return createDashboardReferencesPR(ctx, ghClient, r, u)
+}
+
+func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+	fmt.Println("verifying if workspace dir exists")
+	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
+	fmt.Println("creating update dashboard references script template")
+	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replase_dash_ref.sh", updateDashboardReferencesScript, funcMap, r)
+	if err != nil {
+		fmt.Println("AAAAAAA")
+		return err
+	}
+	fmt.Println(updateScriptOut)
+	return nil
+}
+
+func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+	const repo = "rancher"
+
+	pull := &github.NewPullRequest{
+		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
+		Base:                github.String(r.ReleaseBranch),
+		Head:                github.String(u.GithubUsername + ":update-build-refs-" + r.Tag),
+		MaintainerCanModify: github.Bool(true),
+	}
+
+	// creating a pr from your fork branch
+	_, _, err := ghClient.PullRequests.Create(ctx, r.DashboardRepoOwner, r.DashboardRepoName, pull)
+
+	return err
 }
 
 func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
@@ -755,7 +797,7 @@ func (d imageDigest) String() string {
 }
 
 func getLinesFromReader(body io.Reader) ([]string, error) {
-	lines, err := ioutil.ReadAll(body)
+	lines, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
@@ -958,3 +1000,47 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
+
+const updateDashboardReferencesScript = `#!/bin/bash
+set -ex
+OS=$(uname -s)
+DRY_RUN={{ .DryRun }}
+BRANCH_NAME=update-build-refs-{{ .Tag }}
+VERSION={{ .Tag }}
+FILENAME=package/Dockerfile
+
+# using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
+git remote -v | grep -w upstream || git remote add upstream {{ .RancherUpstreamURL }}
+git fetch upstream
+git stash
+git branch -D "${BRANCH_NAME}" &>/dev/null || true
+git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
+# git clean -xfd
+
+# Function to update the file
+update_file() {
+    local sed_cmd
+    case ${OS} in
+    Darwin)
+        sed_cmd="sed -i '' "
+      ;;
+    Linux)
+        sed_cmd="sed -i"
+      ;;
+    *)
+      >&2 echo "$(OS) not supported yet"
+      exit 1
+      ;;
+    esac
+    $sed_cmd "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "$FILENAME"
+    $sed_cmd "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION $VERSION/" "$FILENAME"
+}
+
+# Run the update function
+update_file
+
+git add $FILENAME
+	git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
+if [ "${DRY_RUN}" = false ]; then
+	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
+fi`
