@@ -1002,17 +1002,26 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 {{ end }}`
 
 const updateDashboardReferencesScript = `#!/bin/bash
+# Enable verbose mode and exit on any error
 set -ex
+
+# Determine the operating system
 OS=$(uname -s)
+
+# Set variables (these are populated by Go's template engine)
 DRY_RUN={{ .DryRun }}
 BRANCH_NAME=update-build-refs-{{ .Tag }}
 VERSION={{ .Tag }}
 FILENAME=package/Dockerfile
 
-# using ls | grep is not a good idea because it doesn't support non-alphanumeric filenames, but since we're only ever checking 'k3s' it isn't a problem https://www.shellcheck.net/wiki/SC2010
+# Add upstream remote if it doesn't exist
+# Note: Using ls | grep is not recommended for general use, but it's okay here
+# since we're only checking for 'rancher'
 git remote -v | grep -w upstream || git remote add upstream {{ .RancherUpstreamURL }}
 git fetch upstream
 git stash
+
+# Delete the branch if it exists, then create a new one based on upstream
 git branch -D "${BRANCH_NAME}" &>/dev/null || true
 git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
 # git clean -xfd
@@ -1020,6 +1029,8 @@ git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
 # Function to update the file
 update_file() {
     local sed_cmd
+
+		# Set the appropriate sed command based on the OS
     case ${OS} in
     Darwin)
         sed_cmd="sed -i '' "
@@ -1032,7 +1043,11 @@ update_file() {
       exit 1
       ;;
     esac
+
+		# Update CATTLE_UI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
     $sed_cmd "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "$FILENAME"
+
+		# Update CATTLE_DASHBOARD_UI_VERSION
     $sed_cmd "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION $VERSION/" "$FILENAME"
 }
 
@@ -1040,7 +1055,9 @@ update_file() {
 update_file
 
 git add $FILENAME
-	git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
+git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
+
+# Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
 fi`
