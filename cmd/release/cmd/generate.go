@@ -22,9 +22,6 @@ var (
 	k3sPrevMilestone string
 	k3sMilestone     string
 
-	uiPrevMilestone string
-	uiMilestone     string
-
 	dashboardPrevMilestone string
 	dashboardMilestone     string
 
@@ -190,7 +187,7 @@ var uiGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "ui", uiMilestone, uiPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "ui", dashboardMilestone, dashboardPrevMilestone, client)
 		if err != nil {
 			return err
 		}
@@ -268,8 +265,8 @@ func init() {
 	}
 
 	// ui release notes
-	uiGenerateReleaseNotesSubCmd.Flags().StringVarP(&uiPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
-	uiGenerateReleaseNotesSubCmd.Flags().StringVarP(&uiMilestone, "milestone", "m", "", "Milestone")
+	uiGenerateReleaseNotesSubCmd.Flags().StringVarP(&dashboardPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
+	uiGenerateReleaseNotesSubCmd.Flags().StringVarP(&dashboardMilestone, "milestone", "m", "", "Milestone")
 	if err := uiGenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -346,7 +347,8 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 }
 
 func genUIReleaseNotes(tmpl *template.Template, _ string, rd uiReleaseNoteData) (*bytes.Buffer, error) {
-	tmpl = template.Must(tmpl.Parse(uiReleaseNoteTemplate))
+	uiTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "ui")
+	tmpl = template.Must(tmpl.Parse(uiTemplate))
 	b := bytes.NewBuffer(nil)
 	if err := tmpl.ExecuteTemplate(b, uiRepo, rd); err != nil {
 		return nil, err
@@ -355,7 +357,8 @@ func genUIReleaseNotes(tmpl *template.Template, _ string, rd uiReleaseNoteData) 
 }
 
 func genDashboardReleaseNotes(tmpl *template.Template, _ string, rd dashboardReleaseNoteData) (*bytes.Buffer, error) {
-	tmpl = template.Must(tmpl.Parse(dashboardReleaseNoteTemplate))
+	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
+	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
 	b := bytes.NewBuffer(nil)
 	if err := tmpl.ExecuteTemplate(b, dashboardRepo, rd); err != nil {
 		return nil, err
@@ -914,15 +917,8 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
 {{ end }}`
 
-const uiReleaseNoteTemplate = `
-{{- define "ui" -}}
-<!-- {{.Milestone}} -->
-
-{{ template "changelog" . }}
-{{ end }}`
-
 const dashboardReleaseNoteTemplate = `
-{{- define "dashboard" -}}
+{{- define "%s" -}}
 <!-- {{.Milestone}} -->
 
 {{ template "changelog" . }}
