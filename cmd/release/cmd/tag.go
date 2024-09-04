@@ -148,11 +148,13 @@ var rancherTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc,debug,alpha] [version]")
 		}
+
 		releaseType := args[0]
 		preRelease, err := releaseTypePreRelease(releaseType)
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
 		rancherRelease, found := rootConfig.Rancher.Versions[tag]
 		if !found {
@@ -213,15 +215,18 @@ var uiTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
+
 		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
 		uiRelease, found := rootConfig.UI.Versions[tag]
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 		opts := &repository.CreateReleaseOpts{
@@ -230,6 +235,7 @@ var uiTagSubCmd = &cobra.Command{
 			Owner:  uiRelease.UIRepoOwner,
 			Branch: uiRelease.ReleaseBranch,
 		}
+
 		return ui.CreateRelease(ctx, ghClient, &uiRelease, opts, rc)
 	},
 }
@@ -241,15 +247,18 @@ var dashboardTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
+
 		rc, err := releaseTypePreRelease(args[0])
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 		opts := &repository.CreateReleaseOpts{
@@ -258,6 +267,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Owner:  dashboardRelease.DashboardRepoOwner,
 			Branch: dashboardRelease.ReleaseBranch,
 		}
+
 		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, opts, rc)
 	},
 }

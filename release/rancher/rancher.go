@@ -209,20 +209,15 @@ func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *
 		return err
 	}
 
-	if r.DryRun {
-		fmt.Println("dry run, skipping creating PR")
-		return nil
-	}
 	return createDashboardReferencesPR(ctx, ghClient, r, u)
 }
 
-func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfig.User) error {
 	fmt.Println("verifying if workspace dir exists")
 	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
 	fmt.Println("creating update dashboard references script template")
 	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replase_dash_ref.sh", updateDashboardReferencesScript, funcMap, r)
 	if err != nil {
-		fmt.Println("AAAAAAA")
 		return err
 	}
 	fmt.Println(updateScriptOut)
@@ -230,8 +225,6 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, u *ecmConfi
 }
 
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
-	const repo = "rancher"
-
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
 		Base:                github.String(r.ReleaseBranch),

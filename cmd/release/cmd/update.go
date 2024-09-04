@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -146,6 +147,13 @@ var updateRancherDashboardCmd = &cobra.Command{
 		}
 
 		version := args[0]
+
+		// checking if the provided version is valid
+		_, err := semver.NewVersion(version)
+		if err != nil {
+			return err
+		}
+
 		versionTrimmed, _, _ := strings.Cut(version, "-rc")
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
