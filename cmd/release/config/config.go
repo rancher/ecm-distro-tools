@@ -31,14 +31,8 @@ type K3sRelease struct {
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch        string `json:"release_branch" validate:"required"`
-	RancherRepoOwner     string `json:"rancher_repo_owner" validate:"required"`
-	IssueNumber          string `json:"issue_number" validate:"number"`
-	BaseRegistry         string `json:"base_registry" validate:"required,hostname"`
-	Registry             string `json:"registry" validate:"required,hostname"`
-	PrimeArtifactsBucket string `json:"prime_artifacts_bucket" validate:"required"`
-	DryRun               bool   `json:"dry_run"`
-	SkipStatusCheck      bool   `json:"skip_status_check"`
+	ReleaseBranch    string `json:"release_branch" validate:"required"`
+	RancherRepoOwner string `json:"rancher_repo_owner" validate:"required"`
 }
 
 // RKE2
@@ -163,14 +157,8 @@ func ExampleConfig() (string, error) {
 		Rancher: &Rancher{
 			Versions: map[string]RancherRelease{
 				"v2.x.y": {
-					ReleaseBranch:        "release/v2.x",
-					DryRun:               false,
-					SkipStatusCheck:      false,
-					RancherRepoOwner:     "rancher",
-					IssueNumber:          "1234",
-					BaseRegistry:         "stgregistry.suse.com",
-					Registry:             "registry.rancher.com",
-					PrimeArtifactsBucket: "prime-artifacts",
+					ReleaseBranch:    "release/v2.x",
+					RancherRepoOwner: "rancher",
 				},
 			},
 		},

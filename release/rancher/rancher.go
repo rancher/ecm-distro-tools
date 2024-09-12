@@ -245,7 +245,7 @@ func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool
 	// starting from the last index will result in a newest to oldest sorting
 	for i := len(versions) - 1; i >= 0; i-- {
 		version := versions[i]
-		// only non ga releases contains '-' e.g: -rc, -debug
+		// only non ga releases contains '-' e.g: -rc, -hotfix
 		if strings.Contains(version, "-") {
 			indexContent.PreRelease.Versions = append(indexContent.PreRelease.Versions, version)
 			indexContent.PreRelease.VersionsFiles[version] = versionsFiles[version]
@@ -271,7 +271,7 @@ func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, err
 	return buff.Bytes(), nil
 }
 
-func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) error {
+func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease, skipStatusCheck bool, releaseType string) error {
 	fmt.Println("validating tag semver format")
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("the tag isn't a valid semver: " + opts.Tag)
@@ -287,7 +287,7 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	}
 
 	fmt.Println("the latest commit on branch " + r.ReleaseBranch + " is: " + *branch.Commit.SHA)
-	if !r.SkipStatusCheck {
+	if !skipStatusCheck {
 		fmt.Println("checking if CI is passing")
 		if err := commitStateSuccess(ctx, ghClient, r.RancherRepoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
 			return err
@@ -296,13 +296,6 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 
 	releaseName := opts.Tag
 	if preRelease {
-		if releaseType == "debug" {
-			if r.IssueNumber == "" {
-				return errors.New("debug releases require an issue number")
-			}
-			releaseType = "debug-" + r.IssueNumber + "-"
-		}
-
 		latestVersionNumber := 1
 		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
 		if err != nil {
@@ -325,12 +318,6 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	opts.Prerelease = true
 	opts.Draft = !preRelease
 	opts.ReleaseNotes = ""
-
-	fmt.Printf("creating release with options: %+v\n", opts)
-	if r.DryRun {
-		fmt.Println("dry run, skipping tag creation")
-		return nil
-	}
 
 	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
 	if err != nil {
