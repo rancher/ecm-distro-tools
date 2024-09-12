@@ -323,7 +323,7 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	if err != nil {
 		return err
 	}
-	fmt.Println("release created: " + *createdRelease.URL)
+	fmt.Println("release created: " + *createdRelease.HTMLURL)
 
 	return nil
 }
