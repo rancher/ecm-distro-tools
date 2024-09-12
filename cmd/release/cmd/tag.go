@@ -162,12 +162,23 @@ var rancherTagSubCmd = &cobra.Command{
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		opts := &repository.CreateReleaseOpts{
-			Tag:    tag,
-			Repo:   "rancher",
-			Owner:  rancherRelease.RancherRepoOwner,
-			Branch: rancherRelease.ReleaseBranch,
+			Tag:          tag,
+			Repo:         "rancher",
+			Owner:        rancherRelease.RancherRepoOwner,
+			Branch:       rancherRelease.ReleaseBranch,
+			ReleaseNotes: "",
 		}
-		return rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, tagRancherSkipStatusCheck, releaseType)
+		fmt.Printf("creating release options: %+v\n", opts)
+		if dryRun {
+			fmt.Println("dry run, skipping creating release")
+			return nil
+		}
+		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, tagRancherSkipStatusCheck, releaseType)
+		if err != nil {
+			return err
+		}
+		fmt.Println("created release: " + releaseURL)
+		return nil
 	},
 }
 

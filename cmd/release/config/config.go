@@ -222,9 +222,6 @@ K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
 Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 	{{ $rancherVersion }}:
 		Release Branch:     {{ $rancherValue.ReleaseBranch }}
-		Dry Run:            {{ $rancherValue.DryRun }}
-		Skip Status Check:  {{ $rancherValue.SkipStatusCheck }}
-		Issue Number:       {{ $rancherValue.IssueNumber }}
 		Rancher Repo Owner: {{ $rancherValue.RancherRepoOwner }}{{ end }}
 
 RKE2{{ range .RKE2.Versions }}

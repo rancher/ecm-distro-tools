@@ -271,26 +271,23 @@ func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, err
 	return buff.Bytes(), nil
 }
 
-func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease, skipStatusCheck bool, releaseType string) error {
-	fmt.Println("validating tag semver format")
+// CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
+func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease, skipStatusCheck bool, releaseType string) (string, error) {
 	if !semver.IsValid(opts.Tag) {
-		return errors.New("the tag isn't a valid semver: " + opts.Tag)
+		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
 	}
-	fmt.Println("getting remote branch information from " + r.RancherRepoOwner + "/" + rancherRepo)
 
 	branch, _, err := ghClient.Repositories.GetBranch(ctx, r.RancherRepoOwner, rancherRepo, r.ReleaseBranch, true)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if branch.Commit.SHA == nil {
-		return errors.New("branch commit sha is nil")
+		return "", errors.New("branch commit sha is nil")
 	}
 
-	fmt.Println("the latest commit on branch " + r.ReleaseBranch + " is: " + *branch.Commit.SHA)
 	if !skipStatusCheck {
-		fmt.Println("checking if CI is passing")
 		if err := commitStateSuccess(ctx, ghClient, r.RancherRepoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -299,14 +296,14 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 		latestVersionNumber := 1
 		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		if latestVersion != nil {
 			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, opts.Tag+"-"+releaseType)
 			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
 			if err != nil {
-				return errors.New("failed to parse trimmed latest version number: " + err.Error())
+				return "", errors.New("failed to parse trimmed latest version number: " + err.Error())
 			}
 			latestVersionNumber = currentVersionNumber + 1
 		}
@@ -320,12 +317,9 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	opts.ReleaseNotes = ""
 
 	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
-	if err != nil {
-		return err
-	}
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
 
-	return nil
+	// GetHTMLURL will return an empty value if it isn't present
+	return createdRelease.GetHTMLURL(), err
 }
 
 func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, repo, commit string) error {
