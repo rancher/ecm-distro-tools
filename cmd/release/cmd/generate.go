@@ -22,23 +22,27 @@ var (
 	k3sPrevMilestone string
 	k3sMilestone     string
 
-	concurrencyLimit                    int
-	imagesListURL                       string
-	ignoreImages                        []string
-	checkImages                         []string
-	registry                            string
-	rancherMissingImagesJSONOutput      bool
-	rke2PrevMilestone                   string
-	rke2Milestone                       string
-	rancherArtifactsIndexWriteToPath    string
-	rancherArtifactsIndexIgnoreVersions []string
-	rancherImagesDigestsOutputFile      string
-	rancherImagesDigestsRegistry        string
-	rancherImagesDigestsImagesURL       string
-	rancherSyncImages                   []string
-	rancherSourceRegistry               string
-	rancherTargetRegistry               string
-	rancherSyncConfigOutputPath         string
+	concurrencyLimit                      int
+	imagesListURL                         string
+	ignoreImages                          []string
+	checkImages                           []string
+	registry                              string
+	rancherMissingImagesJSONOutput        bool
+	rke2PrevMilestone                     string
+	rke2Milestone                         string
+	rancherArtifactsIndexWriteToPath      string
+	rancherArtifactsIndexIgnoreVersions   []string
+	rancherImagesDigestsOutputFile        string
+	rancherImagesDigestsRegistry          string
+	rancherImagesDigestsImagesURL         string
+	rancherSyncImages                     []string
+	rancherSourceRegistry                 string
+	rancherTargetRegistry                 string
+	rancherSyncConfigOutputPath           string
+	rancherReleaseAnnouncementTag         string
+	rancherReleaseAnnouncementPreviousTag string
+	rancherReleaseAnnouncementActionRunID string
+	rancherReleaseAnnouncementPrimeOnly   bool
 )
 
 // generateCmd represents the generate command
@@ -172,6 +176,34 @@ var rancherGenerateImagesSyncConfigSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateReleaseMessageSubCmd = &cobra.Command{
+	Use:   "release-message",
+	Short: "Generate the release announcement message",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		versionKey := rancherReleaseAnnouncementTag
+
+		// strip the pre release suffix (v2.9.2-alpha1 -> v2.9.2)
+		if strings.ContainsRune(rancherReleaseAnnouncementTag, '-') {
+			versionKey = strings.Split(rancherReleaseAnnouncementTag, "-")[0]
+		}
+
+		rancherRelease, found := rootConfig.Rancher.Versions[versionKey]
+		if !found {
+			return errors.New("verify your config file, version not found: " + rancherReleaseAnnouncementTag)
+		}
+
+		ctx := context.Background()
+		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		message, err := rancher.GenerateAnnounceReleaseMessage(ctx, client, rancherReleaseAnnouncementTag, rancherReleaseAnnouncementPreviousTag, rancherRelease.RancherRepoOwner, rancherReleaseAnnouncementActionRunID, rancherReleaseAnnouncementPrimeOnly)
+		if err != nil {
+			return err
+		}
+		fmt.Print(message)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -182,6 +214,7 @@ func init() {
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesSyncConfigSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateReleaseMessageSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -257,6 +290,24 @@ func init() {
 		os.Exit(1)
 	}
 	if err := rancherGenerateImagesSyncConfigSubCmd.MarkFlagRequired("target-registry"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	// rancher generate release-message
+	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementTag, "tag", "t", "", "Tag that will be announced")
+	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementPreviousTag, "previous-tag", "p", "", "Last tag before the current one")
+	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementActionRunID, "action-run-id", "a", "", "Run ID for the latest push-release.yml action")
+	rancherGenerateReleaseMessageSubCmd.Flags().BoolVarP(&rancherReleaseAnnouncementPrimeOnly, "prime-only", "p", false, "Version is prime-only and the artifacts are at prime.ribs.rancher.io")
+	if err := rancherGenerateReleaseMessageSubCmd.MarkFlagRequired("tag"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateReleaseMessageSubCmd.MarkFlagRequired("previous-tag"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateReleaseMessageSubCmd.MarkFlagRequired("action-run-id"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}

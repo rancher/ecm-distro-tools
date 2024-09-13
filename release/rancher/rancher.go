@@ -153,6 +153,18 @@ type regsyncSync struct {
 	Tags   regsyncTags `yaml:"tags"`
 }
 
+type releaseAnnnouncement struct {
+	Tag              string
+	PreviousTag      string
+	RancherRepoOwner string
+	CommitSHA        string
+	ActionRunID      string
+	ImagesWithRC     []string
+	ComponentsWithRC []string
+	UIVersion        string
+	CLIVersion       string
+}
+
 func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
 	var keys []string
 	var continuationToken *string
@@ -650,6 +662,56 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verb
 	return createAssetFile(outputFile, imagesDigests)
 }
 
+func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client, tag, previousTag, rancherRepoOwner, actionRunID string, primeOnly bool) (string, error) {
+	release, _, err := ghClient.Repositories.GetReleaseByTag(ctx, rancherRepoOwner, rancherRepo, tag)
+	if err != nil {
+		return "", err
+	}
+	if release.TargetCommitish == nil {
+		return "", errors.New("release commit sha is nil")
+	}
+
+	isPreRelease := strings.ContainsRune(tag, '-')
+	// if preRelease
+	// get the rancher-components.txt artifact and extract images with RC and components with RC
+	//  else
+	// go to rancher/rancher/package/Dockerfile and get the UI and CLI versions
+
+	r := releaseAnnnouncement{
+		Tag:              tag,
+		PreviousTag:      previousTag,
+		RancherRepoOwner: rancherRepoOwner,
+		CommitSHA:        *release.TargetCommitish,
+		ActionRunID:      actionRunID,
+		ImagesWithRC: []string{
+			"rancher/aks-operator v1.9.2-rc.1",
+			"rancher/cis-operator v1.0.15-rc.2",
+		},
+		ComponentsWithRC: []string{
+			"SYSTEM_AGENT_VERSION v0.3.9-rc.4",
+			"WINS_AGENT_VERSION v0.4.18-rc2",
+		},
+		UIVersion:  "v2.9.2-ui",
+		CLIVersion: "v2.9.2-cli",
+	}
+
+	announceTemplate := announceReleaseGATemplate
+	if isPreRelease {
+		announceTemplate = announceReleasePreReleaseTemplate
+	}
+	// only pre release versions contain a suffix that starts with "-" (v2.9.2-alpha1)
+	tmpl := template.New("announce-release")
+	tmpl, err = tmpl.Parse(announceTemplate)
+	if err != nil {
+		return "", errors.New("failed to parse announce template: " + err.Error())
+	}
+	buff := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(buff, "announceRelease", r); err != nil {
+		return "", err
+	}
+	return buff.String(), nil
+}
+
 func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
@@ -958,3 +1020,19 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
+
+const announceReleaseHeaderTemplate = "`{{ .Tag }}` is available based on this commit ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/commit/{{ .CommitSHA }}))!\n" +
+	"* Link of commits between last 2 RCs. ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/compare/{{ .PreviousTag }}...{{ .Tag }}))\n" +
+	"* Completed GHA build ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/actions/runs/{{ .ActionRunID }})).\n"
+
+const announceReleasePreReleaseTemplate = `{{ define "announceRelease" }}` + announceReleaseHeaderTemplate +
+	"* Images with -rc:\n" +
+	"{{ range .ImagesWithRC }}" +
+	"    * {{ . }}\n{{ end }}" +
+	"* Components with -rc:\n" +
+	"{{ range .ComponentsWithRC }}" +
+	"    * {{ . }}\n{{ end }}{{ end }}"
+
+const announceReleaseGATemplate = `{{  define "announceRelease" }}` + announceReleaseHeaderTemplate +
+	"* UI Version: {{ .UIVersion }}\n" +
+	"* CLI Version: {{ .CLIVersion }}{{ end }}"
