@@ -727,7 +727,7 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 	return buff.String(), nil
 }
 
-// rancherUICLIVersions scans a dockerfile line by line and retruns the ui and cli versions, or an error if any of them are not found
+// rancherUICLIVersions scans a dockerfile line by line and returns the ui and cli versions, or an error if any of them are not found
 func rancherUICLIVersions(dockerfile []string) (string, string, error) {
 	var uiVersion string
 	var cliVersion string
