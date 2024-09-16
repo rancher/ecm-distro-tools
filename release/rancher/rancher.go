@@ -701,7 +701,7 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 		}
 		r.ImagesWithRC = imagesWithRC
 		r.ComponentsWithRC = componentsWithRC
-	} else {
+	} else { // GA Version
 		dockerfileURL := "https://raw.githubusercontent.com/" + rancherRepoOwner + "/rancher/" + *release.TargetCommitish + "/package/Dockerfile"
 		dockerfile, err := remoteTextFileToSlice(dockerfileURL)
 		if err != nil {
@@ -715,7 +715,6 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 		r.CLIVersion = cliVersion
 	}
 
-	// only pre release versions contain a suffix that starts with "-" (v2.9.2-alpha1)
 	tmpl := template.New("announce-release")
 	tmpl, err = tmpl.Parse(announceTemplate)
 	if err != nil {
@@ -768,10 +767,10 @@ func rancherImagesComponentsWithRC(rancherComponents []string) ([]string, []stri
 
 		// if a line contains # it is a header for a section
 		isHeader := strings.Contains(line, "#")
-		imagesHeader := strings.Contains(line, "Images")
-		componentsHeader := strings.Contains(line, "Components")
 
 		if isHeader {
+			imagesHeader := strings.Contains(line, "Images")
+			componentsHeader := strings.Contains(line, "Components")
 			// if it's a header, but not for images or components, ignore it and everything else after it
 			if !imagesHeader && !componentsHeader {
 				break
