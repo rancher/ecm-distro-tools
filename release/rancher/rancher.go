@@ -458,7 +458,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
 		}
-		rancherImages, err := rancherPrimeArtifact(imagesListURL)
+		rancherImages, err := remoteTextFileToSlice(imagesListURL)
 		if err != nil {
 			return nil, errors.New("failed to get rancher images: " + err.Error())
 		}
@@ -671,34 +671,50 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 		return "", errors.New("release commit sha is nil")
 	}
 
-	isPreRelease := strings.ContainsRune(tag, '-')
-	// if preRelease
-	// get the rancher-components.txt artifact and extract images with RC and components with RC
-	//  else
-	// go to rancher/rancher/package/Dockerfile and get the UI and CLI versions
-
 	r := releaseAnnnouncement{
 		Tag:              tag,
 		PreviousTag:      previousTag,
 		RancherRepoOwner: rancherRepoOwner,
 		CommitSHA:        *release.TargetCommitish,
 		ActionRunID:      actionRunID,
-		ImagesWithRC: []string{
-			"rancher/aks-operator v1.9.2-rc.1",
-			"rancher/cis-operator v1.0.15-rc.2",
-		},
-		ComponentsWithRC: []string{
-			"SYSTEM_AGENT_VERSION v0.3.9-rc.4",
-			"WINS_AGENT_VERSION v0.4.18-rc2",
-		},
-		UIVersion:  "v2.9.2-ui",
-		CLIVersion: "v2.9.2-cli",
 	}
 
 	announceTemplate := announceReleaseGATemplate
+
+	// only prerelease images like alpha, rc or hotfix contain - (e.g: v2.9.2-alpha1)
+	isPreRelease := strings.ContainsRune(tag, '-')
 	if isPreRelease {
 		announceTemplate = announceReleasePreReleaseTemplate
+
+		componentsURL := "https://github.com/" + rancherRepoOwner + "/rancher/releases/download/" + tag + "/rancher-components.txt"
+		if primeOnly {
+			componentsURL = rancherArtifactsBaseURL + "/rancher/" + tag + "/rancher-components.txt"
+		}
+		rancherComponents, err := remoteTextFileToSlice(componentsURL)
+		if err != nil {
+			return "", err
+		}
+
+		imagesWithRC, componentsWithRC, err := rancherImagesComponentsWithRC(rancherComponents)
+		if err != nil {
+			return "", err
+		}
+		r.ImagesWithRC = imagesWithRC
+		r.ComponentsWithRC = componentsWithRC
+	} else {
+		dockerfileURL := "https://raw.githubusercontent.com/" + rancherRepoOwner + "/rancher/" + *release.TargetCommitish + "/package/Dockerfile"
+		dockerfile, err := remoteTextFileToSlice(dockerfileURL)
+		if err != nil {
+			return "", err
+		}
+		uiVersion, cliVersion, err := rancherUICLIVersions(dockerfile)
+		if err != nil {
+			return "", err
+		}
+		r.UIVersion = uiVersion
+		r.CLIVersion = cliVersion
 	}
+
 	// only pre release versions contain a suffix that starts with "-" (v2.9.2-alpha1)
 	tmpl := template.New("announce-release")
 	tmpl, err = tmpl.Parse(announceTemplate)
@@ -710,6 +726,70 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 		return "", err
 	}
 	return buff.String(), nil
+}
+
+// rancherUICLIVersions scans a dockerfile line by line and retruns the ui and cli versions, or an error if any of them are not found
+func rancherUICLIVersions(dockerfile []string) (string, string, error) {
+	var uiVersion string
+	var cliVersion string
+	for _, line := range dockerfile {
+		if strings.Contains(line, "ENV CATTLE_UI_VERSION ") {
+			uiVersion = strings.TrimPrefix(line, "ENV CATTLE_UI_VERSION ")
+			continue
+		}
+		if strings.Contains(line, "ENV CATTLE_CLI_VERSION ") {
+			cliVersion = strings.TrimPrefix(line, "ENV CATTLE_CLI_VERSION ")
+			continue
+		}
+		if len(uiVersion) > 0 && len(cliVersion) > 0 {
+			break
+		}
+	}
+	if uiVersion == "" || cliVersion == "" {
+		return "", "", errors.New("missing ui or cli version")
+	}
+	return uiVersion, cliVersion, nil
+}
+
+// rancherImagesComponentsWithRC scans the rancher-components.txt file content and returns images and components, or an error
+func rancherImagesComponentsWithRC(rancherComponents []string) ([]string, []string, error) {
+	if len(rancherComponents) < 2 {
+		return nil, nil, errors.New("rancher-components.txt should have at least two lines (images and components headers)")
+	}
+	images := make([]string, 0)
+	components := make([]string, 0)
+
+	var isImage bool
+	for _, line := range rancherComponents {
+		// always skip empty lines
+		if line == "" || line == " " {
+			continue
+		}
+
+		// if a line contains # it is a header for a section
+		isHeader := strings.Contains(line, "#")
+		imagesHeader := strings.Contains(line, "Images")
+		componentsHeader := strings.Contains(line, "Components")
+
+		if isHeader {
+			// if it's a header, but not for images or components, ignore it and everything else after it
+			if !imagesHeader && !componentsHeader {
+				break
+			}
+			// isImage's value will persist between iterations
+			// if imagesHeader is true, it means that all following lines are images
+			// if it's false, it means that all following images are components
+			isImage = imagesHeader
+			continue
+		}
+
+		if isImage {
+			images = append(images, line)
+		} else {
+			components = append(components, line)
+		}
+	}
+	return images, components, nil
 }
 
 func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
@@ -887,7 +967,7 @@ func registryAuth(authURL, service, image string) (string, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+		return "", errors.New("expected status code to be 200, got: " + res.Status)
 	}
 
 	var auth registryAuthToken
@@ -898,11 +978,14 @@ func registryAuth(authURL, service, image string) (string, error) {
 	return auth.Token, nil
 }
 
-func rancherPrimeArtifact(url string) ([]string, error) {
+func remoteTextFileToSlice(url string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, errors.New("expected status code to be 200, got: " + res.Status)
 	}
 	defer res.Body.Close()
 
@@ -1034,5 +1117,5 @@ const announceReleasePreReleaseTemplate = `{{ define "announceRelease" }}` + ann
 	"    * {{ . }}\n{{ end }}{{ end }}"
 
 const announceReleaseGATemplate = `{{  define "announceRelease" }}` + announceReleaseHeaderTemplate +
-	"* UI Version: {{ .UIVersion }}\n" +
-	"* CLI Version: {{ .CLIVersion }}{{ end }}"
+	"* UI Version: `{{ .UIVersion }}`\n" +
+	"* CLI Version: `{{ .CLIVersion }}`{{ end }}"

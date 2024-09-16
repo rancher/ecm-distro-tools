@@ -189,7 +189,7 @@ var rancherGenerateReleaseMessageSubCmd = &cobra.Command{
 
 		rancherRelease, found := rootConfig.Rancher.Versions[versionKey]
 		if !found {
-			return errors.New("verify your config file, version not found: " + rancherReleaseAnnouncementTag)
+			return errors.New("verify your config file, version not found: " + versionKey)
 		}
 
 		ctx := context.Background()
@@ -199,7 +199,7 @@ var rancherGenerateReleaseMessageSubCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Print(message)
+		fmt.Println(message)
 		return nil
 	},
 }
@@ -298,7 +298,7 @@ func init() {
 	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementTag, "tag", "t", "", "Tag that will be announced")
 	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementPreviousTag, "previous-tag", "p", "", "Last tag before the current one")
 	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementActionRunID, "action-run-id", "a", "", "Run ID for the latest push-release.yml action")
-	rancherGenerateReleaseMessageSubCmd.Flags().BoolVarP(&rancherReleaseAnnouncementPrimeOnly, "prime-only", "p", false, "Version is prime-only and the artifacts are at prime.ribs.rancher.io")
+	rancherGenerateReleaseMessageSubCmd.Flags().BoolVarP(&rancherReleaseAnnouncementPrimeOnly, "prime-only", "o", false, "Version is prime-only and the artifacts are at prime.ribs.rancher.io")
 	if err := rancherGenerateReleaseMessageSubCmd.MarkFlagRequired("tag"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
