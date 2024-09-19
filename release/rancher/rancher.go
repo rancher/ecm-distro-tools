@@ -662,28 +662,40 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verb
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client, tag, previousTag, rancherRepoOwner, actionRunID string, primeOnly bool) (string, error) {
-	release, _, err := ghClient.Repositories.GetReleaseByTag(ctx, rancherRepoOwner, rancherRepo, tag)
+func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client, tag, previousTag, rancherRepoOwner, actionRunID string, primeOnly, finalRC bool) (string, error) {
+	ref, _, err := ghClient.Git.GetRef(ctx, rancherRepoOwner, rancherRepo, "refs/tags/"+tag)
 	if err != nil {
 		return "", err
 	}
-	if release.TargetCommitish == nil {
+	if ref.Object.SHA == nil {
 		return "", errors.New("release commit sha is nil")
 	}
+
+	commitSHA := ref.Object.GetSHA()
 
 	r := releaseAnnnouncement{
 		Tag:              tag,
 		PreviousTag:      previousTag,
 		RancherRepoOwner: rancherRepoOwner,
-		CommitSHA:        *release.TargetCommitish,
+		CommitSHA:        commitSHA,
 		ActionRunID:      actionRunID,
 	}
 
-	announceTemplate := announceReleaseGATemplate
+	announceTemplate := announceReleaseFinalRCTemplate
 
-	// only prerelease images like alpha, rc or hotfix contain - (e.g: v2.9.2-alpha1)
-	isPreRelease := strings.ContainsRune(tag, '-')
-	if isPreRelease {
+	if finalRC {
+		dockerfileURL := "https://raw.githubusercontent.com/" + rancherRepoOwner + "/rancher/" + commitSHA + "/package/Dockerfile"
+		dockerfile, err := remoteTextFileToSlice(dockerfileURL)
+		if err != nil {
+			return "", err
+		}
+		uiVersion, cliVersion, err := rancherUICLIVersions(dockerfile)
+		if err != nil {
+			return "", err
+		}
+		r.UIVersion = uiVersion
+		r.CLIVersion = cliVersion
+	} else { // every alpha and rc before the final RC
 		announceTemplate = announceReleasePreReleaseTemplate
 
 		componentsURL := "https://github.com/" + rancherRepoOwner + "/rancher/releases/download/" + tag + "/rancher-components.txt"
@@ -701,18 +713,6 @@ func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client
 		}
 		r.ImagesWithRC = imagesWithRC
 		r.ComponentsWithRC = componentsWithRC
-	} else { // GA Version
-		dockerfileURL := "https://raw.githubusercontent.com/" + rancherRepoOwner + "/rancher/" + *release.TargetCommitish + "/package/Dockerfile"
-		dockerfile, err := remoteTextFileToSlice(dockerfileURL)
-		if err != nil {
-			return "", err
-		}
-		uiVersion, cliVersion, err := rancherUICLIVersions(dockerfile)
-		if err != nil {
-			return "", err
-		}
-		r.UIVersion = uiVersion
-		r.CLIVersion = cliVersion
 	}
 
 	tmpl := template.New("announce-release")
@@ -1115,6 +1115,6 @@ const announceReleasePreReleaseTemplate = `{{ define "announceRelease" }}` + ann
 	"{{ range .ComponentsWithRC }}" +
 	"    * {{ . }}\n{{ end }}{{ end }}"
 
-const announceReleaseGATemplate = `{{  define "announceRelease" }}` + announceReleaseHeaderTemplate +
+const announceReleaseFinalRCTemplate = `{{  define "announceRelease" }}` + announceReleaseHeaderTemplate +
 	"* UI Version: `{{ .UIVersion }}`\n" +
 	"* CLI Version: `{{ .CLIVersion }}`{{ end }}"

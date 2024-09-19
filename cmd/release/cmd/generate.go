@@ -43,6 +43,7 @@ var (
 	rancherReleaseAnnouncementPreviousTag string
 	rancherReleaseAnnouncementActionRunID string
 	rancherReleaseAnnouncementPrimeOnly   bool
+	rancherReleaseAnnouncementFinalRC     bool
 )
 
 // generateCmd represents the generate command
@@ -195,7 +196,7 @@ var rancherGenerateReleaseMessageSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		message, err := rancher.GenerateAnnounceReleaseMessage(ctx, client, rancherReleaseAnnouncementTag, rancherReleaseAnnouncementPreviousTag, rancherRelease.RancherRepoOwner, rancherReleaseAnnouncementActionRunID, rancherReleaseAnnouncementPrimeOnly)
+		message, err := rancher.GenerateAnnounceReleaseMessage(ctx, client, rancherReleaseAnnouncementTag, rancherReleaseAnnouncementPreviousTag, rancherRelease.RancherRepoOwner, rancherReleaseAnnouncementActionRunID, rancherReleaseAnnouncementPrimeOnly, rancherReleaseAnnouncementFinalRC)
 		if err != nil {
 			return err
 		}
@@ -299,6 +300,7 @@ func init() {
 	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementPreviousTag, "previous-tag", "p", "", "Last tag before the current one")
 	rancherGenerateReleaseMessageSubCmd.Flags().StringVarP(&rancherReleaseAnnouncementActionRunID, "action-run-id", "a", "", "Run ID for the latest push-release.yml action")
 	rancherGenerateReleaseMessageSubCmd.Flags().BoolVarP(&rancherReleaseAnnouncementPrimeOnly, "prime-only", "o", false, "Version is prime-only and the artifacts are at prime.ribs.rancher.io")
+	rancherGenerateReleaseMessageSubCmd.Flags().BoolVarP(&rancherReleaseAnnouncementFinalRC, "final-rc", "f", false, "Version is the final RC, the announce message won't contain images or components with RC")
 	if err := rancherGenerateReleaseMessageSubCmd.MarkFlagRequired("tag"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
