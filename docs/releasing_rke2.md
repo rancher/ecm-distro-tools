@@ -156,6 +156,8 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 1. Update release report
 </details>
 
+**NOTE** Once the GA tags are created, the KDM PR, Release Notes, and GA RPM steps can all be done/should be in tandem to one another.
+
 ## Finalize Release
 ### Merge KDM PR
 
@@ -175,7 +177,7 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 1. Run the update script
    ```shell
    export GITHUB_TOKEN='<your github token>'
-   ./release generate k3s|rke2 release-notes -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
+   ./release generate rke2 release-notes -m v1.24.2-rc1+rke2r1 -p v1.24.1+rke2r2
    ```
 1. Copy the generated release notes
 1. Validate and update the release notes as necessary
@@ -189,16 +191,16 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 
 #### Packaged Components
 
-| Component | File | String | Example |
-| --- | --- | --- | --- |
-| Kubernetes      | `Dockerfile`           | `FROM rancher/hardened-kubernetes`           | `rancher/hardened-kubernetes:v1.24.2-rke2r1-build20220617` |
-| Etcd            | `scripts/version.sh`   | `ETCD_VERSION`                               | `ETCD_VERSION=${ETCD_VERSION:-v3.5.4-k3s1}` |
-| Containerd      | `Dockerfile`           | `FROM rancher/hardened-containerd`           | `rancher/hardened-containerd:v1.6.6-k3s1-build20220606` |
-| Runc            | `Dockerfile`           | `FROM rancher/hardened-runc`                 | `rancher/hardened-runc:v1.1.2-build20220606` |
-| Metrics-Server  | `scripts/build-images` | `rancher/hardened-k8s-metrics-server`        | `${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.5.0-build20211119` |
-| CoreDNS         | `scripts/build-images` | `rancher/hardened-coredns`                   | `${REGISTRY}/rancher/hardened-coredns:v1.9.3-build20220613` |
+| Component       | File                   | String                                       | Example                                                                  |
+| --------------- | ---------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| Kubernetes      | `Dockerfile`           | `FROM rancher/hardened-kubernetes`           | `rancher/hardened-kubernetes:v1.24.2-rke2r1-build20220617`               |
+| Etcd            | `scripts/version.sh`   | `ETCD_VERSION`                               | `ETCD_VERSION=${ETCD_VERSION:-v3.5.4-k3s1}`                              |
+| Containerd      | `Dockerfile`           | `FROM rancher/hardened-containerd`           | `rancher/hardened-containerd:v1.6.6-k3s1-build20220606`                  |
+| Runc            | `Dockerfile`           | `FROM rancher/hardened-runc`                 | `rancher/hardened-runc:v1.1.2-build20220606`                             |
+| Metrics-Server  | `scripts/build-images` | `rancher/hardened-k8s-metrics-server`        | `${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.5.0-build20211119`   |
+| CoreDNS         | `scripts/build-images` | `rancher/hardened-coredns`                   | `${REGISTRY}/rancher/hardened-coredns:v1.9.3-build20220613`              |
 | Ingress-Nginx   | `Dockerfile`           | `CHART_FILE=/charts/rke2-ingress-nginx.yaml` | `RUN CHART_VERSION="4.1.003" CHART_FILE=/charts/rke2-ingress-nginx.yaml` |
-| Helm-controller | `go.mod`               | `helm-controller`                            | `github.com/k3s-io/helm-controller v0.12.3` |
+| Helm-controller | `go.mod`               | `helm-controller`                            | `github.com/k3s-io/helm-controller v0.12.3`                              |
 
 </details>
 
