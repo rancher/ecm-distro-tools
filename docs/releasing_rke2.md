@@ -156,7 +156,7 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 1. Update release report
 </details>
 
-**NOTE** Once the GA tags are created, the KDM PR, Release Notes, and GA RPM steps can all be done/should be in tendem to one another.
+**NOTE** Once the GA tags are created, the KDM PR, Release Notes, and GA RPM steps can all be done/should be in tandem to one another.
 
 ## Finalize Release
 ### Merge KDM PR
