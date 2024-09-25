@@ -21,7 +21,8 @@ type tagRKE2CmdFlags struct {
 }
 
 var (
-	tagRKE2Flags tagRKE2CmdFlags
+	tagRKE2Flags              tagRKE2CmdFlags
+	tagRancherSkipStatusCheck bool
 )
 
 // tagCmd represents the tag command.
@@ -140,11 +141,11 @@ var rke2TagSubCmd = &cobra.Command{
 }
 
 var rancherTagSubCmd = &cobra.Command{
-	Use:   "rancher [ga, rc, debug, alpha] [version]",
+	Use:   "rancher [ga, rc, alpha] [version]",
 	Short: "Tag Rancher releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
-			return errors.New("expected at least two arguments: [ga,rc,debug,alpha] [version]")
+			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
 		}
 		releaseType := args[0]
 		preRelease, err := releaseTypePreRelease(releaseType)
@@ -161,12 +162,23 @@ var rancherTagSubCmd = &cobra.Command{
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		opts := &repository.CreateReleaseOpts{
-			Tag:    tag,
-			Repo:   "rancher",
-			Owner:  rancherRelease.RancherRepoOwner,
-			Branch: rancherRelease.ReleaseBranch,
+			Tag:          tag,
+			Repo:         "rancher",
+			Owner:        rancherRelease.RancherRepoOwner,
+			Branch:       rancherRelease.ReleaseBranch,
+			ReleaseNotes: "",
 		}
-		return rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
+		fmt.Printf("creating release options: %+v\n", opts)
+		if dryRun {
+			fmt.Println("dry run, skipping creating release")
+			return nil
+		}
+		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, tagRancherSkipStatusCheck, releaseType)
+		if err != nil {
+			return err
+		}
+		fmt.Println("created release: " + releaseURL)
+		return nil
 	},
 }
 
@@ -217,10 +229,13 @@ func init() {
 	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
 	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
+
+	// rancher
+	rancherTagSubCmd.Flags().BoolVarP(&tagRancherSkipStatusCheck, "skip-status-check", "s", false, "skip checking if CI is passing when creating a tag")
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
-	if releaseType == "rc" || releaseType == "debug" || releaseType == "alpha" {
+	if releaseType == "rc" || releaseType == "alpha" {
 		return true, nil
 	}
 
@@ -228,5 +243,5 @@ func releaseTypePreRelease(releaseType string) (bool, error) {
 		return false, nil
 	}
 
-	return false, errors.New("release type must be either 'ga', 'debug', 'alpha' or 'rc', instead got: " + releaseType)
+	return false, errors.New("release type must be either 'ga', 'alpha' or 'rc', instead got: " + releaseType)
 }
