@@ -983,10 +983,11 @@ func remoteTextFileToSlice(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if res.StatusCode != 200 {
+  defer res.Body.Close()
+
+  if res.StatusCode != 200 {
 		return nil, errors.New("expected status code to be 200, got: " + res.Status)
 	}
-	defer res.Body.Close()
 
 	var file []string
 	scanner := bufio.NewScanner(res.Body)
