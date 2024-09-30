@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -222,6 +223,11 @@ var uiTagSubCmd = &cobra.Command{
 		}
 
 		tag := args[1]
+		_, err = semver.NewVersion(tag)
+		if err != nil {
+			return err
+		}
+
 		uiRelease, found := rootConfig.UI.Versions[tag]
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
@@ -241,14 +247,16 @@ var uiTagSubCmd = &cobra.Command{
 }
 
 var dashboardTagSubCmd = &cobra.Command{
-	Use:   "dashboard [ga,rc] [version]",
+	Use:   "dashboard [ga,rc, alpha] [version]",
 	Short: "Tag dashboard releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 
-		rc, err := releaseTypePreRelease(args[0])
+		releaseType := args[0]
+
+		rc, err := releaseTypePreRelease(releaseType)
 		if err != nil {
 			return err
 		}
@@ -268,7 +276,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Branch: dashboardRelease.ReleaseBranch,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, opts, rc)
+		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, opts, rc, releaseType)
 	},
 }
 

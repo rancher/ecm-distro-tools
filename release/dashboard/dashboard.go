@@ -20,7 +20,7 @@ const (
 	dashboardImagesBaseURL = "https://github.com/" + dashboardOrg + "/" + dashboardRepo + "/releases"
 )
 
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, rc bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
 	fmt.Println("validating tag")
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
@@ -53,7 +53,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 			latestRC = new(string)
 			*latestRC = opts.Tag + "-rc1"
 		}
-		opts.Tag = fmt.Sprintf("%s-rc%d", opts.Tag, latestRCNumber)
+		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
 	}
 
 	opts.Name = opts.Tag
