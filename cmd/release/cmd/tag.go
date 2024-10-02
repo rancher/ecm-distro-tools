@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -264,21 +265,36 @@ var dashboardTagSubCmd = &cobra.Command{
 		}
 
 		tag := args[1]
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
 
-		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		opts := &repository.CreateReleaseOpts{
+		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
-			Repo:   "dashboard",
-			Owner:  dashboardRelease.DashboardRepoOwner,
+			Repo:   rootConfig.Dashboard.UIRepoName,
+			Owner:  rootConfig.Dashboard.UIRepoOwner,
+			Branch: dashboardRelease.UIReleaseBranch,
+		}
+
+		if err := ui.CreateRelease(ctx, ghClient, &config.UIRelease{
+			PreviousTag: dashboardRelease.PreviousTag,
+			DryRun:      dashboardRelease.DryRun,
+		}, uiOpts, rc, releaseType); err != nil {
+			return err
+		}
+
+		dashboardOpts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   rootConfig.Dashboard.RepoName,
+			Owner:  rootConfig.Dashboard.RepoOwner,
 			Branch: dashboardRelease.ReleaseBranch,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, opts, rc, releaseType)
+		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, rc, releaseType)
 	},
 }
 

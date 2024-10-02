@@ -204,12 +204,12 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *config.DashboardRelease, u *config.User) error {
+func UpdateDashboardReferences(ctx context.Context, cfg *config.Dashboard, ghClient *github.Client, r *config.DashboardRelease, u *config.User) error {
 	if err := updateDashboardReferencesAndPush(r, u); err != nil {
 		return err
 	}
 
-	return createDashboardReferencesPR(ctx, ghClient, r, u)
+	return createDashboardReferencesPR(ctx, cfg, ghClient, r, u)
 }
 
 func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfig.User) error {
@@ -224,7 +224,7 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 	return nil
 }
 
-func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+func createDashboardReferencesPR(ctx context.Context, cfg *config.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
 		Base:                github.String(r.RancherReleaseBranch),
@@ -233,7 +233,7 @@ func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, r
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, r.DashboardRepoOwner, r.RancherUpstreamRepo, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, cfg.RancherRepoOwner, cfg.RancherRepoName, pull)
 
 	return err
 }

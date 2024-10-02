@@ -168,7 +168,7 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User)
+		return rancher.UpdateDashboardReferences(ctx, rootConfig.Dashboard, ghClient, &dashboardRelease, rootConfig.User)
 	},
 }
 

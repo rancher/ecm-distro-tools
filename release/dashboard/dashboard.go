@@ -26,10 +26,6 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
 
-	if r.DashboardRepoName != "" {
-		opts.Repo = r.DashboardRepoName
-	}
-
 	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, opts.Tag, opts.Tag, client)
 	if err != nil {
 		return err

@@ -50,13 +50,11 @@ type UIRelease struct {
 }
 
 type DashboardRelease struct {
-	DashboardRepoOwner   string `json:"dashboard_repo_owner" validate:"required"`
-	DashboardRepoName    string `json:"dashboard_repo_name"`
-	PreviousTag          string `json:"previous_tag"`
+	PreviousTag          string `json:"previous_tag" validate:"required"`
 	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	UIReleaseBranch      string `json:"ui_release_branch" validate:"required"`
+	UIPreviousTag        string `json:"ui_previous_tag" validate:"required"`
 	Tag                  string
-	RancherUpstreamURL   string `json:"rancher_upstream_url" validate:"required"`
-	RancherUpstreamRepo  string `json:"rancher_upstream_repo" validate:"required"`
 	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
 	DryRun               bool   `json:"dry_run"`
 }
@@ -97,7 +95,14 @@ type UI struct {
 
 // Dashboard
 type Dashboard struct {
-	Versions map[string]DashboardRelease `json:"versions" validate:"dive"`
+	Versions           map[string]DashboardRelease `json:"versions" validate:"dive"`
+	RepoOwner          string                      `json:"repo_owner" validate:"required"`
+	RepoName           string                      `json:"repo_name" validate:"required"`
+	UIRepoOwner        string                      `json:"ui_repo_owner" validate:"required"`
+	UIRepoName         string                      `json:"ui_repo_name" validate:"required"`
+	RancherRepoOwner   string                      `json:"rancher_repo_owner" validate:"required"`
+	RancherRepoName    string                      `json:"rancher_repo_name" validate:"required"`
+	RancherUpstreamURL string                      `json:"rancher_upstream_url" validate:"required"`
 }
 
 // Auth
