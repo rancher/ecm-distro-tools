@@ -56,6 +56,7 @@ type DashboardRelease struct {
 	ReleaseBranch        string `json:"release_branch" validate:"required"`
 	Tag                  string
 	RancherUpstreamURL   string `json:"rancher_upstream_url" validate:"required"`
+	RancherUpstreamRepo  string `json:"rancher_upstream_repo" validate:"required"`
 	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
 	DryRun               bool   `json:"dry_run"`
 }

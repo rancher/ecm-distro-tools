@@ -217,7 +217,9 @@ var uiTagSubCmd = &cobra.Command{
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 
-		rc, err := releaseTypePreRelease(args[0])
+		releaseType := args[0]
+
+		rc, err := releaseTypePreRelease(releaseType)
 		if err != nil {
 			return err
 		}
@@ -242,7 +244,7 @@ var uiTagSubCmd = &cobra.Command{
 			Branch: uiRelease.ReleaseBranch,
 		}
 
-		return ui.CreateRelease(ctx, ghClient, &uiRelease, opts, rc)
+		return ui.CreateRelease(ctx, ghClient, &uiRelease, opts, rc, releaseType)
 	},
 }
 

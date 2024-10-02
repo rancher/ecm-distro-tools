@@ -227,13 +227,13 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
-		Base:                github.String(r.ReleaseBranch),
+		Base:                github.String(r.RancherReleaseBranch),
 		Head:                github.String(u.GithubUsername + ":update-build-refs-" + r.Tag),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, r.DashboardRepoOwner, r.DashboardRepoName, pull)
+	_, _, err := ghClient.PullRequests.Create(ctx, r.DashboardRepoOwner, r.RancherUpstreamRepo, pull)
 
 	return err
 }
@@ -1053,4 +1053,7 @@ git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
 # Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
-fi`
+fi
+
+# Cleaning temp files/scripts
+git clean -f`
