@@ -9,7 +9,6 @@ import (
 	"fmt"
 	htmlTemplate "html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -27,7 +26,6 @@ import (
 	"github.com/google/go-github/v39/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
-	ecmLog "github.com/rancher/ecm-distro-tools/log"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -422,7 +420,6 @@ func formatContentLine(line string) string {
 }
 
 func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
-	log := ecmLog.NewLogger(verbose)
 	if len(checkImages) == 0 {
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
@@ -451,6 +448,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
+    cancel()
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
@@ -462,7 +460,6 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 		}
 
 		if _, ok := ignore[image]; ok {
-			log.Println("skipping ignored image: " + imageAndVersion)
 			continue
 		}
 
@@ -500,11 +497,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 					fullImage := image + ":" + imageVersion
 					if !exists {
 						missingImagesChan <- fullImage
-						log.Println(fullImage + " is missing")
-					} else {
-						log.Println(fullImage + " exists")
 					}
-
 					return nil
 				}
 			})
@@ -736,7 +729,7 @@ func (d imageDigest) String() string {
 }
 
 func getLinesFromReader(body io.Reader) ([]string, error) {
-	lines, err := ioutil.ReadAll(body)
+	lines, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
@@ -748,7 +741,7 @@ func getLinesFromReader(body io.Reader) ([]string, error) {
 }
 
 func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, int, error) {
-	httpClient := ecmHTTP.NewClient(time.Second * 5)
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
 		return "", 0, err
@@ -796,7 +789,7 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 }
 
 func registryAuth(authURL, service, image string) (string, error) {
-	httpClient := ecmHTTP.NewClient(time.Second * 5)
+	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	scope := "repository:" + image + ":pull"
 	url := authURL + "?scope=" + scope + "&service=" + service
 	res, err := httpClient.Get(url)
