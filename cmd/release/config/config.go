@@ -35,6 +35,25 @@ type RancherRelease struct {
 	RancherRepoOwner string `json:"rancher_repo_owner" validate:"required"`
 }
 
+type UIRelease struct {
+	UIRepoOwner   string `json:"ui_repo_owner" validate:"required"`
+	UIRepoName    string `json:"ui_repo_name"`
+	PreviousTag   string `json:"previous_tag"`
+	ReleaseBranch string `json:"release_branch" validate:"required"`
+	DryRun        bool   `json:"dry_run"`
+}
+
+type DashboardRelease struct {
+	PreviousTag          string `json:"previous_tag" validate:"required"`
+	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	UIReleaseBranch      string `json:"ui_release_branch" validate:"required"`
+	UIPreviousTag        string `json:"ui_previous_tag" validate:"required"`
+	Tag                  string
+	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
+	RancherUpstreamURL   string
+	DryRun               bool `json:"dry_run"`
+}
+
 // RKE2
 type RKE2 struct {
 	Versions []string `json:"versions"`
@@ -64,6 +83,23 @@ type Rancher struct {
 	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
 }
 
+// UI
+type UI struct {
+	Versions map[string]UIRelease `json:"versions" validate:"dive"`
+}
+
+// Dashboard
+type Dashboard struct {
+	Versions           map[string]DashboardRelease `json:"versions" validate:"dive"`
+	RepoOwner          string                      `json:"repo_owner" validate:"required"`
+	RepoName           string                      `json:"repo_name" validate:"required"`
+	UIRepoOwner        string                      `json:"ui_repo_owner" validate:"required"`
+	UIRepoName         string                      `json:"ui_repo_name" validate:"required"`
+	RancherRepoOwner   string                      `json:"rancher_repo_owner" validate:"required"`
+	RancherRepoName    string                      `json:"rancher_repo_name" validate:"required"`
+	RancherUpstreamURL string                      `json:"rancher_upstream_url" validate:"required"`
+}
+
 // Auth
 type Auth struct {
 	GithubToken        string `json:"github_token"`
@@ -76,12 +112,14 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User    *User          `json:"user"`
-	K3s     *K3s           `json:"k3s" validate:"omitempty"`
-	Rancher *Rancher       `json:"rancher" validate:"omitempty"`
-	RKE2    *RKE2          `json:"rke2" validate:"omitempty"`
-	Charts  *ChartsRelease `json:"charts" validate:"omitempty"`
-	Auth    *Auth          `json:"auth"`
+	User      *User          `json:"user"`
+	K3s       *K3s           `json:"k3s" validate:"omitempty"`
+	Rancher   *Rancher       `json:"rancher" validate:"omitempty"`
+	RKE2      *RKE2          `json:"rke2" validate:"omitempty"`
+	Charts    *ChartsRelease `json:"charts" validate:"omitempty"`
+	Auth      *Auth          `json:"auth"`
+	UI        *UI            `json:"ui"`
+	Dashboard *Dashboard     `json:"dashboard"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
