@@ -448,7 +448,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
-    cancel()
+		cancel()
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
