@@ -56,7 +56,8 @@ type DashboardRelease struct {
 	UIPreviousTag        string `json:"ui_previous_tag" validate:"required"`
 	Tag                  string
 	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
-	DryRun               bool   `json:"dry_run"`
+	RancherUpstreamURL   string
+	DryRun               bool `json:"dry_run"`
 }
 
 // RKE2

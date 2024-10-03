@@ -205,6 +205,8 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 }
 
 func UpdateDashboardReferences(ctx context.Context, cfg *config.Dashboard, ghClient *github.Client, r *config.DashboardRelease, u *config.User) error {
+	r.RancherUpstreamURL = cfg.RancherUpstreamURL
+
 	if err := updateDashboardReferencesAndPush(r, u); err != nil {
 		return err
 	}
