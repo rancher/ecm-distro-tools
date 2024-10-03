@@ -151,6 +151,18 @@ type regsyncSync struct {
 	Tags   regsyncTags `yaml:"tags"`
 }
 
+type releaseAnnnouncement struct {
+	Tag              string
+	PreviousTag      string
+	RancherRepoOwner string
+	CommitSHA        string
+	ActionRunID      string
+	ImagesWithRC     []string
+	ComponentsWithRC []string
+	UIVersion        string
+	CLIVersion       string
+}
+
 func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
 	var keys []string
 	var continuationToken *string
@@ -424,7 +436,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
 		}
-		rancherImages, err := rancherPrimeArtifact(imagesListURL)
+		rancherImages, err := remoteTextFileToSlice(imagesListURL)
 		if err != nil {
 			return nil, errors.New("failed to get rancher images: " + err.Error())
 		}
@@ -624,6 +636,135 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verb
 	return createAssetFile(outputFile, imagesDigests)
 }
 
+func GenerateAnnounceReleaseMessage(ctx context.Context, ghClient *github.Client, tag, previousTag, rancherRepoOwner, actionRunID string, primeOnly, finalRC bool) (string, error) {
+	ref, _, err := ghClient.Git.GetRef(ctx, rancherRepoOwner, rancherRepo, "refs/tags/"+tag)
+	if err != nil {
+		return "", err
+	}
+	if ref.Object.SHA == nil {
+		return "", errors.New("release commit sha is nil")
+	}
+
+	commitSHA := ref.Object.GetSHA()
+
+	r := releaseAnnnouncement{
+		Tag:              tag,
+		PreviousTag:      previousTag,
+		RancherRepoOwner: rancherRepoOwner,
+		CommitSHA:        commitSHA,
+		ActionRunID:      actionRunID,
+	}
+
+	announceTemplate := announceReleaseFinalRCTemplate
+
+	if finalRC {
+		dockerfileURL := "https://raw.githubusercontent.com/" + rancherRepoOwner + "/rancher/" + commitSHA + "/package/Dockerfile"
+		dockerfile, err := remoteTextFileToSlice(dockerfileURL)
+		if err != nil {
+			return "", err
+		}
+		uiVersion, cliVersion, err := rancherUICLIVersions(dockerfile)
+		if err != nil {
+			return "", err
+		}
+		r.UIVersion = uiVersion
+		r.CLIVersion = cliVersion
+	} else { // every alpha and rc before the final RC
+		announceTemplate = announceReleasePreReleaseTemplate
+
+		componentsURL := "https://github.com/" + rancherRepoOwner + "/rancher/releases/download/" + tag + "/rancher-components.txt"
+		if primeOnly {
+			componentsURL = rancherArtifactsBaseURL + "/rancher/" + tag + "/rancher-components.txt"
+		}
+		rancherComponents, err := remoteTextFileToSlice(componentsURL)
+		if err != nil {
+			return "", err
+		}
+
+		imagesWithRC, componentsWithRC, err := rancherImagesComponentsWithRC(rancherComponents)
+		if err != nil {
+			return "", err
+		}
+		r.ImagesWithRC = imagesWithRC
+		r.ComponentsWithRC = componentsWithRC
+	}
+
+	tmpl := template.New("announce-release")
+	tmpl, err = tmpl.Parse(announceTemplate)
+	if err != nil {
+		return "", errors.New("failed to parse announce template: " + err.Error())
+	}
+	buff := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(buff, "announceRelease", r); err != nil {
+		return "", err
+	}
+	return buff.String(), nil
+}
+
+// rancherUICLIVersions scans a dockerfile line by line and returns the ui and cli versions, or an error if any of them are not found
+func rancherUICLIVersions(dockerfile []string) (string, string, error) {
+	var uiVersion string
+	var cliVersion string
+	for _, line := range dockerfile {
+		if strings.Contains(line, "ENV CATTLE_UI_VERSION ") {
+			uiVersion = strings.TrimPrefix(line, "ENV CATTLE_UI_VERSION ")
+			continue
+		}
+		if strings.Contains(line, "ENV CATTLE_CLI_VERSION ") {
+			cliVersion = strings.TrimPrefix(line, "ENV CATTLE_CLI_VERSION ")
+			continue
+		}
+		if len(uiVersion) > 0 && len(cliVersion) > 0 {
+			break
+		}
+	}
+	if uiVersion == "" || cliVersion == "" {
+		return "", "", errors.New("missing ui or cli version")
+	}
+	return uiVersion, cliVersion, nil
+}
+
+// rancherImagesComponentsWithRC scans the rancher-components.txt file content and returns images and components, or an error
+func rancherImagesComponentsWithRC(rancherComponents []string) ([]string, []string, error) {
+	if len(rancherComponents) < 2 {
+		return nil, nil, errors.New("rancher-components.txt should have at least two lines (images and components headers)")
+	}
+	images := make([]string, 0)
+	components := make([]string, 0)
+
+	var isImage bool
+	for _, line := range rancherComponents {
+		// always skip empty lines
+		if line == "" || line == " " {
+			continue
+		}
+
+		// if a line contains # it is a header for a section
+		isHeader := strings.Contains(line, "#")
+
+		if isHeader {
+			imagesHeader := strings.Contains(line, "Images")
+			componentsHeader := strings.Contains(line, "Components")
+			// if it's a header, but not for images or components, ignore it and everything else after it
+			if !imagesHeader && !componentsHeader {
+				break
+			}
+			// isImage's value will persist between iterations
+			// if imagesHeader is true, it means that all following lines are images
+			// if it's false, it means that all following images are components
+			isImage = imagesHeader
+			continue
+		}
+
+		if isImage {
+			images = append(images, line)
+		} else {
+			components = append(components, line)
+		}
+	}
+	return images, components, nil
+}
+
 func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
@@ -799,7 +940,7 @@ func registryAuth(authURL, service, image string) (string, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+		return "", errors.New("expected status code to be 200, got: " + res.Status)
 	}
 
 	var auth registryAuthToken
@@ -810,13 +951,17 @@ func registryAuth(authURL, service, image string) (string, error) {
 	return auth.Token, nil
 }
 
-func rancherPrimeArtifact(url string) ([]string, error) {
+func remoteTextFileToSlice(url string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+  defer res.Body.Close()
+
+  if res.StatusCode != 200 {
+		return nil, errors.New("expected status code to be 200, got: " + res.Status)
+	}
 
 	var file []string
 	scanner := bufio.NewScanner(res.Body)
@@ -932,3 +1077,19 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
+
+const announceReleaseHeaderTemplate = "`{{ .Tag }}` is available based on this commit ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/commit/{{ .CommitSHA }}))!\n" +
+	"* Link of commits between last 2 RCs. ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/compare/{{ .PreviousTag }}...{{ .Tag }}))\n" +
+	"* Completed GHA build ([link](https://github.com/{{ .RancherRepoOwner }}/rancher/actions/runs/{{ .ActionRunID }})).\n"
+
+const announceReleasePreReleaseTemplate = `{{ define "announceRelease" }}` + announceReleaseHeaderTemplate +
+	"* Images with -rc:\n" +
+	"{{ range .ImagesWithRC }}" +
+	"    * {{ . }}\n{{ end }}" +
+	"* Components with -rc:\n" +
+	"{{ range .ComponentsWithRC }}" +
+	"    * {{ . }}\n{{ end }}{{ end }}"
+
+const announceReleaseFinalRCTemplate = `{{  define "announceRelease" }}` + announceReleaseHeaderTemplate +
+	"* UI Version: `{{ .UIVersion }}`\n" +
+	"* CLI Version: `{{ .CLIVersion }}`{{ end }}"

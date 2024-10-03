@@ -1,6 +1,8 @@
 package rancher
 
-import "testing"
+import (
+	"testing"
+)
 
 const (
 	rancherRepoImage = "rancher/rancher"
@@ -84,5 +86,67 @@ func TestGenerateRegsyncConfig(t *testing.T) {
 	}
 	if config.Sync[1].Source != sourceRancherAgentImage {
 		t.Error("rancher agent image should be: '" + sourceRancherAgentImage + "' instead, got: '" + config.Sync[1].Source + "'")
+	}
+}
+
+func TestRancherUICLIVersions(t *testing.T) {
+	ui := "2.9.2-alpha3"
+	cli := "v2.9.0"
+	dockerfile := []string{
+		"empty line",
+		"ENV CATTLE_UI_VERSION " + ui,
+		"ENV CATTLE_DASHBOARD_UI_VERSION v2.9.2-alpha3",
+		"ENV CATTLE_CLI_VERSION " + cli,
+		"",
+		"another empty line",
+	}
+	uiVersion, cliVersion, err := rancherUICLIVersions(dockerfile)
+	if err != nil {
+		t.Error(err)
+	}
+	if uiVersion != ui {
+		t.Error("wrong ui version, expected '" + ui + "', instead, got: " + uiVersion)
+	}
+	if cliVersion != cli {
+		t.Error("wrong cli version, expected '" + cli + "', instead, got: " + cliVersion)
+	}
+}
+
+func TestRancherImagesComponentsWithRC(t *testing.T) {
+	cisOperatorImage := "rancher/cis-operator v1.0.15-rc.2"
+	fleetImage := "rancher/fleet v0.9.9-rc.1"
+	systemAgentComponent := "SYSTEM_AGENT_VERSION v0.3.9-rc.4"
+	winsAgentComponent := "WINS_AGENT_VERSION v0.4.18-rc1"
+
+	rancherComponents := []string{
+		"# Images with -rc",
+		cisOperatorImage,
+		fleetImage,
+		"# Components with -rc",
+		systemAgentComponent,
+		winsAgentComponent,
+		"",
+		"# Min version components with -rc",
+		"",
+		"# Chart/KDM sources",
+		"* SYSTEM_CHART_DEFAULT_BRANCH: dev-v2.8 (`scripts/package-env`)",
+	}
+
+	images, components, err := rancherImagesComponentsWithRC(rancherComponents)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if images[0] != cisOperatorImage {
+		t.Error("image mismatch, expected '" + cisOperatorImage + "', instead, got: " + images[0])
+	}
+	if images[1] != fleetImage {
+		t.Error("image mismatch, expected '" + fleetImage + "', instead, got: " + images[1])
+	}
+	if components[0] != systemAgentComponent {
+		t.Error("image mismatch, expected '" + systemAgentComponent + "', instead, got: " + components[0])
+	}
+	if components[1] != winsAgentComponent {
+		t.Error("image mismatch, expected '" + winsAgentComponent + "', instead, got: " + components[1])
 	}
 }
