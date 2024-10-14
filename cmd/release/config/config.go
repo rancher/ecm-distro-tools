@@ -206,6 +206,23 @@ func ExampleConfig() (string, error) {
 				},
 			},
 		},
+		Dashboard: &Dashboard{
+			RepoName:           "dashboard",
+			RepoOwner:          "rancher",
+			UIRepoName:         "ui",
+			UIRepoOwner:        "rancher",
+			RancherRepoName:    "rancher",
+			RancherRepoOwner:   "rancher",
+			RancherUpstreamURL: "git@github.com:rancher/rancher.git",
+			Versions: map[string]DashboardRelease{
+				"v2.x.y": {
+					PreviousTag:     "v2.x.y",
+					UIPreviousTag:   "v2.x.y",
+					ReleaseBranch:   "release-v2.x",
+					UIReleaseBranch: "release-v2.x",
+				},
+			},
+		},
 		Charts: &ChartsRelease{
 			Workspace:     filepath.Join(gopath, "src", "github.com", "rancher", "charts") + "/",
 			ChartsRepoURL: "https://github.com/rancher/charts",

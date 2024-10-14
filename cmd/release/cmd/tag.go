@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -210,45 +209,6 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 	},
 }
 
-var uiTagSubCmd = &cobra.Command{
-	Use:   "ui [ga,rc] [version]",
-	Short: "Tag ui releases",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 {
-			return errors.New("expected at least two arguments: [ga,rc] [version]")
-		}
-
-		releaseType := args[0]
-
-		rc, err := releaseTypePreRelease(releaseType)
-		if err != nil {
-			return err
-		}
-
-		tag := args[1]
-		_, err = semver.NewVersion(tag)
-		if err != nil {
-			return err
-		}
-
-		uiRelease, found := rootConfig.UI.Versions[tag]
-		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
-		}
-
-		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		opts := &repository.CreateReleaseOpts{
-			Tag:    tag,
-			Repo:   "ui",
-			Owner:  uiRelease.UIRepoOwner,
-			Branch: uiRelease.ReleaseBranch,
-		}
-
-		return ui.CreateRelease(ctx, ghClient, &uiRelease, opts, rc, releaseType)
-	},
-}
-
 var dashboardTagSubCmd = &cobra.Command{
 	Use:   "dashboard [ga,rc, alpha] [version]",
 	Short: "Tag dashboard releases",
@@ -305,7 +265,6 @@ func init() {
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
-	tagCmd.AddCommand(uiTagSubCmd)
 	tagCmd.AddCommand(dashboardTagSubCmd)
 
 	// rke2
