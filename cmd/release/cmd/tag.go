@@ -210,11 +210,11 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 }
 
 var dashboardTagSubCmd = &cobra.Command{
-	Use:   "dashboard [ga,rc, alpha] [version]",
+	Use:   "dashboard [ga,rc,alpha] [version]",
 	Short: "Tag dashboard releases",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
-			return errors.New("expected at least two arguments: [ga,rc] [version]")
+			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
 		}
 
 		version := args[1]
