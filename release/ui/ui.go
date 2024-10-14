@@ -26,18 +26,18 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRe
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
 
-	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, opts.Tag, opts.Tag, client)
+	latestPreRelease, err := release.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
 	if err != nil {
 		return err
 	}
 
 	if rc {
 		latestRCNumber := 1
-		if latestRC != nil {
-			// v2.9.0-rcN
-			_, trimmedRCNumber, found := strings.Cut(*latestRC, "-rc")
+		if latestPreRelease != nil {
+			// v2.9.0-rcN / -alphaN
+			_, trimmedRCNumber, found := strings.Cut(*latestPreRelease, "-"+releaseType)
 			if !found {
-				return errors.New("failed to parse rc number from " + *latestRC)
+				return errors.New("failed to parse rc number from " + *latestPreRelease)
 			}
 			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
 			if err != nil {
@@ -46,8 +46,8 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRe
 			latestRCNumber = currentRCNumber + 1
 		} else {
 			// this means it would be the first RC tag
-			latestRC = new(string)
-			*latestRC = opts.Tag + "-rc1"
+			latestPreRelease = new(string)
+			*latestPreRelease = opts.Tag + "-rc1"
 		}
 		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
 	}
