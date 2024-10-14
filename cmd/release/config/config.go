@@ -89,11 +89,6 @@ type Rancher struct {
 	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
 }
 
-// UI
-type UI struct {
-	Versions map[string]UIRelease `json:"versions" validate:"dive"`
-}
-
 // Dashboard
 type Dashboard struct {
 	Versions           map[string]DashboardRelease `json:"versions" validate:"dive"`
@@ -124,7 +119,6 @@ type Config struct {
 	RKE2      *RKE2          `json:"rke2" validate:"omitempty"`
 	Charts    *ChartsRelease `json:"charts" validate:"omitempty"`
 	Auth      *Auth          `json:"auth"`
-	UI        *UI            `json:"ui"`
 	Dashboard *Dashboard     `json:"dashboard"`
 }
 
