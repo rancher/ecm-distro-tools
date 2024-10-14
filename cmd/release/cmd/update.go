@@ -141,11 +141,13 @@ var updateRancherCmd = &cobra.Command{
 var updateRancherDashboardCmd = &cobra.Command{
 	Use:   "dashboard [version]",
 	Short: "Update Rancher's Dashboard and UI references and create a PR",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
 		}
-
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
 		version := args[0]
 
 		// checking if the provided version is valid

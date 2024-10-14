@@ -212,11 +212,18 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 var dashboardTagSubCmd = &cobra.Command{
 	Use:   "dashboard [ga,rc, alpha] [version]",
 	Short: "Tag dashboard releases",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 
+		version := args[1]
+		if _, found := rootConfig.Dashboard.Versions[version]; !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
 		releaseType := args[0]
 
 		rc, err := releaseTypePreRelease(releaseType)
@@ -232,6 +239,7 @@ var dashboardTagSubCmd = &cobra.Command{
 		if !found {
 			return errors.New("verify your config file, version not found: " + tag)
 		}
+		dashboardRelease.DryRun = dryRun
 
 		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
@@ -242,7 +250,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		if err := ui.CreateRelease(ctx, ghClient, &config.UIRelease{
 			PreviousTag: dashboardRelease.PreviousTag,
-			DryRun:      dashboardRelease.DryRun,
+			DryRun:      dryRun,
 		}, uiOpts, rc, releaseType); err != nil {
 			return err
 		}

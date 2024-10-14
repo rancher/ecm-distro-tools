@@ -17,11 +17,13 @@ import (
 const (
 	dashboardOrg           = "rancher"
 	dashboardRepo          = "dashboard"
+	uiOrg                  = "rancher"
+	uiRepo                 = "ui"
 	dashboardImagesBaseURL = "https://github.com/" + dashboardOrg + "/" + dashboardRepo + "/releases"
 )
 
+// CreateRelease will create a new tag and a new release with given params.
 func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
-	fmt.Println("validating tag")
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}

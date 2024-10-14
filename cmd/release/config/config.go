@@ -216,10 +216,11 @@ func ExampleConfig() (string, error) {
 			RancherUpstreamURL: "git@github.com:rancher/rancher.git",
 			Versions: map[string]DashboardRelease{
 				"v2.x.y": {
-					PreviousTag:     "v2.x.y",
-					UIPreviousTag:   "v2.x.y",
-					ReleaseBranch:   "release-v2.x",
-					UIReleaseBranch: "release-v2.x",
+					PreviousTag:          "v2.x.y",
+					UIPreviousTag:        "v2.x.y",
+					ReleaseBranch:        "release-v2.x",
+					UIReleaseBranch:      "release-v2.x",
+					RancherReleaseBranch: "release/v2.x",
 				},
 			},
 		},

@@ -20,8 +20,8 @@ const (
 	uiImagesBaseURL = "https://github.com/" + uiOrg + "/" + uiRepo + "/releases"
 )
 
+// CreateRelease will create a new tag and a new release with given params.
 func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
-	fmt.Println("validating tag")
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
