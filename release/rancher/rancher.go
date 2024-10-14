@@ -996,7 +996,7 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 {{- end}}
 {{ end }}`
 
-const updateDashboardReferencesScript = `#!/bin/bash
+const updateDashboardReferencesScript = `#!/bin/sh
 # Enable verbose mode and exit on any error
 set -ex
 
@@ -1017,33 +1017,33 @@ git fetch upstream
 git stash
 
 # Delete the branch if it exists, then create a new one based on upstream
-git branch -D "${BRANCH_NAME}" &>/dev/null || true
+git branch -D "${BRANCH_NAME}" > /dev/null 2>&1 || true
 git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
 # git clean -xfd
 
 # Function to update the file
 update_file() {
-    local sed_cmd
+    _update_file_sed_cmd=""
 
-		# Set the appropriate sed command based on the OS
-    case ${OS} in
-    Darwin)
-        sed_cmd="sed -i '' "
-      ;;
-    Linux)
-        sed_cmd="sed -i"
-      ;;
-    *)
-      >&2 echo "$(OS) not supported yet"
-      exit 1
-      ;;
+    # Set the appropriate sed command based on the OS
+    case "${OS}" in
+        Darwin)
+            _update_file_sed_cmd="sed -i ''"
+            ;;
+        Linux)
+            _update_file_sed_cmd="sed -i"
+            ;;
+        *)
+            echo "$(OS) not supported yet" >&2
+            exit 1
+            ;;
     esac
 
-		# Update CATTLE_UI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
-    $sed_cmd "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "$FILENAME"
+    # Update CATTLE_UI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
+    ${_update_file_sed_cmd} "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "${FILENAME}"
 
-		# Update CATTLE_DASHBOARD_UI_VERSION
-    $sed_cmd "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION $VERSION/" "$FILENAME"
+    # Update CATTLE_DASHBOARD_UI_VERSION
+    ${_update_file_sed_cmd} "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION ${VERSION}/" "${FILENAME}"
 }
 
 # Run the update function
