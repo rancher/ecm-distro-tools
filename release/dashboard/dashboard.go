@@ -46,10 +46,6 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 				return err
 			}
 			latestRCNumber = currentRCNumber + 1
-		} else {
-			// this means it would be the first RC tag
-			latestPreRelease = new(string)
-			*latestPreRelease = opts.Tag + "-rc1"
 		}
 		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
 	}
