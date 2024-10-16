@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -27,6 +28,8 @@ import (
 const (
 	k3sRepo                = "k3s"
 	rke2Repo               = "rke2"
+	uiRepo                 = "ui"
+	dashboardRepo          = "dashboard"
 	alternateVersion       = "1.23"
 	rke2ChartsVersionsFile = "chart_versions.yaml"
 	defaultTimeout         = 30 * time.Second
@@ -104,6 +107,20 @@ type k3sReleaseNoteData struct {
 	ChangeLogData               changeLogData
 }
 
+type uiReleaseNoteData struct {
+	Milestone        string
+	MajorMinor       string
+	ChangeLogVersion string
+	ChangeLogData    changeLogData
+}
+
+type dashboardReleaseNoteData struct {
+	Milestone        string
+	MajorMinor       string
+	ChangeLogVersion string
+	ChangeLogData    changeLogData
+}
+
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
 	if majMin == "" {
@@ -114,7 +131,7 @@ func majMin(v string) (string, error) {
 }
 
 func trimPeriods(v string) string {
-	return strings.Replace(v, ".", "", -1)
+	return strings.ReplaceAll(v, ".", "")
 }
 
 // capitalize returns a new string whose first letter is capitalized.
@@ -160,8 +177,8 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 	}
 
 	k8sVersion := strings.Split(milestoneNoRC, "+")[0]
-	markdownVersion := strings.Replace(k8sVersion, ".", "", -1)
-	tmp := strings.Split(strings.Replace(k8sVersion, "v", "", -1), ".")
+	markdownVersion := strings.ReplaceAll(k8sVersion, ".", "")
+	tmp := strings.Split(strings.ReplaceAll(k8sVersion, "v", ""), ".")
 	var majorMinor string
 	if len(tmp) > 1 {
 		majorMinor = tmp[0] + "." + tmp[1]
@@ -170,7 +187,7 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 		majorMinor = tmp[0]
 	}
 
-	changeLogSince := strings.Replace(strings.Split(prevMilestone, "+")[0], ".", "", -1)
+	changeLogSince := strings.ReplaceAll(strings.Split(prevMilestone, "+")[0], ".", "")
 	sqliteVersionK3S := goModLibVersion("go-sqlite3", repo, milestone)
 	sqliteVersionBinding := sqliteVersionBinding(sqliteVersionK3S)
 	helmControllerVersion := goModLibVersion("helm-controller", repo, milestone)
@@ -214,7 +231,33 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 		)
 	}
 
-	return nil, errors.New("invalid repo: it must be either k3s or rke2")
+	if repo == uiRepo {
+		return genUIReleaseNotes(
+			tmpl,
+			milestone,
+			uiReleaseNoteData{
+				MajorMinor:       majorMinor,
+				Milestone:        milestoneNoRC,
+				ChangeLogVersion: markdownVersion,
+				ChangeLogData:    cgData,
+			},
+		)
+	}
+
+	if repo == dashboardRepo {
+		return genDashboardReleaseNotes(
+			tmpl,
+			milestone,
+			dashboardReleaseNoteData{
+				MajorMinor:       majorMinor,
+				Milestone:        milestoneNoRC,
+				ChangeLogVersion: markdownVersion,
+				ChangeLogData:    cgData,
+			},
+		)
+	}
+
+	return nil, errors.New("invalid repo: it must be k3s, rke2, ui or dashboard")
 }
 
 func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sReleaseNoteData) (*bytes.Buffer, error) {
@@ -300,6 +343,26 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 		return nil, err
 	}
 
+	return b, nil
+}
+
+func genUIReleaseNotes(tmpl *template.Template, _ string, rd uiReleaseNoteData) (*bytes.Buffer, error) {
+	uiTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "ui")
+	tmpl = template.Must(tmpl.Parse(uiTemplate))
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, uiRepo, rd); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func genDashboardReleaseNotes(tmpl *template.Template, _ string, rd dashboardReleaseNoteData) (*bytes.Buffer, error) {
+	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
+	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, dashboardRepo, rd); err != nil {
+		return nil, err
+	}
 	return b, nil
 }
 
@@ -701,7 +764,7 @@ func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, v
 
 func latestRelease(versions []*github.RepositoryRelease) *string {
 	sort.Slice(versions, func(i, j int) bool {
-		return versions[i].PublishedAt.Time.Before(versions[j].PublishedAt.Time)
+		return versions[i].PublishedAt.Before(versions[j].PublishedAt.Time)
 	})
 
 	if len(versions) == 0 {
@@ -852,4 +915,11 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Join our Slack channel](https://slack.rancher.io/)
 - [Check out our documentation](https://rancher.com/docs/k3s/latest/en/) for guidance on how to get started or to dive deep into K3s.
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
+{{ end }}`
+
+const dashboardReleaseNoteTemplate = `
+{{- define "%s" -}}
+<!-- {{.Milestone}} -->
+
+{{ template "changelog" . }}
 {{ end }}`

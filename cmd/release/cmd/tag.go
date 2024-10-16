@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/release/rke2"
+	"github.com/rancher/ecm-distro-tools/release/ui"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -147,11 +150,13 @@ var rancherTagSubCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
 		}
+
 		releaseType := args[0]
 		preRelease, err := releaseTypePreRelease(releaseType)
 		if err != nil {
 			return err
 		}
+
 		tag := args[1]
 		rancherRelease, found := rootConfig.Rancher.Versions[tag]
 		if !found {
@@ -216,6 +221,63 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 	},
 }
 
+var dashboardTagSubCmd = &cobra.Command{
+	Use:   "dashboard [ga,rc,alpha] [version]",
+	Short: "Tag dashboard releases",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
+		}
+
+		version := args[1]
+		if _, found := rootConfig.Dashboard.Versions[version]; !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		releaseType := args[0]
+
+		rc, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		dashboardRelease.DryRun = dryRun
+
+		uiOpts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   rootConfig.Dashboard.UIRepoName,
+			Owner:  rootConfig.Dashboard.UIRepoOwner,
+			Branch: dashboardRelease.UIReleaseBranch,
+		}
+
+		if err := ui.CreateRelease(ctx, ghClient, &config.UIRelease{
+			PreviousTag: dashboardRelease.PreviousTag,
+			DryRun:      dryRun,
+		}, uiOpts, rc, releaseType); err != nil {
+			return err
+		}
+
+		dashboardOpts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   rootConfig.Dashboard.RepoName,
+			Owner:  rootConfig.Dashboard.RepoOwner,
+			Branch: dashboardRelease.ReleaseBranch,
+		}
+
+		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, rc, releaseType)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
@@ -223,6 +285,7 @@ func init() {
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
+	tagCmd.AddCommand(dashboardTagSubCmd)
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
