@@ -234,9 +234,14 @@ func createDashboardReferencesPR(ctx context.Context, cfg *config.Dashboard, ghC
 	}
 
 	// creating a pr from your fork branch
-	_, _, err := ghClient.PullRequests.Create(ctx, cfg.RancherRepoOwner, cfg.RancherRepoName, pull)
+	pr, _, err := ghClient.PullRequests.Create(ctx, cfg.RancherRepoOwner, cfg.RancherRepoName, pull)
+	if err != nil {
+		return err
+	}
 
-	return err
+	fmt.Println("Pull Request created successfully:", pr.GetHTMLURL())
+
+	return nil
 }
 
 func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
