@@ -167,7 +167,7 @@ runs:
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
-      IID_FILE=$(mktemp)
+      export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
       
       make ${{ inputs.make-target }}
