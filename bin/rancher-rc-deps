@@ -1,0 +1,33 @@
+#!/usr/bin/bash
+
+set -e
+
+ref=$1
+rancher_url="https://github.com/rancher/rancher.git"
+
+# dependencies=""
+
+rancher_dir=$(mktemp -d)
+function cleanup { rm -rf "$rancher_dir"; }
+
+trap cleanup EXIT
+
+if [[ -z "$ref" ]]; then
+  echoerr "git-ref not defined, check usage:"
+  show_usage
+  exit 1
+fi 
+
+echo "cloning rancher repo to $rancher_dir"
+git clone --branch "$ref" --single-branch --no-tags --depth=1 "$rancher_url" "$rancher_dir"
+
+kdm_branch=$(grep -m1 'ARG CATTLE_KDM_BRANCH=' "$rancher_dir/package/Dockerfile" | cut -d '=' -f2)
+mkdir -p "$rancher_dir/bin"
+curl -sLf https://releases.rancher.com/kontainer-driver-metadata/"${kdm_branch}"/data.json > "$rancher_dir/bin/data.json"
+(
+  cd "$rancher_dir"
+  TAG=dev "$rancher_dir"/scripts/create-components-images-files.sh
+  cat "$rancher_dir/bin/rancher-components.txt"
+)
+
+
