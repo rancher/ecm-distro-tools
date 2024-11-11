@@ -23,7 +23,7 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-var tagRKE2Flags              tagRKE2CmdFlags
+var tagRKE2Flags tagRKE2CmdFlags
 
 // tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
