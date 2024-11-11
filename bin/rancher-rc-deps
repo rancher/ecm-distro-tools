@@ -5,12 +5,7 @@ set -e
 ref=$1
 rancher_url="https://github.com/rancher/rancher.git"
 
-# dependencies=""
-
 rancher_dir=$(mktemp -d)
-function cleanup { rm -rf "$rancher_dir"; }
-
-trap cleanup EXIT
 
 if [[ -z "$ref" ]]; then
   echoerr "git-ref not defined, check usage:"
@@ -27,7 +22,12 @@ curl -sLf https://releases.rancher.com/kontainer-driver-metadata/"${kdm_branch}"
 (
   cd "$rancher_dir"
   TAG=dev "$rancher_dir"/scripts/create-components-images-files.sh
-  cat "$rancher_dir/bin/rancher-components.txt"
 )
 
+dev_rc_components=$(grep "dev\|rc" "$rancher_dir/bin/rancher-components.txt")
+if [[ -n $dev_rc_components ]];then
+  echo "found dev or rc components"
+  echo "$dev_rc_components"
+  exit 1
+fi
 
