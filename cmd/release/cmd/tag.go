@@ -23,10 +23,7 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-var (
-	tagRKE2Flags              tagRKE2CmdFlags
-	tagRancherSkipStatusCheck bool
-)
+var tagRKE2Flags              tagRKE2CmdFlags
 
 // tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
@@ -178,7 +175,7 @@ var rancherTagSubCmd = &cobra.Command{
 			fmt.Println("dry run, skipping creating release")
 			return nil
 		}
-		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, tagRancherSkipStatusCheck, releaseType)
+		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
 		if err != nil {
 			return err
 		}
@@ -292,9 +289,6 @@ func init() {
 	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
 	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
-
-	// rancher
-	rancherTagSubCmd.Flags().BoolVarP(&tagRancherSkipStatusCheck, "skip-status-check", "s", false, "skip checking if CI is passing when creating a tag")
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
