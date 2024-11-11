@@ -313,23 +313,9 @@ func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, err
 }
 
 // CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
-func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease, skipStatusCheck bool, releaseType string) (string, error) {
+func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
 	if !semver.IsValid(opts.Tag) {
 		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
-	}
-
-	branch, _, err := ghClient.Repositories.GetBranch(ctx, r.RancherRepoOwner, rancherRepo, r.ReleaseBranch, true)
-	if err != nil {
-		return "", err
-	}
-	if branch.Commit.SHA == nil {
-		return "", errors.New("branch commit sha is nil")
-	}
-
-	if !skipStatusCheck {
-		if err := commitStateSuccess(ctx, ghClient, r.RancherRepoOwner, rancherRepo, *branch.Commit.SHA); err != nil {
-			return "", err
-		}
 	}
 
 	releaseName := opts.Tag
@@ -361,19 +347,6 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 
 	// GetHTMLURL will return an empty value if it isn't present
 	return createdRelease.GetHTMLURL(), err
-}
-
-func commitStateSuccess(ctx context.Context, ghClient *github.Client, owner, repo, commit string) error {
-	status, _, err := ghClient.Repositories.GetCombinedStatus(ctx, owner, repo, commit, &github.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	if *status.State != "success" {
-		return errors.New("expected commit " + commit + " to have state 'success', instead, got " + *status.State)
-	}
-
-	return nil
 }
 
 func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps, error) {
