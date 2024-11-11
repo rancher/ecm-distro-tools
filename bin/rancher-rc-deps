@@ -8,8 +8,9 @@ rancher_url="https://github.com/rancher/rancher.git"
 rancher_dir=$(mktemp -d)
 
 if [[ -z "$ref" ]]; then
-  echoerr "git-ref not defined, check usage:"
-  show_usage
+  >&2 echo "error: git-ref not defined, check usage:"
+  >&2 echo "usage: $0 [git-ref]"
+  >&2 echo "example: $0 release/v2.10"
   exit 1
 fi 
 
