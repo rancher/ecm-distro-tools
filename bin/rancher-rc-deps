@@ -1,34 +1,77 @@
-#!/usr/bin/bash
+#!/usr/bin/sh
 
 set -e
 
-ref=$1
-rancher_url="https://github.com/rancher/rancher.git"
+. libstd-ecm.sh
 
-rancher_dir=$(mktemp -d)
+RANCHER_DEFAULT_URL="https://github.com/rancher/rancher.git"
+RANCHER_URL=${RANCHER_URL:-"${RANCHER_DEFAULT_URL}"}
 
-if [[ -z "$ref" ]]; then
-  >&2 echo "error: git-ref not defined, check usage:"
-  >&2 echo "usage: $0 [git-ref]"
-  >&2 echo "example: $0 release/v2.10"
-  exit 1
+usage() {
+    echo "usage: $0 <git-ref> [flags]
+    FLAGS:
+        -h    show help
+    ENVIRONMENT VARIABLES:
+        RANCHER_DIR: local rancher git repo path, this will be used instead of cloning rancher in a temporary directory
+        RANCHER_URL: rancher git repo (default: $RANCHER_DEFAULT_URL)
+
+examples:
+    $0 release/v2.10"
+}
+
+while getopts 'h' c; do
+    case $c in
+    h)
+        usage
+        exit 0
+    ;;
+    *)
+        usage
+        exit 1
+    ;;
+    esac
+done
+
+has_curl
+has_git
+has_awk
+
+if [ -z "${REF}" ]; then
+    REF="${1}"
 fi 
 
-echo "cloning rancher repo to $rancher_dir"
-git clone --branch "$ref" --single-branch --no-tags --depth=1 "$rancher_url" "$rancher_dir"
+if [ -z "${REF}" ]; then
+    >&2 echo "error: git-ref not defined, check usage:"
+    usage
+    exit 1
+fi 
 
-kdm_branch=$(grep -m1 'ARG CATTLE_KDM_BRANCH=' "$rancher_dir/package/Dockerfile" | cut -d '=' -f2)
-mkdir -p "$rancher_dir/bin"
-curl -sLf https://releases.rancher.com/kontainer-driver-metadata/"${kdm_branch}"/data.json > "$rancher_dir/bin/data.json"
+if [ -z "${RANCHER_DIR}" ]; then
+    setup_tmp
+    RANCHER_DIR="${TMP_DIR}"
+    echo "cloning rancher repo to $RANCHER_DIR"
+    git clone --branch "${REF}" --single-branch --no-tags --depth=1 "${RANCHER_URL}" "${RANCHER_DIR}"
+else
+    (
+        cd "${RANCHER_DIR}"
+        git fetch origin
+        git stash
+        git switch --detach "origin/${REF}"
+    )
+fi 
+
+kdm_branch=$(grep -m1 'ARG CATTLE_KDM_BRANCH=' "${RANCHER_DIR}/package/Dockerfile" | cut -d '=' -f2)
+mkdir -p "${RANCHER_DIR}/bin"
+curl -sLf https://releases.rancher.com/kontainer-driver-metadata/"${kdm_branch}"/data.json > "${RANCHER_DIR}/bin/data.json"
 (
-  cd "$rancher_dir"
-  TAG=dev "$rancher_dir"/scripts/create-components-images-files.sh
+    cd "${RANCHER_DIR}"
+    TAG=dev "${RANCHER_DIR}"/scripts/create-components-images-files.sh
 )
 
-dev_rc_components=$(grep "dev\|rc" "$rancher_dir/bin/rancher-components.txt")
-if [[ -n $dev_rc_components ]];then
-  echo "found dev or rc components"
-  echo "$dev_rc_components"
-  exit 1
+dev_rc_components=$(grep "dev\|rc" "${RANCHER_DIR}/bin/rancher-components.txt")
+if [ -n "${dev_rc_components}" ];then
+    echo "found dev or rc components"
+    echo "${dev_rc_components}"
+    exit 1
 fi
 
