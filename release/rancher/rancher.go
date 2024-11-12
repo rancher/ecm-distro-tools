@@ -812,10 +812,7 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	if err != nil {
 		return "", err
 	}
-	if authURL == dockerAuthURL {
-		if len(username) < 1 || len(password) < 1 {
-			return "", errors.New("missing username or password for docker.io")
-		}
+	if len(username) > 1 && len(password) > 1 {
 		req.SetBasicAuth(username, password)
 	}
 	res, err := httpClient.Do(req)
