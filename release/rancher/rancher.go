@@ -813,17 +813,19 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 		return "", err
 	}
 	if authURL == dockerAuthURL {
-		if username == "" || password == "" {
+		if len(username) < 1 || len(password) < 1 {
 			return "", errors.New("missing username or password for docker.io")
 		}
 		req.SetBasicAuth(username, password)
 	}
 	res, err := httpClient.Do(req)
-	defer res.Body.Close()
-
+	if err != nil {
+		return "", err
+	}
 	if res.StatusCode != http.StatusOK {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
+	defer res.Body.Close()
 
 	var auth registryAuthToken
 	if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
