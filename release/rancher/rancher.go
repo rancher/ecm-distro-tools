@@ -93,6 +93,11 @@ type registryInfo struct {
 	PasswordEnv string
 }
 
+type tokenRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type imageDigest map[string]string
 
 type RancherRCDepsLine struct {
@@ -652,7 +657,7 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 	}
 
 	imagesDigests := make(imageDigest)
-	var repositoryAuths = make(map[string]string)
+	repositoryAuths := make(map[string]string)
 
 	for _, imageAndVersion := range imagesList {
 		if imageAndVersion == "" || imageAndVersion == " " {
@@ -808,10 +813,18 @@ func registryAuth(authURL, service, image string) (string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	scope := "repository:" + image + ":pull"
 	url := authURL + "?scope=" + scope + "&service=" + service
-	res, err := httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
+	if authURL == dockerAuthURL {
+		creds, err := authFromEnv()
+		if err != nil {
+			return "", err
+		}
+		req.SetBasicAuth(creds.Username, creds.Password)
+	}
+	res, err := httpClient.Do(req)
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
@@ -824,6 +837,24 @@ func registryAuth(authURL, service, image string) (string, error) {
 	}
 
 	return auth.Token, nil
+}
+
+func authFromEnv() (*tokenRequest, error) {
+	username := os.Getenv("DOCKER_USERNAME")
+	password := os.Getenv("DOCKER_PASSWORD")
+
+	if strings.Compare(username, "") == 0 {
+		return nil, errors.New("DOCKER_USERNAME not set")
+	}
+
+	if strings.Compare(password, "") == 0 {
+		return nil, errors.New("DOCKER_PASSWORD not set")
+	}
+
+	return &tokenRequest{
+		Username: username,
+		Password: password,
+	}, nil
 }
 
 func rancherPrimeArtifact(url string) ([]string, error) {
