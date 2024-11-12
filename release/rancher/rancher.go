@@ -93,11 +93,6 @@ type registryInfo struct {
 	PasswordEnv string
 }
 
-type tokenRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 type imageDigest map[string]string
 
 type RancherRCDepsLine struct {
@@ -818,11 +813,11 @@ func registryAuth(authURL, service, image string) (string, error) {
 		return "", err
 	}
 	if authURL == dockerAuthURL {
-		creds, err := authFromEnv()
+		username, password, err := authFromEnv()
 		if err != nil {
 			return "", err
 		}
-		req.SetBasicAuth(creds.Username, creds.Password)
+		req.SetBasicAuth(username, password)
 	}
 	res, err := httpClient.Do(req)
 	defer res.Body.Close()
@@ -839,22 +834,21 @@ func registryAuth(authURL, service, image string) (string, error) {
 	return auth.Token, nil
 }
 
-func authFromEnv() (*tokenRequest, error) {
+// authFromEnv gets docker credentials from environment variables
+// DOCKER_USERNAME and DOCKER_PASSWORD and returns them in this order
+func authFromEnv() (string, string, error) {
 	username := os.Getenv("DOCKER_USERNAME")
 	password := os.Getenv("DOCKER_PASSWORD")
 
 	if strings.Compare(username, "") == 0 {
-		return nil, errors.New("DOCKER_USERNAME not set")
+		return "", "", errors.New("DOCKER_USERNAME not set")
 	}
 
 	if strings.Compare(password, "") == 0 {
-		return nil, errors.New("DOCKER_PASSWORD not set")
+		return "", "", errors.New("DOCKER_PASSWORD not set")
 	}
 
-	return &tokenRequest{
-		Username: username,
-		Password: password,
-	}, nil
+	return username, password, nil
 }
 
 func rancherPrimeArtifact(url string) ([]string, error) {
