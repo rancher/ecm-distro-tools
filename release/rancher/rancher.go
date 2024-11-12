@@ -435,7 +435,7 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
+func GenerateMissingImagesList(imagesListURL, registry, username, password string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
 	if len(checkImages) == 0 {
 		if imagesListURL == "" {
 			return nil, errors.New("if no images are provided, an images list URL must be provided")
@@ -479,7 +479,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 			continue
 		}
 
-		func(ctx context.Context, missingImagesChan chan string, image, imageVersion string, repositoryAuths map[string]string, mu *sync.RWMutex) {
+		func(ctx context.Context, missingImagesChan chan string, image, imageVersion, username, password string, repositoryAuths map[string]string, mu *sync.RWMutex) {
 			errGroup.Go(func() error {
 				// if any other check failed, stop running to prevent wasting resources
 				// this doesn't include 404's since it is expected it does include any other errors
@@ -495,7 +495,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 
 					auth, ok = repositoryAuths[image]
 					if !ok {
-						auth, err = registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
+						auth, err = registryAuth(rgInfo.AuthURL, rgInfo.Service, image, username, password)
 						if err != nil {
 							cancel()
 							return err
@@ -517,7 +517,7 @@ func GenerateMissingImagesList(imagesListURL, registry string, concurrencyLimit 
 					return nil
 				}
 			})
-		}(ctx, missingImagesChan, image, imageVersion, repositoryAuths, &mu)
+		}(ctx, missingImagesChan, image, imageVersion, username, password, repositoryAuths, &mu)
 
 	}
 	if err := errGroup.Wait(); err != nil {
@@ -632,15 +632,15 @@ func validateRepoImage(repoImage string) error {
 	return nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string, verbose bool) error {
-	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry)
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, password string, verbose bool) error {
+	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry, username, password)
 	if err != nil {
 		return err
 	}
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
+func dockerImagesDigests(imagesFileURL, registry, username, password string) (imageDigest, error) {
 	imagesList, err := artifactImageList(imagesFileURL, registry)
 	if err != nil {
 		return nil, err
@@ -666,7 +666,7 @@ func dockerImagesDigests(imagesFileURL, registry string) (imageDigest, error) {
 		imageVersion := splitImage[1]
 
 		if _, ok := repositoryAuths[image]; !ok {
-			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
+			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image, username, password)
 			if err != nil {
 				return nil, err
 			}
@@ -804,7 +804,7 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 	return true, nil
 }
 
-func registryAuth(authURL, service, image string) (string, error) {
+func registryAuth(authURL, service, image, username, password string) (string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	scope := "repository:" + image + ":pull"
 	url := authURL + "?scope=" + scope + "&service=" + service
@@ -813,9 +813,8 @@ func registryAuth(authURL, service, image string) (string, error) {
 		return "", err
 	}
 	if authURL == dockerAuthURL {
-		username, password, err := authFromEnv()
-		if err != nil {
-			return "", err
+		if username == "" || password == "" {
+			return "", errors.New("missing username or password for docker.io")
 		}
 		req.SetBasicAuth(username, password)
 	}
@@ -832,23 +831,6 @@ func registryAuth(authURL, service, image string) (string, error) {
 	}
 
 	return auth.Token, nil
-}
-
-// authFromEnv gets docker credentials from environment variables
-// DOCKER_USERNAME and DOCKER_PASSWORD and returns them in this order
-func authFromEnv() (string, string, error) {
-	username := os.Getenv("DOCKER_USERNAME")
-	password := os.Getenv("DOCKER_PASSWORD")
-
-	if strings.Compare(username, "") == 0 {
-		return "", "", errors.New("DOCKER_USERNAME not set")
-	}
-
-	if strings.Compare(password, "") == 0 {
-		return "", "", errors.New("DOCKER_PASSWORD not set")
-	}
-
-	return username, password, nil
 }
 
 func rancherPrimeArtifact(url string) ([]string, error) {

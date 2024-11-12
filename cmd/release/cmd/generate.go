@@ -140,7 +140,8 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(checkImages) == 0 && imagesListURL == "" {
 			return errors.New("either --images-list-url or --check-images must be provided")
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, concurrencyLimit, checkImages, ignoreImages, verbose)
+		username, password := authFromEnv()
+		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, username, password, concurrencyLimit, checkImages, ignoreImages, verbose)
 		if err != nil {
 			return err
 		}
@@ -163,7 +164,8 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	Use:   "docker-images-digests",
 	Short: "Generate a file with images digests from an images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, verbose)
+		username, password := authFromEnv()
+		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, username, password, verbose)
 	},
 }
 
@@ -337,4 +339,13 @@ func init() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+}
+
+// authFromEnv gets docker credentials from environment variables
+// DOCKER_USERNAME and DOCKER_PASSWORD and returns them in this order
+func authFromEnv() (string, string) {
+	username := os.Getenv("DOCKER_USERNAME")
+	password := os.Getenv("DOCKER_PASSWORD")
+
+	return username, password
 }
