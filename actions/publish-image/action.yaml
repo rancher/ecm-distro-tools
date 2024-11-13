@@ -152,6 +152,13 @@ runs:
     uses: docker/setup-buildx-action@v3
   - name: Install Cosign
     uses: sigstore/cosign-installer@v3.5.0
+  - uses: actions/setup-go@v5
+    with:
+      go-version: 'stable'
+  - name: Install slsactl
+    shell:
+    run: |
+      go install github.com/rancherlabs/slsactl@latest
 
   - name: Build and push image [Public]
     shell: bash
@@ -171,7 +178,17 @@ runs:
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
       
       make ${{ inputs.make-target }}
-      cosign sign --oidc-provider=github-actions --yes "${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
+      IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
+
+      cosign sign --oidc-provider=github-actions --yes "${IMG_NAME}"
+        
+      if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
+        cat provenance-slsav1.json
+        cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
+      else
+        echo "Failed to generate provenance"
+        exit 1
+      fi
     env:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
