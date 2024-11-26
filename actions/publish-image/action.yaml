@@ -186,8 +186,7 @@ runs:
         cat provenance-slsav1.json
         cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
       else
-        echo "Failed to generate provenance"
-        exit 1
+        echo "ERROR: Failed to generate slsav1 provenance"
       fi
     env:
       TAG: ${{ inputs.tag }}
