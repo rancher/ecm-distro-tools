@@ -30,6 +30,8 @@ var (
 	ignoreImages                        []string
 	checkImages                         []string
 	registry                            string
+	username                            string
+	password                            string
 	rancherMissingImagesJSONOutput      bool
 	rke2PrevMilestone                   string
 	rke2Milestone                       string
@@ -140,7 +142,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 		if len(checkImages) == 0 && imagesListURL == "" {
 			return errors.New("either --images-list-url or --check-images must be provided")
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, concurrencyLimit, checkImages, ignoreImages, verbose)
+		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, username, password, concurrencyLimit, checkImages, ignoreImages, verbose)
 		if err != nil {
 			return err
 		}
@@ -163,7 +165,7 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	Use:   "docker-images-digests",
 	Short: "Generate a file with images digests from an images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, verbose)
+		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, username, password, verbose)
 	},
 }
 
@@ -303,9 +305,13 @@ func init() {
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located at")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
 
 	// rancher generate docker-images-digests
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsOutputFile, "output-file", "o", "", "Output file with images digests")
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
 	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("output-file"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
