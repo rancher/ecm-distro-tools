@@ -127,6 +127,22 @@ runs:
   using: composite
 
   steps:
+  - name: Validate Prime Registry
+    shell: bash
+    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
+    run: |
+      if [[ -z "${REGISTRY}" ]]; then
+        echo "Prime registry cannot be empty"
+        exit 1
+      fi
+
+      if [[ "${REGISTRY}" == "docker.io" ]]; then
+        echo "Prime registry cannot be docker.io"
+        exit 2
+      fi
+    env:
+      REGISTRY: ${{ inputs.prime-registry }}
+
   # Login to all registries before starting the pushing process.
   # Short-circuit if either fails. This should decrease the likelihood
   # of only one registry getting updated while the other fails.
@@ -160,16 +176,6 @@ runs:
     run: |
       go install github.com/rancherlabs/slsactl@latest
 
-  - name: Build and push image [Public]
-    shell: bash
-    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
-    run: |
-      make ${{ inputs.make-target }}
-    env:
-      TAG: ${{ inputs.tag }}
-      TARGET_PLATFORMS: ${{ inputs.platforms }}
-      REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
-
   - name: Build and push image [Prime]
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
@@ -186,9 +192,20 @@ runs:
         cat provenance-slsav1.json
         cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
       else
-        echo "ERROR: Failed to generate slsav1 provenance"
+        echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
+        exit 3
       fi
     env:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
+
+  - name: Build and push image [Public]
+    shell: bash
+    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
+    run: |
+      make ${{ inputs.make-target }}
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET_PLATFORMS: ${{ inputs.platforms }}
+      REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
