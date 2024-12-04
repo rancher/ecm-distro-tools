@@ -176,16 +176,6 @@ runs:
     run: |
       go install github.com/rancherlabs/slsactl@latest
 
-  - name: Build and push image [Public]
-    shell: bash
-    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
-    run: |
-      make ${{ inputs.make-target }}
-    env:
-      TAG: ${{ inputs.tag }}
-      TARGET_PLATFORMS: ${{ inputs.platforms }}
-      REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
-
   - name: Build and push image [Prime]
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
@@ -209,3 +199,13 @@ runs:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
+
+  - name: Build and push image [Public]
+    shell: bash
+    if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
+    run: |
+      make ${{ inputs.make-target }}
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET_PLATFORMS: ${{ inputs.platforms }}
+      REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
