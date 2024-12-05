@@ -7,6 +7,7 @@ MACHINE := rancher
 # defined in TARGET_PLATFORMS, and must be a subset of the below:
 DEFAULT_PLATFORMS := linux/amd64,linux/arm64
 BUILDX_ARGS ?= --sbom=true --attest type=provenance,mode=max
+IMAGE := ecm-distro-tools
 
 ifeq ($(TAG),)
 	TAG = $(shell git rev-parse HEAD)
@@ -63,8 +64,8 @@ build-image: buildx-machine
 push-image: buildx-machine ## build the container image targeting all platforms defined by TARGET_PLATFORMS and push to a registry.
 	docker buildx build -f Dockerfile \
 		--builder=$(MACHINE) $(IID_FILE_FLAG) $(BUILDX_ARGS) \
-		--platform=$(DEFAULT_PLATFORMS) -t $(REPO):$(TAG) --push .
-	@echo "Pushed $(REPO):$(TAG)"
+		--platform=$(DEFAULT_PLATFORMS) -t $(REPO)/$(IMAGE):$(TAG) --push .
+	@echo "Pushed $(REPO)/$(IMAGE):$(TAG)"
 
 .PHONY: test-image
 test-image: buildx-machine ## build the container image for all target architecures.
