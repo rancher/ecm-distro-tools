@@ -132,13 +132,14 @@ runs:
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
       export GITHUB_REPOSITORY=${{ github.repository }}
+      GITHUB_REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
 
       if [[ -z "${REGISTRY}" ]]; then
         echo "Prime registry cannot be empty"
         exit 1
       fi
 
-      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${GITHUB_REPOSITORY}" != "rancher/ecm-distro-tools" ]]; then
+      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${GITHUB_REPOSITORY}" != "ecm-distro-tools" ]]; then
         echo "Prime registry cannot be docker.io"
         exit 2
       fi
