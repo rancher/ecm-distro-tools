@@ -21,6 +21,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload -R ${{ github.repository }} ${{ github.ref_name }} ${{ github.workspace }}/dist/* --clobber
+      - name: Load Secrets from Vault
+        uses: rancher-eio/read-vault-secrets@main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKERHUB_USERNAME;
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKERHUB_TOKEN;
       - name: Publish manifest
         uses: ./actions/publish-image
         with:
@@ -34,5 +40,5 @@ jobs:
           # Docker as its Prime registry.
           prime-registry: docker.io
           prime-repo: rancher
-          prime-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          prime-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          prime-username: ${{ env.DOCKERHUB_USERNAME }}
+          prime-password: ${{ env.DOCKERHUB_TOKEN }}
