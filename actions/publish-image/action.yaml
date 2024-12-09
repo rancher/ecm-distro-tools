@@ -190,14 +190,8 @@ runs:
       IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
 
       cosign sign --oidc-provider=github-actions --yes "${IMG_NAME}"
+      echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_ENV}"
         
-      if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
-        cat provenance-slsav1.json
-        cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
-      else
-        echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
-        exit 3
-      fi
     env:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
@@ -212,3 +206,15 @@ runs:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
+
+  - name: Attest provenance
+    shell: bash
+    run: |        
+      if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
+        cat provenance-slsav1.json
+        cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
+      else
+        slsactl download provenance --format=slsav1 "${IMG_NAME}"
+        echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
+        exit 3
+      fi
