@@ -209,16 +209,16 @@ runs:
       retry_delay=5
       i=0
 
-      while [ $i -lt $max_retries ]; do
+      while [ "${i}" -lt "${max_retries}" ]; do
           if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
               break
           fi
-          if [ $i -eq $(( max_retries - 1 )) ]; then
+          if [ "${i}" -eq "$(( max_retries - 1 ))" ]; then
               echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
               exit 1
           fi
           i=$(( i + 1 ))
-          sleep $retry_delay
+          sleep "${retry_delay}"
       done
 
       cat provenance-slsav1.json
