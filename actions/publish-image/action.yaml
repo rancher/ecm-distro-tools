@@ -204,12 +204,22 @@ runs:
   - name: Attest provenance
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
-    run: |        
-      if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
-        cat provenance-slsav1.json
-        cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
-      else
-        slsactl download provenance --format=slsav1 "${IMG_NAME}"
-        echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
-        exit 3
-      fi
+    run: |
+      max_retries=3
+      retry_delay=5
+      i=0
+
+      while [ $i -lt $max_retries ]; do
+          if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
+              break
+          fi
+          if [ $i -eq $(( max_retries - 1 )) ]; then
+              echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
+              exit 1
+          fi
+          i=$(( i + 1 ))
+          sleep $retry_delay
+      done
+
+      cat provenance-slsav1.json
+      cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
