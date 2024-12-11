@@ -203,6 +203,7 @@ runs:
 
   - name: Attest provenance
     shell: bash
+    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |        
       if slsactl download provenance --format=slsav1 "${IMG_NAME}" > provenance-slsav1.json; then
         cat provenance-slsav1.json
