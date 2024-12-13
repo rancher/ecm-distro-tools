@@ -11,8 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
+	"github.com/rancher/ecm-distro-tools/release/metrics"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
@@ -25,25 +27,28 @@ var (
 	dashboardPrevMilestone string
 	dashboardMilestone     string
 
-	concurrencyLimit                    int
-	imagesListURL                       string
-	ignoreImages                        []string
-	checkImages                         []string
-	registry                            string
-	username                            string
-	password                            string
-	rancherMissingImagesJSONOutput      bool
-	rke2PrevMilestone                   string
-	rke2Milestone                       string
-	rancherArtifactsIndexWriteToPath    string
-	rancherArtifactsIndexIgnoreVersions []string
-	rancherImagesDigestsOutputFile      string
-	rancherImagesDigestsRegistry        string
-	rancherImagesDigestsImagesURL       string
-	rancherSyncImages                   []string
-	rancherSourceRegistry               string
-	rancherTargetRegistry               string
-	rancherSyncConfigOutputPath         string
+	concurrencyLimit                      int
+	imagesListURL                         string
+	ignoreImages                          []string
+	checkImages                           []string
+	registry                              string
+	username                              string
+	password                              string
+	rancherMissingImagesJSONOutput        bool
+	rke2PrevMilestone                     string
+	rke2Milestone                         string
+	rancherArtifactsIndexWriteToPath      string
+	rancherArtifactsIndexIgnoreVersions   []string
+	rancherImagesDigestsOutputFile        string
+	rancherImagesDigestsRegistry          string
+	rancherImagesDigestsImagesURL         string
+	rancherSyncImages                     []string
+	rancherSourceRegistry                 string
+	rancherTargetRegistry                 string
+	rancherSyncConfigOutputPath           string
+	rancherMetricsRancherReleasesFilePath string
+	rancherMetricsWorkflowsFilePath       string
+	rancherMetricsPrimeReleasesFilePath   string
 )
 
 // generateCmd represents the generate command
@@ -177,6 +182,54 @@ var rancherGenerateImagesSyncConfigSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateMetricsSubCmd = &cobra.Command{
+	Use:   "metrics",
+	Short: "Generate rancher release metrics",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var rancherReleases []github.RepositoryRelease
+		var primeReleases []github.RepositoryRelease
+		var workflows []github.WorkflowRun
+
+		rancherReleasesFile, err := os.ReadFile(rancherMetricsRancherReleasesFilePath)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(rancherReleasesFile, &rancherReleases); err != nil {
+			return err
+		}
+
+		primeReleasesFile, err := os.ReadFile(rancherMetricsPrimeReleasesFilePath)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(primeReleasesFile, &primeReleases); err != nil {
+			return err
+		}
+
+		workflowsFile, err := os.ReadFile(rancherMetricsWorkflowsFilePath)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(workflowsFile, &workflows); err != nil {
+			return err
+		}
+
+		metrics, err := metrics.ExtractMetrics(rancherReleases, primeReleases, workflows)
+		if err != nil {
+			return err
+		}
+
+		b, err := json.MarshalIndent(metrics, "", " ")
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(string(b))
+
+		return nil
+	},
+}
+
 var uiGenerateSubCmd = &cobra.Command{
 	Use:   "ui",
 	Short: "Generate ui related artifacts",
@@ -233,6 +286,7 @@ func init() {
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesSyncConfigSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateMetricsSubCmd)
 	uiGenerateSubCmd.AddCommand(uiGenerateReleaseNotesSubCmd)
 	dashboardGenerateSubCmd.AddCommand(dashboardGenerateReleaseNotesSubCmd)
 
@@ -340,6 +394,23 @@ func init() {
 		os.Exit(1)
 	}
 	if err := rancherGenerateImagesSyncConfigSubCmd.MarkFlagRequired("target-registry"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	// rancher generate metrics
+	rancherGenerateMetricsSubCmd.Flags().StringVarP(&rancherMetricsRancherReleasesFilePath, "rancher-releases-file", "r", "", "Path to the releases file")
+	rancherGenerateMetricsSubCmd.Flags().StringVarP(&rancherMetricsWorkflowsFilePath, "workflows-file", "w", "", "Path to the workflows file")
+	rancherGenerateMetricsSubCmd.Flags().StringVarP(&rancherMetricsPrimeReleasesFilePath, "prime-releases-file", "p", "", "Path to the prime releases file")
+	if err := rancherGenerateMetricsSubCmd.MarkFlagRequired("rancher-releases-file"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateMetricsSubCmd.MarkFlagRequired("workflows-file"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := rancherGenerateMetricsSubCmd.MarkFlagRequired("prime-releases-file"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
