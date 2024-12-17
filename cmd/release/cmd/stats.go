@@ -180,4 +180,17 @@ func init() {
 	repo = statsCmd.Flags().StringP("repo", "r", "", "repository")
 	startDate = statsCmd.Flags().StringP("start", "s", "", "start date")
 	endDate = statsCmd.Flags().StringP("end", "e", "", "end date")
+
+	if err := statsCmd.MarkFlagRequired("repo"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := statsCmd.MarkFlagRequired("start"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := statsCmd.MarkFlagRequired("end"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
