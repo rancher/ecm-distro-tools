@@ -31,6 +31,7 @@ release tag k3s rc v1.29.2
 release tag system-agent-installer-k3s rc v1.29.2
 release tag k3s ga v1.29.2
 release tag system-agent-installer-k3s ga v1.29.2
+release stats -r rke2 -s 2024-01-01 -e 2024-12-31
 ```
 
 #### Cache Permissions and Docker:
