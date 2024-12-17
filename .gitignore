@@ -31,7 +31,6 @@ _testmain.go
 *.iml
 
 cmd/*/bin
-x/*/bin
 
 data/*
 
