@@ -3,7 +3,8 @@ description: 'Installs ecm-distro-tools scripts to the PATH.'
 inputs:
   version:
     description: 'The tag of the ecm-distro-tools release to install.'
-    required: true
+    required: false
+    default: ${{ github.action_ref }}
   install-script-version:
     description: 'The version of the install script to use.'
     required: false
