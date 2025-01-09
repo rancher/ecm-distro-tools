@@ -48,10 +48,8 @@ var statsCmd = &cobra.Command{
 			return errors.New("end date before start date")
 		}
 
-		githubToken := os.Getenv("GITHUB_TOKEN")
-
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, githubToken)
+		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		s := spinner.New(spinner.CharSets[31], 100*time.Millisecond)
 		s.HideCursor = true
