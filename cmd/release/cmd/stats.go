@@ -61,10 +61,6 @@ var statsCmd = &cobra.Command{
 			return err
 		}
 
-		if format == nil || *format == "" {
-			*format = "json"
-		}
-
 		var b []byte
 
 		switch *format {
@@ -93,7 +89,7 @@ func init() {
 	repo = statsCmd.Flags().StringP("repo", "r", "", "repository")
 	startDate = statsCmd.Flags().StringP("start", "s", "", "start date")
 	endDate = statsCmd.Flags().StringP("end", "e", "", "end date")
-	format = statsCmd.Flags().StringP("format", "f", "", "format (json|yaml). default: json")
+	format = statsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
 
 	if err := statsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
