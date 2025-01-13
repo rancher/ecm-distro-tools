@@ -762,6 +762,132 @@ func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, v
 	return latestRelease(versions), nil
 }
 
+// StatsMonthly
+type StatsMonthly struct {
+	Count    int
+	Captains []string
+	Tags     []string
+}
+
+// RelStats
+type RelStats struct {
+	Count   int
+	Monthly map[time.Month]StatsMonthly
+}
+
+// StatsData
+type StatsData struct {
+	Total    int64            `json:"total"`
+	Data     map[int]RelStats `json:"data"`
+	Captains map[string]int   `json:"captains"`
+}
+
+// dedup creates and returns a new slices based on the given slice
+// but with duplicate entries removed.
+func dedup(slice []string) []string {
+	seen := make(map[string]struct{})
+	result := []string{}
+
+	for _, val := range slice {
+		if _, ok := seen[val]; !ok {
+			seen[val] = struct{}{}
+			result = append(result, val)
+		}
+	}
+
+	return result
+}
+
+// Stats collects and processes information regarding a set of releases for the given repo
+// over the given period of time.
+func Stats(ctx context.Context, client *github.Client, startDate, endDate time.Time, owner, repo string) (*StatsData, error) {
+	if endDate.Before(startDate) {
+		return nil, errors.New("end date before start date")
+	}
+
+	sd := StatsData{
+		Data:     make(map[int]RelStats),
+		Captains: make(map[string]int),
+	}
+
+	lo := github.ListOptions{
+		PerPage: 100,
+	}
+	for {
+		releases, resp, err := client.Repositories.ListReleases(ctx, owner, repo, &lo)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, release := range releases {
+			releaseDate := release.GetCreatedAt().Time
+			if releaseDate.After(startDate) && (releaseDate.Before(endDate) || releaseDate.Equal(endDate)) {
+				sd.Total++
+
+				if _, ok := sd.Data[int(release.CreatedAt.Year())]; !ok {
+					sd.Data[int(release.CreatedAt.Year())] = RelStats{
+						Count: 1,
+						Monthly: map[time.Month]StatsMonthly{
+							release.CreatedAt.Month(): {
+								Count: 1,
+								Captains: []string{
+									*release.Author.Login,
+								},
+								Tags: []string{
+									*release.Name,
+								},
+							},
+						},
+					}
+					continue
+				}
+
+				rs := sd.Data[int(release.CreatedAt.Year())]
+				rs.Count++
+
+				mon := rs.Monthly[release.CreatedAt.Month()]
+				mon.Count++
+				mon.Captains = append(mon.Captains, *release.Author.Login)
+				mon.Tags = append(mon.Tags, *release.Name)
+
+				rs.Monthly[release.CreatedAt.Month()] = mon
+
+				sd.Data[int(release.CreatedAt.Year())] = rs
+
+				if release.Author.Login != nil {
+					if _, ok := sd.Captains[*release.Author.Login]; !ok {
+						sd.Captains[*release.Author.Login]++
+						continue
+					}
+					sd.Captains[*release.Author.Login]++
+				}
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		lo.Page = resp.NextPage
+	}
+
+	for year := range sd.Data {
+		months := make([]int, 0, len(sd.Data[year].Monthly))
+		for k := range sd.Data[year].Monthly {
+			months = append(months, int(k))
+		}
+		sort.Ints(months)
+
+		for _, m := range months {
+			mon := time.Month(m)
+			tmp := sd.Data[year].Monthly[mon]
+			tmp.Captains = dedup(tmp.Captains)
+			sd.Data[year].Monthly[mon] = tmp
+		}
+	}
+
+	return &sd, nil
+}
+
 func latestRelease(versions []*github.RepositoryRelease) *string {
 	sort.Slice(versions, func(i, j int) bool {
 		return versions[i].PublishedAt.Before(versions[j].PublishedAt.Time)
