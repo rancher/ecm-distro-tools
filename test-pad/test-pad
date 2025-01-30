@@ -30,10 +30,11 @@ cluster types:
     - split-lite:   3 VMs, 1 etcd-only server, 1 cp-only servers, 1 agent. Taints on etcd and control-plane
     - rancher:      4 VMs, 1 single server with rancher, 3 blank VMs ready for provisioning
 examples:
-    $0 -r k3s -v v1.22.12+k3s1 -c basic 
-    $0 -r k3s -v v1.23.9+k3s1 -c ha
-    $0 -r k3s -v 1d4f995edd33186e178bfa9cf3d442dd244d2022 -c basic-lite
+    $0 -r k3s -v v1.30.8+k3s1 -c basic 
+    $0 -r k3s -v v1.31.2+k3s1 -c ha    
     $0 -r k3s -b ../../k3s/dist/artifacts/k3s -c ha-lite 
+
+    $0 -r rke2 -v v1.31.4+rke2r1 -c basic-lite
     $0 -r rke2 -b ../../rke2/dist/artifacts/rke2.linux-amd64.tar.gz -i ../../rke2/build/images -c basic
 "
 }
@@ -260,26 +261,26 @@ elif  [ "${REPO}" = "k3s" ]; then
     ORG="k3s-io"
     STORAGE_URL="https://storage.googleapis.com/k3s-ci-builds"
     BINARY="k3s"
-    # If not assigned, use alpine-3.16 for fast download and startup time
-    OS=generic/alpine316
+    # If not assigned, use alpine-3.20 for fast download and startup time
+    OS=boxen/alpine-3.20
 elif [ "${REPO}" = "rke2" ]; then
     ORG="rancher"
     BINARY="rke2.linux-amd64"
     STORAGE_URL="https://storage.googleapis.com/rke2-ci-builds"
     # RKE2 requires systemd, so we use ubuntu,
     # note that it is much larger (~1.5GB) and takes longer to startup.
-    OS=generic/ubuntu2004
+    OS=bento/ubuntu-24.04
 else 
    echo "error: unknown repo (-r) $REPO"
    exit 1
 fi
 
 if [ "${OSFLAG}" = "alpine" ]; then 
-    OS=generic/alpine317; 
+    OS=boxen/alpine-3.20; 
 elif [ "${OSFLAG}" = "ubuntu" ]; then 
-    OS=generic/ubuntu2004; 
+    OS=bento/ubuntu-24.04; 
 elif [ "${OSFLAG}" = "debian" ]; then 
-    OS=generic/debian11; 
+    OS=boxen/debian-12; 
 elif [ -n "${OSFLAG}" ]; then
     echo "error: unsupported OS (--os) $OSFLAG"
     exit 1
