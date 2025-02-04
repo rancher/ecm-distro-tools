@@ -1,0 +1,17 @@
+{
+  "name": "create-github-app-token",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@octokit/auth-app": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.3.3"
+  },
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist"
+  }
+}
