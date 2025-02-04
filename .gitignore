@@ -47,5 +47,3 @@ data/*
 # build artifacts
 *.tar
 *.tar.gz
-**/node_modules/*
-!actions/**/dist/

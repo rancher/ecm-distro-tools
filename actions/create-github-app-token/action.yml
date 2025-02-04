@@ -1,5 +1,6 @@
 name: 'Create GitHub App Token'
 description: 'Create a GitHub App installation token'
+
 inputs:
   app-id:
     description: 'GitHub App ID'
@@ -10,9 +11,55 @@ inputs:
   installation-id:
     description: 'GitHub App installation ID'
     required: true
+
 outputs:
   token:
     description: 'Generated installation token'
+    value: ${{ steps.app-token.outputs.token }}
+
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
+  using: 'composite'
+  steps:
+    - shell: bash
+      id: app-token
+      run: |
+        set -e
+        
+        # Create JWT
+        NOW=$(date +%s)
+        EXP=$((NOW+540))
+        HEADER='{"alg":"RS256","typ":"JWT"}'
+        PAYLOAD="{\"iat\":$NOW,\"exp\":$EXP,\"iss\":\"${{ inputs.app-id }}\"}"
+        
+        HEADER_B64=$(echo -n "$HEADER" | base64 -w0 | tr '+/' '-_' | tr -d '=')
+        PAYLOAD_B64=$(echo -n "$PAYLOAD" | base64 -w0 | tr '+/' '-_' | tr -d '=')
+        
+        # Save private key to temp file
+        TMPKEY=$(mktemp)
+        echo "${{ inputs.private-key }}" > "$TMPKEY"
+        
+        # Generate signature
+        SIGNATURE=$(echo -n "${HEADER_B64}.${PAYLOAD_B64}" | 
+          openssl dgst -sha256 -sign "$TMPKEY" | 
+          openssl base64 -A | 
+          tr '+/' '-_' | 
+          tr -d '=')
+        
+        rm "$TMPKEY"
+        
+        JWT="${HEADER_B64}.${PAYLOAD_B64}.${SIGNATURE}"
+        
+        # Get token
+        TOKEN=$(curl -sS -X POST \
+          -H "Authorization: Bearer $JWT" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/app/installations/${{ inputs.installation-id }}/access_tokens" \
+          | jq -r '.token')
+        
+        if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+          echo "Failed to get token"
+          exit 1
+        fi
+        
+        echo "::add-mask::$TOKEN"
+        echo "token=$TOKEN" >> $GITHUB_OUTPUT
