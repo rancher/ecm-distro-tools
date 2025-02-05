@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+import os
+import sys
+import tempfile
+import shutil
+import logging
+import subprocess
+import boto3
+
+class S3Grabber:
+    def __init__(self, bucket_arg, region, visibility, aws_access_key, aws_secret_key):
+        parts = bucket_arg.split("/", 1)
+        self.bucket_name = parts[0]                       # Ex: rancher/rke2/latest/1.32/centos/9
+        self.prefix = parts[1] if len(parts) > 1 else ""
+        self.visibility = visibility
+
+        session = boto3.session.Session(
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=region
+        )
+        endpoint = f"https://s3.{region}.amazonaws.com"
+        s3 = session.resource('s3', endpoint_url=endpoint)
+        self.bucket = s3.Bucket(self.bucket_name)
+
+    def repodata_exists(self):
+        prefix = os.path.join(self.prefix, "repodata").replace("\\", "/")
+        objs = list(self.bucket.objects.filter(Prefix=prefix))
+        return len(objs) > 0
+
+    def list_rpms(self):
+        rpm_list = []
+        for obj in self.bucket.objects.filter(Prefix=self.prefix):
+            if obj.key.endswith(".rpm"):
+                rpm_list.append(obj.key)
+        return rpm_list
+
+    def download_rpms(self, local_dir):
+        rpm_keys = self.list_rpms()
+        os.makedirs(local_dir, exist_ok=True)
+        for key in rpm_keys:
+            basename = os.path.basename(key)  # Ex: rke2-server-1.32.0.rpm
+            local_path = os.path.join(local_dir, basename)
+            logging.info("Downloading RPM: s3://%s/%s -> %s", self.bucket_name, key, local_path)
+            self.bucket.download_file(key, local_path)
+
+    def upload_file(self, local_path, remote_key):
+        s3_key = os.path.join(self.prefix, remote_key).replace("\\", "/")
+        logging.info("Uploading %s -> s3://%s/%s", local_path, self.bucket_name, s3_key)
+        self.bucket.upload_file(local_path, s3_key, ExtraArgs={'ACL': self.visibility})
+
+    def upload_dir(self, local_dir, remote_subdir):
+        prefix_dir = os.path.join(self.prefix, remote_subdir).replace("\\", "/")
+        for root, _, files in os.walk(local_dir):
+            for f in files:
+                local_path = os.path.join(root, f)
+                rel = os.path.relpath(local_path, local_dir)
+                s3_key = os.path.join(prefix_dir, rel).replace("\\", "/")
+                logging.info("Uploading file: %s -> s3://%s/%s", local_path, self.bucket_name, s3_key)
+                self.bucket.upload_file(local_path, s3_key, ExtraArgs={'ACL': self.visibility})
+
+
+def update_repodata(rpmfiles, options):
+    logging.info("RPM files: %s", rpmfiles)
+
+    tmpdir = tempfile.mkdtemp()
+    packages_dir = os.path.join(tmpdir, "packages")
+    os.makedirs(packages_dir, exist_ok=True)
+
+    grabber = S3Grabber(
+        bucket_arg=options.bucket,
+        region=options.region,
+        visibility=options.visibility,
+        aws_access_key=options.aws_access_key,
+        aws_secret_key=options.aws_secret_key
+    )
+
+    if grabber.repodata_exists():
+        logging.info("Found existing repodata in S3. Downloading old RPMs to local as well.")
+        grabber.download_rpms(packages_dir)
+    else:
+        logging.info("No existing repodata on S3. We'll create a fresh repo.")
+
+    for rpm in rpmfiles:
+        basename = os.path.basename(rpm)
+        local_dest = os.path.join(packages_dir, basename)
+        logging.info("Copying new RPM: %s -> %s", rpm, local_dest)
+        shutil.copy(rpm, local_dest)
+
+    if grabber.repodata_exists():
+        cmd = ["createrepo_c", "--update", packages_dir]
+        logging.info("Updating existing repo with new packages.")
+    else:
+        cmd = ["createrepo_c", packages_dir]
+        logging.info("Creating new repo from scratch (no repodata on S3).")
+
+    logging.info("Running command: %s", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+    repodata_path = os.path.join(packages_dir, "repodata")
+    repomd_xml = os.path.join(repodata_path, "repomd.xml")
+    if not os.path.exists(repomd_xml):
+        logging.error("repomd.xml not found in %s. Something went wrong with createrepo_c.", repodata_path)
+        raise FileNotFoundError("No repomd.xml after createrepo_c. Repo generation failed.")
+
+    logging.info("Uploading repodata to S3...")
+    grabber.upload_dir(repodata_path, "repodata")
+
+    for rpm in rpmfiles:
+        basename = os.path.basename(rpm)
+        grabber.upload_file(rpm, basename)
+
+    shutil.rmtree(tmpdir)
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Keep multiple versions in S3-based repo without renaming.")
+    parser.add_argument("-b", "--bucket", required=True, help="S3 bucket/prefix (e.g. rancher/rke2/latest/1.32/...)")
+    parser.add_argument("--region", default="us-east-2", help="AWS region, e.g. us-east-2")
+    parser.add_argument("--visibility", default="private", help="S3 ACL: (public-read, private, etc.)")
+    parser.add_argument("--aws-access-key", required=True, help="AWS Access Key ID")
+    parser.add_argument("--aws-secret-key", required=True, help="AWS Secret Access Key")
+    parser.add_argument("rpmfiles", nargs="+", help="List of new RPMs to add.")
+    options = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    update_repodata(options.rpmfiles, options)
+
+if __name__ == "__main__":
+    main()
