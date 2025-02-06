@@ -14,6 +14,7 @@ class S3Grabber:
         self.bucket_name = parts[0]
         self.prefix = parts[1] if len(parts) > 1 else ""
         self.visibility = visibility
+
         session = boto3.session.Session(
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
@@ -58,8 +59,26 @@ class S3Grabber:
                                         'ACL': self.visibility})
 
 
+def sign_rpm(rpm_path, password=None):
+    # use the password if the user set or used in the cli
+    if password:
+        command = f"""
+expect -c 'set timeout 60;
+spawn rpmsign --addsign {rpm_path};
+expect "Passphrase:";
+send "{password}\\r";
+expect eof;'
+"""
+
+        subprocess.run(command, shell=True, check=True)
+    else:
+        logging.info(f"Signing {rpm_path} (interactive passphrase).")
+        subprocess.run(["rpm", "--addsign", rpm_path], check=True)
+
+
 def update_repodata(rpmfiles, options):
     logging.info("RPM files: %s", rpmfiles)
+
     tmpdir = tempfile.mkdtemp()
     old_repo_dir = os.path.join(tmpdir, "old_repo")
     new_repo_dir = os.path.join(tmpdir, "new_repo")
@@ -67,6 +86,7 @@ def update_repodata(rpmfiles, options):
     os.makedirs(old_repo_dir, exist_ok=True)
     os.makedirs(new_repo_dir, exist_ok=True)
     os.makedirs(merged_repo_dir, exist_ok=True)
+
     grabber = S3Grabber(
         bucket_arg=options.bucket,
         region=options.region,
@@ -74,17 +94,22 @@ def update_repodata(rpmfiles, options):
         aws_access_key=options.aws_access_key,
         aws_secret_key=options.aws_secret_key
     )
+
     repodata = grabber.repodata_info()
     if len(repodata) > 0:
         logging.info("Found existing repodata in S3. Downloading for merge.")
         grabber.download_repodata(old_repo_dir)
     else:
         logging.info("No existing repodata on S3. We'll create a fresh repo.")
+
     for rpm in rpmfiles:
         basename = os.path.basename(rpm)
         local_dest = os.path.join(new_repo_dir, basename)
         logging.info("Copying new RPM: %s -> %s", rpm, local_dest)
         shutil.copy(rpm, local_dest)
+        if options.sign:
+            sign_rpm(local_dest, options.sign_pass)
+
     logging.info("Running createrepo_c for new RPMs only.")
     subprocess.run(["createrepo_c", new_repo_dir], check=True)
     repodata_new = os.path.join(new_repo_dir, "repodata")
@@ -93,6 +118,7 @@ def update_repodata(rpmfiles, options):
         logging.error("repomd.xml not found in new repo.")
         raise FileNotFoundError(
             "No repomd.xml after createrepo_c for new RPMs.")
+
     if len(repodata) > 0:
         logging.info(
             "Merging old repo metadata with new repo using mergerepo_c.")
@@ -115,15 +141,19 @@ def update_repodata(rpmfiles, options):
     else:
         logging.info("Uploading new repo (no old repo to merge).")
         grabber.upload_dir(os.path.join(new_repo_dir, "repodata"), "repodata")
+
     for rpm in rpmfiles:
         basename = os.path.basename(rpm)
         grabber.upload_file(rpm, basename)
+
+    shutil.rmtree(tmpdir)
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(
-        description="Keep multiple versions in S3-based repo without renaming.")
+        description="Keep multiple versions in S3-based repo without renaming, optionally sign RPMs."
+    )
     parser.add_argument("-b", "--bucket", required=True,
                         help="S3 bucket/prefix (e.g. rancher/rke2/latest/1.32/...)")
     parser.add_argument("--region", default="us-east-2",
@@ -134,10 +164,16 @@ def main():
                         help="AWS Access Key ID")
     parser.add_argument("--aws-secret-key", required=True,
                         help="AWS Secret Access Key")
+    parser.add_argument("--sign", action="store_true",
+                        help="If set, sign the RPMs with rpm --addsign")
+    parser.add_argument("--sign-pass", default=None,
+                        help="Passphrase for GPG key (if not using gpg-agent).")
     parser.add_argument("rpmfiles", nargs="+", help="List of new RPMs to add.")
     options = parser.parse_args()
+
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
+
     update_repodata(options.rpmfiles, options)
 
 
