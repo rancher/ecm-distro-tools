@@ -45,9 +45,15 @@ class S3Grabber:
         self.bucket.upload_file(local_path, s3_key, ExtraArgs={
                                 'ACL': self.visibility})
 
-    def upload_dir(self, local_dir, remote_subdir):
+    def upload_dir(self, local_dir, remote_subdir, password=None):
         prefix_dir = os.path.join(
             self.prefix, remote_subdir).replace("\\", "/")
+
+        repomd_path = os.path.join(local_dir, "repomd.xml")
+        if os.path.exists(repomd_path):
+            logging.info("Signing repomd.xml before upload...")
+            sign_repo(repomd_path, password)
+
         for root, _, files in os.walk(local_dir):
             for f in files:
                 local_path = os.path.join(root, f)
@@ -57,6 +63,24 @@ class S3Grabber:
                              local_path, self.bucket_name, s3_key)
                 self.bucket.upload_file(local_path, s3_key, ExtraArgs={
                                         'ACL': self.visibility})
+
+
+def sign_repo(repomd_path, password=None):
+    # use the password if the user set or used in the cli
+    if password:
+        command = f"""
+expect -c 'set timeout 60;
+spawn gpg --detach-sign --armor {repomd_path};
+expect "Passphrase:";
+send "{password}\\r";
+expect eof;'
+"""
+
+        subprocess.run(command, shell=True, check=True)
+    else:
+        logging.info(f"Signing {repomd_path} (interactive passphrase).")
+        subprocess.run(["gpg", "--detach-sign", "--armor",
+                       repomd_path], check=True)
 
 
 def sign_rpm(rpm_path, password=None):
