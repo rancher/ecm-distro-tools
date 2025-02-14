@@ -126,12 +126,12 @@ def update_repodata(rpmfiles, options):
         logging.info("No existing repodata on S3. We'll create a fresh repo.")
 
     for rpm in rpmfiles:
+        if options.sign:
+            sign_rpm(rpm, options.sign_pass)
         basename = os.path.basename(rpm)
         local_dest = os.path.join(new_repo_dir, basename)
         logging.info("Copying new RPM: %s -> %s", rpm, local_dest)
         shutil.copy(rpm, local_dest)
-        if options.sign:
-            sign_rpm(local_dest, options.sign_pass)
 
     logging.info("Running createrepo_c for new RPMs only.")
     subprocess.run(["createrepo_c",
