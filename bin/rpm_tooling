@@ -164,6 +164,7 @@ def update_repodata(rpmfiles, options):
         grabber.upload_dir(repodata_new, "repodata")
 
     for rpm in rpmfiles:
+        basename = os.path.basename(rpm)
         local_dest = os.path.join(new_repo_dir, basename)
         grabber.upload_file(local_dest, basename)
 
