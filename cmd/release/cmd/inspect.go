@@ -19,7 +19,7 @@ const (
 	ossRegistry = "docker.io"
 )
 
-func displayResults(results []rke2.ImageStatus) error {
+func displayResults(results []rke2.Image) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	defer w.Flush()
 
