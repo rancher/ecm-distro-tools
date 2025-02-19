@@ -95,20 +95,13 @@ autoload -Uz compinit && compinit
 * Submit a pull request and include details of what problem or feature the code is solving or implementing.
 
 ### Inspect Command Output
-The `inspect` command displays release artifact information in a tabulated format. Here's an example output:
+The `inspect` subcommand list information about images used by a published rke2 release.
 
 ```
-image                                                                docker   prime   sig   amd64   arm64   windows   
------                                                                ------   -----   ---   -----   -----   -------   
-docker.io/rancher/hardened-addon-resizer:1.8.20-build20240910       ✗        ✓       ✓     ✗       ✗       ✗         
-docker.io/rancher/hardened-calico:v3.28.1-build20240911            ✗        ✓       ✓     ✗       ✗       ✗         
-```
+$ release inspect v1.29.9-rc1+rke2r1
 
-Column descriptions:
-- `image`: Full image reference including registry, repository, and tag
-- `docker`: ✓ if published on Docker Hub, ✗ if not
-- `prime`: ✓ if published on the primary registry, ✗ if not
-- `sig`: ✓ if the image is signed, ✗ if not
-- `amd64`: ✓ if Linux AMD64 variant is available, ✗ if not
-- `arm64`: ✓ if Linux ARM64 variant is available, ✗ if not
-- `windows`: ✓ if Windows variant is available, ✗ if not
+image                                            oss  prime  sig  amd64  arm64  win
+-----                                            ---  -----  ---  -----  -----  ---
+rancher/hardened-coredns:v1.12.0-build20241126   ✓    ✓      ?    ✓      ✓      -
+rancher/mirrored-library-traefik:2.11.10         ✓    ✓      ?    ✓      ✓      -
+```
