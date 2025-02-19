@@ -115,7 +115,7 @@ func (r *ReleaseInspector) processImageLists(archLists map[Architecture]string) 
 				continue
 			}
 
-			ref, err := reg.ParseReference(image)
+			ref, err := name.ParseReference(image)
 			if err != nil {
 				continue
 			}

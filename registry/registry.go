@@ -40,12 +40,17 @@ func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 		Platforms: make(map[Platform]bool),
 	}
 
-	newRef, err := name.ParseReference(fmt.Sprintf("%s/%s:%s", c.registry, ref.Context().RepositoryStr(), ref.Identifier()))
+	newRef, err := name.NewRepository(c.registry + "/" + ref.Context().RepositoryStr())
 	if err != nil {
 		return info, err
 	}
 
-	desc, err := remote.Get(newRef)
+	tagRef, err := name.NewTag(newRef.String() + ":" + ref.Identifier())
+	if err != nil {
+		return info, err
+	}
+
+	desc, err := remote.Get(tagRef)
 	if err != nil {
 		var transportErr *transport.Error
 		if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {
