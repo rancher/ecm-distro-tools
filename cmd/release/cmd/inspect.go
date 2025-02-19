@@ -73,7 +73,7 @@ func windowsStatus(expected, exists bool) string {
 }
 
 func formatImageRef(ref name.Reference) string {
-	return fmt.Sprintf("%s:%s", ref.Context().RepositoryStr(), ref.Identifier())
+	return ref.Context().RepositoryStr() + ":" + ref.Identifier()
 }
 
 var inspectCmd = &cobra.Command{
