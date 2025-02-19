@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -11,7 +10,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
-// Platform represents an OS/architecture combination
 type Platform struct {
 	OS           string
 	Architecture string
@@ -30,7 +28,6 @@ type Client struct {
 	registry string
 }
 
-// NewClient returns a new registry client for the specified registry
 func NewClient(registry string, debug bool) *Client {
 	return &Client{registry}
 }
@@ -56,7 +53,7 @@ func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 		if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {
 			return info, nil
 		}
-		return info, fmt.Errorf("getting descriptor: %w", err)
+		return info, err
 	}
 
 	info.Exists = true
