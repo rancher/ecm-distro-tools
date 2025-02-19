@@ -26,6 +26,18 @@ func displayTable(results []rke2.Image) error {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
+	missingCount := 0
+	for _, result := range results {
+		if !result.OSSImage.Exists || !result.PrimeImage.Exists {
+			missingCount++
+		}
+	}
+	if missingCount > 0 {
+		fmt.Println(missingCount, "incomplete images")
+	} else {
+		fmt.Println("all images OK")
+	}
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	defer w.Flush()
 
