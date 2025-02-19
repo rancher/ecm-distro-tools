@@ -32,17 +32,21 @@ func NewClient(registry string, debug bool) *Client {
 	return &Client{registry}
 }
 
+func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {
+	newRef, err := name.NewRepository(registry + "/" + ref.Context().RepositoryStr())
+	if err != nil {
+		return name.Tag{}, err
+	}
+
+	return name.NewTag(newRef.String() + ":" + ref.Identifier())
+}
+
 func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 	info := Image{
 		Platforms: make(map[Platform]bool),
 	}
 
-	newRef, err := name.NewRepository(c.registry + "/" + ref.Context().RepositoryStr())
-	if err != nil {
-		return info, err
-	}
-
-	tagRef, err := name.NewTag(newRef.String() + ":" + ref.Identifier())
+	tagRef, err := replaceRegistry(c.registry, ref)
 	if err != nil {
 		return info, err
 	}
