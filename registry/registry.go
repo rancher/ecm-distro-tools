@@ -110,12 +110,3 @@ func (c *Client) handleSingleArchImage(desc *remote.Descriptor, info *Image) err
 
 	return nil
 }
-
-// ParseReference parses an image reference and returns a normalized reference
-func ParseReference(imageRef string) (name.Reference, error) {
-	ref, err := name.ParseReference(imageRef)
-	if err != nil {
-		return nil, fmt.Errorf("parsing image reference: %w", err)
-	}
-	return ref, nil
-}
