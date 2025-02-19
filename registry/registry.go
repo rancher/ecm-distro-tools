@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -22,58 +21,34 @@ func (p Platform) String() string {
 	return fmt.Sprintf("%s/%s", p.OS, p.Architecture)
 }
 
-// Image contains information about an image in a specific registry
 type Image struct {
 	Exists    bool
 	Platforms map[Platform]bool
 }
 
-// ImageInfo contains information about an image across registries
-type ImageInfo struct {
-	Reference  name.Reference
-	OSSImage   Image
-	PrimeImage Image
-}
-
-// Client provides methods for interacting with a container registry
-type Client interface {
-	GetImageInfo(ctx context.Context, ref name.Reference) (Image, error)
-}
-
-type defaultClient struct {
+type Client struct {
 	registry string
-	debug    bool
 }
 
 // NewClient returns a new registry client for the specified registry
-func NewClient(registry string, debug bool) Client {
-	return &defaultClient{
-		registry: registry,
-		debug:    debug,
-	}
+func NewClient(registry string, debug bool) *Client {
+	return &Client{registry}
 }
 
-func (c *defaultClient) GetImageInfo(ctx context.Context, ref name.Reference) (Image, error) {
+func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 	info := Image{
 		Platforms: make(map[Platform]bool),
 	}
 
 	newRef, err := name.ParseReference(fmt.Sprintf("%s/%s:%s", c.registry, ref.Context().RepositoryStr(), ref.Identifier()))
 	if err != nil {
-		return info, fmt.Errorf("creating registry reference: %w", err)
-	}
-
-	if c.debug {
-		slog.Debug("getting image descriptor", "registry", c.registry, "reference", newRef.String())
+		return info, err
 	}
 
 	desc, err := remote.Get(newRef)
 	if err != nil {
 		var transportErr *transport.Error
 		if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {
-			if c.debug {
-				slog.Debug("image not found", "registry", c.registry, "reference", newRef.String())
-			}
 			return info, nil
 		}
 		return info, fmt.Errorf("getting descriptor: %w", err)
@@ -82,41 +57,27 @@ func (c *defaultClient) GetImageInfo(ctx context.Context, ref name.Reference) (I
 	info.Exists = true
 
 	if desc.MediaType.IsIndex() {
-		if c.debug {
-			slog.Debug("handling multi-arch image", "registry", c.registry, "reference", newRef.String())
-		}
 		if err := c.handleMultiArchImage(desc, &info); err != nil {
 			return info, err
 		}
 	} else {
-		if c.debug {
-			slog.Debug("handling single-arch image", "registry", c.registry, "reference", newRef.String())
-		}
 		if err := c.handleSingleArchImage(desc, &info); err != nil {
 			return info, err
 		}
 	}
 
-	if c.debug {
-		slog.Debug("image info retrieved",
-			"registry", c.registry,
-			"reference", newRef.String(),
-			"exists", info.Exists,
-			"platform_count", len(info.Platforms))
-	}
-
 	return info, nil
 }
 
-func (c *defaultClient) handleMultiArchImage(desc *remote.Descriptor, info *Image) error {
+func (c *Client) handleMultiArchImage(desc *remote.Descriptor, info *Image) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
-		return fmt.Errorf("getting index: %w", err)
+		return err
 	}
 
 	manifest, err := idx.IndexManifest()
 	if err != nil {
-		return fmt.Errorf("getting manifest: %w", err)
+		return err
 	}
 
 	for _, m := range manifest.Manifests {
@@ -125,23 +86,20 @@ func (c *defaultClient) handleMultiArchImage(desc *remote.Descriptor, info *Imag
 			Architecture: m.Platform.Architecture,
 		}
 		info.Platforms[platform] = true
-		if c.debug {
-			slog.Debug("found platform", "os", platform.OS, "arch", platform.Architecture)
-		}
 	}
 
 	return nil
 }
 
-func (c *defaultClient) handleSingleArchImage(desc *remote.Descriptor, info *Image) error {
+func (c *Client) handleSingleArchImage(desc *remote.Descriptor, info *Image) error {
 	img, err := desc.Image()
 	if err != nil {
-		return fmt.Errorf("getting image: %w", err)
+		return err
 	}
 
 	cfg, err := img.ConfigFile()
 	if err != nil {
-		return fmt.Errorf("getting config: %w", err)
+		return err
 	}
 
 	platform := Platform{
@@ -149,9 +107,6 @@ func (c *defaultClient) handleSingleArchImage(desc *remote.Descriptor, info *Ima
 		Architecture: cfg.Architecture,
 	}
 	info.Platforms[platform] = true
-	if c.debug {
-		slog.Debug("found platform", "os", platform.OS, "arch", platform.Architecture)
-	}
 
 	return nil
 }

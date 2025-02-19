@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"text/tabwriter"
 
@@ -86,21 +85,6 @@ var inspectCmd = &cobra.Command{
 	Short: "Inspect release artifacts",
 	Long: `Inspect release artifacts for a given version.
 Currently supports inspecting the image list for published rke2 releases.`,
-	PreRun: func(cmd *cobra.Command, args []string) {
-		// Set up slog configuration based on debug flag
-		var logLevel slog.Level
-		if debug {
-			logLevel = slog.LevelDebug
-		} else {
-			logLevel = slog.LevelInfo
-		}
-
-		opts := &slog.HandlerOptions{
-			Level: logLevel,
-		}
-		handler := slog.NewTextHandler(os.Stderr, opts)
-		slog.SetDefault(slog.New(handler))
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("expected at least one argument: [version]")
@@ -115,7 +99,7 @@ Currently supports inspecting the image list for published rke2 releases.`,
 
 		ossClient := reg.NewClient(ossRegistry, debug)
 
-		var primeClient reg.Client
+		var primeClient *reg.Client
 		if rootConfig.PrimeRegistry != "" {
 			primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug)
 		}

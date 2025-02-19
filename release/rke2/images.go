@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log/slog"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -36,12 +35,12 @@ type ImageStatus struct {
 
 type ReleaseInspector struct {
 	fs    fs.FS
-	oss   reg.Client
-	prime reg.Client
+	oss   *reg.Client
+	prime *reg.Client
 	debug bool
 }
 
-func NewReleaseInspector(fs fs.FS, oss, prime reg.Client, debug bool) *ReleaseInspector {
+func NewReleaseInspector(fs fs.FS, oss, prime *reg.Client, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
 		fs:    fs,
 		oss:   oss,
@@ -59,16 +58,10 @@ func (r *ReleaseInspector) InspectRelease(ctx context.Context, version string) (
 	if err != nil {
 		return nil, err
 	}
-	if r.debug {
-		slog.Debug("found architecture lists", "lists", mapKeys(archLists))
-	}
 
 	imageExpectations, err := r.processImageLists(archLists)
 	if err != nil {
 		return nil, err
-	}
-	if r.debug {
-		slog.Debug("processed images", "count", len(imageExpectations))
 	}
 
 	return r.checkImages(ctx, imageExpectations)
@@ -92,9 +85,6 @@ func (r *ReleaseInspector) getArchitectureLists() (map[Architecture]string, erro
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if r.debug {
-			slog.Debug("found asset", "name", name)
-		}
 		switch name {
 		case "rke2-images-all.linux-amd64.txt":
 			lists[ArchLinuxAmd64] = name
@@ -115,15 +105,9 @@ func (r *ReleaseInspector) processImageLists(archLists map[Architecture]string) 
 			continue
 		}
 
-		if r.debug {
-			slog.Debug("reading image list", "arch", arch, "filename", filename)
-		}
 		images, err := r.readImageList(filename)
 		if err != nil {
 			return nil, err
-		}
-		if r.debug {
-			slog.Debug("found images", "arch", arch, "count", len(images))
 		}
 
 		for _, image := range images {
@@ -133,9 +117,6 @@ func (r *ReleaseInspector) processImageLists(archLists map[Architecture]string) 
 
 			ref, err := reg.ParseReference(image)
 			if err != nil {
-				if r.debug {
-					slog.Debug("failed to parse image reference", "image", image, "error", err)
-				}
 				continue
 			}
 
@@ -176,20 +157,10 @@ func (r *ReleaseInspector) readImageList(filename string) ([]string, error) {
 
 func (r *ReleaseInspector) checkImages(ctx context.Context, expectations map[string]imageExpectations) ([]ImageStatus, error) {
 	var results []ImageStatus
-	if r.debug {
-		slog.Debug("checking images in registries", "count", len(expectations))
-	}
 
-	for key, expect := range expectations {
-		if r.debug {
-			slog.Debug("checking image", "image", key)
-		}
-
-		ossImage, err := r.oss.GetImageInfo(ctx, expect.Reference)
+	for _, expect := range expectations {
+		ossImage, err := r.oss.Image(ctx, expect.Reference)
 		if err != nil {
-			if r.debug {
-				slog.Debug("failed to get OSS info", "image", key, "error", err)
-			}
 			ossImage = reg.Image{
 				Exists:    false,
 				Platforms: make(map[reg.Platform]bool),
@@ -198,10 +169,7 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, expectations map[str
 
 		var primeImage reg.Image
 		if r.prime != nil {
-			primeImage, err = r.prime.GetImageInfo(ctx, expect.Reference)
-			if err != nil && r.debug {
-				slog.Debug("failed to get Prime info", "image", key, "error", err)
-			}
+			primeImage, err = r.prime.Image(ctx, expect.Reference)
 		}
 
 		status := ImageStatus{
@@ -213,8 +181,5 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, expectations map[str
 		results = append(results, status)
 	}
 
-	if r.debug {
-		slog.Debug("found images", "count", len(results))
-	}
 	return results, nil
 }
