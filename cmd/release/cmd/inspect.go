@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -20,53 +21,6 @@ import (
 const (
 	ossRegistry = "docker.io"
 )
-
-func displayTable(results []rke2.Image) error {
-	sort.Slice(results, func(i, j int) bool {
-		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
-	})
-
-	missingCount := 0
-	for _, result := range results {
-		if !result.OSSImage.Exists || !result.PrimeImage.Exists {
-			missingCount++
-		}
-	}
-	if missingCount > 0 {
-		fmt.Println(missingCount, "incomplete images")
-	} else {
-		fmt.Println("all images OK")
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	defer w.Flush()
-
-	fmt.Fprintln(w, "image\toss\tprime\tsig\tamd64\tarm64\twin")
-	fmt.Fprintln(w, "-----\t---\t-----\t---\t-----\t-----\t-------")
-
-	for _, result := range results {
-		ossStatus := "✗"
-		if result.OSSImage.Exists {
-			ossStatus = "✓"
-		}
-		primeStatus := "✗"
-		if result.PrimeImage.Exists {
-			primeStatus = "✓"
-		}
-
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			formatImageRef(result.Reference),
-			ossStatus,
-			primeStatus,
-			"?", // sigstore not implemented
-			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "amd64"}),
-			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
-			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
-		)
-	}
-
-	return nil
-}
 
 func archStatus(expected bool, ossInfo, primeInfo reg.Image, platform reg.Platform) string {
 	if !expected {
@@ -94,12 +48,57 @@ func formatImageRef(ref name.Reference) string {
 	return ref.Context().RepositoryStr() + ":" + ref.Identifier()
 }
 
-func displayCSV(results []rke2.Image) error {
+func table(w io.Writer, results []rke2.Image) {
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
-	fmt.Println("image,oss,prime,sig,amd64,arm64,win")
+	missingCount := 0
+	for _, result := range results {
+		if !result.OSSImage.Exists || !result.PrimeImage.Exists {
+			missingCount++
+		}
+	}
+	if missingCount > 0 {
+		fmt.Fprintln(w, missingCount, "incomplete images")
+	} else {
+		fmt.Fprintln(w, "all images OK")
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 8, 2, ' ', 0)
+	defer tw.Flush()
+
+	fmt.Fprintln(tw, "image\toss\tprime\tsig\tamd64\tarm64\twin")
+	fmt.Fprintln(tw, "-----\t---\t-----\t---\t-----\t-----\t-------")
+
+	for _, result := range results {
+		ossStatus := "✗"
+		if result.OSSImage.Exists {
+			ossStatus = "✓"
+		}
+		primeStatus := "✗"
+		if result.PrimeImage.Exists {
+			primeStatus = "✓"
+		}
+		tw.Write([]byte(strings.Join([]string{
+			formatImageRef(result.Reference),
+			ossStatus,
+			primeStatus,
+			"?", // sigstore not implemented
+			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "amd64"}),
+			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
+			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
+			"",
+		}, "\t") + "\n"))
+	}
+}
+
+func csv(w io.Writer, results []rke2.Image) {
+	sort.Slice(results, func(i, j int) bool {
+		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
+	})
+
+	fmt.Fprintln(w, "image,oss,prime,sig,amd64,arm64,win")
 
 	for _, result := range results {
 		ossStatus := "x"
@@ -120,10 +119,8 @@ func displayCSV(results []rke2.Image) error {
 			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
 			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
 		}
-		fmt.Println(strings.Join(values, ","))
+		fmt.Fprintln(w, strings.Join(values, ","))
 	}
-
-	return nil
 }
 
 var inspectCmd = &cobra.Command{
@@ -160,10 +157,12 @@ Currently supports inspecting the image list for published rke2 releases.`,
 		outputFormat, _ := cmd.Flags().GetString("output")
 		switch outputFormat {
 		case "csv":
-			return displayCSV(results)
+			csv(os.Stdout, results)
 		default:
-			return displayTable(results)
+			table(os.Stdout, results)
 		}
+
+		return nil
 	},
 }
 
