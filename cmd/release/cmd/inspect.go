@@ -27,7 +27,10 @@ func displayResults(results []rke2.ImageStatus) error {
 	fmt.Fprintln(w, "-----\t---\t-----\t---\t-----\t-----\t-------")
 
 	for _, result := range results {
-		ossStatus := boolToMark(result.OSSImage.Exists)
+		ossStatus := "✗"
+		if result.OSSImage.Exists {
+			ossStatus = "✓"
+		}
 		primeStatus := "✗"
 		if result.PrimeImage.Exists {
 			primeStatus = "✓"
@@ -71,13 +74,6 @@ func windowsStatus(expected, exists bool) string {
 
 func formatImageRef(ref name.Reference) string {
 	return fmt.Sprintf("%s:%s", ref.Context().RepositoryStr(), ref.Identifier())
-}
-
-func boolToMark(b bool) string {
-	if b {
-		return "✓"
-	}
-	return "✗"
 }
 
 var inspectCmd = &cobra.Command{
