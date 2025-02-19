@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -20,7 +21,7 @@ const (
 	ossRegistry = "docker.io"
 )
 
-func displayResults(results []rke2.Image) error {
+func displayTable(results []rke2.Image) error {
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
@@ -81,6 +82,38 @@ func formatImageRef(ref name.Reference) string {
 	return ref.Context().RepositoryStr() + ":" + ref.Identifier()
 }
 
+func displayCSV(results []rke2.Image) error {
+	sort.Slice(results, func(i, j int) bool {
+		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
+	})
+
+	fmt.Println("image,oss,prime,sig,amd64,arm64,win")
+
+	for _, result := range results {
+		ossStatus := "x"
+		if result.OSSImage.Exists {
+			ossStatus = "y"
+		}
+		primeStatus := "x"
+		if result.PrimeImage.Exists {
+			primeStatus = "y"
+		}
+
+		values := []string{
+			formatImageRef(result.Reference),
+			ossStatus,
+			primeStatus,
+			"?", // sigstore not implemented
+			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "amd64"}),
+			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
+			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
+		}
+		fmt.Println(strings.Join(values, ","))
+	}
+
+	return nil
+}
+
 var inspectCmd = &cobra.Command{
 	Use:   "inspect [version]",
 	Short: "Inspect release artifacts",
@@ -112,10 +145,17 @@ Currently supports inspecting the image list for published rke2 releases.`,
 			return err
 		}
 
-		return displayResults(results)
+		outputFormat, _ := cmd.Flags().GetString("output")
+		switch outputFormat {
+		case "csv":
+			return displayCSV(results)
+		default:
+			return displayTable(results)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(inspectCmd)
+	inspectCmd.Flags().StringP("output", "o", "table", "Output format (table|csv)")
 }
