@@ -18,7 +18,7 @@ type Platform struct {
 }
 
 func (p Platform) String() string {
-	return fmt.Sprintf("%s/%s", p.OS, p.Architecture)
+	return p.OS + "/" + p.Architecture
 }
 
 type Image struct {
