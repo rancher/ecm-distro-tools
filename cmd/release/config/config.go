@@ -107,13 +107,14 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User      *User          `json:"user"`
-	K3s       *K3s           `json:"k3s" validate:"omitempty"`
-	Rancher   *Rancher       `json:"rancher" validate:"omitempty"`
-	RKE2      *RKE2          `json:"rke2" validate:"omitempty"`
-	Charts    *ChartsRelease `json:"charts" validate:"omitempty"`
-	Auth      *Auth          `json:"auth"`
-	Dashboard *Dashboard     `json:"dashboard"`
+	User          *User          `json:"user"`
+	K3s           *K3s           `json:"k3s" validate:"omitempty"`
+	Rancher       *Rancher       `json:"rancher" validate:"omitempty"`
+	RKE2          *RKE2          `json:"rke2" validate:"omitempty"`
+	Charts        *ChartsRelease `json:"charts" validate:"omitempty"`
+	Auth          *Auth          `json:"auth"`
+	Dashboard     *Dashboard     `json:"dashboard"`
+	PrimeRegistry string         `json:"prime_registry"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
@@ -226,6 +227,7 @@ func ExampleConfig() (string, error) {
 			AWSSessionToken:    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 			AWSDefaultRegion:   "us-east-1",
 		},
+		PrimeRegistry: "example.com",
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {

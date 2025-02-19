@@ -32,6 +32,7 @@ release tag system-agent-installer-k3s rc v1.29.2
 release tag k3s ga v1.29.2
 release tag system-agent-installer-k3s ga v1.29.2
 release stats -r rke2 -s 2024-01-01 -e 2024-12-31
+release inspect v1.29.2+rke2r1
 ```
 
 #### Cache Permissions and Docker:
@@ -92,3 +93,22 @@ autoload -Uz compinit && compinit
 
 * File Issue with details of the problem, feature request, etc.
 * Submit a pull request and include details of what problem or feature the code is solving or implementing.
+
+### Inspect Command Output
+The `inspect` command displays release artifact information in a tabulated format. Here's an example output:
+
+```
+image                                                                docker   prime   sig   amd64   arm64   windows   
+-----                                                                ------   -----   ---   -----   -----   -------   
+docker.io/rancher/hardened-addon-resizer:1.8.20-build20240910       ✗        ✓       ✓     ✗       ✗       ✗         
+docker.io/rancher/hardened-calico:v3.28.1-build20240911            ✗        ✓       ✓     ✗       ✗       ✗         
+```
+
+Column descriptions:
+- `image`: Full image reference including registry, repository, and tag
+- `docker`: ✓ if published on Docker Hub, ✗ if not
+- `prime`: ✓ if published on the primary registry, ✗ if not
+- `sig`: ✓ if the image is signed, ✗ if not
+- `amd64`: ✓ if Linux AMD64 variant is available, ✗ if not
+- `arm64`: ✓ if Linux ARM64 variant is available, ✗ if not
+- `windows`: ✓ if Windows variant is available, ✗ if not
