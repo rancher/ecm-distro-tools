@@ -207,7 +207,7 @@ runs:
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
-      max_retries=3
+      max_retries=10
       retry_delay=5
       i=0
 
