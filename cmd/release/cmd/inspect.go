@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"text/tabwriter"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -20,6 +21,10 @@ const (
 )
 
 func displayResults(results []rke2.Image) error {
+	sort.Slice(results, func(i, j int) bool {
+		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
+	})
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	defer w.Flush()
 
