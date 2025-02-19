@@ -93,15 +93,3 @@ autoload -Uz compinit && compinit
 
 * File Issue with details of the problem, feature request, etc.
 * Submit a pull request and include details of what problem or feature the code is solving or implementing.
-
-### Inspect Command Output
-The `inspect` subcommand list information about images used by a published rke2 release.
-
-```
-$ release inspect v1.29.9-rc1+rke2r1
-
-image                                            oss  prime  sig  amd64  arm64  win
------                                            ---  -----  ---  -----  -----  ---
-rancher/hardened-coredns:v1.12.0-build20241126   ✓    ✓      ?    ✓      ✓      -
-rancher/mirrored-library-traefik:2.11.10         ✓    ✓      ?    ✓      ✓      -
-```
