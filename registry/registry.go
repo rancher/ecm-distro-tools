@@ -20,8 +20,8 @@ func (p Platform) String() string {
 }
 
 type Image struct {
-	Exists    bool
 	Platforms map[Platform]bool
+	Exists    bool
 }
 
 type Client struct {
