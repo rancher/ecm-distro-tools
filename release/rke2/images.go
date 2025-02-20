@@ -11,6 +11,11 @@ import (
 	reg "github.com/rancher/ecm-distro-tools/registry"
 )
 
+// RegistryClient defines the interface for interacting with container registries
+type RegistryClient interface {
+	Image(ctx context.Context, ref name.Reference) (reg.Image, error)
+}
+
 type Architecture string
 
 const (
@@ -40,12 +45,12 @@ type Image struct {
 
 type ReleaseInspector struct {
 	fs    fs.FS
-	oss   *reg.Client
-	prime *reg.Client
+	oss   RegistryClient
+	prime RegistryClient
 	debug bool
 }
 
-func NewReleaseInspector(fs fs.FS, oss, prime *reg.Client, debug bool) *ReleaseInspector {
+func NewReleaseInspector(fs fs.FS, oss, prime RegistryClient, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
 		fs:    fs,
 		oss:   oss,

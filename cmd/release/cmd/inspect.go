@@ -101,13 +101,42 @@ func csv(w io.Writer, results []rke2.Image) {
 	fmt.Fprintln(w, "image,oss,prime,sig,amd64,arm64,win")
 
 	for _, result := range results {
-		ossStatus := "x"
+		ossStatus := "N"
 		if result.OSSImage.Exists {
-			ossStatus = "y"
+			ossStatus = "Y"
 		}
-		primeStatus := "x"
+		primeStatus := "N"
 		if result.PrimeImage.Exists {
-			primeStatus = "y"
+			primeStatus = "Y"
+		}
+
+		amd64Status := ""
+		if result.ExpectsLinuxAmd64 {
+			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] &&
+				result.PrimeImage.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] {
+				amd64Status = "Y"
+			} else {
+				amd64Status = "N"
+			}
+		}
+
+		arm64Status := ""
+		if result.ExpectsLinuxArm64 {
+			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] &&
+				result.PrimeImage.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
+				arm64Status = "Y"
+			} else {
+				arm64Status = "N"
+			}
+		}
+
+		winStatus := ""
+		if result.ExpectsWindows {
+			if result.OSSImage.Exists && result.PrimeImage.Exists {
+				winStatus = "Y"
+			} else {
+				winStatus = "N"
+			}
 		}
 
 		values := []string{
@@ -115,9 +144,9 @@ func csv(w io.Writer, results []rke2.Image) {
 			ossStatus,
 			primeStatus,
 			"?", // sigstore not implemented
-			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "amd64"}),
-			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
-			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
+			amd64Status,
+			arm64Status,
+			winStatus,
 		}
 		fmt.Fprintln(w, strings.Join(values, ","))
 	}
