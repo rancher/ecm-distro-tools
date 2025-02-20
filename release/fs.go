@@ -102,12 +102,12 @@ type releaseFileInfo struct {
 	asset *github.ReleaseAsset
 }
 
-func (fi *releaseFileInfo) Name() string       { return fi.asset.GetName() }
-func (fi *releaseFileInfo) Size() int64        { return int64(fi.asset.GetSize()) }
-func (fi *releaseFileInfo) Mode() fs.FileMode  { return 0444 } // read only
-func (fi *releaseFileInfo) ModTime() time.Time { return fi.asset.GetCreatedAt().Time }
-func (fi *releaseFileInfo) IsDir() bool        { return false }
-func (fi *releaseFileInfo) Sys() interface{}   { return fi.asset }
+func (r *releaseFileInfo) Name() string       { return r.asset.GetName() }
+func (r *releaseFileInfo) Size() int64        { return int64(r.asset.GetSize()) }
+func (r *releaseFileInfo) Mode() fs.FileMode  { return 0444 } // read only
+func (r *releaseFileInfo) ModTime() time.Time { return r.asset.GetCreatedAt().Time }
+func (r *releaseFileInfo) IsDir() bool        { return false }
+func (r *releaseFileInfo) Sys() interface{}   { return r.asset }
 
 func (r *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	name = filepath.Clean(name)
@@ -124,10 +124,10 @@ func (r *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 // releaseFileInfo implements both fs.FileInfo and fs.DirEntry
-func (fi *releaseFileInfo) Type() fs.FileMode {
-	return fi.Mode()
+func (r *releaseFileInfo) Type() fs.FileMode {
+	return r.Mode()
 }
 
-func (fi *releaseFileInfo) Info() (fs.FileInfo, error) {
-	return fi, nil
+func (r *releaseFileInfo) Info() (fs.FileInfo, error) {
+	return r, nil
 }
