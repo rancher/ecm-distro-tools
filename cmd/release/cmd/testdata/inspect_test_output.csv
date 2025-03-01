@@ -1,0 +1,4 @@
+image,oss,prime,sig,amd64,arm64,win
+rancher/rke2-cloud-provider:v1.23.4-rke2r1,Y,N,?,Y,,
+rancher/rke2-runtime-windows:v1.23.4-rke2r1,N,N,?,,,N
+rancher/rke2-runtime:v1.23.4-rke2r1,Y,Y,?,Y,Y,
