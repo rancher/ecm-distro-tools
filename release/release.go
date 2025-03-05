@@ -268,7 +268,10 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
 		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
-		containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
+		containerdVersion = goModLibVersion("containerd/containerd/v2", k3sRepo, milestone)
+		if containerdVersion == "" {
+			containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
+		}
 	}
 
 	if rd.MajorMinor == alternateVersion {
@@ -299,7 +302,10 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	var containerdVersion string
 
 	if rd.MajorMinor == alternateVersion {
-		containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
+		containerdVersion = goModLibVersion("containerd/containerd/v2", rke2Repo, milestone)
+		if containerdVersion == "" {
+			containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
+		}
 	} else {
 		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
 	}
