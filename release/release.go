@@ -260,6 +260,11 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 	return nil, errors.New("invalid repo: it must be k3s, rke2, ui or dashboard")
 }
 
+const (
+	containerdModLib   = "containerd/containerd"
+	containerdV2ModLib = containerdModLib + "/v2"
+)
+
 func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sReleaseNoteData) (*bytes.Buffer, error) {
 	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
 	var runcVersion string
@@ -268,9 +273,9 @@ func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sRelease
 	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
 		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
-		containerdVersion = goModLibVersion("containerd/containerd/v2", k3sRepo, milestone)
+		containerdVersion = goModLibVersion(containerdV2ModLib, k3sRepo, milestone)
 		if containerdVersion == "" {
-			containerdVersion = goModLibVersion("containerd/containerd", k3sRepo, milestone)
+			containerdVersion = goModLibVersion(containerdModLib, k3sRepo, milestone)
 		}
 	}
 
@@ -302,9 +307,9 @@ func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2Relea
 	var containerdVersion string
 
 	if rd.MajorMinor == alternateVersion {
-		containerdVersion = goModLibVersion("containerd/containerd/v2", rke2Repo, milestone)
+		containerdVersion = goModLibVersion(containerdV2ModLib, rke2Repo, milestone)
 		if containerdVersion == "" {
-			containerdVersion = goModLibVersion("containerd/containerd", rke2Repo, milestone)
+			containerdVersion = goModLibVersion(containerdModLib, rke2Repo, milestone)
 		}
 	} else {
 		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
