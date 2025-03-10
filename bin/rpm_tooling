@@ -9,20 +9,33 @@ import boto3
 
 
 class S3Grabber:
-    def __init__(self, bucket_arg, region, visibility, aws_access_key, aws_secret_key):
+    def __init__(self, bucket_arg, visibility, aws_access_key, aws_secret_key):
         parts = bucket_arg.split("/", 1)
         self.bucket_name = parts[0]
         self.prefix = parts[1] if len(parts) > 1 else ""
         self.visibility = visibility
+        self.region = self.get_bucket_region(aws_access_key, aws_secret_key, self.bucket_name)
 
         session = boto3.session.Session(
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
-            region_name=region
+            region_name=self.region
         )
-        endpoint = f"https://s3.{region}.amazonaws.com"
-        s3 = session.resource('s3', endpoint_url=endpoint)
+
+        s3 = session.resource('s3')
         self.bucket = s3.Bucket(self.bucket_name)
+
+    def get_bucket_region(self, aws_access_key, aws_secret_key, bucket_name):
+        s3_client = boto3.client('s3', 
+            aws_access_key_id=aws_access_key, 
+            aws_secret_access_key=aws_secret_key)
+
+        try:
+            response = s3_client.get_bucket_location(Bucket=bucket_name)
+            return response.get('LocationConstraint', 'us-east-1')
+        except Exception as e:
+            logging.error(f"Erro ao obter a região do bucket: {e}")
+            return 'us-east-1'
 
     def repodata_info(self):
         prefix = os.path.join(self.prefix, "repodata").replace("\\", "/")
@@ -117,7 +130,6 @@ def update_repodata(rpmfiles, options):
 
     grabber = S3Grabber(
         bucket_arg=options.bucket,
-        region=options.region,
         visibility=options.visibility,
         aws_access_key=options.aws_access_key,
         aws_secret_key=options.aws_secret_key
