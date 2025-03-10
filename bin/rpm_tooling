@@ -34,7 +34,7 @@ class S3Grabber:
             response = s3_client.get_bucket_location(Bucket=bucket_name)
             return response.get('LocationConstraint', 'us-east-1')
         except Exception as e:
-            logging.error(f"Erro ao obter a região do bucket: {e}")
+            logging.error(f"Unable to get region for bucket: {e}")
             return 'us-east-1'
 
     def repodata_info(self):
