@@ -136,7 +136,7 @@ def update_repodata(rpmfiles, options):
     )
 
     s3_baseurl = f"""https://{grabber.bucket_name}.s3.{
-        options.region}.amazonaws.com/{grabber.prefix}"""
+        grabber.region}.amazonaws.com/{grabber.prefix}"""
 
     repodata = grabber.repodata_info()
     if len(repodata) > 0:
@@ -196,7 +196,6 @@ def main():
     )
     parser.add_argument("-b", "--bucket", required=True,
                         help="S3 bucket/prefix")
-    parser.add_argument("--region", default="us-east-2", help="AWS region")
     parser.add_argument("--visibility", default="private", help="S3 ACL")
     parser.add_argument("--aws-access-key", required=True,
                         help="AWS Access Key ID")
