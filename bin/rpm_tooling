@@ -68,12 +68,16 @@ class S3Grabber:
 def sign_repo(repomd_path, password=None):
     if password:
         command = f"""
-expect -c 'set timeout 60;
-spawn gpg --detach-sign --armor {repomd_path};
-expect "Passphrase:";
-send "{password}\\r";
-expect eof;'
-"""
+expect -c '
+set timeout 60
+spawn gpg --pinentry-mode loopback --force-v3-sigs --verbose --detach-sign --armor {repomd_path}
+expect -re "Enter passphrase.*"
+send -- "{password}\r"
+expect eof
+lassign [wait] _ _ _ code
+exit $code
+'
+""" 
         subprocess.run(command, shell=True, check=True)
     else:
         logging.info(f"Signing {repomd_path} (interactive passphrase).")
@@ -84,11 +88,15 @@ expect eof;'
 def sign_rpm(rpm_path, password=None):
     if password:
         command = f"""
-expect -c 'set timeout 60;
-spawn rpmsign --addsign {rpm_path};
-expect "Passphrase:";
-send "{password}\\r";
-expect eof;'
+expect -c '
+set timeout 60
+spawn rpmsign --addsign {rpm_path}
+expect -re "Enter passphrase.*"
+send -- "{password}\r"
+expect eof
+lassign [wait] _ _ _ code
+exit $code
+'
 """
         subprocess.run(command, shell=True, check=True)
     else:
@@ -158,10 +166,10 @@ def update_repodata(rpmfiles, options):
         subprocess.run(cmd_merge, check=True)
         merged_repodata_dir = os.path.join(merged_repo_dir, "repodata")
         logging.info("Uploading merged repodata to S3...")
-        grabber.upload_dir(merged_repodata_dir, "repodata")
+        grabber.upload_dir(merged_repodata_dir, "repodata", options.sign_pass)
     else:
         logging.info("Uploading new repo (no old repo to merge).")
-        grabber.upload_dir(repodata_new, "repodata")
+        grabber.upload_dir(repodata_new, "repodata", options.sign_pass)
 
     for rpm in rpmfiles:
         basename = os.path.basename(rpm)
