@@ -14,7 +14,8 @@ class S3Grabber:
         self.bucket_name = parts[0]
         self.prefix = parts[1] if len(parts) > 1 else ""
         self.visibility = visibility
-        self.region = self.get_bucket_region(aws_access_key, aws_secret_key, self.bucket_name)
+        self.region = self.get_bucket_region(
+            aws_access_key, aws_secret_key, self.bucket_name)
 
         session = boto3.session.Session(
             aws_access_key_id=aws_access_key,
@@ -26,9 +27,9 @@ class S3Grabber:
         self.bucket = s3.Bucket(self.bucket_name)
 
     def get_bucket_region(self, aws_access_key, aws_secret_key, bucket_name):
-        s3_client = boto3.client('s3', 
-            aws_access_key_id=aws_access_key, 
-            aws_secret_access_key=aws_secret_key)
+        s3_client = boto3.client('s3',
+                                 aws_access_key_id=aws_access_key,
+                                 aws_secret_access_key=aws_secret_key)
 
         try:
             response = s3_client.get_bucket_location(Bucket=bucket_name)
@@ -90,7 +91,7 @@ expect eof
 lassign [wait] _ _ _ code
 exit $code
 '
-""" 
+"""
         subprocess.run(command, shell=True, check=True)
     else:
         logging.info(f"Signing {repomd_path} (interactive passphrase).")
@@ -135,9 +136,6 @@ def update_repodata(rpmfiles, options):
         aws_secret_key=options.aws_secret_key
     )
 
-    s3_baseurl = f"""https://{grabber.bucket_name}.s3.{
-        grabber.region}.amazonaws.com/{grabber.prefix}"""
-
     repodata = grabber.repodata_info()
     if len(repodata) > 0:
         logging.info("Found existing repodata in S3. Downloading for merge.")
@@ -156,7 +154,7 @@ def update_repodata(rpmfiles, options):
     logging.info("Running createrepo_c for new RPMs only.")
     subprocess.run(["createrepo_c",
                     "--checksum", "sha256",
-                    "--baseurl", s3_baseurl, new_repo_dir], check=True)
+                    new_repo_dir], check=True)
     repodata_new = os.path.join(new_repo_dir, "repodata")
     repomd_new = os.path.join(repodata_new, "repomd.xml")
     if not os.path.exists(repomd_new):
@@ -172,6 +170,7 @@ def update_repodata(rpmfiles, options):
             f"--repo={old_repo_dir}",
             f"--repo={new_repo_dir}",
             "--all",
+            "--omit-baseurl",
             "-o", merged_repo_dir
         ]
         logging.info("Running command: %s", " ".join(cmd_merge))
