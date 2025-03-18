@@ -43,6 +43,7 @@ const (
 	rancherHelmRepositoryURL      = "https://releases.rancher.com/server-charts/latest/index.yaml"
 	rancherArtifactsBucket        = "prime-artifacts"
 	rancherArtifactsPrefix        = "rancher/v"
+	rke2ArtifactsPrefix           = "rke2/v"
 	rancherArtifactsBaseURL       = "https://prime.ribs.rancher.io"
 	rancherRegistryBaseURL        = "https://registry.rancher.com"
 	stagingRancherRegistryBaseURL = "https://stgregistry.suse.com"
@@ -114,10 +115,15 @@ type ArtifactsIndexContent struct {
 	PreRelease ArtifactsIndexContentGroup `json:"preRelease"`
 }
 
-type ArtifactsIndexContentGroup struct {
+type ArtifactsIndexVersions struct {
 	Versions      []string            `json:"versions"`
 	VersionsFiles map[string][]string `json:"versionsFiles"`
-	BaseURL       string              `json:"baseUrl"`
+}
+
+type ArtifactsIndexContentGroup struct {
+	Rancher ArtifactsIndexVersions
+	RKE2    ArtifactsIndexVersions
+	BaseURL string `json:"baseUrl"`
 }
 
 type registryAuthToken struct {
@@ -184,11 +190,15 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
-	keys, err := listS3Objects(ctx, s3Client, rancherArtifactsBucket, rancherArtifactsPrefix)
+	rancherKeys, err := listS3Objects(ctx, s3Client, rancherArtifactsBucket, rancherArtifactsPrefix)
 	if err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(keys, ignore)
+	rke2Keys, err := listS3Objects(ctx, s3Client, rancherArtifactsBucket, rke2ArtifactsPrefix)
+	if err != nil {
+		return err
+	}
+	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, ignore)
 	gaIndex, err := generatePrimeArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -244,27 +254,58 @@ func createDashboardReferencesPR(ctx context.Context, cfg *config.Dashboard, ghC
 	return nil
 }
 
-func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
+func generateArtifactsIndexContent(rancherKeys, rke2Keys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
-			Versions:      []string{},
-			VersionsFiles: map[string][]string{},
-			BaseURL:       rancherArtifactsBaseURL,
+			Rancher: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			RKE2: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			BaseURL: rancherArtifactsBaseURL,
 		},
 		PreRelease: ArtifactsIndexContentGroup{
-			Versions:      []string{},
-			VersionsFiles: map[string][]string{},
-			BaseURL:       rancherArtifactsBaseURL,
+			Rancher: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			RKE2: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			BaseURL: rancherArtifactsBaseURL,
 		},
 	}
+
+	indexContent.GA.Rancher, indexContent.PreRelease.Rancher = parseVersionsFromKeys(rancherKeys, "rancher/", ignoreVersions)
+	indexContent.GA.RKE2, indexContent.PreRelease.RKE2 = parseVersionsFromKeys(rke2Keys, "rke2/", ignoreVersions)
+
+	return indexContent
+}
+
+// parseVersionsFromKeys extracts versions and files from keys and returns GA and pre-release version structs
+func parseVersionsFromKeys(keys []string, prefix string, ignoreVersions map[string]bool) (ArtifactsIndexVersions, ArtifactsIndexVersions) {
 	var versions []string
 	versionsFiles := make(map[string][]string)
 
+	gaVersions := ArtifactsIndexVersions{
+		Versions:      []string{},
+		VersionsFiles: map[string][]string{},
+	}
+
+	preReleaseVersions := ArtifactsIndexVersions{
+		Versions:      []string{},
+		VersionsFiles: map[string][]string{},
+	}
+
 	for _, key := range keys {
-		if !strings.Contains(key, "rancher/") {
+		if !strings.Contains(key, prefix) {
 			continue
 		}
-		keyFile := strings.Split(strings.TrimPrefix(key, "rancher/"), "/")
+		keyFile := strings.Split(strings.TrimPrefix(key, prefix), "/")
 		if len(keyFile) < 2 || keyFile[1] == "" {
 			continue
 		}
@@ -288,19 +329,19 @@ func generateArtifactsIndexContent(keys []string, ignoreVersions map[string]bool
 		version := versions[i]
 		// only non ga releases contains '-' e.g: -rc, -hotfix
 		if strings.Contains(version, "-") {
-			indexContent.PreRelease.Versions = append(indexContent.PreRelease.Versions, version)
-			indexContent.PreRelease.VersionsFiles[version] = versionsFiles[version]
+			preReleaseVersions.Versions = append(preReleaseVersions.Versions, version)
+			preReleaseVersions.VersionsFiles[version] = versionsFiles[version]
 		} else {
-			indexContent.GA.Versions = append(indexContent.GA.Versions, version)
-			indexContent.GA.VersionsFiles[version] = versionsFiles[version]
+			gaVersions.Versions = append(gaVersions.Versions, version)
+			gaVersions.VersionsFiles[version] = versionsFiles[version]
 		}
 	}
 
-	return indexContent
+	return gaVersions, preReleaseVersions
 }
 
 func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, error) {
-	tmpl, err := htmlTemplate.New("release-artifacts-index").Parse(artifactsIndexTempalte)
+	tmpl, err := htmlTemplate.New("release-artifacts-index").Parse(artifactsIndexTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -862,7 +903,7 @@ func readStringChan(ch <-chan string) []string {
 	return data
 }
 
-const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
+const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -894,7 +935,7 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
     <main>
       <div class="project-rancher project">
         <h2>rancher</h2>
-        {{ range $i, $version := .Versions }}
+        {{ range $i, $version := .Rancher.Versions }}
         <div class="release-{{ $version }} release">
           <div class="release-title">
 						<b class="release-title-tag">{{ $version }}</b>
@@ -902,13 +943,31 @@ const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
           </div>
           <div class="files" id="release-{{ $version }}-files">
             <ul>
-              {{ range index $.VersionsFiles $version }}
-              <li><a href="{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
+              {{ range index $.Rancher.VersionsFiles $version }}
+              <li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
               {{ end }}
             </ul>
           </div>
         </div>
 				{{ end }}
+      </div>
+	  <div class="project-rke2 project">
+        <h2>rke2</h2>
+        {{ range $i, $version := .RKE2.Versions }}
+        <div class="release-{{ $version }} release">
+          <div class="release-title">
+						<b class="release-title-tag">{{ $version }}</b>
+            <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
+          </div>
+          <div class="files" id="release-{{ $version }}-files">
+            <ul>
+              {{ range index $.RKE2.VersionsFiles $version }}
+              <li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
+              {{ end }}
+            </ul>
+          </div>
+        </div>
+		{{ end }}
       </div>
     </main>
   <script>
