@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -131,11 +131,19 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	Short: "Generate artifacts index page",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		cfg, err := config.LoadDefaultConfig(ctx, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(rootConfig.Auth.AWSAccessKeyID, rootConfig.Auth.AWSSecretAccessKey, rootConfig.Auth.AWSSessionToken)), config.WithDefaultRegion(rootConfig.Auth.AWSDefaultRegion))
+
+		cfg, err := config.LoadDefaultConfig(ctx,
+			config.WithCredentialsProvider(aws.AnonymousCredentials{}),
+			config.WithDefaultRegion("us-east-1"),
+		)
 		if err != nil {
 			return err
 		}
-		client := s3.NewFromConfig(cfg)
+
+		client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String("https://s3.us-east-1.amazonaws.com")
+		})
+
 		return rancher.GeneratePrimeArtifactsIndex(ctx, rancherArtifactsIndexWriteToPath, rancherArtifactsIndexIgnoreVersions, client)
 	},
 }
