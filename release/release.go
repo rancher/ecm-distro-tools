@@ -30,6 +30,7 @@ const (
 	rke2Repo               = "rke2"
 	uiRepo                 = "ui"
 	dashboardRepo          = "dashboard"
+	cliRepo                = "cli"
 	alternateVersion       = "1.23"
 	rke2ChartsVersionsFile = "chart_versions.yaml"
 	defaultTimeout         = 30 * time.Second
@@ -115,6 +116,13 @@ type uiReleaseNoteData struct {
 }
 
 type dashboardReleaseNoteData struct {
+	Milestone        string
+	MajorMinor       string
+	ChangeLogVersion string
+	ChangeLogData    changeLogData
+}
+
+type cliReleaseNoteData struct {
 	Milestone        string
 	MajorMinor       string
 	ChangeLogVersion string
@@ -257,7 +265,20 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 		)
 	}
 
-	return nil, errors.New("invalid repo: it must be k3s, rke2, ui or dashboard")
+	if repo == cliRepo {
+		return genCLIReleaseNotes(
+			tmpl,
+			milestone,
+			cliReleaseNoteData{
+				MajorMinor:       majorMinor,
+				Milestone:        milestoneNoRC,
+				ChangeLogVersion: markdownVersion,
+				ChangeLogData:    cgData,
+			},
+		)
+	}
+
+	return nil, errors.New("invalid repo: it must be k3s, rke2, ui, dashboard or cli, received " + repo)
 }
 
 const (
@@ -368,6 +389,16 @@ func genUIReleaseNotes(tmpl *template.Template, _ string, rd uiReleaseNoteData) 
 }
 
 func genDashboardReleaseNotes(tmpl *template.Template, _ string, rd dashboardReleaseNoteData) (*bytes.Buffer, error) {
+	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
+	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, dashboardRepo, rd); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func genCLIReleaseNotes(tmpl *template.Template, _ string, rd cliReleaseNoteData) (*bytes.Buffer, error) {
 	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
 	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
 	b := bytes.NewBuffer(nil)

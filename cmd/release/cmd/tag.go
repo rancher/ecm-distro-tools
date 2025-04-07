@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -279,6 +280,49 @@ var dashboardTagSubCmd = &cobra.Command{
 	},
 }
 
+var cliTagSubCmd = &cobra.Command{
+	Use:   "cli [ga,rc,alpha,test] [version]",
+	Short: "Tag dashboard releases",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc,alpha,etc] [version]")
+		}
+
+		version := args[1]
+		if _, found := rootConfig.CLI.Versions[version]; !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		releaseType := args[0]
+
+		rc, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		cliRelease, found := rootConfig.CLI.Versions[tag]
+		if !found {
+			return errors.New("verify your config file, version not found: " + tag)
+		}
+		cliRelease.DryRun = dryRun
+
+		cliOpts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   rootConfig.CLI.RepoName,
+			Owner:  rootConfig.CLI.RepoOwner,
+			Branch: cliRelease.ReleaseBranch,
+		}
+
+		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
@@ -287,6 +331,7 @@ func init() {
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 	tagCmd.AddCommand(dashboardTagSubCmd)
+	tagCmd.AddCommand(cliTagSubCmd)
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
@@ -296,7 +341,7 @@ func init() {
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
-	if releaseType == "rc" || releaseType == "alpha" {
+	if releaseType == "rc" || releaseType == "alpha" || releaseType == "test" {
 		return true, nil
 	}
 
@@ -304,5 +349,5 @@ func releaseTypePreRelease(releaseType string) (bool, error) {
 		return false, nil
 	}
 
-	return false, errors.New("release type must be either 'ga', 'alpha' or 'rc', instead got: " + releaseType)
+	return false, errors.New("release type must be either 'ga', 'test', 'alpha' or 'rc', instead got: " + releaseType)
 }
