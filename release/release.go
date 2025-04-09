@@ -52,15 +52,12 @@ type changeLogData struct {
 }
 
 type rke2ReleaseNoteData struct {
-	Milestone                             string
 	K8sVersion                            string
-	MajorMinor                            string
 	EtcdVersion                           string
 	ContainerdVersion                     string
 	RuncVersion                           string
 	MetricsServerVersion                  string
 	CoreDNSVersion                        string
-	ChangeLogVersion                      string
 	IngressNginxVersion                   string
 	HelmControllerVersion                 string
 	FlannelVersion                        string
@@ -70,7 +67,6 @@ type rke2ReleaseNoteData struct {
 	CalicoURL                             string
 	CiliumVersion                         string
 	MultusVersion                         string
-	ChangeLogData                         changeLogData
 	CiliumChartVersion                    string
 	CanalChartVersion                     string
 	CalicoChartVersion                    string
@@ -85,14 +81,12 @@ type rke2ReleaseNoteData struct {
 	SnapshotControllerChartVersion        string
 	SnapshotControllerCRDChartVersion     string
 	SnapshotValidationWebhookChartVersion string
+	releaseNoteData
 }
 
 type k3sReleaseNoteData struct {
-	Milestone                   string
 	K8sVersion                  string
-	MajorMinor                  string
 	ChangeLogSince              string
-	ChangeLogVersion            string
 	KineVersion                 string
 	SQLiteVersion               string
 	SQLiteVersionReplaced       string
@@ -105,24 +99,22 @@ type k3sReleaseNoteData struct {
 	CoreDNSVersion              string
 	HelmControllerVersion       string
 	LocalPathProvisionerVersion string
-	ChangeLogData               changeLogData
+	releaseNoteData
 }
 
 type uiReleaseNoteData struct {
-	Milestone        string
-	MajorMinor       string
-	ChangeLogVersion string
-	ChangeLogData    changeLogData
+	releaseNoteData
 }
 
 type dashboardReleaseNoteData struct {
-	Milestone        string
-	MajorMinor       string
-	ChangeLogVersion string
-	ChangeLogData    changeLogData
+	releaseNoteData
 }
 
 type cliReleaseNoteData struct {
+	releaseNoteData
+}
+
+type releaseNoteData struct {
 	Milestone        string
 	MajorMinor       string
 	ChangeLogVersion string
@@ -210,15 +202,17 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			tmpl,
 			milestone,
 			k3sReleaseNoteData{
-				Milestone:             milestoneNoRC,
-				MajorMinor:            majorMinor,
+				releaseNoteData: releaseNoteData{
+					Milestone:        milestoneNoRC,
+					MajorMinor:       majorMinor,
+					ChangeLogVersion: markdownVersion,
+					ChangeLogData:    cgData,
+				},
 				K8sVersion:            k8sVersion,
-				ChangeLogVersion:      markdownVersion,
 				ChangeLogSince:        changeLogSince,
 				SQLiteVersion:         sqliteVersionBinding,
 				SQLiteVersionReplaced: strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
 				HelmControllerVersion: helmControllerVersion,
-				ChangeLogData:         cgData,
 				CoreDNSVersion:        coreDNSVersion,
 			},
 		)
@@ -228,13 +222,15 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			tmpl,
 			milestone,
 			rke2ReleaseNoteData{
-				MajorMinor:            majorMinor,
-				Milestone:             milestoneNoRC,
-				ChangeLogVersion:      markdownVersion,
+				releaseNoteData: releaseNoteData{
+					Milestone:        milestoneNoRC,
+					MajorMinor:       majorMinor,
+					ChangeLogVersion: markdownVersion,
+					ChangeLogData:    cgData,
+				},
 				K8sVersion:            k8sVersion,
 				HelmControllerVersion: helmControllerVersion,
 				CoreDNSVersion:        coreDNSVersion,
-				ChangeLogData:         cgData,
 			},
 		)
 	}
@@ -244,10 +240,12 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			tmpl,
 			milestone,
 			uiReleaseNoteData{
-				MajorMinor:       majorMinor,
-				Milestone:        milestoneNoRC,
-				ChangeLogVersion: markdownVersion,
-				ChangeLogData:    cgData,
+				releaseNoteData: releaseNoteData{
+					Milestone:        milestoneNoRC,
+					MajorMinor:       majorMinor,
+					ChangeLogVersion: markdownVersion,
+					ChangeLogData:    cgData,
+				},
 			},
 		)
 	}
@@ -257,10 +255,12 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			tmpl,
 			milestone,
 			dashboardReleaseNoteData{
-				MajorMinor:       majorMinor,
-				Milestone:        milestoneNoRC,
-				ChangeLogVersion: markdownVersion,
-				ChangeLogData:    cgData,
+				releaseNoteData: releaseNoteData{
+					Milestone:        milestoneNoRC,
+					MajorMinor:       majorMinor,
+					ChangeLogVersion: markdownVersion,
+					ChangeLogData:    cgData,
+				},
 			},
 		)
 	}
@@ -270,10 +270,12 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 			tmpl,
 			milestone,
 			cliReleaseNoteData{
-				MajorMinor:       majorMinor,
-				Milestone:        milestoneNoRC,
-				ChangeLogVersion: markdownVersion,
-				ChangeLogData:    cgData,
+				releaseNoteData: releaseNoteData{
+					Milestone:        milestoneNoRC,
+					MajorMinor:       majorMinor,
+					ChangeLogVersion: markdownVersion,
+					ChangeLogData:    cgData,
+				},
 			},
 		)
 	}
