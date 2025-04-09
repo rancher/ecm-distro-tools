@@ -174,6 +174,43 @@ var updateRancherDashboardCmd = &cobra.Command{
 	},
 }
 
+var updateRancherCLICmd = &cobra.Command{
+	Use:   "cli [version]",
+	Short: "Update Rancher's CLI references and create a PR",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		version := args[0]
+
+		// checking if the provided version is valid
+		_, err := semver.NewVersion(version)
+		if err != nil {
+			return err
+		}
+
+		versionTrimmed, _, _ := strings.Cut(version, "-rc")
+		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-alpha")
+		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-test")
+
+		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
+		if !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+
+		cliRelease.Tag = version
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return rancher.UpdateCLIReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.AddCommand(updateChartsCmd)
@@ -181,6 +218,7 @@ func init() {
 	updateK3sCmd.AddCommand(updateK3sReferencesCmd)
 	updateCmd.AddCommand(updateRancherCmd)
 	updateRancherCmd.AddCommand(updateRancherDashboardCmd)
+	updateRancherCmd.AddCommand(updateRancherCLICmd)
 }
 
 func validateChartConfig() error {
