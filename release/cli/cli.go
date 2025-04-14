@@ -133,7 +133,7 @@ func updateRancherReferencesAndPush(r *ecmConfig.CLIRelease, _ *ecmConfig.User) 
 
 func createCLIReferencesPR(ctx context.Context, cfg *config.CLI, ghClient *github.Client, r *ecmConfig.CLIRelease, u *ecmConfig.User) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Bump Rancher CLI version to `%s`", r.RancherTag)),
+		Title:               github.String(fmt.Sprintf("[%s] Bump Rancher CLI version to `%s`", r.ReleaseBranch, r.RancherTag)),
 		Base:                github.String(r.ReleaseBranch),
 		Head:                github.String(u.GithubUsername + ":update-cli-build-refs-" + r.Tag),
 		MaintainerCanModify: github.Bool(true),

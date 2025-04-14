@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -51,6 +50,19 @@ type changeLogData struct {
 	Content       []repository.ChangeLog
 }
 
+type releaseNoteData struct {
+	Milestone        string
+	MajorMinor       string
+	ChangeLogVersion string
+	ChangeLogData    changeLogData
+}
+
+type releaseNote interface {
+	Fill(milestone string) error
+	Template() string
+	Repo() string
+}
+
 type rke2ReleaseNoteData struct {
 	K8sVersion                            string
 	EtcdVersion                           string
@@ -84,6 +96,57 @@ type rke2ReleaseNoteData struct {
 	releaseNoteData
 }
 
+func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
+	var containerdVersion string
+
+	if rd.MajorMinor == alternateVersion {
+		containerdVersion = goModLibVersion(containerdV2ModLib, rke2Repo, milestone)
+		if containerdVersion == "" {
+			containerdVersion = goModLibVersion(containerdModLib, rke2Repo, milestone)
+		}
+	} else {
+		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
+	}
+
+	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
+	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
+	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
+	rd.CanalCalicoURL = createCalicoURL(rd.CanalCalicoVersion)
+	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
+	rd.ContainerdVersion = containerdVersion
+	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
+	rd.IngressNginxVersion = imageTagVersion("nginx-ingress-controller", rke2Repo, milestone)
+	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
+	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
+	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
+	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
+
+	// get charts versions
+	chartsData, err := rke2ChartsVersion(milestone)
+	if err != nil {
+		return err
+	}
+
+	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
+	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
+	rd.CalicoChartVersion = chartsData["rke2-calico.yaml"].Version
+	rd.CalicoCRDChartVersion = chartsData["rke2-calico-crd.yaml"].Version
+	rd.CoreDNSChartVersion = chartsData["rke2-coredns.yaml"].Version
+	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
+	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
+	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
+	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
+	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
+	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
+	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
+	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
+	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
+
+	return nil
+}
+func (_ *rke2ReleaseNoteData) Template() string { return rke2ReleaseNoteTemplate }
+func (_ *rke2ReleaseNoteData) Repo() string     { return rke2Repo }
+
 type k3sReleaseNoteData struct {
 	K8sVersion                  string
 	ChangeLogSince              string
@@ -102,24 +165,63 @@ type k3sReleaseNoteData struct {
 	releaseNoteData
 }
 
+func (rd *k3sReleaseNoteData) Fill(milestone string) error {
+	var runcVersion string
+	var containerdVersion string
+
+	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
+		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
+	} else {
+		containerdVersion = goModLibVersion(containerdV2ModLib, k3sRepo, milestone)
+		if containerdVersion == "" {
+			containerdVersion = goModLibVersion(containerdModLib, k3sRepo, milestone)
+		}
+	}
+
+	if rd.MajorMinor == alternateVersion {
+		runcVersion = buildScriptVersion("VERSION_RUNC", k3sRepo, milestone)
+	} else {
+		runcVersion = goModLibVersion("runc", k3sRepo, milestone)
+	}
+
+	rd.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
+	rd.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
+	rd.ContainerdVersion = containerdVersion
+	rd.RuncVersion = runcVersion
+	rd.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
+	rd.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
+	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
+	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
+
+	return nil
+}
+
+func (_ *k3sReleaseNoteData) Template() string { return k3sReleaseNoteTemplate }
+func (_ *k3sReleaseNoteData) Repo() string     { return k3sRepo }
+
 type uiReleaseNoteData struct {
 	releaseNoteData
 }
+
+func (_ *uiReleaseNoteData) Fill(_ string) error { return nil }
+func (_ *uiReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
+func (_ *uiReleaseNoteData) Repo() string        { return uiRepo }
 
 type dashboardReleaseNoteData struct {
 	releaseNoteData
 }
 
+func (_ *dashboardReleaseNoteData) Fill(_ string) error { return nil }
+func (_ *dashboardReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
+func (_ *dashboardReleaseNoteData) Repo() string        { return dashboardRepo }
+
 type cliReleaseNoteData struct {
 	releaseNoteData
 }
 
-type releaseNoteData struct {
-	Milestone        string
-	MajorMinor       string
-	ChangeLogVersion string
-	ChangeLogData    changeLogData
-}
+func (_ *cliReleaseNoteData) Fill(_ string) error { return nil }
+func (_ *cliReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
+func (_ *cliReleaseNoteData) Repo() string        { return cliRepo }
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -197,218 +299,70 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 		Content:       content,
 	}
 
-	if repo == k3sRepo {
-		return genK3SReleaseNotes(
-			tmpl,
-			milestone,
-			k3sReleaseNoteData{
-				releaseNoteData: releaseNoteData{
-					Milestone:        milestoneNoRC,
-					MajorMinor:       majorMinor,
-					ChangeLogVersion: markdownVersion,
-					ChangeLogData:    cgData,
-				},
-				K8sVersion:            k8sVersion,
-				ChangeLogSince:        changeLogSince,
-				SQLiteVersion:         sqliteVersionBinding,
-				SQLiteVersionReplaced: strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
-				HelmControllerVersion: helmControllerVersion,
-				CoreDNSVersion:        coreDNSVersion,
-			},
-		)
-	}
-	if repo == rke2Repo {
-		return genRKE2ReleaseNotes(
-			tmpl,
-			milestone,
-			rke2ReleaseNoteData{
-				releaseNoteData: releaseNoteData{
-					Milestone:        milestoneNoRC,
-					MajorMinor:       majorMinor,
-					ChangeLogVersion: markdownVersion,
-					ChangeLogData:    cgData,
-				},
-				K8sVersion:            k8sVersion,
-				HelmControllerVersion: helmControllerVersion,
-				CoreDNSVersion:        coreDNSVersion,
-			},
-		)
+	var rd releaseNote
+	commonRD := releaseNoteData{
+		Milestone:        milestoneNoRC,
+		MajorMinor:       majorMinor,
+		ChangeLogVersion: markdownVersion,
+		ChangeLogData:    cgData,
 	}
 
-	if repo == uiRepo {
-		return genUIReleaseNotes(
-			tmpl,
-			milestone,
-			uiReleaseNoteData{
-				releaseNoteData: releaseNoteData{
-					Milestone:        milestoneNoRC,
-					MajorMinor:       majorMinor,
-					ChangeLogVersion: markdownVersion,
-					ChangeLogData:    cgData,
-				},
-			},
-		)
+	switch repo {
+	case k3sRepo:
+		rd = &k3sReleaseNoteData{
+			releaseNoteData:       commonRD,
+			K8sVersion:            k8sVersion,
+			ChangeLogSince:        changeLogSince,
+			SQLiteVersion:         sqliteVersionBinding,
+			SQLiteVersionReplaced: strings.ReplaceAll(sqliteVersionBinding, ".", "_"),
+			HelmControllerVersion: helmControllerVersion,
+			CoreDNSVersion:        coreDNSVersion,
+		}
+
+	case rke2Repo:
+		rd = &rke2ReleaseNoteData{
+			releaseNoteData:       commonRD,
+			K8sVersion:            k8sVersion,
+			HelmControllerVersion: helmControllerVersion,
+			CoreDNSVersion:        coreDNSVersion,
+		}
+
+	case uiRepo:
+		rd = &uiReleaseNoteData{
+			releaseNoteData: commonRD,
+		}
+
+	case dashboardRepo:
+		rd = &dashboardReleaseNoteData{
+			releaseNoteData: commonRD,
+		}
+
+	case cliRepo:
+		rd = &cliReleaseNoteData{
+			releaseNoteData: commonRD,
+		}
+	default:
+		return nil, errors.New("invalid repo: it must be k3s, rke2, ui, dashboard or cli, received " + repo)
 	}
 
-	if repo == dashboardRepo {
-		return genDashboardReleaseNotes(
-			tmpl,
-			milestone,
-			dashboardReleaseNoteData{
-				releaseNoteData: releaseNoteData{
-					Milestone:        milestoneNoRC,
-					MajorMinor:       majorMinor,
-					ChangeLogVersion: markdownVersion,
-					ChangeLogData:    cgData,
-				},
-			},
-		)
+	if err := rd.Fill(milestone); err != nil {
+		return nil, err
 	}
 
-	if repo == cliRepo {
-		return genCLIReleaseNotes(
-			tmpl,
-			milestone,
-			cliReleaseNoteData{
-				releaseNoteData: releaseNoteData{
-					Milestone:        milestoneNoRC,
-					MajorMinor:       majorMinor,
-					ChangeLogVersion: markdownVersion,
-					ChangeLogData:    cgData,
-				},
-			},
-		)
+	tmpl = template.Must(tmpl.Parse(rd.Template()))
+
+	b := bytes.NewBuffer(nil)
+	if err := tmpl.ExecuteTemplate(b, rd.Repo(), rd); err != nil {
+		return nil, err
 	}
 
-	return nil, errors.New("invalid repo: it must be k3s, rke2, ui, dashboard or cli, received " + repo)
+	return b, nil
 }
 
 const (
 	containerdModLib   = "containerd/containerd"
 	containerdV2ModLib = containerdModLib + "/v2"
 )
-
-func genK3SReleaseNotes(tmpl *template.Template, milestone string, rd k3sReleaseNoteData) (*bytes.Buffer, error) {
-	tmpl = template.Must(tmpl.Parse(k3sReleaseNoteTemplate))
-	var runcVersion string
-	var containerdVersion string
-
-	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
-		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
-	} else {
-		containerdVersion = goModLibVersion(containerdV2ModLib, k3sRepo, milestone)
-		if containerdVersion == "" {
-			containerdVersion = goModLibVersion(containerdModLib, k3sRepo, milestone)
-		}
-	}
-
-	if rd.MajorMinor == alternateVersion {
-		runcVersion = buildScriptVersion("VERSION_RUNC", k3sRepo, milestone)
-	} else {
-		runcVersion = goModLibVersion("runc", k3sRepo, milestone)
-	}
-
-	rd.KineVersion = goModLibVersion("kine", k3sRepo, milestone)
-	rd.EtcdVersion = goModLibVersion("etcd/api/v3", k3sRepo, milestone)
-	rd.ContainerdVersion = containerdVersion
-	rd.RuncVersion = runcVersion
-	rd.FlannelVersion = goModLibVersion("flannel", k3sRepo, milestone)
-	rd.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
-	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
-	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
-
-	b := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(b, k3sRepo, rd); err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func genRKE2ReleaseNotes(tmpl *template.Template, milestone string, rd rke2ReleaseNoteData) (*bytes.Buffer, error) {
-	tmpl = template.Must(tmpl.Parse(rke2ReleaseNoteTemplate))
-	var containerdVersion string
-
-	if rd.MajorMinor == alternateVersion {
-		containerdVersion = goModLibVersion(containerdV2ModLib, rke2Repo, milestone)
-		if containerdVersion == "" {
-			containerdVersion = goModLibVersion(containerdModLib, rke2Repo, milestone)
-		}
-	} else {
-		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
-	}
-
-	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
-	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
-	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
-	rd.CanalCalicoURL = createCalicoURL(rd.CanalCalicoVersion)
-	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
-	rd.ContainerdVersion = containerdVersion
-	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
-	rd.IngressNginxVersion = imageTagVersion("nginx-ingress-controller", rke2Repo, milestone)
-	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
-	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
-	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
-	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
-
-	// get charts versions
-	chartsData, err := rke2ChartsVersion(milestone)
-	if err != nil {
-		return nil, err
-	}
-
-	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
-	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
-	rd.CalicoChartVersion = chartsData["rke2-calico.yaml"].Version
-	rd.CalicoCRDChartVersion = chartsData["rke2-calico-crd.yaml"].Version
-	rd.CoreDNSChartVersion = chartsData["rke2-coredns.yaml"].Version
-	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
-	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
-	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
-	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
-	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
-	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
-	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
-	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
-	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
-
-	b := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(b, rke2Repo, rd); err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func genUIReleaseNotes(tmpl *template.Template, _ string, rd uiReleaseNoteData) (*bytes.Buffer, error) {
-	uiTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "ui")
-	tmpl = template.Must(tmpl.Parse(uiTemplate))
-	b := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(b, uiRepo, rd); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func genDashboardReleaseNotes(tmpl *template.Template, _ string, rd dashboardReleaseNoteData) (*bytes.Buffer, error) {
-	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
-	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
-	b := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(b, dashboardRepo, rd); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func genCLIReleaseNotes(tmpl *template.Template, _ string, rd cliReleaseNoteData) (*bytes.Buffer, error) {
-	dashboardTemplate := fmt.Sprintf(dashboardReleaseNoteTemplate, "dashboard")
-	tmpl = template.Must(tmpl.Parse(dashboardTemplate))
-	b := bytes.NewBuffer(nil)
-	if err := tmpl.ExecuteTemplate(b, dashboardRepo, rd); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
 
 // CheckUpstreamRelease takes the given org, repo, and tags and checks
 // for the tags' existence.
@@ -1087,7 +1041,10 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 - [Read how you can contribute here](https://github.com/rancher/k3s/blob/master/CONTRIBUTING.md)
 {{ end }}`
 
-const dashboardReleaseNoteTemplate = `
+// This is the default template for release notes, for
+// releases that don't have a "specific" structure for
+// their releases(e.g default generated release notes).
+const defaultReleaseNoteTemplate = `
 {{- define "%s" -}}
 <!-- {{.Milestone}} -->
 
