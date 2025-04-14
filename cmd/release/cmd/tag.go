@@ -48,7 +48,7 @@ var k3sTagSubCmd = &cobra.Command{
 		tag := args[1]
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -162,7 +162,7 @@ var rancherTagSubCmd = &cobra.Command{
 		tag := args[1]
 		rancherRelease, found := rootConfig.Rancher.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -206,7 +206,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -233,7 +233,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		version := args[1]
 		if _, found := rootConfig.Dashboard.Versions[version]; !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 		return nil
 	},
@@ -251,7 +251,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 		dashboardRelease.DryRun = dryRun
 
@@ -281,16 +281,16 @@ var dashboardTagSubCmd = &cobra.Command{
 }
 
 var cliTagSubCmd = &cobra.Command{
-	Use:   "cli [ga,rc,alpha,test] [version]",
+	Use:   "cli [ga,rc] [version]",
 	Short: "Tag dashboard releases",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
-			return errors.New("expected at least two arguments: [ga,rc,alpha,etc] [version]")
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 
 		version := args[1]
 		if _, found := rootConfig.CLI.Versions[version]; !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 		return nil
 	},
@@ -308,7 +308,7 @@ var cliTagSubCmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 		cliRelease.DryRun = dryRun
 

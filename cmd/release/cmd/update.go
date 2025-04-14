@@ -38,7 +38,7 @@ var updateK3sReferencesCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		ctx := context.Background()
@@ -162,7 +162,7 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		dashboardRelease.Tag = version
@@ -199,7 +199,7 @@ var updateRancherCLICmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		cliRelease.Tag = version
@@ -241,7 +241,7 @@ var updateCLICmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		cliRelease.Tag = version

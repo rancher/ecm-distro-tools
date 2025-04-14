@@ -90,7 +90,7 @@ var k3sGenerateTagsSubCmd = &cobra.Command{
 		version := args[0]
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
