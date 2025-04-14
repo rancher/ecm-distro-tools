@@ -341,7 +341,7 @@ func init() {
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
-	if releaseType == "rc" || releaseType == "alpha" || releaseType == "test" {
+	if releaseType == "rc" || releaseType == "alpha" {
 		return true, nil
 	}
 
@@ -349,5 +349,5 @@ func releaseTypePreRelease(releaseType string) (bool, error) {
 		return false, nil
 	}
 
-	return false, errors.New("release type must be either 'ga', 'test', 'alpha' or 'rc', instead got: " + releaseType)
+	return false, errors.New("release type must be either 'ga', 'alpha' or 'rc', instead got: " + releaseType)
 }
