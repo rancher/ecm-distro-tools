@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -204,7 +205,7 @@ type uiReleaseNoteData struct {
 }
 
 func (_ *uiReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *uiReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
+func (_ *uiReleaseNoteData) Template() string    { return fmt.Sprintf(defaultReleaseNoteTemplate, uiRepo) }
 func (_ *uiReleaseNoteData) Repo() string        { return uiRepo }
 
 type dashboardReleaseNoteData struct {
@@ -212,16 +213,20 @@ type dashboardReleaseNoteData struct {
 }
 
 func (_ *dashboardReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *dashboardReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
-func (_ *dashboardReleaseNoteData) Repo() string        { return dashboardRepo }
+func (_ *dashboardReleaseNoteData) Template() string {
+	return fmt.Sprintf(defaultReleaseNoteTemplate, dashboardRepo)
+}
+func (_ *dashboardReleaseNoteData) Repo() string { return dashboardRepo }
 
 type cliReleaseNoteData struct {
 	releaseNoteData
 }
 
 func (_ *cliReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *cliReleaseNoteData) Template() string    { return defaultReleaseNoteTemplate }
-func (_ *cliReleaseNoteData) Repo() string        { return cliRepo }
+func (_ *cliReleaseNoteData) Template() string {
+	return fmt.Sprintf(defaultReleaseNoteTemplate, cliRepo)
+}
+func (_ *cliReleaseNoteData) Repo() string { return cliRepo }
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)

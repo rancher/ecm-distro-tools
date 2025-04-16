@@ -34,6 +34,11 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIR
 		return err
 	}
 
+	opts.Name = opts.Tag
+	opts.Prerelease = true
+	opts.Draft = !rc
+	opts.ReleaseNotes = ""
+
 	if rc {
 		latestRCNumber := 1
 		if latestPreRelease != nil {
@@ -49,14 +54,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIR
 			latestRCNumber = currentRCNumber + 1
 		}
 		opts.Tag = fmt.Sprintf("%s-%s.%d", opts.Tag, releaseType, latestRCNumber)
-	}
-
-	opts.Name = opts.Tag
-	opts.Prerelease = true
-	opts.Draft = !rc
-	opts.ReleaseNotes = ""
-
-	if !rc {
+	} else {
 		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, r.PreviousTag)
 		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, r.PreviousTag, client)
 		if err != nil {
