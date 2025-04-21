@@ -43,7 +43,7 @@ func ChartArgs(ctx context.Context, c *config.ChartsRelease) ([]string, error) {
 
 // VersionArgs will return the list of available versions for the target chart
 func VersionArgs(ctx context.Context, c *config.ChartsRelease, ch string) ([]string, error) {
-	status, err := loadState(filepath.Join(c.Workspace, "state.json"))
+	status, err := loadState(filepath.Join(c.Workspace, "config/state.json"))
 	if err != nil {
 		return nil, err
 	}
