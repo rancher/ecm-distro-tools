@@ -236,8 +236,6 @@ var updateCLICmd = &cobra.Command{
 		}
 
 		versionTrimmed, _, _ := strings.Cut(version, "-rc")
-		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-alpha")
-		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-test")
 
 		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
 		if !found {
