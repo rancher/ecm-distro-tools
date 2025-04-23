@@ -1,15 +1,15 @@
 package cmd
 
-type VersionNotFoundError struct {
+type ErrVersionNotFound struct {
 	Version string
 }
 
-func (e *VersionNotFoundError) Error() string {
+func (e *ErrVersionNotFound) Error() string {
 	return "verify your config file, version not found: " + e.Version
 }
 
 func NewVersionNotFoundError(version string) error {
-	return &VersionNotFoundError{
+	return &ErrVersionNotFound{
 		Version: version,
 	}
 }

@@ -57,10 +57,10 @@ type DashboardRelease struct {
 type CLIRelease struct {
 	PreviousTag          string `json:"previous_tag" validate:"required"`
 	ReleaseBranch        string `json:"release_branch" validate:"required"`
-	Tag                  string
+	Tag                  string `json:"-"`
 	CLIUpstreamURL       string `json:"-"`
 	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
-	RancherUpstreamURL   string
+	RancherUpstreamURL   string `json:"rancher_upstream_url"`
 	RancherCommitSHA     string `json:"-"`
 	RancherTag           string `json:"-"`
 	DryRun               bool   `json:"dry_run"`
