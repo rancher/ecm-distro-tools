@@ -188,8 +188,7 @@ var updateRancherCLICmd = &cobra.Command{
 		version := args[0]
 
 		// checking if the provided version is valid
-		_, err := semver.NewVersion(version)
-		if err != nil {
+		if _, err := semver.NewVersion(version); err != nil {
 			return err
 		}
 
