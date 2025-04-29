@@ -54,6 +54,18 @@ type DashboardRelease struct {
 	DryRun               bool `json:"dry_run"`
 }
 
+type CLIRelease struct {
+	PreviousTag          string `json:"previous_tag" validate:"required"`
+	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	Tag                  string `json:"-"`
+	CLIUpstreamURL       string `json:"-"`
+	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
+	RancherUpstreamURL   string `json:"rancher_upstream_url"`
+	RancherCommitSHA     string `json:"-"`
+	RancherTag           string `json:"-"`
+	DryRun               bool   `json:"dry_run"`
+}
+
 // RKE2
 type RKE2 struct {
 	Versions []string `json:"versions"`
@@ -95,6 +107,15 @@ type Dashboard struct {
 	RancherUpstreamURL string                      `json:"rancher_upstream_url" validate:"required"`
 }
 
+type CLI struct {
+	Versions           map[string]CLIRelease `json:"versions" validate:"dive"`
+	RepoOwner          string                `json:"repo_owner" validate:"required"`
+	RepoName           string                `json:"repo_name" validate:"required"`
+	RancherRepoOwner   string                `json:"rancher_repo_owner" validate:"required"`
+	RancherRepoName    string                `json:"rancher_repo_name" validate:"required"`
+	RancherUpstreamURL string                `json:"rancher_upstream_url" validate:"required"`
+}
+
 // Auth
 type Auth struct {
 	GithubToken        string `json:"github_token"`
@@ -114,6 +135,7 @@ type Config struct {
 	Charts        *ChartsRelease `json:"charts" validate:"omitempty"`
 	Auth          *Auth          `json:"auth"`
 	Dashboard     *Dashboard     `json:"dashboard"`
+	CLI           *CLI           `json:"cli"`
 	PrimeRegistry string         `json:"prime_registry"`
 }
 

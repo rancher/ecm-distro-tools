@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/release/charts"
+	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -37,7 +38,7 @@ var updateK3sReferencesCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		ctx := context.Background()
@@ -161,7 +162,7 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 
 		dashboardRelease.Tag = version
@@ -174,6 +175,84 @@ var updateRancherDashboardCmd = &cobra.Command{
 	},
 }
 
+var updateRancherCLICmd = &cobra.Command{
+	Use:   "cli [version]",
+	Short: "Update Rancher's CLI references and create a PR",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		version := args[0]
+
+		// checking if the provided version is valid
+		if _, err := semver.NewVersion(version); err != nil {
+			return err
+		}
+
+		versionTrimmed, _, _ := strings.Cut(version, "-rc")
+		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-alpha")
+		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-test")
+
+		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
+		if !found {
+			return NewVersionNotFoundError(version)
+		}
+
+		cliRelease.Tag = version
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return rancher.UpdateCLIReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
+	},
+}
+
+var updateCLICmd = &cobra.Command{
+	Use:   "cli [version] [rancher_tag]",
+	Short: "Update CLI references and create a PR",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		version := args[0]
+		rancherTag := args[1]
+
+		// checking if the provided version is valid
+		if _, err := semver.NewVersion(version); err != nil {
+			return fmt.Errorf("cli version not semver valid: %v", err)
+		}
+
+		// checking if the provided version is valid
+		if _, err := semver.NewVersion(rancherTag); err != nil {
+			return fmt.Errorf("rancher version not semver valid: %v", err)
+		}
+
+		versionTrimmed, _, _ := strings.Cut(version, "-rc")
+
+		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
+		if !found {
+			return NewVersionNotFoundError(version)
+		}
+
+		cliRelease.Tag = version
+		cliRelease.RancherTag = rancherTag
+		cliRelease.CLIUpstreamURL = fmt.Sprintf("git@github.com:%s/%s.git", rootConfig.CLI.RepoOwner, rootConfig.CLI.RepoName)
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return cli.UpdateRancherReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.AddCommand(updateChartsCmd)
@@ -181,6 +260,8 @@ func init() {
 	updateK3sCmd.AddCommand(updateK3sReferencesCmd)
 	updateCmd.AddCommand(updateRancherCmd)
 	updateRancherCmd.AddCommand(updateRancherDashboardCmd)
+	updateRancherCmd.AddCommand(updateRancherCLICmd)
+	updateCmd.AddCommand(updateCLICmd)
 }
 
 func validateChartConfig() error {

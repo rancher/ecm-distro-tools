@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
@@ -47,7 +48,7 @@ var k3sTagSubCmd = &cobra.Command{
 		tag := args[1]
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -161,7 +162,7 @@ var rancherTagSubCmd = &cobra.Command{
 		tag := args[1]
 		rancherRelease, found := rootConfig.Rancher.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -205,7 +206,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 
 		ctx := context.Background()
@@ -232,7 +233,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		version := args[1]
 		if _, found := rootConfig.Dashboard.Versions[version]; !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 		return nil
 	},
@@ -250,7 +251,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
-			return errors.New("verify your config file, version not found: " + tag)
+			return NewVersionNotFoundError(tag)
 		}
 		dashboardRelease.DryRun = dryRun
 
@@ -279,6 +280,49 @@ var dashboardTagSubCmd = &cobra.Command{
 	},
 }
 
+var cliTagSubCmd = &cobra.Command{
+	Use:   "cli [ga,rc] [version]",
+	Short: "Tag dashboard releases",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
+		}
+
+		version := args[1]
+		if _, found := rootConfig.CLI.Versions[version]; !found {
+			return NewVersionNotFoundError(version)
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		releaseType := args[0]
+
+		rc, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		cliRelease, found := rootConfig.CLI.Versions[tag]
+		if !found {
+			return NewVersionNotFoundError(tag)
+		}
+		cliRelease.DryRun = dryRun
+
+		cliOpts := &repository.CreateReleaseOpts{
+			Tag:    tag,
+			Repo:   rootConfig.CLI.RepoName,
+			Owner:  rootConfig.CLI.RepoOwner,
+			Branch: cliRelease.ReleaseBranch,
+		}
+
+		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(tagCmd)
 
@@ -287,6 +331,7 @@ func init() {
 	tagCmd.AddCommand(rancherTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 	tagCmd.AddCommand(dashboardTagSubCmd)
+	tagCmd.AddCommand(cliTagSubCmd)
 
 	// rke2
 	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")

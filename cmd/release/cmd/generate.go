@@ -27,6 +27,9 @@ var (
 	dashboardPrevMilestone string
 	dashboardMilestone     string
 
+	cliPrevMilestone string
+	cliMilestone     string
+
 	concurrencyLimit                      int
 	imagesListURL                         string
 	ignoreImages                          []string
@@ -90,7 +93,7 @@ var k3sGenerateTagsSubCmd = &cobra.Command{
 		version := args[0]
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return errors.New("verify your config file, version not found: " + version)
+			return NewVersionNotFoundError(version)
 		}
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
@@ -284,25 +287,53 @@ var dashboardGenerateReleaseNotesSubCmd = &cobra.Command{
 	},
 }
 
+var cliGenerateSubCmd = &cobra.Command{
+	Use:   "cli",
+	Short: "Generate rancher/cli related artifacts",
+}
+
+var cliGenerateReleaseNotesSubCmd = &cobra.Command{
+	Use:   "release-notes",
+	Short: "Generate cli release notes",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "cli", cliMilestone, cliPrevMilestone, client)
+		if err != nil {
+			return err
+		}
+
+		fmt.Print(notes.String())
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
 	k3sGenerateSubCmd.AddCommand(k3sGenerateReleaseNotesSubCmd)
 	k3sGenerateSubCmd.AddCommand(k3sGenerateTagsSubCmd)
+
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
+
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesSyncConfigSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMetricsSubCmd)
+
 	uiGenerateSubCmd.AddCommand(uiGenerateReleaseNotesSubCmd)
 	dashboardGenerateSubCmd.AddCommand(dashboardGenerateReleaseNotesSubCmd)
+	cliGenerateSubCmd.AddCommand(cliGenerateReleaseNotesSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
 	generateCmd.AddCommand(rancherGenerateSubCmd)
 	generateCmd.AddCommand(uiGenerateSubCmd)
 	generateCmd.AddCommand(dashboardGenerateSubCmd)
+	generateCmd.AddCommand(cliGenerateSubCmd)
 
 	// k3s release notes
 	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
@@ -348,6 +379,18 @@ func init() {
 		os.Exit(1)
 	}
 	if err := dashboardGenerateReleaseNotesSubCmd.MarkFlagRequired("milestone"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	// cli release notes
+	cliGenerateReleaseNotesSubCmd.Flags().StringVarP(&cliPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
+	cliGenerateReleaseNotesSubCmd.Flags().StringVarP(&cliMilestone, "milestone", "m", "", "Milestone")
+	if err := cliGenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := cliGenerateReleaseNotesSubCmd.MarkFlagRequired("milestone"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
