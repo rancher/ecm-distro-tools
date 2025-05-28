@@ -195,7 +195,7 @@ runs:
       IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
-      IDENTITY="$IDENTITY_REGISTRY/$PRIME_REPO/$IMAGE:$TAG"
+      IDENTITY="$IDENTITY_REGISTRY/${{ inputs.prime-repo }}/${{ inputs.image }}:$TAG"
 
       cosign sign \
         --oidc-provider=github-actions \
@@ -210,8 +210,6 @@ runs:
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
       REGISTRY: ${{ inputs.prime-registry }}
-      PRIME_REPO: ${{ inputs.prime-repo }}
-      IMAGE: ${{ inputs.image }}
 
   - name: Build and push image [Public]
     shell: bash
