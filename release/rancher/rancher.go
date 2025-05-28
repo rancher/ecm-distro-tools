@@ -32,7 +32,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -625,7 +625,12 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 	}
 	defer f.Close()
 
-	return yaml.NewEncoder(f).Encode(config)
+	bodyBytes, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(bodyBytes, config)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {

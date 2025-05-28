@@ -21,7 +21,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
 	"golang.org/x/mod/semver"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 const (

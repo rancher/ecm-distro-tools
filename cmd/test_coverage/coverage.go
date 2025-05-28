@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
 	"github.com/MetalBlueberry/go-plotly/offline"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 type TestCov struct {
@@ -43,7 +42,7 @@ func discoverTestFiles(programName string) ([]string, []string, error) {
 
 func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
 
-	b, err := ioutil.ReadFile(e2eFile)
+	b, err := os.ReadFile(e2eFile)
 	if err != nil {
 		return TestCov{}, err
 	}
@@ -101,7 +100,7 @@ func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
 
 func extractTestArgs(testFile, programPath string) (TestCov, error) {
 	reArgs := regexp.MustCompile(`(?m)(?i)serverargs =.*(?s){(.*?)}`)
-	b, err := ioutil.ReadFile(testFile)
+	b, err := os.ReadFile(testFile)
 	if err != nil {
 		return TestCov{}, err
 	}

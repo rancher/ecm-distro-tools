@@ -12,7 +12,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 var (

@@ -13,7 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 var version string
