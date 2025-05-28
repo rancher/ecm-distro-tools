@@ -27,6 +27,7 @@
 #          image: security-scan
 #          tag: ${{ github.ref_name }}${{ matrix.tag-suffix }}
 #          platforms: ${{ matrix.platforms }}
+#          identity-registry: ${{ secrets.PRODUCTION_PRIME_REGISTRY }}
 #
 #          public-registry: ${{ vars.PUBLIC_REGISTRY }}
 #          public-repo: ${{ vars.PUBLIC_REGISTRY_REPO }}
@@ -54,6 +55,14 @@ inputs:
       will be either github.ref_name or that with an architecture
       specific suffix.
     required: true
+    type: string
+
+  identity-registry:
+    description: |
+      The registry used as the identity in the signed image. Most often its
+      value will be the prime registry or any final target registry. This
+      option can be used when pushing a signed image to a staging registry
+      before pushing to the prime registry.
     type: string
 
   platforms:
@@ -185,13 +194,25 @@ runs:
       make ${{ inputs.make-target }}
       IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
 
-      cosign sign --oidc-provider=github-actions --yes "${IMG_NAME}"
+      IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
+      IDENTITY="$IDENTITY_REGISTRY/$PRIME_REPO/$IMAGE:$TAG"
+
+      cosign sign \
+        --oidc-provider=github-actions \
+        --yes \
+        --sign-container-identity="$IDENTITY" \
+        "${IMG_NAME}"
       echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_ENV}"
         
     env:
+      IDENTITY_REGISTRY: ${{ inputs.identity-registry }}
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
+      IDENTITY_REGISTRY: ${{ inputs.identity_registry }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
+      REGISTRY: ${{ inputs.prime-registry }}
+      PRIME_REPO: ${{ inputs.prime-repo }}
+      IMAGE: ${{ inputs.image }}
 
   - name: Build and push image [Public]
     shell: bash
