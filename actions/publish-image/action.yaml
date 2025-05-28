@@ -208,7 +208,6 @@ runs:
       IDENTITY_REGISTRY: ${{ inputs.identity-registry }}
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
-      IDENTITY_REGISTRY: ${{ inputs.identity_registry }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
       REGISTRY: ${{ inputs.prime-registry }}
       PRIME_REPO: ${{ inputs.prime-repo }}
