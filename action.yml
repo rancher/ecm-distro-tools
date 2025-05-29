@@ -4,20 +4,19 @@ inputs:
   version:
     description: 'The tag of the ecm-distro-tools release to install.'
     required: false
-    default: ${{ github.action_ref }}
   install-script-version:
     description: 'The version of the install script to use.'
     required: false
-    default: ${{ github.action_ref }}
+    default: "refs/heads/master"
 runs:
   using: 'composite'
   steps:
   - env:
-      INSTALL_SCRIPT_TAG: ${{ inputs.install-script-version }} 
+      INSTALL_SCRIPT_TAG: ${{ inputs.install-script-version }}
+      TAG: ${{ inputs.version }}
     shell: bash
     run: |
       INSTALL_SCRIPT_PATH="${RUNNER_TEMP}/install.sh"
-      TAG="${{ inputs.version }}"
       INSTALL_DIR=$HOME/.local/bin/ecm-distro-tools
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
       chmod +x "${INSTALL_SCRIPT_PATH}" 
