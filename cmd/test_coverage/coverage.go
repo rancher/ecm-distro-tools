@@ -41,7 +41,6 @@ func discoverTestFiles(programName string) ([]string, []string, error) {
 }
 
 func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
-
 	b, err := os.ReadFile(e2eFile)
 	if err != nil {
 		return TestCov{}, err

@@ -15,9 +15,9 @@ type (
 	}
 
 	Chart struct {
-		Repo     string `yaml:"repo,omitempty"`
-		Version  string `yaml:"version,omitempty"`
-		Filename string `yaml:"filename,omitempty"`
+		Repo     string `json:"repo,omitempty" yaml:"repo,omitempty"`
+		Version  string `json:"version,omitempty" yaml:"version,omitempty"`
+		Filename string `json:"filename,omitempty" yaml:"filename,omitempty"`
 	}
 )
 
@@ -77,16 +77,12 @@ func UpdatedCharts(milestone, prevMilestone string) (string, error) {
 	updatedCharts := make(map[string]Chart)
 
 	for name, details := range currentCharts {
-		prevChart, ok := previousCharts[name]
 		// if a new chart was added in the current release,
 		// it won't be found in the previous release's charts.
-		if !ok {
+		if prevChart, ok := previousCharts[name]; !ok {
 			updatedCharts[name] = details
-			continue
-		}
-		if prevChart.Version != details.Version {
+		} else if prevChart.Version != details.Version {
 			updatedCharts[name] = details
-			continue
 		}
 	}
 
