@@ -1166,8 +1166,8 @@ update_file() {
             ;;
     esac
 
-    # Update CATTLE_CLI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
-    ${_update_file_sed_cmd} "s/ENV CATTLE_CLI_VERSION .*/ENV CATTLE_CLI_VERSION ${VERSION#v}/" "${FILENAME}"
+    # Update CATTLE_CLI_VERSION
+    ${_update_file_sed_cmd} "s/ENV CATTLE_CLI_VERSION .*/ENV CATTLE_CLI_VERSION ${VERSION}/" "${FILENAME}"
 }
 
 # Run the update function
