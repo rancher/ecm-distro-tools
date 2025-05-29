@@ -22,7 +22,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -920,8 +920,14 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 		return nil, err
 	}
 
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	var c charts
-	if err := yaml.NewDecoder(resp.Body).Decode(&c); err != nil {
+
+	if err := yaml.Unmarshal(b, &c); err != nil {
 		return nil, err
 	}
 

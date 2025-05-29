@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-github/v39/github"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
+	"github.com/rancher/ecm-distro-tools/release/kdm"
 	"github.com/rancher/ecm-distro-tools/release/metrics"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -310,6 +311,26 @@ var cliGenerateReleaseNotesSubCmd = &cobra.Command{
 	},
 }
 
+var kdmGenerateSubCmd = &cobra.Command{
+	Use:   "kdm",
+	Short: "Generate kdm related artifacts",
+}
+
+var kdmGenerateRKE2ChartsSubCmd = &cobra.Command{
+	Use:   "rke2-charts",
+	Short: "Generate rke2 charts updated charts in YAML",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		charts, err := kdm.UpdatedCharts(rke2Milestone, rke2PrevMilestone)
+		if err != nil {
+			return err
+		}
+
+		fmt.Print(charts)
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -328,12 +349,15 @@ func init() {
 	dashboardGenerateSubCmd.AddCommand(dashboardGenerateReleaseNotesSubCmd)
 	cliGenerateSubCmd.AddCommand(cliGenerateReleaseNotesSubCmd)
 
+	kdmGenerateSubCmd.AddCommand(kdmGenerateRKE2ChartsSubCmd)
+
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
 	generateCmd.AddCommand(rancherGenerateSubCmd)
 	generateCmd.AddCommand(uiGenerateSubCmd)
 	generateCmd.AddCommand(dashboardGenerateSubCmd)
 	generateCmd.AddCommand(cliGenerateSubCmd)
+	generateCmd.AddCommand(kdmGenerateSubCmd)
 
 	// k3s release notes
 	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
@@ -462,6 +486,18 @@ func init() {
 		os.Exit(1)
 	}
 	if err := rancherGenerateMetricsSubCmd.MarkFlagRequired("prime-releases-file"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	// k3s release notes
+	kdmGenerateRKE2ChartsSubCmd.Flags().StringVarP(&rke2PrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
+	kdmGenerateRKE2ChartsSubCmd.Flags().StringVarP(&rke2Milestone, "milestone", "m", "", "Milestone")
+	if err := kdmGenerateRKE2ChartsSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := kdmGenerateRKE2ChartsSubCmd.MarkFlagRequired("milestone"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
