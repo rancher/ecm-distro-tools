@@ -7,7 +7,7 @@ inputs:
   install-script-version:
     description: 'The version of the install script to use.'
     required: false
-    default: "refs/heads/master"
+    default: ${{ github.action_ref }}
 runs:
   using: 'composite'
   steps:
