@@ -920,14 +920,14 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 		return nil, err
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	var c charts
 
-	if err := yaml.Unmarshal(bodyBytes, &c); err != nil {
+	if err := yaml.Unmarshal(b, &c); err != nil {
 		return nil, err
 	}
 

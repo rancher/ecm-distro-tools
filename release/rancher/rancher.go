@@ -625,12 +625,12 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 	}
 	defer f.Close()
 
-	bodyBytes, err := io.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
 
-	return yaml.Unmarshal(bodyBytes, config)
+	return yaml.Unmarshal(b, config)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {

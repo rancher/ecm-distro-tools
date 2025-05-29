@@ -21,12 +21,8 @@ type (
 	}
 )
 
-const (
-	chartsURLFormat = "https://raw.githubusercontent.com/rancher/rke2/%s/charts/chart_versions.yaml"
-)
-
 func getChartsFromVersion(version string) (map[string]Chart, error) {
-	chartsURL := fmt.Sprintf(chartsURLFormat, version)
+	chartsURL := "https://raw.githubusercontent.com/rancher/rke2/" + version + "/charts/chart_versions.yaml"
 
 	resp, err := http.Get(chartsURL)
 	if err != nil {
@@ -49,11 +45,11 @@ func getChartsFromVersion(version string) (map[string]Chart, error) {
 	}
 
 	var chartFile ChartsFile
-	if err = yaml.Unmarshal(chartsFileContent, &chartFile); err != nil {
+	if err := yaml.Unmarshal(chartsFileContent, &chartFile); err != nil {
 		return nil, err
 	}
 
-	charts := map[string]Chart{}
+	charts := make(map[string]Chart)
 
 	for _, chart := range chartFile.Charts {
 		chartName := strings.TrimSuffix(chart.Filename, ".yaml")
@@ -78,7 +74,7 @@ func GetUpdatedCharts(milestone, prevMilestone string) (string, error) {
 		return "", err
 	}
 
-	updatedCharts := map[string]Chart{}
+	updatedCharts := make(map[string]Chart)
 
 	for name, details := range currentCharts {
 		prevChart, ok := previousCharts[name]
