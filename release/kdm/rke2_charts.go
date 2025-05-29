@@ -1,7 +1,7 @@
 package kdm
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func getChartsFromVersion(version string) (map[string]Chart, error) {
+func chartsFromVersion(version string) (map[string]Chart, error) {
 	chartsURL := "https://raw.githubusercontent.com/rancher/rke2/" + version + "/charts/chart_versions.yaml"
 
 	resp, err := http.Get(chartsURL)
@@ -31,12 +31,12 @@ func getChartsFromVersion(version string) (map[string]Chart, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var errorBodyBytes []byte
-		errorBodyBytes, err = io.ReadAll(resp.Body)
+		var errorBody []byte
+		errorBody, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("received an error from GitHub API: %s", string(errorBodyBytes))
+		return nil, errors.New("received an error from GitHub API: " + string(errorBody))
 	}
 
 	chartsFileContent, err := io.ReadAll(resp.Body) // io.ReadAll is preferred over ioutil.ReadAll since Go 1.16
@@ -63,13 +63,13 @@ func getChartsFromVersion(version string) (map[string]Chart, error) {
 	return charts, nil
 }
 
-func GetUpdatedCharts(milestone, prevMilestone string) (string, error) {
-	currentCharts, err := getChartsFromVersion(milestone)
+func UpdatedCharts(milestone, prevMilestone string) (string, error) {
+	currentCharts, err := chartsFromVersion(milestone)
 	if err != nil {
 		return "", err
 	}
 
-	previousCharts, err := getChartsFromVersion(prevMilestone)
+	previousCharts, err := chartsFromVersion(prevMilestone)
 	if err != nil {
 		return "", err
 	}

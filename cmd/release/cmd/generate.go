@@ -320,7 +320,7 @@ var kdmGenerateRKE2ChartsSubCmd = &cobra.Command{
 	Use:   "rke2-charts",
 	Short: "Generate rke2 charts updated charts in YAML",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		charts, err := kdm.GetUpdatedCharts(rke2Milestone, rke2PrevMilestone)
+		charts, err := kdm.UpdatedCharts(rke2Milestone, rke2PrevMilestone)
 		if err != nil {
 			return err
 		}
