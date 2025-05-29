@@ -70,6 +70,35 @@ for instance: ["Kubernetes v1.24.1"](https://github.com/kubernetes/kubernetes/re
 </details>
 
 ## Prep Release
+### Generate Base Images
+To maintain compatibility, our base images must use the same Go version as the corresponding upstream Kubernetes release. These base images are published to [Dockerhub](https://hub.docker.com/r/rancher/hardened-build-base).
+
+First, determine the Go version by the target Kubernetes release:
+1. Check the Kubernetes Go version:
+    - Go to [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes) repository
+    - Select the appropriate release tag (e.g, `v1.33.0`)
+    - Check the Go version specified in these files:
+        - [`.go-version`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/.go-version)
+        - [`build/dependencies.yaml`](https://github.com/kubernetes/kubernetes/blob/v1.33.0/build/dependencies.yaml#L118-L119)
+2. Check the current RKE2 Go version:
+    - In the [`rancher/rke2`](https://github.com/rancher/rke2) repository, check these files on the specified release branch:
+        - [`Dockerfile`](https://github.com/rancher/rke2/blob/master/Dockerfile#L4)
+        - [`go.mod`](https://github.com/rancher/rke2/blob/master/go.mod#L3)
+
+If upstream Kubernetes release uses a newer version of Go,  an updated base image must be published:
+1. Check for an existing image:
+    - Before creating a new one, verify if a compatible images has already been published:
+        - [Dockerhub](https://hub.docker.com/r/rancher/hardened-build-base)
+        - [rancher/image-build-base](https://github.com/rancher/image-build-base/releases)
+2. Publish a new base image (IF NEEDED):
+    - If the image doesn't exists, go to [rancher/image-build-base](https://github.com/rancher/image-build-base/releases) repository and publish a new release
+    - The release tag must follow the format `vX.Y.ZbN`, where:
+        - `X.Y.Z` is the Go version 
+        - `N` is the build number
+    - Example:
+        - For Go version `1.24.1`, the _first_ build tag should be `v1.24.1b1`
+        - If another build is required for the same Go version, increment just the build number (e.g, `v1.24.1b2`, `v1.24.1b3` and so on)
+
 ### Generate Hardened Kubernetes Images
 
 We compile Kubernetes and a selection of container images to have a higher level of security.
@@ -451,6 +480,7 @@ There may be more than one GA release, and GA does not imply stable.
 1. Create a new RKE2-Packaging release just like [the RC release](#cut-rke2-packaging-release)
    * the only change is that you don't use the `-rc` portion of the version
    * example: if the rc version was `v1.24.2-rc1+rke2r1` then the release version will be `v1.24.2+rke2r1`
+1. After these steps, the [Create Release Notes](#create-release-notes) and [Update Channel Server](#update-channel-server) PRs can be opened, while waiting for GA's QA validation.
 
 ## Finalize Release
 ### Merge KDM PR
@@ -790,13 +820,21 @@ subgraph Overview [" "]
   End("Uncheck the 'PreRelease' Box")
 end
 
-GenImage("Generate Hardened Images")
+RnPRCreate("Create Release Notes")
+CsPR2("Create Channel Server PR")
+subgraph AdvanceSteps ["Advance Release GA PRs"]
+    direction TB
+    RnPRCreate -..-> CsPR2
+end
+
+GenBaseImage("Generate Base Build Images")
+GenK8sImage("Generate Hardened Images")
 PrCreate("Create RKE2 PR")
 PrPass("RKE2 PR CI Passes")
 PrApprove("RKE2 PR Approved")
 subgraph Prep
   direction TB
-  GenImage -..-> PrCreate -..-> PrApprove -..-> PrPass
+  GenBaseImage -..-> GenK8sImage -..-> PrCreate -..-> PrApprove -..-> PrPass
 end
 
 RcCut("Cut RKE2 RC")
@@ -816,7 +854,7 @@ GaKdm("Update KDM PR")
 GaQa("Validate GA")
 subgraph GA ["General Admission Release (GA)"]
   direction TB
-  GaCut -..-> GaKdm -..-> GaRpm -..-> GaDown -..-> GaQa
+  GaCut -..-> GaKdm -..-> GaRpm -..-> GaDown -..-> GaQa -."While Waiting For QA.".-> AdvanceSteps
 end
 
 KdmMerge("Merge KDM PR")
