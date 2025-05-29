@@ -11,13 +11,14 @@ inputs:
 runs:
   using: 'composite'
   steps:
-  - env:
-      INSTALL_SCRIPT_TAG: ${{ inputs.install-script-version }}
-      TAG: ${{ inputs.version }}
+  - name: install ecm-distro-tools
     shell: bash
     run: |
+      INSTALL_SCRIPT_TAG=${{ inputs.install-script-version }}
       INSTALL_SCRIPT_PATH="${RUNNER_TEMP}/install.sh"
+      TAG=${{ inputs.version }}
       INSTALL_DIR=$HOME/.local/bin/ecm-distro-tools
+
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
       chmod +x "${INSTALL_SCRIPT_PATH}" 
       ${INSTALL_SCRIPT_PATH} ${TAG}
