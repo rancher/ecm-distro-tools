@@ -24,7 +24,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -213,7 +212,7 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func UpdateDashboardReferences(ctx context.Context, cfg *config.Dashboard, ghClient *github.Client, r *config.DashboardRelease, u *config.User) error {
+func UpdateDashboardReferences(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
 	r.RancherUpstreamURL = cfg.RancherUpstreamURL
 
 	if err := updateDashboardReferencesAndPush(r, u); err != nil {
@@ -235,7 +234,7 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 	return nil
 }
 
-func createDashboardReferencesPR(ctx context.Context, cfg *config.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+func createDashboardReferencesPR(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
 		Base:                github.String(r.RancherReleaseBranch),
@@ -254,7 +253,7 @@ func createDashboardReferencesPR(ctx context.Context, cfg *config.Dashboard, ghC
 	return nil
 }
 
-func UpdateCLIReferences(ctx context.Context, cfg *config.CLI, ghClient *github.Client, r *config.CLIRelease, u *config.User) error {
+func UpdateCLIReferences(ctx context.Context, cfg *ecmConfig.CLI, ghClient *github.Client, r *ecmConfig.CLIRelease, u *ecmConfig.User) error {
 	r.RancherUpstreamURL = cfg.RancherUpstreamURL
 
 	if err := updateCLIReferencesAndPush(r, u); err != nil {
@@ -275,7 +274,7 @@ func updateCLIReferencesAndPush(r *ecmConfig.CLIRelease, _ *ecmConfig.User) erro
 	return nil
 }
 
-func createCLIReferencesPR(ctx context.Context, cfg *config.CLI, ghClient *github.Client, r *ecmConfig.CLIRelease, u *ecmConfig.User) error {
+func createCLIReferencesPR(ctx context.Context, cfg *ecmConfig.CLI, ghClient *github.Client, r *ecmConfig.CLIRelease, u *ecmConfig.User) error {
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Rancher CLI version to `%s`", r.Tag)),
 		Base:                github.String(r.RancherReleaseBranch),
@@ -1166,8 +1165,8 @@ update_file() {
             ;;
     esac
 
-    # Update CATTLE_CLI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
-    ${_update_file_sed_cmd} "s/ENV CATTLE_CLI_VERSION .*/ENV CATTLE_CLI_VERSION ${VERSION#v}/" "${FILENAME}"
+    # Update CATTLE_CLI_VERSION
+    ${_update_file_sed_cmd} "s/ENV CATTLE_CLI_VERSION .*/ENV CATTLE_CLI_VERSION ${VERSION}/" "${FILENAME}"
 }
 
 # Run the update function
