@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
 
 #include <jansson.h>
 
@@ -21,6 +20,9 @@
 
 #define MAX_VERSIONS 10
 
+/**
+ * contains the basic information for the given release.
+ */
 struct release {
     char *org;
     char *repo;
@@ -241,16 +243,5 @@ main(int argc, const char **argv)
 
     gh_client_free();
 
-    wchar_t star = 0x2713;
-    wprintf(L"\n%lc\n", star);
-
     return 0;
 }
-
-// Tag:            v1.33.1+rke2r1
-// Branch:         release-1.33
-// Pre_release:    false
-// Assets:         74
-// RPMs (testing): 60
-// RPMs (latest):  60
-// RPMs (stable):  60

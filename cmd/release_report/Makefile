@@ -8,7 +8,7 @@ INCDIR  = include
 BINARY  = rel-rep
 CFLAGS  = -std=c99 -Wall -Wextra -fpic  \
           -Dbin_name=$(BINARY)          \
-		  -Del_rep_version=$(VERSION) \
+		  -Drel_rep_version=$(VERSION) \
 		  -Dgit_sha=$(shell git rev-parse HEAD)
 LDFLAGS = -lcurl -lpthread -ljansson
 
