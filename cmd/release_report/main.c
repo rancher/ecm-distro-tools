@@ -64,6 +64,46 @@ repo_from_tag(const char *tag)
     return NULL;
 }
 
+static const bool
+system_agent_installer_exists(const struct release *rel)
+{
+    gh_client_response_t *res;
+
+    if (strstr(rel->tag, "rke2") != NULL) {
+        res = gh_client_repo_release_by_tag(rel->org, "system-agent-installer-rke2", rel->tag);
+    } else if (strstr(rel->tag, "k3s") != NULL) {
+        res = gh_client_repo_release_by_tag(rel->org, "system-agent-installer-k3s", rel->tag);
+    } else {
+        return false;
+    }
+
+    if (res->err_msg != NULL) {
+        fprintf(stderr, "%s\n", res->err_msg);
+        gh_client_response_free(res);
+        return false;
+    }
+
+    json_error_t error;
+    json_t *json = json_loads(res->resp, 0, &error);
+    if (json == NULL) {
+        fprintf(stderr, "error: parsing JSON: %s\n", error.text);
+        return false;
+    }
+
+    const char *release_branch;
+    int ret = json_unpack(json, "{s:s}",
+                                "target_commitish", &release_branch);
+    if (ret) {
+        fprintf(stderr, "error: unpacking JSON\n");
+        return false;
+    }
+
+    json_decref(json);
+    gh_client_response_free(res);
+
+    return true;
+}
+
 /**
  * rke2_rpm_release_info
  */
@@ -112,7 +152,13 @@ rke2_rpm_release_info(const struct release *rel)
         }
         size_t asset_count = json_array_size(assets);
 
-        printf("RPMs %10s: %lu\n", rpm_tags[i], asset_count);
+        if (strstr(rpm_tags[i], "testing") != NULL) {
+            printf("RPMs testing:      %lu\n", asset_count);
+        } else if (strstr(rpm_tags[i], "latest") != NULL) {
+            printf("RPMs latest:       %lu\n", asset_count);
+        } else if (strstr(rpm_tags[i], "stable") != NULL) {
+            printf("RPMs stable:       %lu\n", asset_count);
+        }
 
         json_decref(json);
         gh_client_response_free(res);
@@ -158,10 +204,10 @@ base_release_info(void *arg)
     }
     size_t asset_count = json_array_size(assets);
 
-    printf("Tag:             %s\n", rel->tag);
-    printf("Branch:          %s\n", branch);
-    printf("Pre-Release:     %s\n", (prerelease ? "true" : "false"));
-    printf("Assets:          %lu\n", asset_count);
+    printf("Tag:               %s\n", rel->tag);
+    printf("Branch:            %s\n", branch);
+    printf("Pre-Release:       %s\n", (prerelease ? "true" : "false"));
+    printf("Assets:            %lu\n", asset_count);
 
     json_decref(json);
     gh_client_response_free(res);
@@ -171,6 +217,12 @@ base_release_info(void *arg)
         if (ret != 0) {
             return (void*)ret;
         }
+    }
+
+    if (system_agent_installer_exists(rel)) {
+        printf("System Agent cut:  true\n");
+    } else {
+        printf("System Agent cut:  false\n");
     }
 
     printf("\n");
