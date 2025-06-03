@@ -71,7 +71,7 @@ uint8_t
 rke2_rpm_release_info(const struct release *rel)
 {
     char full_tag[64] = {0};
-    char *rpm_tags[3] = {
+    const char *rpm_tags[3] = {
         RPM_TESTING_SUFFIX, RPM_LATEST_SUFFIX, RPM_STABLE_SUFFIX 
     };
 
@@ -83,7 +83,9 @@ rke2_rpm_release_info(const struct release *rel)
         strncpy(full_tag, rel->tag, 64);
         strncat(full_tag, rpm_tags[i], 64);
 
-        gh_client_response_t *res = gh_client_repo_release_by_tag(rel->org, "rke2-packaging", full_tag);
+        gh_client_response_t *res = gh_client_repo_release_by_tag(rel->org,
+                                                                  "rke2-packaging",
+                                                                  full_tag);
         if (res->err_msg != NULL) {
             fprintf(stderr, "%s\n", res->err_msg);
             gh_client_response_free(res);
@@ -105,7 +107,7 @@ rke2_rpm_release_info(const struct release *rel)
                                     "prerelease", &prerelease,
                                     "assets", &assets);
         if (ret) {
-            fprintf(stderr, "error unpacking JSON\n");
+            fprintf(stderr, "error: unpacking JSON\n");
             return 1;
         }
         size_t asset_count = json_array_size(assets);
@@ -127,7 +129,9 @@ base_release_info(void *arg)
 {
     struct release *rel = (struct release*)arg;
 
-    gh_client_response_t *res = gh_client_repo_release_by_tag(rel->org, rel->repo, rel->tag);
+    gh_client_response_t *res = gh_client_repo_release_by_tag(rel->org,
+                                                              rel->repo,
+                                                              rel->tag);
     if (res->err_msg != NULL) {
         fprintf(stderr, "%s\n", res->err_msg);
         gh_client_response_free(res);
