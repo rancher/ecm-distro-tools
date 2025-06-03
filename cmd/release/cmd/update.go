@@ -178,11 +178,9 @@ var updateRancherDashboardCmd = &cobra.Command{
 var updateRancherCLICmd = &cobra.Command{
 	Use:   "cli [version]",
 	Short: "Update Rancher's CLI references and create a PR",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("expected at least one argument: [version]")
-		}
-		return nil
+	Args:  cobra.MatchAll(cobra.ExactArgs(1)),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		version := args[0]
@@ -214,11 +212,12 @@ var updateRancherCLICmd = &cobra.Command{
 var updateCLICmd = &cobra.Command{
 	Use:   "cli [version] [rancher_tag]",
 	Short: "Update CLI references and create a PR",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("expected at least one argument: [version]")
+	Args:  cobra.MatchAll(cobra.ExactArgs(2)),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 1 {
+			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
 		}
-		return nil
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		version := args[0]
@@ -251,6 +250,16 @@ var updateCLICmd = &cobra.Command{
 
 		return cli.UpdateRancherReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
 	},
+}
+
+func copyRancherVersions() []string {
+	versions := make([]string, len(rootConfig.Rancher.Versions))
+	i := 0
+	for version := range rootConfig.Rancher.Versions {
+		versions[i] = version
+		i++
+	}
+	return versions
 }
 
 func init() {
