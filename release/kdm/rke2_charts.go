@@ -63,15 +63,15 @@ func chartsFromVersion(version string) (map[string]Chart, error) {
 	return charts, nil
 }
 
-func UpdatedCharts(milestone, prevMilestone string) (string, error) {
+func UpdatedCharts(milestone, prevMilestone string) (map[string]Chart, error) {
 	currentCharts, err := chartsFromVersion(milestone)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	previousCharts, err := chartsFromVersion(prevMilestone)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	updatedCharts := make(map[string]Chart)
@@ -86,10 +86,5 @@ func UpdatedCharts(milestone, prevMilestone string) (string, error) {
 		}
 	}
 
-	b, err := yaml.Marshal(updatedCharts)
-	if err != nil {
-		return "", err
-	}
-
-	return string(b), nil
+	return updatedCharts, nil
 }

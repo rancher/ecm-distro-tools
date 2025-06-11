@@ -19,6 +19,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -53,6 +54,7 @@ var (
 	rancherMetricsRancherReleasesFilePath string
 	rancherMetricsWorkflowsFilePath       string
 	rancherMetricsPrimeReleasesFilePath   string
+	releases                              []string
 )
 
 // generateCmd represents the generate command
@@ -325,7 +327,31 @@ var kdmGenerateRKE2ChartsSubCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Print(charts)
+		b, err := yaml.Marshal(charts)
+		if err != nil {
+			return err
+		}
+
+		fmt.Print(string(b))
+
+		return nil
+	},
+}
+
+var kdmGenerateRKE2SubCmd = &cobra.Command{
+	Use:   "rke2",
+	Short: "Generate rke2 KDM artifacts updating channels-rke2.yaml file",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if len(releases) == 0 {
+			return errors.New("'releases' flag is empty")
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := kdm.UpdateRKE2Channels(releases); err != nil {
+			fmt.Println("aaaaa")
+			return err
+		}
 
 		return nil
 	},
@@ -350,6 +376,7 @@ func init() {
 	cliGenerateSubCmd.AddCommand(cliGenerateReleaseNotesSubCmd)
 
 	kdmGenerateSubCmd.AddCommand(kdmGenerateRKE2ChartsSubCmd)
+	kdmGenerateSubCmd.AddCommand(kdmGenerateRKE2SubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -490,7 +517,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	// k3s release notes
+	// kdm charts
 	kdmGenerateRKE2ChartsSubCmd.Flags().StringVarP(&rke2PrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
 	kdmGenerateRKE2ChartsSubCmd.Flags().StringVarP(&rke2Milestone, "milestone", "m", "", "Milestone")
 	if err := kdmGenerateRKE2ChartsSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
@@ -498,6 +525,12 @@ func init() {
 		os.Exit(1)
 	}
 	if err := kdmGenerateRKE2ChartsSubCmd.MarkFlagRequired("milestone"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	kdmGenerateRKE2SubCmd.Flags().StringSliceVarP(&releases, "releases", "r", make([]string, 0), "List of releases")
+	if err := kdmGenerateRKE2SubCmd.MarkFlagRequired("releases"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
