@@ -252,68 +252,60 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	versionForAnchor := anchorName(release.Version)
 
 	// defining charts
-	{
-		newChartsAnchorName := "charts" + sanitizedVersionForAnchor
-		u.tagReplacements[newChartsAnchorName] = "charts" + versionForAnchor
-		chartsContent := []*yaml.Node{
-			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
-			{Kind: yaml.AliasNode, Value: prevRelease.chartsAnchor}, // Alias value is the name of the anchor
-		}
-		for chartName, chart := range release.Charts {
-			chartsContent = append(chartsContent,
-				createScalarNode(chartName),
-				createChartEntryNode(chart.Repo, chart.Version),
-			)
-		}
-		chartsValueMapNode := &yaml.Node{
-			Kind:    yaml.MappingNode,
-			Tag:     "!!map",
-			Anchor:  newChartsAnchorName,
-			Content: chartsContent,
-		}
-		newReleaseContent = append(newReleaseContent, createScalarNode("charts"), chartsValueMapNode)
+	newChartsAnchorName := "charts" + sanitizedVersionForAnchor
+	u.tagReplacements[newChartsAnchorName] = "charts" + versionForAnchor
+	chartsContent := []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
+		{Kind: yaml.AliasNode, Value: prevRelease.chartsAnchor}, // Alias value is the name of the anchor
 	}
+	for chartName, chart := range release.Charts {
+		chartsContent = append(chartsContent,
+			createScalarNode(chartName),
+			createChartEntryNode(chart.Repo, chart.Version),
+		)
+	}
+	chartsValueMapNode := &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Tag:     "!!map",
+		Anchor:  newChartsAnchorName,
+		Content: chartsContent,
+	}
+	newReleaseContent = append(newReleaseContent, createScalarNode("charts"), chartsValueMapNode)
 
 	// defining serverArgs
-	{
-		newServerArgsAnchorName := "serverArgs" + sanitizedVersionForAnchor // e.g., serverArgsv1216rke2r1
-		u.tagReplacements[newServerArgsAnchorName] = "serverArgs" + versionForAnchor
-		serverArgsContent := []*yaml.Node{
-			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
-			{Kind: yaml.AliasNode, Value: prevRelease.serverArgsAnchor}, // Alias value is the name of the anchor
-		}
-		serverArgsValueMapNode := &yaml.Node{
-			Kind:    yaml.MappingNode,
-			Tag:     "!!map",
-			Anchor:  newServerArgsAnchorName,
-			Content: serverArgsContent,
-		}
-		newReleaseContent = append(newReleaseContent, createScalarNode("serverArgs"), serverArgsValueMapNode)
+	newServerArgsAnchorName := "serverArgs" + sanitizedVersionForAnchor // e.g., serverArgsv1216rke2r1
+	u.tagReplacements[newServerArgsAnchorName] = "serverArgs" + versionForAnchor
+	serverArgsContent := []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
+		{Kind: yaml.AliasNode, Value: prevRelease.serverArgsAnchor}, // Alias value is the name of the anchor
 	}
+	serverArgsValueMapNode := &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Tag:     "!!map",
+		Anchor:  newServerArgsAnchorName,
+		Content: serverArgsContent,
+	}
+	newReleaseContent = append(newReleaseContent, createScalarNode("serverArgs"), serverArgsValueMapNode)
 
 	// defining agentArgs
-	{
-		newAgentArgsAnchorName := "agentArgs" + sanitizedVersionForAnchor // e.g., agentArgsv1216rke2r1
-		u.tagReplacements[newAgentArgsAnchorName] = "agentArgs" + versionForAnchor
-		agentArgsContent := []*yaml.Node{
-			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
-			{Kind: yaml.AliasNode, Value: prevRelease.agentArgsAnchor}, // Alias value is the name of the anchor
-		}
-		agentArgsValueMapNode := &yaml.Node{
-			Kind:    yaml.MappingNode,
-			Tag:     "!!map",
-			Anchor:  newAgentArgsAnchorName,
-			Content: agentArgsContent,
-		}
-		newReleaseContent = append(newReleaseContent, createScalarNode("agentArgs"), agentArgsValueMapNode)
+	newAgentArgsAnchorName := "agentArgs" + sanitizedVersionForAnchor // e.g., agentArgsv1216rke2r1
+	u.tagReplacements[newAgentArgsAnchorName] = "agentArgs" + versionForAnchor
+	agentArgsContent := []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
+		{Kind: yaml.AliasNode, Value: prevRelease.agentArgsAnchor}, // Alias value is the name of the anchor
 	}
+	agentArgsValueMapNode := &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Tag:     "!!map",
+		Anchor:  newAgentArgsAnchorName,
+		Content: agentArgsContent,
+	}
+	newReleaseContent = append(newReleaseContent, createScalarNode("agentArgs"), agentArgsValueMapNode)
 
 	// defining featureVersions
-	{
-		sanitizedFeatureVersionsAnchor := strictlyAlphanumeric(prevRelease.featureVersionsAnchor) // e.g., "v1216rke2r1"
-		u.tagReplacements[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
-		newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createScalarNode(sanitizedFeatureVersionsAnchor))
-	}
+	sanitizedFeatureVersionsAnchor := strictlyAlphanumeric(prevRelease.featureVersionsAnchor) // e.g., "v1216rke2r1"
+	u.tagReplacements[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
+	newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createScalarNode(sanitizedFeatureVersionsAnchor))
 
 	newReleaseNode := &yaml.Node{
 		Kind:    yaml.MappingNode,
