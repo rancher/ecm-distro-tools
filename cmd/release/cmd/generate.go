@@ -349,7 +349,6 @@ var kdmGenerateRKE2SubCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := kdm.UpdateRKE2Channels(releases); err != nil {
-			fmt.Println("aaaaa")
 			return err
 		}
 

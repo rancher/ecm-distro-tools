@@ -171,7 +171,7 @@ func (u *RKE2ChannelsUpdater) getReleases(versions []string) ([]Release, error) 
 }
 
 const (
-	rke2VersionTemplate = "%d.%d.%d+rke2r%d"
+	rke2VersionTemplate = "v%d.%d.%d+rke2r%d"
 )
 
 func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error) {
