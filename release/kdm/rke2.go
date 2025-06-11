@@ -38,6 +38,7 @@ type (
 		agentArgsAnchor         string           `yaml:"-"`
 		Charts                  map[string]Chart `yaml:"charts"`
 		chartsAnchor            string           `yaml:"-"`
+		featureVersionsAnchor   string           `yaml:"-"`
 	}
 
 	Arg struct {
@@ -336,6 +337,13 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 		newReleaseContent = append(newReleaseContent, createScalarNode("agentArgs"), agentArgsValueMapNode)
 	}
 
+	// defining featureVersions
+	{
+		sanitizedFeatureVersionsAnchor := strictlyAlphanumeric(prevRelease.featureVersionsAnchor) // e.g., "v1216rke2r1"
+		u.replaceMap[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
+		newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createScalarNode(sanitizedFeatureVersionsAnchor))
+	}
+
 	newReleaseNode := &yaml.Node{
 		Kind:    yaml.MappingNode,
 		Tag:     "!!map",
@@ -390,6 +398,16 @@ func (u *RKE2ChannelsUpdater) getPreviousRelease(version string) (int, Release, 
 				}
 				if valueNode.Kind == yaml.AliasNode {
 					release.serverArgsAnchor = valueNode.Value
+					continue
+				}
+
+			case "featureVersions":
+				if valueNode.Kind == yaml.MappingNode && valueNode.Anchor != "" {
+					release.featureVersionsAnchor = valueNode.Anchor // This anchor name is from the file, assume it's valid
+					continue
+				}
+				if valueNode.Kind == yaml.AliasNode {
+					release.featureVersionsAnchor = valueNode.Value
 					continue
 				}
 			case "charts":
