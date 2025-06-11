@@ -9,45 +9,45 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 )
 
-type (
-	RKE2ChannelsUpdater struct {
-		channels        RKE2Channels
-		currentVersions []string
-		rootNode        yaml.Node
-		rootDoc         *yaml.Node
-		releasesSeqNode *yaml.Node
-		// replaceMap map is
-		replaceMap map[string]string
-	}
+type RKE2ChannelsUpdater struct {
+	channels        RKE2Channels
+	currentVersions []string
+	rootNode        yaml.Node
+	rootDoc         *yaml.Node
+	releasesSeqNode *yaml.Node
+	// tag tagReplacements stores values that we want to replace
+	// after the YAML encoding.
+	tagReplacements map[string]string
+}
 
-	RKE2Channels struct {
-		Releases []Release `yaml:"releases"`
-	}
+type RKE2Channels struct {
+	Releases []Release `yaml:"releases"`
+}
 
-	Release struct {
-		Version                 string           `yaml:"version"`
-		prevVersion             string           `yaml:"-"`
-		MinChannelServerVersion string           `yaml:"minChannelServerVersion"`
-		MaxChannelServerVersion string           `yaml:"maxChannelServerVersion"`
-		ServerArgs              map[string]Arg   `yaml:"serverArgs"`
-		serverArgsAnchor        string           `yaml:"-"`
-		AgentArgs               map[string]Arg   `yaml:"agentArgs"`
-		agentArgsAnchor         string           `yaml:"-"`
-		Charts                  map[string]Chart `yaml:"charts"`
-		chartsAnchor            string           `yaml:"-"`
-		featureVersionsAnchor   string           `yaml:"-"`
-	}
+type Release struct {
+	Version                 string           `yaml:"version"`
+	prevVersion             string           `yaml:"-"`
+	MinChannelServerVersion string           `yaml:"minChannelServerVersion"`
+	MaxChannelServerVersion string           `yaml:"maxChannelServerVersion"`
+	ServerArgs              map[string]Arg   `yaml:"serverArgs"`
+	serverArgsAnchor        string           `yaml:"-"`
+	AgentArgs               map[string]Arg   `yaml:"agentArgs"`
+	agentArgsAnchor         string           `yaml:"-"`
+	Charts                  map[string]Chart `yaml:"charts"`
+	chartsAnchor            string           `yaml:"-"`
+	featureVersionsAnchor   string           `yaml:"-"`
+}
 
-	Arg struct {
-		Default  string   `yaml:"default"`
-		Type     string   `yaml:"type"`
-		Options  []string `yaml:"options"`
-		Nullable bool     `yaml:"nullable"`
-	}
-)
+type Arg struct {
+	Default  string   `yaml:"default"`
+	Type     string   `yaml:"type"`
+	Options  []string `yaml:"options"`
+	Nullable bool     `yaml:"nullable"`
+}
 
 const (
 	rke2ChannelsFile = "channels-rke2.yaml"
@@ -55,7 +55,7 @@ const (
 
 func UpdateRKE2Channels(versions []string) error {
 	u := &RKE2ChannelsUpdater{
-		replaceMap:      make(map[string]string),
+		tagReplacements: make(map[string]string),
 		currentVersions: make([]string, 0),
 	}
 
@@ -67,7 +67,7 @@ func UpdateRKE2Channels(versions []string) error {
 		return err
 	}
 
-	releases, err := u.getReleases(versions)
+	releases, err := u.releases(versions)
 	if err != nil {
 		return err
 	}
@@ -148,8 +148,8 @@ func (u *RKE2ChannelsUpdater) setReleasesNode() error {
 	return nil
 }
 
-func (u *RKE2ChannelsUpdater) getReleases(versions []string) ([]Release, error) {
-	releases := []Release{}
+func (u *RKE2ChannelsUpdater) releases(versions []string) ([]Release, error) {
+	var releases []Release
 	for _, version := range versions {
 		prevVersion, err := u.getPreviousVersion(version)
 		if err != nil {
@@ -176,10 +176,6 @@ const (
 )
 
 func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error) {
-	// TODO:
-	// 1. Support (v1.33.0+rke2r1) -> (v1.32.9+rke2r1)
-	// 2. Support (v1.33.0+rke2r2) -> (v1.33.0+rke2r1)
-
 	major, minor, patch, release, err := parseRKE2Version(version)
 	if err != nil {
 		return "", err
@@ -192,7 +188,7 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 	// when the patch number is 0, e.g "v1.33.0+rke2r1" we need
 	// to get the latest previous minor.
 	if patch == 0 {
-		prevVersion, err := u.getRKE2LatestMinor(major, minor)
+		prevVersion, err := u.rke2LatestMinor(major, minor)
 		if err != nil {
 			return "", err
 		}
@@ -202,7 +198,7 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 	return fmt.Sprintf(rke2VersionTemplate, major, minor, patch-1, 1), nil
 }
 
-func (u *RKE2ChannelsUpdater) getRKE2LatestMinor(major, minor int) (string, error) {
+func (u *RKE2ChannelsUpdater) rke2LatestMinor(major, minor int) (string, error) {
 	baseVersion := fmt.Sprintf("v%d.%d", major, minor)
 
 	for i := len(u.currentVersions) - 1; i >= 0; i-- {
@@ -211,52 +207,27 @@ func (u *RKE2ChannelsUpdater) getRKE2LatestMinor(major, minor int) (string, erro
 		}
 	}
 
-	return "", errors.New("not found latest patch for " + baseVersion)
+	return "", errors.New("latest patch not found for " + baseVersion)
 }
 
 // parseRKE2Version receives a version in this format: vX.Y.Z+rke2rN
 // and returns the major, minor, patch, and release numbers as integers.
 func parseRKE2Version(version string) (int, int, int, int, error) {
-	formatErr := fmt.Errorf("version %q is not in the expected format vX.Y.Z+rke2rN", version)
-
-	if !strings.HasPrefix(version, "v") {
-		return 0, 0, 0, 0, formatErr
-	}
-
-	version = strings.TrimPrefix(version, "v")
-
-	// "1.2.3+rke2r4" -> ["1.2.3", "4"]
-	parts := strings.Split(version, "+rke2r")
-	if len(parts) != 2 {
-		return 0, 0, 0, 0, formatErr
-	}
-	versionStr := parts[0]
-	releaseStr := parts[1]
-
-	// "1.2.3" -> ["1", "2", "3"]
-	versionParts := strings.Split(versionStr, ".")
-	if len(versionParts) != 3 {
-		return 0, 0, 0, 0, formatErr
-	}
-
-	majorStr := versionParts[0]
-	major, err := strconv.Atoi(majorStr)
+	v, err := semver.NewVersion(version)
 	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("invalid major version part %q: %w", majorStr, err)
+		return 0, 0, 0, 0, fmt.Errorf("failed to parse version '%s': %w", version, err)
 	}
 
-	minorStr := versionParts[1]
-	minor, err := strconv.Atoi(minorStr)
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("invalid minor version part %q: %w", minorStr, err)
+	major := int(v.Major())
+	minor := int(v.Minor())
+	patch := int(v.Patch())
+
+	metadata := v.Metadata()
+	if !strings.HasPrefix(metadata, "rke2r") {
+		return 0, 0, 0, 0, fmt.Errorf("invalid metadata format: expected 'rke2r' but got %q", metadata)
 	}
 
-	patchStr := versionParts[2]
-	patch, err := strconv.Atoi(patchStr)
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("invalid patch version part %q: %w", patchStr, err)
-	}
-
+	releaseStr := strings.TrimPrefix(metadata, "rke2r")
 	release, err := strconv.Atoi(releaseStr)
 	if err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("invalid release version part %q: %w", releaseStr, err)
@@ -269,7 +240,7 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	newReleaseContent := make([]*yaml.Node, 0)
 	newReleaseContent = append(newReleaseContent, createScalarNode("version"), createScalarNode(release.Version))
 
-	prevReleasePos, prevRelease, err := u.getPreviousRelease(release.Version)
+	prevReleasePos, prevRelease, err := u.previousRelease(release.Version)
 	if err != nil {
 		return err
 	}
@@ -278,12 +249,12 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	newReleaseContent = append(newReleaseContent, createScalarNode("maxChannelServerVersion"), createScalarNode(prevRelease.MaxChannelServerVersion))
 
 	sanitizedVersionForAnchor := strictlyAlphanumeric(release.Version) // e.g., "v1216rke2r1"
-	versionForAnchor := getAnchorName(release.Version)
+	versionForAnchor := anchorName(release.Version)
 
 	// defining charts
 	{
 		newChartsAnchorName := "charts" + sanitizedVersionForAnchor
-		u.replaceMap[newChartsAnchorName] = "charts" + versionForAnchor
+		u.tagReplacements[newChartsAnchorName] = "charts" + versionForAnchor
 		chartsContent := []*yaml.Node{
 			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
 			{Kind: yaml.AliasNode, Value: prevRelease.chartsAnchor}, // Alias value is the name of the anchor
@@ -306,7 +277,7 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	// defining serverArgs
 	{
 		newServerArgsAnchorName := "serverArgs" + sanitizedVersionForAnchor // e.g., serverArgsv1216rke2r1
-		u.replaceMap[newServerArgsAnchorName] = "serverArgs" + versionForAnchor
+		u.tagReplacements[newServerArgsAnchorName] = "serverArgs" + versionForAnchor
 		serverArgsContent := []*yaml.Node{
 			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
 			{Kind: yaml.AliasNode, Value: prevRelease.serverArgsAnchor}, // Alias value is the name of the anchor
@@ -323,7 +294,7 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	// defining agentArgs
 	{
 		newAgentArgsAnchorName := "agentArgs" + sanitizedVersionForAnchor // e.g., agentArgsv1216rke2r1
-		u.replaceMap[newAgentArgsAnchorName] = "agentArgs" + versionForAnchor
+		u.tagReplacements[newAgentArgsAnchorName] = "agentArgs" + versionForAnchor
 		agentArgsContent := []*yaml.Node{
 			{Kind: yaml.ScalarNode, Tag: "!!merge", Value: "<<"},
 			{Kind: yaml.AliasNode, Value: prevRelease.agentArgsAnchor}, // Alias value is the name of the anchor
@@ -340,7 +311,7 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	// defining featureVersions
 	{
 		sanitizedFeatureVersionsAnchor := strictlyAlphanumeric(prevRelease.featureVersionsAnchor) // e.g., "v1216rke2r1"
-		u.replaceMap[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
+		u.tagReplacements[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
 		newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createScalarNode(sanitizedFeatureVersionsAnchor))
 	}
 
@@ -355,21 +326,22 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	return nil
 }
 
-func (u *RKE2ChannelsUpdater) getPreviousRelease(version string) (int, Release, error) {
+func (u *RKE2ChannelsUpdater) previousRelease(version string) (int, Release, error) {
 	prevVersion, err := u.getPreviousVersion(version)
 	if err != nil {
 		return 0, Release{}, err
 	}
 
-	prevReleasePos, err := u.getPreviousReleasePos(prevVersion)
+	prevReleasePos, err := u.previousReleasePos(prevVersion)
 	if err != nil {
 		return 0, Release{}, err
 	}
-	release := Release{}
+
+	var release Release
 	node := u.releasesSeqNode.Content[prevReleasePos]
 
 	if node.Kind != yaml.MappingNode {
-		return 0, Release{}, fmt.Errorf("not a mapping node in '%s' release", prevVersion)
+		return 0, Release{}, errors.New("not a mapping node: " + prevVersion)
 	}
 	for i := 0; i < len(node.Content); i += 2 {
 		keyNode := node.Content[i]
@@ -421,7 +393,7 @@ func (u *RKE2ChannelsUpdater) getPreviousRelease(version string) (int, Release, 
 	return prevReleasePos, release, nil
 }
 
-func (u *RKE2ChannelsUpdater) getPreviousReleasePos(version string) (int, error) {
+func (u *RKE2ChannelsUpdater) previousReleasePos(version string) (int, error) {
 	for i := 0; i < len(u.releasesSeqNode.Content); i++ {
 		node := u.releasesSeqNode.Content[i]
 		if node.Kind == yaml.MappingNode {
@@ -439,7 +411,7 @@ func (u *RKE2ChannelsUpdater) getPreviousReleasePos(version string) (int, error)
 			}
 		}
 	}
-	return -1, fmt.Errorf("unable to find release '%s'", version)
+	return -1, errors.New("unable to find release: " + version)
 }
 
 func (u *RKE2ChannelsUpdater) Bytes() ([]byte, error) {
@@ -457,11 +429,11 @@ func (u *RKE2ChannelsUpdater) Bytes() ([]byte, error) {
 		return nil, err
 	}
 
-	outputBytes := buf.Bytes()
-	outputBytes = bytes.ReplaceAll(outputBytes, []byte("!!merge "), nil)
-	outputBytes = bytes.ReplaceAll(outputBytes, []byte(" {}"), nil)
-	for k, v := range u.replaceMap {
-		outputBytes = bytes.ReplaceAll(outputBytes, []byte(k), []byte(v))
+	output := buf.Bytes()
+	output = bytes.ReplaceAll(output, []byte("!!merge "), nil)
+	output = bytes.ReplaceAll(output, []byte(" {}"), nil)
+	for k, v := range u.tagReplacements {
+		output = bytes.ReplaceAll(output, []byte(k), []byte(v))
 	}
-	return outputBytes, nil
+	return output, nil
 }

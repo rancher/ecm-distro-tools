@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Helper to create a scalar YAML node (for keys or simple string values)
+// createScalarNode creates a scalar YAML node (for keys or simple string values)
 func createScalarNode(value string) *yaml.Node {
 	return &yaml.Node{
 		Kind:  yaml.ScalarNode,
@@ -16,7 +16,7 @@ func createScalarNode(value string) *yaml.Node {
 	}
 }
 
-// Helper to create a sequence node (array) from a slice of string values
+// createSequenceNode creates a sequence node (array) from a slice of string values
 func createSequenceNode(values []string) *yaml.Node {
 	sequenceNode := &yaml.Node{
 		Kind: yaml.SequenceNode,
@@ -32,6 +32,9 @@ func createSequenceNode(values []string) *yaml.Node {
 	return sequenceNode
 }
 
+// createArgsEntryNode creates a Mapping Node that follows the
+// expected structure for serverArgs and agentArgs fields based on
+// the provided Arg instance.
 func createArgsEntryNode(arg Arg) *yaml.Node {
 	content := []*yaml.Node{
 		createScalarNode("default"), createScalarNode(arg.Default),
@@ -57,7 +60,7 @@ func createArgsEntryNode(arg Arg) *yaml.Node {
 	}
 }
 
-// Helper to create a mapping node for a chart entry {repo: ..., version: ...}
+// createChartEntryNode creates a mapping node for a chart entry {repo: ..., version: ...}
 func createChartEntryNode(repo, version string) *yaml.Node {
 	return &yaml.Node{
 		Kind: yaml.MappingNode,
@@ -80,7 +83,8 @@ func strictlyAlphanumeric(input string) string {
 	return sb.String()
 }
 
-func getAnchorName(input string) string {
+// anchorName sanitizes a string to a valid yaml anchor format
+func anchorName(input string) string {
 	input = strings.ReplaceAll(input, "+", "-")
 	input = strings.ReplaceAll(input, ".", "-")
 

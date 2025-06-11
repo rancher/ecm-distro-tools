@@ -2,6 +2,7 @@ package kdm
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -23,6 +24,7 @@ type (
 
 func chartsFromVersion(version string) (map[string]Chart, error) {
 	chartsURL := "https://raw.githubusercontent.com/rancher/rke2/" + version + "/charts/chart_versions.yaml"
+	fmt.Println(chartsURL)
 
 	resp, err := http.Get(chartsURL)
 	if err != nil {
