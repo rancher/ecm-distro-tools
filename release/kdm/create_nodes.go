@@ -3,6 +3,7 @@ package kdm
 import (
 	"strconv"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -76,7 +77,7 @@ func createChartEntryNode(repo, version string) *yaml.Node {
 func strictlyAlphanumeric(input string) string {
 	var sb strings.Builder
 	for _, r := range input {
-		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') {
+		if unicode.IsDigit(r) || unicode.IsLetter(r) {
 			sb.WriteRune(r)
 		}
 	}
