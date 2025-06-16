@@ -517,7 +517,7 @@ func formatContentLine(line string) string {
 // ImagesLocationsMap searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
 // this map can be used to identify where which image should be synced from
 func ImagesLocationsMap(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
-	syncImagesRegistries := make(map[string][]string)
+	imagesLocations := make(map[string][]string)
 
 	var err error
 	missingFromTarget, err := MissingImagesFromRegistry(username, password, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
@@ -532,7 +532,7 @@ func ImagesLocationsMap(username, password string, concurrencyLimit int, checkIm
 			return nil, err
 		}
 
-		syncImagesRegistries[registry], err = imagesDiff(lastMissingImages, missingFromRegistry)
+		imagesLocations[registry], err = imagesDiff(lastMissingImages, missingFromRegistry)
 		if err != nil {
 			return nil, err
 		}
@@ -540,9 +540,9 @@ func ImagesLocationsMap(username, password string, concurrencyLimit int, checkIm
 		lastMissingImages = missingFromRegistry
 	}
 
-	syncImagesRegistries["missing"] = lastMissingImages
+	imagesLocations["missing"] = lastMissingImages
 
-	return syncImagesRegistries, nil
+	return imagesLocations, nil
 }
 
 // imagesDiff compares two images slices and returns a slice with all images that are in the source slice, but not in the compare slice
