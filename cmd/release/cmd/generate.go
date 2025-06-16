@@ -186,9 +186,8 @@ var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
 }
 
 var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
-	Use:        "missing-images-list",
-	Short:      "Generate a missing images list",
-	Deprecated: "This command will be replaced by 'images-locations' and removed in future versions",
+	Use:   "missing-images-list",
+	Short: "Generate a missing images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(checkImages) == 0 {
 			if imagesListURL == "" {
