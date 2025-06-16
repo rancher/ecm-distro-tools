@@ -514,6 +514,8 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
+// ImagesLocationsMap searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
+// this map can be used to identify where which image should be synced from
 func ImagesLocationsMap(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
 	syncImagesRegistries := make(map[string][]string)
 
