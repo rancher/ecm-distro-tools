@@ -34,9 +34,10 @@ var (
 
 	concurrencyLimit                      int
 	imagesListURL                         string
+	registry                              string
 	ignoreImages                          []string
 	checkImages                           []string
-	registry                              string
+	registries                            []string
 	username                              string
 	password                              string
 	rancherMissingImagesJSONOutput        bool
@@ -154,18 +155,58 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	},
 }
 
-var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
-	Use:   "missing-images-list",
-	Short: "Generate a missing images list",
+var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
+	Use:   "images-locations",
+	Short: "Generate a json with images locations and if there any missing images",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(checkImages) == 0 && imagesListURL == "" {
-			return errors.New("either --images-list-url or --check-images must be provided")
+		if len(checkImages) == 0 {
+			if imagesListURL == "" {
+				return errors.New("either --images-list-url or --check-images must be provided")
+			}
+
+			rancherImages, err := rancher.ImagesListFromArtifact(imagesListURL)
+			if err != nil {
+				return errors.New("failed to get rancher images: " + err.Error())
+			}
+
+			checkImages = append(checkImages, rancherImages...)
 		}
-		missingImages, err := rancher.GenerateMissingImagesList(imagesListURL, registry, username, password, concurrencyLimit, checkImages, ignoreImages, verbose)
+
+		locationsMap, err := rancher.ImagesLocationsMap(username, password, concurrencyLimit, checkImages, ignoreImages, registry, registries)
 		if err != nil {
 			return err
 		}
-		// if there are missing images, return it as an error so CI also fails
+		b, err := json.MarshalIndent(locationsMap, "", " ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	},
+}
+
+var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
+	Use:        "missing-images-list",
+	Short:      "Generate a missing images list",
+	Deprecated: "This command will be replaced by 'images-locations' and removed in future versions",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(checkImages) == 0 {
+			if imagesListURL == "" {
+				return errors.New("either --images-list-url or --check-images must be provided")
+			}
+
+			rancherImages, err := rancher.ImagesListFromArtifact(imagesListURL)
+			if err != nil {
+				return errors.New("failed to get rancher images: " + err.Error())
+			}
+
+			checkImages = append(checkImages, rancherImages...)
+		}
+
+		missingImages, err := rancher.MissingImagesFromRegistry(username, password, registry, concurrencyLimit, checkImages, ignoreImages)
+		if err != nil {
+			return err
+		}
 		if len(missingImages) != 0 && !rancherMissingImagesJSONOutput {
 			return errors.New("found missing images: " + strings.Join(missingImages, ","))
 		}
@@ -366,6 +407,7 @@ func init() {
 
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesLocationsSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateDockerImagesDigestsSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateImagesSyncConfigSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMetricsSubCmd)
@@ -453,13 +495,24 @@ func init() {
 		os.Exit(1)
 	}
 
+	// rancher generate images-locations
+	rancherGenerateImagesLocationsSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", 3, "Concurrency Limit")
+	rancherGenerateImagesLocationsSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&registries, "registries", "r", make([]string, 0), "Registries where the images should be located at")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry to check images")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
+
 	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", 3, "Concurrency Limit")
 	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
-	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located at")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry to check images")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
 
