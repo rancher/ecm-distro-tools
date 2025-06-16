@@ -34,7 +34,7 @@ func TestImageSliceToMap(t *testing.T) {
 	}
 	images, err = imageSliceToMap(imagesWithVersion, false)
 	if err != nil {
-		t.Error("didn't expected to flag image with version as malformed")
+		t.Error("didn't expect to flag image with version as malformed")
 	}
 }
 
