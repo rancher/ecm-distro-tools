@@ -563,7 +563,7 @@ func imagesDiff(source, compare []string) ([]string, error) {
 	return diff, nil
 }
 
-// missingImagesFromRegistry receives registry information and a list of images and checks which images are missing from that registry
+// MissingImagesFromRegistry receives registry information and a list of images and checks which images are missing from that registry
 // it uses the docker http api v2 to check images concurrently
 func MissingImagesFromRegistry(username, password, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
 	ignore, err := imageSliceToMap(ignoreImages, true)
