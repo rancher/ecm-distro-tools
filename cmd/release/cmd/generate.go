@@ -166,7 +166,7 @@ var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
 				return errors.New("either --images-list-url or --check-images must be provided")
 			}
 
-			rancherImages, err := rancher.ImagesListFromArtifact(imagesListURL)
+			rancherImages, err := rancher.ImagesFromArtifact(imagesListURL)
 			if err != nil {
 				return errors.New("failed to get rancher images: " + err.Error())
 			}
@@ -196,7 +196,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 				return errors.New("either --images-list-url or --check-images must be provided")
 			}
 
-			rancherImages, err := rancher.ImagesListFromArtifact(imagesListURL)
+			rancherImages, err := rancher.ImagesFromArtifact(imagesListURL)
 			if err != nil {
 				return errors.New("failed to get rancher images: " + err.Error())
 			}
