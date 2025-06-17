@@ -539,6 +539,9 @@ func ImagesLocations(username, password string, concurrencyLimit int, checkImage
 		lastMissingImages = missingFromRegistry
 	}
 
+	if lastMissingImages == nil {
+		lastMissingImages = make([]string, 0)
+	}
 	imagesLocations["missing"] = lastMissingImages
 
 	return imagesLocations, nil
