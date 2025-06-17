@@ -9,7 +9,6 @@ import (
 	"fmt"
 	htmlTemplate "html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -515,19 +514,61 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-func GenerateMissingImagesList(imagesListURL, registry, username, password string, concurrencyLimit int, checkImages, ignoreImages []string, verbose bool) ([]string, error) {
-	if len(checkImages) == 0 {
-		if imagesListURL == "" {
-			return nil, errors.New("if no images are provided, an images list URL must be provided")
-		}
-		rancherImages, err := rancherPrimeArtifact(imagesListURL)
-		if err != nil {
-			return nil, errors.New("failed to get rancher images: " + err.Error())
-		}
-		checkImages = append(checkImages, rancherImages...)
+// ImagesLocations searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
+// this map can be used to identify where which image should be synced from
+func ImagesLocations(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
+	imagesLocations := make(map[string][]string)
+
+	missingFromTarget, err := MissingImagesFromRegistry(username, password, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
+	if err != nil {
+		return nil, err
 	}
 
-	ignore, err := imageSliceToMap(ignoreImages)
+	lastMissingImages := missingFromTarget
+	for _, registry := range imagesRegiestries {
+		missingFromRegistry, err := MissingImagesFromRegistry(username, password, registry, concurrencyLimit, lastMissingImages, ignoreImages)
+		if err != nil {
+			return nil, err
+		}
+
+		imagesLocations[registry], err = imagesDiff(lastMissingImages, missingFromRegistry)
+		if err != nil {
+			return nil, err
+		}
+
+		lastMissingImages = missingFromRegistry
+	}
+
+	if lastMissingImages == nil {
+		lastMissingImages = make([]string, 0)
+	}
+	imagesLocations["missing"] = lastMissingImages
+
+	return imagesLocations, nil
+}
+
+// imagesDiff compares two images slices and returns a slice with all images that are in the source slice, but not in the compare slice
+func imagesDiff(source, compare []string) ([]string, error) {
+	cm, err := imageSliceToMap(compare, false)
+	if err != nil {
+		return nil, err
+	}
+
+	diff := make([]string, 0)
+
+	for _, s := range source {
+		if _, ok := cm[s]; !ok {
+			diff = append(diff, s)
+		}
+	}
+
+	return diff, nil
+}
+
+// MissingImagesFromRegistry receives registry information and a list of images and checks which images are missing from that registry
+// it uses the docker http api v2 to check images concurrently
+func MissingImagesFromRegistry(username, password, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+	ignore, err := imageSliceToMap(ignoreImages, true)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +603,7 @@ func GenerateMissingImagesList(imagesListURL, registry, username, password strin
 		func(ctx context.Context, missingImagesChan chan string, image, imageVersion, username, password string, repositoryAuths map[string]string, mu *sync.RWMutex) {
 			errGroup.Go(func() error {
 				// if any other check failed, stop running to prevent wasting resources
-				// this doesn't include 404's since it is expected it does include any other errors
+				// this doesn't include 404's since it is expected. Any other errors are included
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
@@ -678,11 +719,13 @@ func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry strin
 	return &config, nil
 }
 
-func imageSliceToMap(images []string) (map[string]bool, error) {
+func imageSliceToMap(images []string, validate bool) (map[string]bool, error) {
 	imagesMap := make(map[string]bool, len(images))
 	for _, image := range images {
-		if err := validateRepoImage(image); err != nil {
-			return nil, err
+		if validate {
+			if err := validateRepoImage(image); err != nil {
+				return nil, err
+			}
 		}
 		imagesMap[image] = true
 	}
@@ -874,7 +917,6 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 }
 
 func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, error) {
-	log.Println("checking image: " + img + ":" + imgVersion)
 	_, statusCode, err := dockerImageDigest(registryBaseURL, img, imgVersion, auth)
 	if err != nil {
 		return false, err
@@ -917,7 +959,7 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	return auth.Token, nil
 }
 
-func rancherPrimeArtifact(url string) ([]string, error) {
+func ImagesFromArtifact(url string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {
