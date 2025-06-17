@@ -514,12 +514,11 @@ func formatContentLine(line string) string {
 	return strings.TrimSpace(line)
 }
 
-// ImagesLocationsMap searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
+// ImagesLocations searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
 // this map can be used to identify where which image should be synced from
-func ImagesLocationsMap(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
+func ImagesLocations(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
 	imagesLocations := make(map[string][]string)
 
-	var err error
 	missingFromTarget, err := MissingImagesFromRegistry(username, password, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
 	if err != nil {
 		return nil, err
@@ -957,7 +956,7 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	return auth.Token, nil
 }
 
-func ImagesListFromArtifact(url string) ([]string, error) {
+func ImagesFromArtifact(url string) ([]string, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {

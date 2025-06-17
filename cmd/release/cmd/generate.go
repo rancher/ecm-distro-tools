@@ -22,6 +22,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const defaultConcurrencyLimit = 3
+
 var (
 	k3sPrevMilestone string
 	k3sMilestone     string
@@ -172,11 +174,11 @@ var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
 			checkImages = append(checkImages, rancherImages...)
 		}
 
-		locationsMap, err := rancher.ImagesLocationsMap(username, password, concurrencyLimit, checkImages, ignoreImages, registry, registries)
+		imagesLocations, err := rancher.ImagesLocations(username, password, concurrencyLimit, checkImages, ignoreImages, registry, registries)
 		if err != nil {
 			return err
 		}
-		b, err := json.MarshalIndent(locationsMap, "", " ")
+		b, err := json.MarshalIndent(imagesLocations, "", " ")
 		if err != nil {
 			return err
 		}
@@ -495,23 +497,23 @@ func init() {
 	}
 
 	// rancher generate images-locations
-	rancherGenerateImagesLocationsSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", 3, "Concurrency Limit")
+	rancherGenerateImagesLocationsSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
 	rancherGenerateImagesLocationsSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&registries, "registries", "r", make([]string, 0), "Registries where the images should be located at")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry where the images should be located at")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&registries, "registries", "r", make([]string, 0), "Registries where the images should be located")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry where the images should be located")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
 
 	// rancher generate missing-images-list
-	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", 3, "Concurrency Limit")
+	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
 	rancherGenerateMissingImagesListSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
-	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located at")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
 
