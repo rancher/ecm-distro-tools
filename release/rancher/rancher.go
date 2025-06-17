@@ -129,32 +129,32 @@ type registryAuthToken struct {
 }
 
 type regsyncConfig struct {
-	Version  int             `yaml:"version"`
-	Creds    []regsyncCreds  `yaml:"creds"`
-	Defaults regsyncDefaults `yaml:"defaults"`
-	Sync     []regsyncSync   `yaml:"sync"`
+	Version  int             `json:"version"`
+	Creds    []regsyncCreds  `json:"creds"`
+	Defaults regsyncDefaults `json:"defaults"`
+	Sync     []regsyncSync   `json:"sync"`
 }
 
 type regsyncCreds struct {
-	Registry string `yaml:"registry"`
-	User     string `yaml:"user"`
-	Pass     string `yaml:"pass"`
+	Registry string `json:"registry"`
+	User     string `json:"user"`
+	Pass     string `json:"pass"`
 }
 
 type regsyncDefaults struct {
-	Parallel   int      `yaml:"parallel"`
-	MediaTypes []string `yaml:"mediaTypes"`
+	Parallel   int      `json:"parallel"`
+	MediaTypes []string `json:"mediaTypes"`
 }
 
 type regsyncTags struct {
-	Allow []string `yaml:"allow"`
+	Allow []string `json:"allow"`
 }
 
 type regsyncSync struct {
-	Source string      `yaml:"source"`
-	Target string      `yaml:"target"`
-	Type   string      `yaml:"type"`
-	Tags   regsyncTags `yaml:"tags"`
+	Source string      `json:"source"`
+	Target string      `json:"target"`
+	Type   string      `json:"type"`
+	Tags   regsyncTags `json:"tags"`
 }
 
 func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, prefix string) ([]string, error) {
@@ -659,18 +659,12 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 		return err
 	}
 
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	b, err := io.ReadAll(f)
+	b, err := yaml.Marshal(config)
 	if err != nil {
 		return err
 	}
 
-	return yaml.Unmarshal(b, config)
+	return os.WriteFile(outputPath, b, 0644)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
