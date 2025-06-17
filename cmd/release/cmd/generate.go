@@ -498,7 +498,6 @@ func init() {
 
 	// rancher generate images-locations
 	rancherGenerateImagesLocationsSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
-	rancherGenerateImagesLocationsSubCmd.Flags().BoolVarP(&rancherMissingImagesJSONOutput, "json", "j", false, "JSON Output")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&imagesListURL, "images-list-url", "i", "", "URL of the artifact containing all images for a given version 'rancher-images.txt' (required)")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
