@@ -32,13 +32,17 @@ func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string)
 	if err != nil {
 		return err
 	}
+
 	for _, arch := range archs {
 		logrus.Info("checking " + arch)
+
 		if _, ok := images[arch]; !ok {
 			return errors.New("arch " + arch + "not found")
 		}
+
 		logrus.Info("passed, " + arch + " exists")
 	}
+
 	return nil
 }
 
@@ -46,6 +50,7 @@ func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string)
 // or an empty map if the tag is not found.
 func dockerTag(ctx context.Context, org, repo, tag, registryURL string) (map[string]DockerImage, error) {
 	url := registryURL + "/v2/repositories/" + org + "/" + repo + "/tags/" + tag
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
