@@ -25,33 +25,36 @@ const (
 )
 
 const (
-	K3sKubernetesRepositoryURL = "https://github.com/k3s-io/kubernetes.git"
+	ImageBuildBaseRepositoryURL    = "https://github.com/rancher/image-build-base"
+	ImageBuildBaseRepositoryGitURI = "git@github.com:rancher/image-build-base.git"
+
+	K3sKubernetesRepositoryURL = "https://github.com/k3s-io/kubernetes"
 	K3sKubernetesGitURI        = "git@github.com:k3s-io/kubernetes.git"
 
 	RancherRepositoryURL    = "https://github.com/rancher/rancher"
 	RancherRepositoryGitURI = "git@github.com:rancher/rancher.git"
 	RKE2RepositoryURL       = "https://github.com/rancher/rancher"
-	RKE2RepositoryGitURI    = "git@github.com:rancher/rancher"
+	RKE2RepositoryGitURI    = "git@github.com:rancher/rancher.git"
 	K3sRepositoryURL        = "https://github.com/k3s-io/k3s"
 	K3sRepositoryGitURI     = "git@github.com:k3s-io/k3s"
 
 	RKE2SystemAgentInstallerRepositoryURL = "https://github.com/rancher/system-agent-installer-rke2"
-	RKE2SystemAgentInstallerGitURI        = "git@github.com:rancher/system-agent-installer-rke2"
+	RKE2SystemAgentInstallerGitURI        = "git@github.com:rancher/system-agent-installer-rke2.git"
 	K3sSystemAgentInstallerRepositoryURL  = "https://github.com/rancher/system-agent-installer-k3s"
-	K3sSystemAgentInstallerGitURI         = "git@github.com:rancher/system-agent-installer-k3s"
+	K3sSystemAgentInstallerGitURI         = "git@github.com:rancher/system-agent-installer-k3s.git"
 
 	RKE2PackagingRepositoryURL = "https://github.com/rancher/rke2-packaging"
-	RKE2PackagingGitURI        = "git@github.com:rancher/rke2-packaging"
+	RKE2PackagingGitURI        = "git@github.com:rancher/rke2-packaging.git"
 
 	RKE2SELinuxRepositoryURL = "https://github.com/rancher/rke2-selinux"
-	RKE2SELinuxGitURI        = "git@github.com:rancher/rke2-selinux"
+	RKE2SELinuxGitURI        = "git@github.com:rancher/rke2-selinux.git"
 	K3sSELinuxRepositoryURL  = "https://github.com/k3s-io/k3s-selinux"
 	K3sSELinuxGitURI         = "git@github.com:k3s-io/k3s-selinux"
 
 	RKE2UpgradeRepositoryURL = "https://github.com/rancher/rke2-upgrade"
-	RKE2UpgradeGitURI        = "git@github.com:rancher/rke2-upgrade"
+	RKE2UpgradeGitURI        = "git@github.com:rancher/rke2-upgrade.git"
 	K3sUpgradeRepositoryURL  = "https://github.com/k3s-io/k3s-upgrade"
-	K3sUpgradeGitURI         = "git@github.com:k3s-io/k3s-upgrade"
+	K3sUpgradeGitURI         = "git@github.com:k3s-io/k3s-upgrade.git"
 )
 
 const (
@@ -63,6 +66,8 @@ const (
 const (
 	RancherChartsRepositoryURL = "https://github.com/rancher/charts"
 )
+
+const ()
 
 // K3sRelease
 type K3sRelease struct {
