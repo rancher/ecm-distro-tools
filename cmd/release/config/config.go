@@ -49,12 +49,15 @@ const (
 	RKE2SELinuxRepositoryURL = "https://github.com/rancher/rke2-selinux"
 	RKE2SELinuxGitURI        = "git@github.com:rancher/rke2-selinux.git"
 	K3sSELinuxRepositoryURL  = "https://github.com/k3s-io/k3s-selinux"
-	K3sSELinuxGitURI         = "git@github.com:k3s-io/k3s-selinux"
+	K3sSELinuxGitURI         = "git@github.com:k3s-io/k3s-selinux.git"
 
 	RKE2UpgradeRepositoryURL = "https://github.com/rancher/rke2-upgrade"
 	RKE2UpgradeGitURI        = "git@github.com:rancher/rke2-upgrade.git"
 	K3sUpgradeRepositoryURL  = "https://github.com/k3s-io/k3s-upgrade"
 	K3sUpgradeGitURI         = "git@github.com:k3s-io/k3s-upgrade.git"
+
+	RancherChartsRepositoryURL    = "https://github.com/rancher/charts"
+	RancherChartsRepositoryGitURI = "git@github.com/rancher/charts.git"
 )
 
 const (
@@ -62,12 +65,6 @@ const (
 	SusePrimeRegistry    = "registry.rancher.com"
 	PrimeArtifactsBucket = "prime-artifacts"
 )
-
-const (
-	RancherChartsRepositoryURL = "https://github.com/rancher/charts"
-)
-
-const ()
 
 // K3sRelease
 type K3sRelease struct {
