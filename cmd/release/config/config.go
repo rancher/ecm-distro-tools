@@ -11,6 +11,59 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const (
+	RancherGithubOrganization = "rancher"
+	RancherRepositoryName     = "rancher"
+	K3sGithubOrganization     = "k3s-io"
+	K3sRepostitoryName        = "k3s"
+)
+
+const (
+	// K3sSuffixBase represents the K3s specific version as part of the whole tag used for a release.
+	// When using this constant, be sure to append the release number to the end; e.g. k3s1.
+	K3sSuffixBase = "k3s"
+)
+
+const (
+	K3sKubernetesRepositoryURL = "https://github.com/k3s-io/kubernetes.git"
+	K3sKubernetesGitURI        = "git@github.com:k3s-io/kubernetes.git"
+
+	RancherRepositoryURL    = "https://github.com/rancher/rancher"
+	RancherRepositoryGitURI = "git@github.com:rancher/rancher.git"
+	RKE2RepositoryURL       = "https://github.com/rancher/rancher"
+	RKE2RepositoryGitURI    = "git@github.com:rancher/rancher"
+	K3sRepositoryURL        = "https://github.com/k3s-io/k3s"
+	K3sRepositoryGitURI     = "git@github.com:k3s-io/k3s"
+
+	RKE2SystemAgentInstallerRepositoryURL = "https://github.com/rancher/system-agent-installer-rke2"
+	RKE2SystemAgentInstallerGitURI        = "git@github.com:rancher/system-agent-installer-rke2"
+	K3sSystemAgentInstallerRepositoryURL  = "https://github.com/rancher/system-agent-installer-k3s"
+	K3sSystemAgentInstallerGitURI         = "git@github.com:rancher/system-agent-installer-k3s"
+
+	RKE2PackagingRepositoryURL = "https://github.com/rancher/rke2-packaging"
+	RKE2PackagingGitURI        = "git@github.com:rancher/rke2-packaging"
+
+	RKE2SELinuxRepositoryURL = "https://github.com/rancher/rke2-selinux"
+	RKE2SELinuxGitURI        = "git@github.com:rancher/rke2-selinux"
+	K3sSELinuxRepositoryURL  = "https://github.com/k3s-io/k3s-selinux"
+	K3sSELinuxGitURI         = "git@github.com:k3s-io/k3s-selinux"
+
+	RKE2UpgradeRepositoryURL = "https://github.com/rancher/rke2-upgrade"
+	RKE2UpgradeGitURI        = "git@github.com:rancher/rke2-upgrade"
+	K3sUpgradeRepositoryURL  = "https://github.com/k3s-io/k3s-upgrade"
+	K3sUpgradeGitURI         = "git@github.com:k3s-io/k3s-upgrade"
+)
+
+const (
+	SuseStageRegistry    = "stgregistry.suse.com"
+	SusePrimeRegistry    = "registry.rancher.com"
+	PrimeArtifactsBucket = "prime-artifacts"
+)
+
+const (
+	RancherChartsRepositoryURL = "https://github.com/rancher/charts"
+)
+
 // K3sRelease
 type K3sRelease struct {
 	OldK8sVersion                 string `json:"old_k8s_version" validate:"required"`
