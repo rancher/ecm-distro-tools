@@ -62,7 +62,6 @@ const (
 
 const (
 	SuseStageRegistry    = "stgregistry.suse.com"
-	SusePrimeRegistry    = "registry.rancher.com"
 	PrimeArtifactsBucket = "prime-artifacts"
 )
 
