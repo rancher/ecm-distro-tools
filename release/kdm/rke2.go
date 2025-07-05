@@ -89,12 +89,12 @@ func UpdateRKE2Channels(versions []string) error {
 func (u *RKE2ChannelsUpdater) parseYaml(filename string) error {
 	yamlBytes, err := os.ReadFile(filename)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	var rke2channels RKE2Channels
 	if err = yaml.Unmarshal(yamlBytes, &rke2channels); err != nil {
-		return nil
+		return err
 	}
 
 	u.channels = rke2channels
@@ -102,7 +102,7 @@ func (u *RKE2ChannelsUpdater) parseYaml(filename string) error {
 	var rootNode yaml.Node
 	err = yaml.Unmarshal(yamlBytes, &rootNode)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if rootNode.Kind != yaml.DocumentNode || len(rootNode.Content) == 0 {
@@ -305,7 +305,7 @@ func (u *RKE2ChannelsUpdater) addRelease(release Release) error {
 	// defining featureVersions
 	sanitizedFeatureVersionsAnchor := strictlyAlphanumeric(prevRelease.featureVersionsAnchor) // e.g., "v1216rke2r1"
 	u.tagReplacements[sanitizedFeatureVersionsAnchor] = prevRelease.featureVersionsAnchor
-	newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createScalarNode(sanitizedFeatureVersionsAnchor))
+	newReleaseContent = append(newReleaseContent, createScalarNode("featureVersions"), createAliasNode(sanitizedFeatureVersionsAnchor))
 
 	newReleaseNode := &yaml.Node{
 		Kind:    yaml.MappingNode,

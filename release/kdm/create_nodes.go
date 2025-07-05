@@ -73,6 +73,14 @@ func createChartEntryNode(repo, version string) *yaml.Node {
 	}
 }
 
+// createAliasNode creates a new alias node that points to an anchor.
+func createAliasNode(anchorName string) *yaml.Node {
+	return &yaml.Node{
+		Kind:  yaml.AliasNode,
+		Value: anchorName,
+	}
+}
+
 // strictlyAlphanumeric sanitizes a string to be purely alphanumeric.
 func strictlyAlphanumeric(input string) string {
 	var sb strings.Builder
