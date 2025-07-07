@@ -113,7 +113,7 @@ func GenerateTags(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3s
 
 	fmt.Println("rebasing and tagging")
 
-	tags, err := rebaseAndTag(ghClient, r, u)
+	tags, err := rebaseAndTag(ctx, ghClient, r, u)
 	if err != nil {
 		return errors.New("failed to rebase and tag: " + err.Error())
 	}
@@ -227,8 +227,8 @@ func setupK8sRemotes(r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath stri
 	return nil
 }
 
-func rebaseAndTag(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
-	rebaseOut, err := gitRebaseOnto(ghClient, r)
+func rebaseAndTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
+	rebaseOut, err := gitRebaseOnto(ctx, ghClient, r)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	return publicKeys, nil
 }
 
-func gitRebaseOnto(ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
+func gitRebaseOnto(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
 	dir := filepath.Join(r.Workspace, "kubernetes")
 
 	// clean kubernetes directory before rebase
@@ -296,7 +296,7 @@ func gitRebaseOnto(ghClient *github.Client, r *ecmConfig.K3sRelease) (string, er
 		return "", err
 	}
 
-	prevK3sTag, err := previousK3sReleaseTag(ghClient, r)
+	prevK3sTag, err := previousK3sReleaseTag(ctx, ghClient, r)
 	if err != nil {
 		return "", err
 	}
@@ -310,10 +310,11 @@ func gitRebaseOnto(ghClient *github.Client, r *ecmConfig.K3sRelease) (string, er
 	return ecmExec.RunCommand(dir, "git", commandArgs...)
 }
 
-func previousK3sReleaseTag(ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
-	ctx := context.Background()
+// maxIterations is the max amount of iterations for checking
+// the previous K3s release tag (+k3sN)
+const maxIterations = 10
 
-	maxIterations := 10
+func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
 
 	var latestRelease string
 
@@ -346,15 +347,15 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 		return "", err
 	}
 
-	depList := dep["dependencies"].([]any)
+	depList := dep["dependencies"].([]interface{})
 
 	for _, v := range depList {
 		var itemName, version string
 		switch item := v.(type) {
-		case map[string]any:
+		case map[string]interface{}:
 			itemName = fmt.Sprintf("%v", item["name"])
 			version = fmt.Sprintf("%v", item["version"])
-		case map[any]any:
+		case map[interface{}]interface{}:
 			itemName = fmt.Sprintf("%v", item["name"])
 			version = fmt.Sprintf("%v", item["version"])
 		}
