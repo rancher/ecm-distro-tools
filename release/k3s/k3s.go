@@ -315,7 +315,6 @@ func gitRebaseOnto(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3
 const maxIterations = 10
 
 func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
-
 	var latestRelease string
 
 	for i := 1; i < maxIterations; i++ {
