@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -112,7 +113,7 @@ func GenerateTags(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3s
 
 	fmt.Println("rebasing and tagging")
 
-	tags, err := rebaseAndTag(r, u)
+	tags, err := rebaseAndTag(ctx, ghClient, r, u)
 	if err != nil {
 		return errors.New("failed to rebase and tag: " + err.Error())
 	}
@@ -226,8 +227,8 @@ func setupK8sRemotes(r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath stri
 	return nil
 }
 
-func rebaseAndTag(r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
-	rebaseOut, err := gitRebaseOnto(r)
+func rebaseAndTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) ([]string, error) {
+	rebaseOut, err := gitRebaseOnto(ctx, ghClient, r)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +287,7 @@ func getAuth(privateKey string) (ssh.AuthMethod, error) {
 	return publicKeys, nil
 }
 
-func gitRebaseOnto(r *ecmConfig.K3sRelease) (string, error) {
+func gitRebaseOnto(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
 	dir := filepath.Join(r.Workspace, "kubernetes")
 
 	// clean kubernetes directory before rebase
@@ -295,13 +296,41 @@ func gitRebaseOnto(r *ecmConfig.K3sRelease) (string, error) {
 		return "", err
 	}
 
-	commandArgs := strings.Split(fmt.Sprintf("rebase --onto %s %s %s-k3s1~1",
+	prevK3sTag, err := previousK3sReleaseTag(ctx, ghClient, r)
+	if err != nil {
+		return "", err
+	}
+
+	commandArgs := strings.Split(fmt.Sprintf("rebase --onto %s %s %s~1",
 		r.NewK8sVersion,
 		r.OldK8sVersion,
-		r.OldK8sVersion), " ")
+		prevK3sTag), " ")
 
 	fmt.Println("git ", commandArgs)
 	return ecmExec.RunCommand(dir, "git", commandArgs...)
+}
+
+// maxIterations is the max amount of iterations for checking
+// the previous K3s release tag (+k3sN)
+const maxIterations = 10
+
+func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease) (string, error) {
+	var latestRelease string
+
+	for i := 1; i < maxIterations; i++ {
+		releaseTag := fmt.Sprintf("%s-k3s%d", r.OldK8sVersion, i)
+		_, _, err := ghClient.Git.GetRef(ctx, ecmConfig.K3sGithubOrganization, ecmConfig.K3sK8sRepositoryName, "tags/"+releaseTag)
+		if err != nil {
+			if ghErr, ok := err.(*github.ErrorResponse); ok && ghErr.Response.StatusCode == http.StatusNotFound {
+				return latestRelease, nil
+			}
+			return "", fmt.Errorf("error getting Git ref for tag '%s': %w", releaseTag, err)
+		}
+
+		latestRelease = releaseTag
+	}
+
+	return "", errors.New("no Git ref found with k8s version: " + r.OldK8sVersion)
 }
 
 func goVersion(r *ecmConfig.K3sRelease) (string, error) {
@@ -320,11 +349,17 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	depList := dep["dependencies"].([]interface{})
 
 	for _, v := range depList {
-		item := v.(map[interface{}]interface{})
-		itemName := item["name"]
+		var itemName, version string
+		switch item := v.(type) {
+		case map[string]interface{}:
+			itemName = fmt.Sprintf("%v", item["name"])
+			version = fmt.Sprintf("%v", item["version"])
+		case map[interface{}]interface{}:
+			itemName = fmt.Sprintf("%v", item["name"])
+			version = fmt.Sprintf("%v", item["version"])
+		}
 		if itemName == "golang: upstream version" {
-			version := item["version"]
-			return version.(string), nil
+			return version, nil
 		}
 	}
 

@@ -15,7 +15,8 @@ const (
 	RancherGithubOrganization = "rancher"
 	RancherRepositoryName     = "rancher"
 	K3sGithubOrganization     = "k3s-io"
-	K3sRepostitoryName        = "k3s"
+	K3sRepositoryName         = "k3s"
+	K3sK8sRepositoryName      = "kubernetes"
 )
 
 const (
