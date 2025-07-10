@@ -391,6 +391,20 @@ func generatePrimeArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, err
 	return buff.Bytes(), nil
 }
 
+// ReleaseBranchFromTag generates the rancher release branch for a release line with the format of 'release/v{major}.{minor}'. The generated release branch might not be valid depending on multiple factors that cannot be treated on this function such as it being 'main'.
+// Please make sure that this is the expected format before using the generated release branch.
+func ReleaseBranchFromTag(tag string) (string, error) {
+	majorMinor := semver.MajorMinor(tag)
+
+	if majorMinor == "" {
+		return "", errors.New("the tag isn't a valid semver: " + tag)
+	}
+
+	releaseBranch := "release/" + majorMinor
+
+	return releaseBranch, nil
+}
+
 // CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
 func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
 	if !semver.IsValid(opts.Tag) {
