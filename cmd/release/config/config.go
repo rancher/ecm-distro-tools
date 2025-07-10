@@ -179,15 +179,17 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User          *User          `json:"user"`
-	K3s           *K3s           `json:"k3s"`
-	Rancher       *Rancher       `json:"rancher"`
-	RKE2          *RKE2          `json:"rke2"`
-	Charts        *ChartsRelease `json:"charts"`
-	Auth          *Auth          `json:"auth"`
-	Dashboard     *Dashboard     `json:"dashboard"`
-	CLI           *CLI           `json:"cli"`
-	PrimeRegistry string         `json:"prime_registry"`
+	User                      *User          `json:"user"`
+	K3s                       *K3s           `json:"k3s"`
+	Rancher                   *Rancher       `json:"rancher"`
+	RKE2                      *RKE2          `json:"rke2"`
+	Charts                    *ChartsRelease `json:"charts"`
+	Auth                      *Auth          `json:"auth"`
+	Dashboard                 *Dashboard     `json:"dashboard"`
+	CLI                       *CLI           `json:"cli"`
+	PrimeRegistry             string         `json:"prime_registry"`
+	RancherGithubOrganization string         `json:"rancher_github_organization"`
+	RancherRepositoryName     string         `json:"rancher_repository_name"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
@@ -316,6 +318,14 @@ func View(config *Config) error {
 	}
 
 	return tmp.Execute(os.Stdout, config)
+}
+
+func ValueOrDefault[T comparable](v T, d T) T {
+	var z T
+	if v == z {
+		return d
+	}
+	return v
 }
 
 const configViewTemplate = `Release config
