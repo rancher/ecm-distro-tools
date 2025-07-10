@@ -165,14 +165,24 @@ var rancherTagSubCmd = &cobra.Command{
 			return NewVersionNotFoundError(tag)
 		}
 
+		repo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
+		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := rancher.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		branch := config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		opts := &repository.CreateReleaseOpts{
 			Tag:          tag,
-			Repo:         "rancher",
-			Owner:        config.RancherGithubOrganization,
-			Branch:       rancherRelease.ReleaseBranch,
+			Repo:         repo,
+			Owner:        owner,
+			Branch:       branch,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)
