@@ -148,6 +148,15 @@ var rke2TagSubCmd = &cobra.Command{
 var rancherTagSubCmd = &cobra.Command{
 	Use:   "rancher [ga, rc, alpha] [version]",
 	Short: "Tag Rancher releases",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return releaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+		if len(args) == 1 {
+			return rancherVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
@@ -331,6 +340,10 @@ var cliTagSubCmd = &cobra.Command{
 
 		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
 	},
+}
+
+func releaseTypes() []string {
+	return []string{"alpha", "ga", "rc"}
 }
 
 func init() {
