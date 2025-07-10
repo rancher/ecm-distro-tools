@@ -301,7 +301,9 @@ func ExampleConfig() (string, error) {
 			AWSSessionToken:    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 			AWSDefaultRegion:   "us-east-1",
 		},
-		PrimeRegistry: "example.com",
+		PrimeRegistry:             "example.com",
+		RancherGithubOrganization: RancherGithubOrganization,
+		RancherRepositoryName:     RancherRepositoryName,
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {
