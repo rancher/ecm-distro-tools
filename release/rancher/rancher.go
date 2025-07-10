@@ -53,7 +53,7 @@ const (
 	dockerService                 = "registry.docker.io"
 )
 
-var releaseTypes = map[string]bool{
+var ReleaseTypes = map[string]bool{
 	"alpha": true,
 	"ga":    true,
 	"rc":    true,
@@ -416,7 +416,7 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 	if !semver.IsValid(opts.Tag) {
 		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
 	}
-	if _, ok := releaseTypes[releaseType]; !ok {
+	if _, ok := ReleaseTypes[releaseType]; !ok {
 		return "", errors.New("invalid release type")
 	}
 

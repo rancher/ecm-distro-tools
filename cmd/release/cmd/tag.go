@@ -150,10 +150,10 @@ var rancherTagSubCmd = &cobra.Command{
 	Short: "Tag Rancher releases",
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return releaseTypes(), cobra.ShellCompDirectiveNoFileComp
+			return mapKeys(rancher.ReleaseTypes), cobra.ShellCompDirectiveNoFileComp
 		}
 		if len(args) == 1 {
-			return rancherVersions(), cobra.ShellCompDirectiveNoFileComp
+			return mapKeys(rootConfig.Rancher.Versions), cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -340,10 +340,6 @@ var cliTagSubCmd = &cobra.Command{
 
 		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
 	},
-}
-
-func releaseTypes() []string {
-	return []string{"alpha", "ga", "rc"}
 }
 
 func init() {

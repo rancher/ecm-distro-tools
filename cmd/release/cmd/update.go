@@ -215,7 +215,7 @@ var updateCLICmd = &cobra.Command{
 	Args:  cobra.MatchAll(cobra.ExactArgs(2)),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 1 {
-			return rancherVersions(), cobra.ShellCompDirectiveNoFileComp
+			return mapKeys(rootConfig.Rancher.Versions), cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -252,14 +252,14 @@ var updateCLICmd = &cobra.Command{
 	},
 }
 
-func rancherVersions() []string {
-	versions := make([]string, len(rootConfig.Rancher.Versions))
+func mapKeys[T any](m map[string]T) []string {
+	keys := make([]string, len(m))
 	i := 0
-	for version := range rootConfig.Rancher.Versions {
-		versions[i] = version
+	for k := range m {
+		keys[i] = k
 		i++
 	}
-	return versions
+	return keys
 }
 
 func init() {
