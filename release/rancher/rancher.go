@@ -53,6 +53,12 @@ const (
 	dockerService                 = "registry.docker.io"
 )
 
+var releaseTypes = map[string]bool{
+	"alpha": true,
+	"ga":    true,
+	"rc":    true,
+}
+
 var regsyncDefaultMediaTypes = []string{
 	"application/vnd.docker.distribution.manifest.v2+json",
 	"application/vnd.docker.distribution.manifest.list.v2+json",
@@ -409,6 +415,9 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
 	if !semver.IsValid(opts.Tag) {
 		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
+	}
+	if _, ok := releaseTypes[releaseType]; !ok {
+		return "", errors.New("invalid release type")
 	}
 
 	releaseName := opts.Tag
