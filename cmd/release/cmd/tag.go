@@ -171,7 +171,7 @@ var rancherTagSubCmd = &cobra.Command{
 		opts := &repository.CreateReleaseOpts{
 			Tag:          tag,
 			Repo:         "rancher",
-			Owner:        rancherRelease.RancherRepoOwner,
+			Owner:        config.RancherGithubOrganization,
 			Branch:       rancherRelease.ReleaseBranch,
 			ReleaseNotes: "",
 		}

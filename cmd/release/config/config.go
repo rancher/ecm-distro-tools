@@ -83,8 +83,7 @@ type K3sRelease struct {
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch    string `json:"release_branch"`
-	RancherRepoOwner string
+	ReleaseBranch string `json:"release_branch"`
 }
 
 type UIRelease struct {
@@ -264,8 +263,7 @@ func ExampleConfig() (string, error) {
 		Rancher: &Rancher{
 			Versions: map[string]RancherRelease{
 				"v2.x.y": {
-					ReleaseBranch:    "release/v2.x",
-					RancherRepoOwner: "rancher",
+					ReleaseBranch: "release/v2.x",
 				},
 			},
 		},
