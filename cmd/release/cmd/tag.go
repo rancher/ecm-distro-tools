@@ -152,9 +152,11 @@ var rancherTagSubCmd = &cobra.Command{
 		if len(args) == 0 {
 			return mapKeys(rancher.ReleaseTypes), cobra.ShellCompDirectiveNoFileComp
 		}
+
 		if len(args) == 1 {
 			return mapKeys(rootConfig.Rancher.Versions), cobra.ShellCompDirectiveNoFileComp
 		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
