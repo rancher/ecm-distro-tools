@@ -322,9 +322,8 @@ func View(config *Config) error {
 	return tmp.Execute(os.Stdout, config)
 }
 
-func ValueOrDefault[T comparable](v T, d T) T {
-	var z T
-	if v == z {
+func ValueOrDefault(v string, d string) string {
+	if v == "" {
 		return d
 	}
 	return v
