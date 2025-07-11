@@ -255,7 +255,7 @@ var updateCLICmd = &cobra.Command{
 func copyRancherVersions() []string {
 	versions := make([]string, len(rootConfig.Rancher.Versions))
 
-	i := 0
+	var i int
 
 	for version := range rootConfig.Rancher.Versions {
 		versions[i] = version
@@ -268,7 +268,7 @@ func copyRancherVersions() []string {
 func copyReleaseTypes() []string {
 	versions := make([]string, len(rancher.ReleaseTypes))
 
-	i := 0
+	var i int
 
 	for version := range rancher.ReleaseTypes {
 		versions[i] = version
