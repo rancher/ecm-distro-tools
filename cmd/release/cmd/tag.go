@@ -148,6 +148,17 @@ var rke2TagSubCmd = &cobra.Command{
 var rancherTagSubCmd = &cobra.Command{
 	Use:   "rancher [ga, rc, alpha] [version]",
 	Short: "Tag Rancher releases",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyReleaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
@@ -165,14 +176,24 @@ var rancherTagSubCmd = &cobra.Command{
 			return NewVersionNotFoundError(tag)
 		}
 
+		repo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
+		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := rancher.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		branch := config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		opts := &repository.CreateReleaseOpts{
 			Tag:          tag,
-			Repo:         "rancher",
-			Owner:        rancherRelease.RancherRepoOwner,
-			Branch:       rancherRelease.ReleaseBranch,
+			Repo:         repo,
+			Owner:        owner,
+			Branch:       branch,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)

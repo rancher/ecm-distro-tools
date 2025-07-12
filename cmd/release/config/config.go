@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"text/template"
-
-	"github.com/go-playground/validator/v10"
 )
 
 const (
@@ -68,53 +66,52 @@ const (
 
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion                 string `json:"old_k8s_version" validate:"required"`
-	NewK8sVersion                 string `json:"new_k8s_version" validate:"required"`
-	OldK8sClient                  string `json:"old_k8s_client" validate:"required"`
-	NewK8sClient                  string `json:"new_k8s_client" validate:"required"`
-	OldSuffix                     string `json:"old_suffix" validate:"required,startswith=k3s"`
-	NewSuffix                     string `json:"new_suffix" validate:"required,startswith=k3s"`
-	ReleaseBranch                 string `json:"release_branch" validate:"required"`
-	Workspace                     string `json:"workspace" validate:"required,dirpath"`
+	OldK8sVersion                 string `json:"old_k8s_version"`
+	NewK8sVersion                 string `json:"new_k8s_version"`
+	OldK8sClient                  string `json:"old_k8s_client"`
+	NewK8sClient                  string `json:"new_k8s_client"`
+	OldSuffix                     string `json:"old_suffix"`
+	NewSuffix                     string `json:"new_suffix"`
+	ReleaseBranch                 string `json:"release_branch"`
+	Workspace                     string `json:"workspace"`
 	NewGoVersion                  string `json:"-"`
-	K3sRepoOwner                  string `json:"k3s_repo_owner" validate:"required"`
-	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner" validate:"required"`
-	K8sRancherURL                 string `json:"k8s_rancher_url" validate:"required"`
-	K3sUpstreamURL                string `json:"k3s_upstream_url" validate:"required"`
+	K3sRepoOwner                  string `json:"k3s_repo_owner"`
+	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner"`
+	K8sRancherURL                 string `json:"k8s_rancher_url"`
+	K3sUpstreamURL                string `json:"k3s_upstream_url"`
 	DryRun                        bool   `json:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch    string `json:"release_branch" validate:"required"`
-	RancherRepoOwner string `json:"rancher_repo_owner" validate:"required"`
+	ReleaseBranch string `json:"release_branch"`
 }
 
 type UIRelease struct {
-	UIRepoOwner   string `json:"ui_repo_owner" validate:"required"`
+	UIRepoOwner   string `json:"ui_repo_owner"`
 	UIRepoName    string `json:"ui_repo_name"`
 	PreviousTag   string `json:"previous_tag"`
-	ReleaseBranch string `json:"release_branch" validate:"required"`
+	ReleaseBranch string `json:"release_branch"`
 	DryRun        bool   `json:"dry_run"`
 }
 
 type DashboardRelease struct {
-	PreviousTag          string `json:"previous_tag" validate:"required"`
-	ReleaseBranch        string `json:"release_branch" validate:"required"`
-	UIReleaseBranch      string `json:"ui_release_branch" validate:"required"`
-	UIPreviousTag        string `json:"ui_previous_tag" validate:"required"`
+	PreviousTag          string `json:"previous_tag"`
+	ReleaseBranch        string `json:"release_branch"`
+	UIReleaseBranch      string `json:"ui_release_branch"`
+	UIPreviousTag        string `json:"ui_previous_tag"`
 	Tag                  string
-	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
+	RancherReleaseBranch string `json:"rancher_release_branch"`
 	RancherUpstreamURL   string
 	DryRun               bool `json:"dry_run"`
 }
 
 type CLIRelease struct {
-	PreviousTag          string `json:"previous_tag" validate:"required"`
-	ReleaseBranch        string `json:"release_branch" validate:"required"`
+	PreviousTag          string `json:"previous_tag"`
+	ReleaseBranch        string `json:"release_branch"`
 	Tag                  string `json:"-"`
 	CLIUpstreamURL       string `json:"-"`
-	RancherReleaseBranch string `json:"rancher_release_branch" validate:"required"`
+	RancherReleaseBranch string `json:"rancher_release_branch"`
 	RancherUpstreamURL   string `json:"rancher_upstream_url"`
 	RancherCommitSHA     string `json:"-"`
 	RancherTag           string `json:"-"`
@@ -128,53 +125,53 @@ type RKE2 struct {
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string   `json:"workspace" validate:"required,dirpath"`
-	ChartsRepoURL string   `json:"charts_repo_url" validate:"required"`
-	ChartsForkURL string   `json:"charts_fork_url" validate:"required"`
-	BranchLines   []string `json:"branch_lines" validate:"required"`
+	Workspace     string   `json:"workspace"`
+	ChartsRepoURL string   `json:"charts_repo_url"`
+	ChartsForkURL string   `json:"charts_fork_url"`
+	BranchLines   []string `json:"branch_lines"`
 }
 
 // User
 type User struct {
-	Email          string `json:"email" validate:"required,email"`
-	GithubUsername string `json:"github_username" validate:"required"`
+	Email          string `json:"email"`
+	GithubUsername string `json:"github_username"`
 }
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `json:"versions" validate:"dive,omitempty"`
+	Versions map[string]K3sRelease `json:"versions"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
+	Versions map[string]RancherRelease `json:"versions"`
 }
 
 // Dashboard
 type Dashboard struct {
-	Versions           map[string]DashboardRelease `json:"versions" validate:"dive"`
-	RepoOwner          string                      `json:"repo_owner" validate:"required"`
-	RepoName           string                      `json:"repo_name" validate:"required"`
-	UIRepoOwner        string                      `json:"ui_repo_owner" validate:"required"`
-	UIRepoName         string                      `json:"ui_repo_name" validate:"required"`
-	RancherRepoOwner   string                      `json:"rancher_repo_owner" validate:"required"`
-	RancherRepoName    string                      `json:"rancher_repo_name" validate:"required"`
-	RancherUpstreamURL string                      `json:"rancher_upstream_url" validate:"required"`
+	Versions           map[string]DashboardRelease `json:"versions"`
+	RepoOwner          string                      `json:"repo_owner"`
+	RepoName           string                      `json:"repo_name"`
+	UIRepoOwner        string                      `json:"ui_repo_owner"`
+	UIRepoName         string                      `json:"ui_repo_name"`
+	RancherRepoOwner   string                      `json:"rancher_repo_owner"`
+	RancherRepoName    string                      `json:"rancher_repo_name"`
+	RancherUpstreamURL string                      `json:"rancher_upstream_url"`
 }
 
 type CLI struct {
-	Versions           map[string]CLIRelease `json:"versions" validate:"dive"`
-	RepoOwner          string                `json:"repo_owner" validate:"required"`
-	RepoName           string                `json:"repo_name" validate:"required"`
-	RancherRepoOwner   string                `json:"rancher_repo_owner" validate:"required"`
-	RancherRepoName    string                `json:"rancher_repo_name" validate:"required"`
-	RancherUpstreamURL string                `json:"rancher_upstream_url" validate:"required"`
+	Versions           map[string]CLIRelease `json:"versions"`
+	RepoOwner          string                `json:"repo_owner"`
+	RepoName           string                `json:"repo_name"`
+	RancherRepoOwner   string                `json:"rancher_repo_owner"`
+	RancherRepoName    string                `json:"rancher_repo_name"`
+	RancherUpstreamURL string                `json:"rancher_upstream_url"`
 }
 
 // Auth
 type Auth struct {
 	GithubToken        string `json:"github_token"`
-	SSHKeyPath         string `json:"ssh_key_path" validate:"filepath"`
+	SSHKeyPath         string `json:"ssh_key_path"`
 	AWSAccessKeyID     string `json:"aws_access_key_id"`
 	AWSSecretAccessKey string `json:"aws_secret_access_key"`
 	AWSSessionToken    string `json:"aws_session_token"`
@@ -183,15 +180,17 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User          *User          `json:"user"`
-	K3s           *K3s           `json:"k3s" validate:"omitempty"`
-	Rancher       *Rancher       `json:"rancher" validate:"omitempty"`
-	RKE2          *RKE2          `json:"rke2" validate:"omitempty"`
-	Charts        *ChartsRelease `json:"charts" validate:"omitempty"`
-	Auth          *Auth          `json:"auth"`
-	Dashboard     *Dashboard     `json:"dashboard"`
-	CLI           *CLI           `json:"cli"`
-	PrimeRegistry string         `json:"prime_registry"`
+	User                      *User          `json:"user"`
+	K3s                       *K3s           `json:"k3s"`
+	Rancher                   *Rancher       `json:"rancher"`
+	RKE2                      *RKE2          `json:"rke2"`
+	Charts                    *ChartsRelease `json:"charts"`
+	Auth                      *Auth          `json:"auth"`
+	Dashboard                 *Dashboard     `json:"dashboard"`
+	CLI                       *CLI           `json:"cli"`
+	PrimeRegistry             string         `json:"prime_registry"`
+	RancherGithubOrganization string         `json:"rancher_github_organization"`
+	RancherRepositoryName     string         `json:"rancher_repository_name"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
@@ -267,8 +266,7 @@ func ExampleConfig() (string, error) {
 		Rancher: &Rancher{
 			Versions: map[string]RancherRelease{
 				"v2.x.y": {
-					ReleaseBranch:    "release/v2.x",
-					RancherRepoOwner: "rancher",
+					ReleaseBranch: "release/v2.x",
 				},
 			},
 		},
@@ -304,7 +302,9 @@ func ExampleConfig() (string, error) {
 			AWSSessionToken:    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 			AWSDefaultRegion:   "us-east-1",
 		},
-		PrimeRegistry: "example.com",
+		PrimeRegistry:             "example.com",
+		RancherGithubOrganization: RancherGithubOrganization,
+		RancherRepositoryName:     RancherRepositoryName,
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {
@@ -323,8 +323,11 @@ func View(config *Config) error {
 	return tmp.Execute(os.Stdout, config)
 }
 
-func (c *Config) Validate() error {
-	return validator.New(validator.WithRequiredStructEnabled()).Struct(c)
+func ValueOrDefault(v string, d string) string {
+	if v == "" {
+		return d
+	}
+	return v
 }
 
 const configViewTemplate = `Release config
