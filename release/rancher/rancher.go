@@ -53,10 +53,17 @@ const (
 	dockerService                 = "registry.docker.io"
 )
 
-var ReleaseTypes = map[string]bool{
-	"alpha": true,
-	"ga":    true,
-	"rc":    true,
+type ReleaseType int
+
+const (
+	ReleaseTypePreRelease ReleaseType = iota
+	ReleaseTypeGA
+)
+
+var ReleaseTypes = map[string]ReleaseType{
+	"alpha": ReleaseTypePreRelease,
+	"rc":    ReleaseTypePreRelease,
+	"ga":    ReleaseTypeGA,
 }
 
 var regsyncDefaultMediaTypes = []string{
@@ -217,14 +224,12 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func UpdateDashboardReferences(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
-	r.RancherUpstreamURL = cfg.RancherUpstreamURL
-
+func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	if err := updateDashboardReferencesAndPush(r, u); err != nil {
 		return err
 	}
 
-	return createDashboardReferencesPR(ctx, cfg, ghClient, r, u)
+	return createDashboardReferencesPR(ctx, ghClient, u, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner)
 }
 
 func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfig.User) error {
@@ -239,16 +244,16 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 	return nil
 }
 
-func createDashboardReferencesPR(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
-		Base:                github.String(r.RancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":update-build-refs-" + r.Tag),
+		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
+		Base:                github.String(rancherReleaseBranch),
+		Head:                github.String(u.GithubUsername + ":update-build-refs-" + tag),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	pr, _, err := ghClient.PullRequests.Create(ctx, cfg.RancherRepoOwner, cfg.RancherRepoName, pull)
+	pr, _, err := ghClient.PullRequests.Create(ctx, rancherRepoOwner, rancherRepoName, pull)
 	if err != nil {
 		return err
 	}
