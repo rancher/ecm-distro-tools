@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/charts"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -38,7 +39,7 @@ var updateK3sReferencesCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "k3s")
 		}
 
 		ctx := context.Background()
@@ -148,30 +149,38 @@ var updateRancherDashboardCmd = &cobra.Command{
 		}
 		return nil
 	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		version := args[0]
+		tag := args[0]
 
 		// checking if the provided version is valid
-		_, err := semver.NewVersion(version)
+		_, err := semver.NewVersion(tag)
 		if err != nil {
 			return err
 		}
 
-		versionTrimmed, _, _ := strings.Cut(version, "-rc")
-		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-alpha")
+		versionTrimmed, _, _ := strings.Cut(tag, "-")
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(tag, "dashboard")
 		}
 
-		dashboardRelease.Tag = version
+		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
+		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		rancherReleaseBranch, err := rancher.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
 
 		ctx := context.Background()
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return rancher.UpdateDashboardReferences(ctx, rootConfig.Dashboard, ghClient, &dashboardRelease, rootConfig.User)
+		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User, tag, rancherReleaseBranch, rancherRepo, rancherRepoOwner)
 	},
 }
 
@@ -196,7 +205,7 @@ var updateRancherCLICmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "cli")
 		}
 
 		cliRelease.Tag = version
@@ -237,7 +246,7 @@ var updateCLICmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "cli")
 		}
 
 		cliRelease.Tag = version
