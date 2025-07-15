@@ -144,8 +144,8 @@ var updateRancherDashboardCmd = &cobra.Command{
 	Use:   "dashboard [version]",
 	Short: "Update Rancher's Dashboard and UI references and create a PR",
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("expected at least one argument: [version]")
+		if len(args) != 1 {
+			return errors.New("expected one argument: [version]")
 		}
 		return nil
 	},
