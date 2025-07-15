@@ -321,7 +321,7 @@ var dashboardTagSubCmd = &cobra.Command{
 
 var cliTagSubCmd = &cobra.Command{
 	Use:   "cli [ga,rc] [version]",
-	Short: "Tag dashboard releases",
+	Short: "Tag CLI releases",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
