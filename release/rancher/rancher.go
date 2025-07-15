@@ -224,19 +224,26 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
-	if err := updateDashboardReferencesAndPush(r, u); err != nil {
+func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner, rancherRepoURL string, dryRun bool) error {
+	if err := updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherRepoURL, dryRun); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	return createDashboardReferencesPR(ctx, ghClient, u, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner)
 }
 
-func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfig.User) error {
-	fmt.Println("verifying if workspace dir exists")
-	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
-	fmt.Println("creating update dashboard references script template")
-	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "update_dashboard_refs.sh", updateDashboardReferencesScript, funcMap, r)
+func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstreamURL string, dryRun bool) error {
+	updateScriptVars := map[string]string{
+		"Tag":                  tag,
+		"RancherReleaseBranch": rancherReleaseBranch,
+		"RancherUpstreamURL":   rancherUpstreamURL,
+		"DryRun":               strconv.FormatBool(dryRun),
+	}
+	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "update_dashboard_refs.sh", updateDashboardReferencesScript, nil, updateScriptVars)
 	if err != nil {
 		return err
 	}
@@ -1132,18 +1139,20 @@ OS=$(uname -s)
 DRY_RUN={{ .DryRun }}
 BRANCH_NAME=update-dashboard-refs-{{ .Tag }}
 VERSION={{ .Tag }}
+RANCHER_BRANCH={{.RancherReleaseBranch}}
+RANCHER_UPSTREAM_URL={{ .RancherUpstreamURL }}
 FILENAME=package/Dockerfile
 
 # Add upstream remote if it doesn't exist
 # Note: Using ls | grep is not recommended for general use, but it's okay here
 # since we're only checking for 'rancher'
-git remote -v | grep -w upstream || git remote add upstream {{ .RancherUpstreamURL }}
+git remote -v | grep -w upstream || git remote add upstream "${RANCHER_UPSTREAM_URL}"
 git fetch upstream
 git stash
 
 # Delete the branch if it exists, then create a new one based on upstream
 git branch -D "${BRANCH_NAME}" > /dev/null 2>&1 || true
-git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
+git checkout -B "${BRANCH_NAME}" "upstream/${RANCHER_BRANCH}"
 # git clean -xfd
 
 # Function to update the file
@@ -1175,9 +1184,8 @@ update_file() {
 update_file
 
 git add $FILENAME
-git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
+git commit --signoff -m "Update Dashboard refs to ${VERSION}"
 
-# Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
 fi

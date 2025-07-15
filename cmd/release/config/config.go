@@ -173,6 +173,7 @@ type Config struct {
 	RancherGithubOrganization string         `json:"rancher_github_organization"`
 	RancherRepositoryName     string         `json:"rancher_repository_name"`
 	RancherRepositoryGitURI   string         `json:"rancher_repository_git_uri"`
+	RancherRepositoryURL      string         `json:"rancher_repository_url"`
 	UIRepositoryName          string         `json:"ui_repository_name"`
 	DashboardRepositoryName   string         `json:"dashboard_repository_name"`
 }
@@ -280,6 +281,7 @@ func ExampleConfig() (string, error) {
 		RancherGithubOrganization: RancherGithubOrganization,
 		RancherRepositoryName:     RancherRepositoryName,
 		RancherRepositoryGitURI:   RancherRepositoryGitURI,
+		RancherRepositoryURL:      RancherRepositoryURL,
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {

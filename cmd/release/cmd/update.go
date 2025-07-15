@@ -170,6 +170,7 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
 		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+		rancherRepoURL := config.ValueOrDefault(rootConfig.RancherRepositoryURL, config.RancherRepositoryURL)
 
 		rancherReleaseBranch, err := rancher.ReleaseBranchFromTag(tag)
 		if err != nil {
@@ -180,7 +181,7 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User, tag, rancherReleaseBranch, rancherRepo, rancherRepoOwner)
+		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User, tag, rancherReleaseBranch, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
 	},
 }
 
