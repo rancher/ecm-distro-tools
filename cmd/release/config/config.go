@@ -12,6 +12,8 @@ import (
 const (
 	RancherGithubOrganization = "rancher"
 	RancherRepositoryName     = "rancher"
+	UIRepositoryName          = "ui"
+	DashboardRepositoryName   = "dashboard"
 	K3sGithubOrganization     = "k3s-io"
 	K3sRepositoryName         = "k3s"
 	K3sK8sRepositoryName      = "kubernetes"
@@ -87,23 +89,9 @@ type RancherRelease struct {
 	ReleaseBranch string `json:"release_branch"`
 }
 
-type UIRelease struct {
-	UIRepoOwner   string `json:"ui_repo_owner"`
-	UIRepoName    string `json:"ui_repo_name"`
+type DashboardRelease struct {
 	PreviousTag   string `json:"previous_tag"`
 	ReleaseBranch string `json:"release_branch"`
-	DryRun        bool   `json:"dry_run"`
-}
-
-type DashboardRelease struct {
-	PreviousTag          string `json:"previous_tag"`
-	ReleaseBranch        string `json:"release_branch"`
-	UIReleaseBranch      string `json:"ui_release_branch"`
-	UIPreviousTag        string `json:"ui_previous_tag"`
-	Tag                  string
-	RancherReleaseBranch string `json:"rancher_release_branch"`
-	RancherUpstreamURL   string
-	DryRun               bool `json:"dry_run"`
 }
 
 type CLIRelease struct {
@@ -149,14 +137,7 @@ type Rancher struct {
 
 // Dashboard
 type Dashboard struct {
-	Versions           map[string]DashboardRelease `json:"versions"`
-	RepoOwner          string                      `json:"repo_owner"`
-	RepoName           string                      `json:"repo_name"`
-	UIRepoOwner        string                      `json:"ui_repo_owner"`
-	UIRepoName         string                      `json:"ui_repo_name"`
-	RancherRepoOwner   string                      `json:"rancher_repo_owner"`
-	RancherRepoName    string                      `json:"rancher_repo_name"`
-	RancherUpstreamURL string                      `json:"rancher_upstream_url"`
+	Versions map[string]DashboardRelease `json:"versions"`
 }
 
 type CLI struct {
@@ -191,6 +172,9 @@ type Config struct {
 	PrimeRegistry             string         `json:"prime_registry"`
 	RancherGithubOrganization string         `json:"rancher_github_organization"`
 	RancherRepositoryName     string         `json:"rancher_repository_name"`
+	RancherRepositoryGitURI   string         `json:"rancher_repository_git_uri"`
+	UIRepositoryName          string         `json:"ui_repository_name"`
+	DashboardRepositoryName   string         `json:"dashboard_repository_name"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
@@ -271,20 +255,10 @@ func ExampleConfig() (string, error) {
 			},
 		},
 		Dashboard: &Dashboard{
-			RepoName:           "dashboard",
-			RepoOwner:          "rancher",
-			UIRepoName:         "ui",
-			UIRepoOwner:        "rancher",
-			RancherRepoName:    "rancher",
-			RancherRepoOwner:   "rancher",
-			RancherUpstreamURL: "git@github.com:rancher/rancher.git",
 			Versions: map[string]DashboardRelease{
 				"v2.x.y": {
-					PreviousTag:          "v2.x.y",
-					UIPreviousTag:        "v2.x.y",
-					ReleaseBranch:        "release-v2.x",
-					UIReleaseBranch:      "release-v2.x",
-					RancherReleaseBranch: "release/v2.x",
+					PreviousTag:   "v2.x.y",
+					ReleaseBranch: "release-v2.x",
 				},
 			},
 		},
@@ -305,6 +279,7 @@ func ExampleConfig() (string, error) {
 		PrimeRegistry:             "example.com",
 		RancherGithubOrganization: RancherGithubOrganization,
 		RancherRepositoryName:     RancherRepositoryName,
+		RancherRepositoryGitURI:   RancherRepositoryGitURI,
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {
