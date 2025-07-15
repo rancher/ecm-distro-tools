@@ -32,7 +32,7 @@ var pushK3sTagsCmd = &cobra.Command{
 		version := args[0]
 		k3sRelease, found := rootConfig.K3s.Versions[version]
 		if !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "k3s")
 		}
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
