@@ -236,7 +236,7 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 	fmt.Println("verifying if workspace dir exists")
 	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
 	fmt.Println("creating update dashboard references script template")
-	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replase_dash_ref.sh", updateDashboardReferencesScript, funcMap, r)
+	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replace_dash_ref.sh", updateDashboardReferencesScript, funcMap, r)
 	if err != nil {
 		return err
 	}
