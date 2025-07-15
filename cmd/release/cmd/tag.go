@@ -194,7 +194,7 @@ var rancherTagSubCmd = &cobra.Command{
 			Repo:         repo,
 			Owner:        owner,
 			Branch:       releaseBranch,
-			Prerelease:   preRelease,
+			Prerelease:   true,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)

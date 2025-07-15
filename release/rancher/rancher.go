@@ -447,7 +447,6 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 
 	opts.Name = releaseName
 	opts.Prerelease = true
-	opts.Draft = !preRelease
 	opts.ReleaseNotes = ""
 
 	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
