@@ -394,8 +394,12 @@ func init() {
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
-	if rt, ok := rancher.ReleaseTypes[releaseType]; ok && rt == rancher.ReleaseTypePreRelease {
+	rt, ok := rancher.ReleaseTypes[releaseType]
+	if !ok {
+		return false, errors.New("invalid release type: " + releaseType)
+	}
+	if rt == rancher.ReleaseTypePreRelease {
 		return true, nil
 	}
-	return false, errors.New("release type must be either 'ga', 'alpha' or 'rc', instead got: " + releaseType)
+	return false, nil
 }
