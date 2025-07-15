@@ -1130,7 +1130,7 @@ OS=$(uname -s)
 
 # Set variables (these are populated by Go's template engine)
 DRY_RUN={{ .DryRun }}
-BRANCH_NAME=update-build-refs-{{ .Tag }}
+BRANCH_NAME=update-dashboard-refs-{{ .Tag }}
 VERSION={{ .Tag }}
 FILENAME=package/Dockerfile
 
@@ -1165,10 +1165,10 @@ update_file() {
     esac
 
     # Update CATTLE_UI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
-    ${_update_file_sed_cmd} "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "${FILENAME}"
+    ${_update_file_sed_cmd} "s/ENV CATTLE_UI_VERSION=.*/ENV CATTLE_UI_VERSION=${VERSION#v}/" "${FILENAME}"
 
     # Update CATTLE_DASHBOARD_UI_VERSION
-    ${_update_file_sed_cmd} "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION ${VERSION}/" "${FILENAME}"
+    ${_update_file_sed_cmd} "s/ENV CATTLE_DASHBOARD_UI_VERSION=.*/ENV CATTLE_DASHBOARD_UI_VERSION=${VERSION}/" "${FILENAME}"
 }
 
 # Run the update function
