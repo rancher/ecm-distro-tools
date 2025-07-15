@@ -184,7 +184,7 @@ var rancherTagSubCmd = &cobra.Command{
 			return errors.New("failed to generate release branch from tag: " + err.Error())
 		}
 
-		branch := config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
 
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
@@ -193,7 +193,8 @@ var rancherTagSubCmd = &cobra.Command{
 			Tag:          tag,
 			Repo:         repo,
 			Owner:        owner,
-			Branch:       branch,
+			Branch:       releaseBranch,
+			Prerelease:   preRelease,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)
