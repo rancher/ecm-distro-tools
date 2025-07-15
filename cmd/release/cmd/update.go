@@ -167,6 +167,10 @@ var updateRancherDashboardCmd = &cobra.Command{
 		if !found {
 			return NewVersionNotFoundError(tag, "dashboard")
 		}
+		rancherRelease, found := rootConfig.Rancher.Versions[versionTrimmed]
+		if !found {
+			return NewVersionNotFoundError(tag, "rancher")
+		}
 
 		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
 		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
@@ -176,6 +180,8 @@ var updateRancherDashboardCmd = &cobra.Command{
 		if err != nil {
 			return errors.New("failed to generate release branch from tag: " + err.Error())
 		}
+
+		rancherReleaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, rancherReleaseBranch)
 
 		ctx := context.Background()
 
