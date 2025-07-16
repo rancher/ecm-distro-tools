@@ -51,6 +51,7 @@ const (
 	dockerAuthURL                 = "https://auth.docker.io/token"
 	sccSUSEService                = "SUSE+Linux+Docker+Registry"
 	dockerService                 = "registry.docker.io"
+	dashboardUpdateRefsBranchBase = "update-dashboard-refs"
 )
 
 type ReleaseType int
@@ -242,6 +243,7 @@ func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstream
 		"RancherReleaseBranch": rancherReleaseBranch,
 		"RancherUpstreamURL":   rancherUpstreamURL,
 		"DryRun":               strconv.FormatBool(dryRun),
+		"BranchBaseName":       dashboardUpdateRefsBranchBase,
 	}
 	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "update_dashboard_refs.sh", updateDashboardReferencesScript, nil, updateScriptVars)
 	if err != nil {
@@ -255,7 +257,7 @@ func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
 		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":update-build-refs-" + tag),
+		Head:                github.String(u.GithubUsername + ":" + dashboardUpdateRefsBranchBase + "-" + tag),
 		MaintainerCanModify: github.Bool(true),
 	}
 
@@ -1137,7 +1139,7 @@ OS=$(uname -s)
 
 # Set variables (these are populated by Go's template engine)
 DRY_RUN={{ .DryRun }}
-BRANCH_NAME=update-dashboard-refs-{{ .Tag }}
+BRANCH_NAME={{ .BranchBaseName }}-{{ .Tag }}
 VERSION={{ .Tag }}
 RANCHER_BRANCH={{.RancherReleaseBranch}}
 RANCHER_UPSTREAM_URL={{ .RancherUpstreamURL }}
