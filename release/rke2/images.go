@@ -6,14 +6,12 @@ import (
 	"io"
 	"io/fs"
 	"strings"
-	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	reg "github.com/rancher/ecm-distro-tools/registry"
 	"golang.org/x/sync/errgroup"
 )
 
-// RegistryClient defines the interface for interacting with container registries
 type RegistryClient interface {
 	Image(ctx context.Context, ref name.Reference) (reg.Image, error)
 }
@@ -87,15 +85,15 @@ func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
 	g := new(errgroup.Group)
 
 	g.Go(func() (err error) {
-		amd64Images, err = r.readImageList(ListLinuxAmd64)
+		amd64Images, err = r.imageList(ListLinuxAmd64)
 		return err
 	})
 	g.Go(func() (err error) {
-		arm64Images, err = r.readImageList(ListLinuxArm64)
+		arm64Images, err = r.imageList(ListLinuxArm64)
 		return err
 	})
 	g.Go(func() (err error) {
-		winImages, err = r.readImageList(ListWindowsAmd64)
+		winImages, err = r.imageList(ListWindowsAmd64)
 		return
 	})
 
@@ -141,8 +139,7 @@ func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
 	return imageMap, nil
 }
 
-// readImageList reads an image list file and returns its contents
-func (r *ReleaseInspector) readImageList(filename string) ([]string, error) {
+func (r *ReleaseInspector) imageList(filename string) ([]string, error) {
 	file, err := r.assets.Open(filename)
 	if err != nil {
 		return nil, err
@@ -157,45 +154,41 @@ func (r *ReleaseInspector) readImageList(filename string) ([]string, error) {
 	return strings.Split(strings.TrimSpace(string(content)), "\n"), nil
 }
 
-// checkImages checks if the required images exist in the OSS and Prime registries
+// checkImages fetches the manifest of all rke2 images in the docker and prime registries
 func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[string]ReleaseImage) ([]Image, error) {
-	resultChan := make(chan Image, len(requiredImages))
-	var wg sync.WaitGroup
+	var refs []name.Reference
+	refToReleaseImage := make(map[string]ReleaseImage)
 
-	for _, required := range requiredImages {
-		wg.Add(1)
-		go func(img ReleaseImage) {
-			defer wg.Done()
-
-			ossImage, err := r.oss.Image(ctx, img.Reference)
-			if err != nil {
-				ossImage = reg.Image{
-					Exists:    false,
-					Platforms: make(map[reg.Platform]bool),
-				}
-			}
-
-			var primeImage reg.Image
-			if r.prime != nil {
-				primeImage, _ = r.prime.Image(ctx, img.Reference)
-			}
-
-			resultChan <- Image{
-				ReleaseImage: img,
-				OSSImage:     ossImage,
-				PrimeImage:   primeImage,
-			}
-		}(required)
+	for _, img := range requiredImages {
+		refs = append(refs, img.Reference)
+		key := img.Reference.Context().RepositoryStr() + ":" + img.Reference.Identifier()
+		refToReleaseImage[key] = img
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
+	registries := make(map[string]reg.RegistryClient)
+	registries["oss"] = reg.RegistryClient(r.oss)
+	if r.prime != nil {
+		registries["prime"] = reg.RegistryClient(r.prime)
+	}
+
+	fetcher := reg.NewMultiRegistryFetcher(registries)
+	resultChan, _ := fetcher.FetchImages(ctx, refs)
 
 	var results []Image
-	for img := range resultChan {
-		results = append(results, img)
+	for fetchResult := range resultChan {
+		key := fetchResult.Reference.Context().RepositoryStr() + ":" + fetchResult.Reference.Identifier()
+		releaseImage := refToReleaseImage[key]
+
+		result := Image{
+			ReleaseImage: releaseImage,
+			OSSImage:     fetchResult.Results["oss"],
+		}
+
+		if primeImage, ok := fetchResult.Results["prime"]; ok {
+			result.PrimeImage = primeImage
+		}
+
+		results = append(results, result)
 	}
 
 	return results, nil

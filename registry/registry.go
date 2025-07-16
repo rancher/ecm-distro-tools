@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -115,4 +116,65 @@ func (c *Client) handleSingleArchImage(desc *remote.Descriptor, info *Image) err
 	info.Platforms[platform] = true
 
 	return nil
+}
+
+type ImageFetchResult struct {
+	Reference name.Reference
+	Results   map[string]Image // registry name -> image info
+}
+
+type RegistryClient interface {
+	Image(ctx context.Context, ref name.Reference) (Image, error)
+}
+
+type MultiRegistryFetcher struct {
+	registries map[string]RegistryClient
+}
+
+func NewMultiRegistryFetcher(registries map[string]RegistryClient) *MultiRegistryFetcher {
+	return &MultiRegistryFetcher{
+		registries: registries,
+	}
+}
+
+func (f *MultiRegistryFetcher) FetchImages(ctx context.Context, refs []name.Reference) (<-chan ImageFetchResult, <-chan error) {
+	resultChan := make(chan ImageFetchResult, len(refs))
+	errorChan := make(chan error, len(refs)*len(f.registries))
+
+	go func() {
+		defer close(resultChan)
+		defer close(errorChan)
+
+		var wg sync.WaitGroup
+		emptyImage := Image{
+			Exists:    false,
+			Platforms: make(map[Platform]bool),
+		}
+
+		for _, ref := range refs {
+			wg.Add(1)
+			go func(imageRef name.Reference) {
+				defer wg.Done()
+
+				results := make(map[string]Image)
+				for registryName, client := range f.registries {
+					image, err := client.Image(ctx, imageRef)
+					if err != nil {
+						errorChan <- err
+						image = emptyImage
+					}
+					results[registryName] = image
+				}
+
+				resultChan <- ImageFetchResult{
+					Reference: imageRef,
+					Results:   results,
+				}
+			}(ref)
+		}
+
+		wg.Wait()
+	}()
+
+	return resultChan, errorChan
 }
