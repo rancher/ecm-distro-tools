@@ -21,7 +21,7 @@ const (
 )
 
 // CreateRelease will create a new tag and a new release with given params.
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, preRelease, dryRun bool, releaseType string) error {
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
@@ -31,7 +31,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRe
 		return err
 	}
 
-	if rc {
+	if preRelease {
 		latestRCNumber := 1
 		if latestPreRelease != nil {
 			// v2.9.0-rcN / -alphaN
@@ -50,10 +50,9 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRe
 
 	opts.Name = opts.Tag
 	opts.Prerelease = true
-	opts.Draft = !rc
 	opts.ReleaseNotes = ""
 
-	if !rc {
+	if !preRelease {
 		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, r.PreviousTag)
 		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, r.PreviousTag, client)
 		if err != nil {
@@ -64,7 +63,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.UIRe
 
 	fmt.Printf("create release options: %+v\n", *opts)
 
-	if r.DryRun {
+	if dryRun {
 		fmt.Println("dry run, skipping creating release")
 		return nil
 	}

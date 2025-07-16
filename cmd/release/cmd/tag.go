@@ -48,7 +48,7 @@ var k3sTagSubCmd = &cobra.Command{
 		tag := args[1]
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag)
+			return NewVersionNotFoundError(tag, "k3s")
 		}
 
 		ctx := context.Background()
@@ -173,7 +173,7 @@ var rancherTagSubCmd = &cobra.Command{
 		tag := args[1]
 		rancherRelease, found := rootConfig.Rancher.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag)
+			return NewVersionNotFoundError(tag, "rancher")
 		}
 
 		repo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
@@ -184,7 +184,7 @@ var rancherTagSubCmd = &cobra.Command{
 			return errors.New("failed to generate release branch from tag: " + err.Error())
 		}
 
-		branch := config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
 
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
@@ -193,7 +193,8 @@ var rancherTagSubCmd = &cobra.Command{
 			Tag:          tag,
 			Repo:         repo,
 			Owner:        owner,
-			Branch:       branch,
+			Branch:       releaseBranch,
+			Prerelease:   true,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)
@@ -227,7 +228,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 
 		k3sRelease, found := rootConfig.K3s.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag)
+			return NewVersionNotFoundError(tag, "k3s")
 		}
 
 		ctx := context.Background()
@@ -254,14 +255,25 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		version := args[1]
 		if _, found := rootConfig.Dashboard.Versions[version]; !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "dashboard")
 		}
 		return nil
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyReleaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			return copyDashboardVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		releaseType := args[0]
 
-		rc, err := releaseTypePreRelease(releaseType)
+		preRelease, err := releaseTypePreRelease(releaseType)
 		if err != nil {
 			return err
 		}
@@ -272,38 +284,45 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag)
+			return NewVersionNotFoundError(tag, "dashboard")
 		}
-		dashboardRelease.DryRun = dryRun
+
+		uiRepo := config.ValueOrDefault(rootConfig.UIRepositoryName, config.UIRepositoryName)
+		dashboardRepo := config.ValueOrDefault(rootConfig.DashboardRepositoryName, config.DashboardRepositoryName)
+		repoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := dashboard.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		releaseBranch = config.ValueOrDefault(dashboardRelease.ReleaseBranch, releaseBranch)
 
 		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
-			Repo:   rootConfig.Dashboard.UIRepoName,
-			Owner:  rootConfig.Dashboard.UIRepoOwner,
-			Branch: dashboardRelease.UIReleaseBranch,
+			Repo:   uiRepo,
+			Owner:  repoOwner,
+			Branch: releaseBranch,
 		}
 
-		if err := ui.CreateRelease(ctx, ghClient, &config.UIRelease{
-			PreviousTag: dashboardRelease.PreviousTag,
-			DryRun:      dryRun,
-		}, uiOpts, rc, releaseType); err != nil {
+		if err := ui.CreateRelease(ctx, ghClient, &dashboardRelease, uiOpts, preRelease, dryRun, releaseType); err != nil {
 			return err
 		}
 
 		dashboardOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
-			Repo:   rootConfig.Dashboard.RepoName,
-			Owner:  rootConfig.Dashboard.RepoOwner,
-			Branch: dashboardRelease.ReleaseBranch,
+			Repo:   dashboardRepo,
+			Owner:  repoOwner,
+			Branch: releaseBranch,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, rc, releaseType)
+		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, preRelease, dryRun, releaseType)
 	},
 }
 
 var cliTagSubCmd = &cobra.Command{
 	Use:   "cli [ga,rc] [version]",
-	Short: "Tag dashboard releases",
+	Short: "Tag CLI releases",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
@@ -311,7 +330,7 @@ var cliTagSubCmd = &cobra.Command{
 
 		version := args[1]
 		if _, found := rootConfig.CLI.Versions[version]; !found {
-			return NewVersionNotFoundError(version)
+			return NewVersionNotFoundError(version, "cli")
 		}
 		return nil
 	},
@@ -329,7 +348,7 @@ var cliTagSubCmd = &cobra.Command{
 
 		cliRelease, found := rootConfig.CLI.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag)
+			return NewVersionNotFoundError(tag, "cli")
 		}
 		cliRelease.DryRun = dryRun
 
@@ -342,6 +361,19 @@ var cliTagSubCmd = &cobra.Command{
 
 		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
 	},
+}
+
+func copyDashboardVersions() []string {
+	versions := make([]string, len(rootConfig.Dashboard.Versions))
+
+	var i int
+
+	for version := range rootConfig.Dashboard.Versions {
+		versions[i] = version
+		i++
+	}
+
+	return versions
 }
 
 func init() {
@@ -362,13 +394,12 @@ func init() {
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
-	if releaseType == "rc" || releaseType == "alpha" {
+	rt, ok := rancher.ReleaseTypes[releaseType]
+	if !ok {
+		return false, errors.New("invalid release type: " + releaseType)
+	}
+	if rt == rancher.ReleaseTypePreRelease {
 		return true, nil
 	}
-
-	if releaseType == "ga" {
-		return false, nil
-	}
-
-	return false, errors.New("release type must be either 'ga', 'alpha' or 'rc', instead got: " + releaseType)
+	return false, nil
 }

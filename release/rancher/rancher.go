@@ -51,12 +51,20 @@ const (
 	dockerAuthURL                 = "https://auth.docker.io/token"
 	sccSUSEService                = "SUSE+Linux+Docker+Registry"
 	dockerService                 = "registry.docker.io"
+	dashboardUpdateRefsBranchBase = "update-dashboard-refs"
 )
 
-var ReleaseTypes = map[string]bool{
-	"alpha": true,
-	"ga":    true,
-	"rc":    true,
+type ReleaseType int
+
+const (
+	ReleaseTypePreRelease ReleaseType = iota
+	ReleaseTypeGA
+)
+
+var ReleaseTypes = map[string]ReleaseType{
+	"alpha": ReleaseTypePreRelease,
+	"rc":    ReleaseTypePreRelease,
+	"ga":    ReleaseTypeGA,
 }
 
 var regsyncDefaultMediaTypes = []string{
@@ -217,21 +225,27 @@ func GeneratePrimeArtifactsIndex(ctx context.Context, path string, ignoreVersion
 	return os.WriteFile(filepath.Join(path, "index-prerelease.html"), preReleaseIndex, 0644)
 }
 
-func UpdateDashboardReferences(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
-	r.RancherUpstreamURL = cfg.RancherUpstreamURL
-
-	if err := updateDashboardReferencesAndPush(r, u); err != nil {
+func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner, rancherRepoURL string, dryRun bool) error {
+	if err := updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherRepoURL, dryRun); err != nil {
 		return err
 	}
 
-	return createDashboardReferencesPR(ctx, cfg, ghClient, r, u)
+	if dryRun {
+		return nil
+	}
+
+	return createDashboardReferencesPR(ctx, ghClient, u, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner)
 }
 
-func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfig.User) error {
-	fmt.Println("verifying if workspace dir exists")
-	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
-	fmt.Println("creating update dashboard references script template")
-	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replase_dash_ref.sh", updateDashboardReferencesScript, funcMap, r)
+func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstreamURL string, dryRun bool) error {
+	updateScriptVars := map[string]string{
+		"Tag":                  tag,
+		"RancherReleaseBranch": rancherReleaseBranch,
+		"RancherUpstreamURL":   rancherUpstreamURL,
+		"DryRun":               strconv.FormatBool(dryRun),
+		"BranchBaseName":       dashboardUpdateRefsBranchBase,
+	}
+	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "update_dashboard_refs.sh", updateDashboardReferencesScript, nil, updateScriptVars)
 	if err != nil {
 		return err
 	}
@@ -239,16 +253,16 @@ func updateDashboardReferencesAndPush(r *ecmConfig.DashboardRelease, _ *ecmConfi
 	return nil
 }
 
-func createDashboardReferencesPR(ctx context.Context, cfg *ecmConfig.Dashboard, ghClient *github.Client, r *ecmConfig.DashboardRelease, u *ecmConfig.User) error {
+func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", r.Tag)),
-		Base:                github.String(r.RancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":update-build-refs-" + r.Tag),
+		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
+		Base:                github.String(rancherReleaseBranch),
+		Head:                github.String(u.GithubUsername + ":" + dashboardUpdateRefsBranchBase + "-" + tag),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	pr, _, err := ghClient.PullRequests.Create(ctx, cfg.RancherRepoOwner, cfg.RancherRepoName, pull)
+	pr, _, err := ghClient.PullRequests.Create(ctx, rancherRepoOwner, rancherRepoName, pull)
 	if err != nil {
 		return err
 	}
@@ -442,7 +456,6 @@ func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.Ra
 
 	opts.Name = releaseName
 	opts.Prerelease = true
-	opts.Draft = !preRelease
 	opts.ReleaseNotes = ""
 
 	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
@@ -1126,20 +1139,22 @@ OS=$(uname -s)
 
 # Set variables (these are populated by Go's template engine)
 DRY_RUN={{ .DryRun }}
-BRANCH_NAME=update-build-refs-{{ .Tag }}
+BRANCH_NAME={{ .BranchBaseName }}-{{ .Tag }}
 VERSION={{ .Tag }}
+RANCHER_BRANCH={{.RancherReleaseBranch}}
+RANCHER_UPSTREAM_URL={{ .RancherUpstreamURL }}
 FILENAME=package/Dockerfile
 
 # Add upstream remote if it doesn't exist
 # Note: Using ls | grep is not recommended for general use, but it's okay here
 # since we're only checking for 'rancher'
-git remote -v | grep -w upstream || git remote add upstream {{ .RancherUpstreamURL }}
+git remote -v | grep -w upstream || git remote add upstream "${RANCHER_UPSTREAM_URL}"
 git fetch upstream
 git stash
 
 # Delete the branch if it exists, then create a new one based on upstream
 git branch -D "${BRANCH_NAME}" > /dev/null 2>&1 || true
-git checkout -B "${BRANCH_NAME}" upstream/{{.RancherReleaseBranch}}
+git checkout -B "${BRANCH_NAME}" "upstream/${RANCHER_BRANCH}"
 # git clean -xfd
 
 # Function to update the file
@@ -1161,19 +1176,18 @@ update_file() {
     esac
 
     # Update CATTLE_UI_VERSION, removing leading 'v' if present (${VERSION#v} the '#v' removes the leading 'v')
-    ${_update_file_sed_cmd} "s/ENV CATTLE_UI_VERSION .*/ENV CATTLE_UI_VERSION ${VERSION#v}/" "${FILENAME}"
+    ${_update_file_sed_cmd} "s/ENV CATTLE_UI_VERSION=.*/ENV CATTLE_UI_VERSION=${VERSION#v}/" "${FILENAME}"
 
     # Update CATTLE_DASHBOARD_UI_VERSION
-    ${_update_file_sed_cmd} "s/ENV CATTLE_DASHBOARD_UI_VERSION .*/ENV CATTLE_DASHBOARD_UI_VERSION ${VERSION}/" "${FILENAME}"
+    ${_update_file_sed_cmd} "s/ENV CATTLE_DASHBOARD_UI_VERSION=.*/ENV CATTLE_DASHBOARD_UI_VERSION=${VERSION}/" "${FILENAME}"
 }
 
 # Run the update function
 update_file
 
 git add $FILENAME
-git commit --signoff -m "Update to Dashboard refs to ${VERSION}"
+git commit --signoff -m "Update Dashboard refs to ${VERSION}"
 
-# Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
 fi

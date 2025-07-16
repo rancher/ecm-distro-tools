@@ -23,7 +23,7 @@ const (
 )
 
 // CreateRelease will create a new tag and a new release with given params.
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.DashboardRelease, opts *repository.CreateReleaseOpts, rc, dryRun bool, releaseType string) error {
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
@@ -66,7 +66,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 
 	fmt.Printf("create release options: %+v\n", *opts)
 
-	if r.DryRun {
+	if dryRun {
 		fmt.Println("dry run, skipping creating release")
 		return nil
 	}
@@ -78,4 +78,21 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 
 	fmt.Println("release created: " + *createdRelease.HTMLURL)
 	return nil
+}
+
+// ReleaseBranchFromTag generates the ui release branch for a release line with the format of 'release-{major}.{minor}'. The generated release branch might not be valid depending on multiple factors that cannot be treated on this function such as it being 'master'.
+// Please make sure that this is the expected format before using the generated release branch.
+// This format is used by both `dashboard` and `ui` but might change at any time.
+func ReleaseBranchFromTag(tag string) (string, error) {
+	majorMinor := semver.MajorMinor(tag)
+
+	if majorMinor == "" {
+		return "", errors.New("the tag isn't a valid semver: " + tag)
+	}
+
+	v, _ := strings.CutPrefix(majorMinor, "v")
+
+	releaseBranch := "release-" + v
+
+	return releaseBranch, nil
 }
