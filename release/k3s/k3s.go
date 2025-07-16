@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -333,33 +334,40 @@ func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmC
 	return "", errors.New("no Git ref found with k8s version: " + r.OldK8sVersion)
 }
 
-func goVersion(r *ecmConfig.K3sRelease) (string, error) {
-	var dep map[string]interface{}
+type K8sBuildDependencies struct {
+	Dependencies []struct {
+		Name    string `yaml:"name"`
+		Version string `yaml:"version"`
+	} `yaml:"dependencies"`
+}
 
-	depFile := filepath.Join(r.Workspace, "kubernetes", "build", "dependencies.yaml")
-	dat, err := os.ReadFile(depFile)
+func goVersion(r *ecmConfig.K3sRelease) (string, error) {
+	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/build/dependencies.yaml"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch dependencies.yaml, unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
+	}
+
+	dat, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
-	if err := yaml.Unmarshal(dat, &dep); err != nil {
+	var deps K8sBuildDependencies
+
+	if err := yaml.Unmarshal(dat, &deps); err != nil {
 		return "", err
 	}
 
-	depList := dep["dependencies"].([]interface{})
-
-	for _, v := range depList {
-		var itemName, version string
-		switch item := v.(type) {
-		case map[string]interface{}:
-			itemName = fmt.Sprintf("%v", item["name"])
-			version = fmt.Sprintf("%v", item["version"])
-		case map[interface{}]interface{}:
-			itemName = fmt.Sprintf("%v", item["name"])
-			version = fmt.Sprintf("%v", item["version"])
-		}
-		if itemName == "golang: upstream version" {
-			return version, nil
+	for _, dep := range deps.Dependencies {
+		if dep.Name == "golang: upstream version" {
+			return dep.Version, nil
 		}
 	}
 
@@ -628,7 +636,7 @@ func createK3sReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmC
 	const repo = "k3s"
 
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Update to %s-%s and Go %s", r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
+		Title:               github.String(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
 		Base:                github.String(r.ReleaseBranch),
 		Head:                github.String(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
 		MaintainerCanModify: github.Bool(true),
