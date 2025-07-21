@@ -451,7 +451,7 @@ func runTagScript(r *ecmConfig.K3sRelease, gitConfigFile, wrapperImageTag string
 		"-e", "GOCACHE=" + containerGoCachePath,
 		"-w", containerK8sPath,
 		wrapperImageTag,
-		"./tag.sh", r.NewK8sVersion + "-k3s1",
+		"./tag.sh", r.NewK8sVersion + "-" + r.NewSuffix,
 	}
 
 	fmt.Println("running tag script")
