@@ -81,7 +81,7 @@ func (r *ReleaseInspector) imageMap(version string) (map[string]ReleaseImage, er
 	}
 
 	// read additional images from k3s-images.txt
-	images, err := r.imageList(K3sImagesFile)
+	images, err := r.imageList(k3sImagesFile)
 	if err != nil {
 		return nil, err
 	}
