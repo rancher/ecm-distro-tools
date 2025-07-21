@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	K3sImagesFile = "k3s-images.txt"
+	k3sImagesFile = "k3s-images.txt"
 )
 
 type ReleaseImage struct {
