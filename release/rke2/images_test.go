@@ -8,19 +8,19 @@ import (
 	"testing/fstest"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	reg "github.com/rancher/ecm-distro-tools/registry"
+	"github.com/rancher/ecm-distro-tools/registry"
 )
 
 type mockRegistryClient struct {
-	images map[string]reg.Image
+	images map[string]registry.Image
 }
 
-func (m *mockRegistryClient) Image(_ context.Context, ref name.Reference) (reg.Image, error) {
+func (m *mockRegistryClient) Inspect(_ context.Context, ref name.Reference) (registry.Image, error) {
 	key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
 	if img, ok := m.images[key]; ok {
 		return img, nil
 	}
-	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}, nil
+	return registry.Image{Exists: false, Platforms: make(map[registry.Platform]bool)}, nil
 }
 
 func newMockFS() fs.FS {
@@ -38,7 +38,7 @@ func newMockFS() fs.FS {
 }
 
 func TestImageMap(t *testing.T) {
-	inspector := NewReleaseInspector(newMockFS(), nil, nil, false)
+	inspector := NewReleaseInspector(newMockFS(), nil, false)
 
 	imageMap, err := inspector.imageMap()
 	if err != nil {
@@ -87,44 +87,44 @@ func TestImageMap(t *testing.T) {
 }
 
 func TestInspectRelease(t *testing.T) {
-	ossImages := map[string]reg.Image{
+	ossImages := map[string]registry.Image{
 		"rancher/rke2-runtime:v1.23.4-rke2r1": {
 			Exists: true,
-			Platforms: map[reg.Platform]bool{
+			Platforms: map[registry.Platform]bool{
 				{OS: "linux", Architecture: "amd64"}: true,
 				{OS: "linux", Architecture: "arm64"}: true,
 			},
 		},
 		"rancher/rke2-cloud-provider:v1.23.4-rke2r1": {
 			Exists: true,
-			Platforms: map[reg.Platform]bool{
+			Platforms: map[registry.Platform]bool{
 				{OS: "linux", Architecture: "amd64"}: true,
 			},
 		},
 	}
 
-	primeImages := map[string]reg.Image{
+	primeImages := map[string]registry.Image{
 		"rancher/rke2-runtime:v1.23.4-rke2r1": {
 			Exists: true,
-			Platforms: map[reg.Platform]bool{
+			Platforms: map[registry.Platform]bool{
 				{OS: "linux", Architecture: "amd64"}: true,
 				{OS: "linux", Architecture: "arm64"}: true,
 			},
 		},
 		"rancher/rke2-cloud-provider:v1.23.4-rke2r1": {
 			Exists: false,
-			Platforms: map[reg.Platform]bool{
+			Platforms: map[registry.Platform]bool{
 				{OS: "linux", Architecture: "amd64"}: true,
 			},
 		},
 	}
 
-	inspector := NewReleaseInspector(
-		newMockFS(),
-		&mockRegistryClient{images: ossImages},
-		&mockRegistryClient{images: primeImages},
-		false,
-	)
+	registries := map[string]registry.Inspector{
+		"oss":   &mockRegistryClient{images: ossImages},
+		"prime": &mockRegistryClient{images: primeImages},
+	}
+
+	inspector := NewReleaseInspector(newMockFS(), registries, false)
 
 	results, err := inspector.InspectRelease(context.Background(), "v1.23.4+rke2r1")
 	if err != nil {
@@ -140,22 +140,25 @@ func TestInspectRelease(t *testing.T) {
 		imageName := result.Reference.Context().RepositoryStr() + ":" + result.Reference.Identifier()
 		switch imageName {
 		case "rancher/rke2-runtime:v1.23.4-rke2r1":
-			if !result.OSSImage.Exists || !result.PrimeImage.Exists {
-				t.Errorf("rke2-runtime should exist in both registries")
+			if !result.OSSImage().Exists {
+				t.Errorf("expected OSSImage to exist, but it doesn't")
+			}
+			if !result.PrimeImage().Exists {
+				t.Errorf("expected PrimeImage to exist, but it doesn't")
 			}
 		case "rancher/rke2-cloud-provider:v1.23.4-rke2r1":
-			if !result.OSSImage.Exists {
-				t.Errorf("rke2-cloud-provider should exist in OSS registry")
+			if !result.OSSImage().Exists {
+				t.Errorf("expected OSSImage to exist, but it doesn't")
 			}
-			if result.PrimeImage.Exists {
-				t.Errorf("rke2-cloud-provider should not exist in prime registry")
+			if result.PrimeImage().Exists {
+				t.Errorf("expected PrimeImage not to exist, but it does")
 			}
 		}
 	}
 }
 
 func TestInspectReleaseUnsupportedVersion(t *testing.T) {
-	inspector := NewReleaseInspector(newMockFS(), nil, nil, false)
+	inspector := NewReleaseInspector(newMockFS(), nil, false)
 
 	_, err := inspector.InspectRelease(context.Background(), "v1.25.4+k3s1")
 	if err == nil {

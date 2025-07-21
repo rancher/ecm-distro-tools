@@ -9,12 +9,8 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	reg "github.com/rancher/ecm-distro-tools/registry"
+	"github.com/rancher/ecm-distro-tools/registry"
 )
-
-type RegistryClient interface {
-	Image(ctx context.Context, ref name.Reference) (reg.Image, error)
-}
 
 const (
 	K3sImagesFile = "k3s-images.txt"
@@ -28,23 +24,23 @@ type ReleaseImage struct {
 
 type Image struct {
 	ReleaseImage
-	RegistryResults map[string]reg.Image
+	RegistryResults map[string]registry.Image
 }
 
-func (i Image) OSSImage() reg.Image {
+func (i Image) OSSImage() registry.Image {
 	if img, ok := i.RegistryResults["oss"]; ok {
 		return img
 	}
-	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
+	return registry.Image{Exists: false, Platforms: make(map[registry.Platform]bool)}
 }
 
 type ReleaseInspector struct {
 	assets     fs.FS
-	registries map[string]RegistryClient
+	registries map[string]registry.Inspector
 	debug      bool
 }
 
-func NewReleaseInspector(assets fs.FS, registries map[string]RegistryClient, debug bool) *ReleaseInspector {
+func NewReleaseInspector(assets fs.FS, registries map[string]registry.Inspector, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
 		assets:     assets,
 		registries: registries,
@@ -141,15 +137,9 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 		refToReleaseImage[key] = img
 	}
 
-	// Set up registry clients
-	registryClients := make(map[string]reg.RegistryClient)
-	for name, client := range r.registries {
-		registryClients[name] = reg.RegistryClient(client)
-	}
-
 	// Fetch images concurrently
-	fetcher := reg.NewMultiRegistryFetcher(registryClients)
-	resultChan, _ := fetcher.FetchImages(ctx, refs)
+	group := registry.NewRegistryGroup(r.registries)
+	resultChan, _ := group.FetchImages(ctx, refs)
 
 	// Collect results
 	var results []Image

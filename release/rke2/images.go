@@ -8,13 +8,9 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	reg "github.com/rancher/ecm-distro-tools/registry"
+	"github.com/rancher/ecm-distro-tools/registry"
 	"golang.org/x/sync/errgroup"
 )
-
-type RegistryClient interface {
-	Image(ctx context.Context, ref name.Reference) (reg.Image, error)
-}
 
 type Architecture string
 
@@ -39,31 +35,31 @@ type ReleaseImage struct {
 // Image contains the manifest info of an image in multiple registries
 type Image struct {
 	ReleaseImage
-	RegistryResults map[string]reg.Image
+	RegistryResults map[string]registry.Image
 }
 
-func (i Image) OSSImage() reg.Image {
+func (i Image) OSSImage() registry.Image {
 	if img, ok := i.RegistryResults["oss"]; ok {
 		return img
 	}
-	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
+	return registry.Image{Exists: false, Platforms: make(map[registry.Platform]bool)}
 }
 
 // PrimeImage returns the Prime registry image for backward compatibility
-func (i Image) PrimeImage() reg.Image {
+func (i Image) PrimeImage() registry.Image {
 	if img, ok := i.RegistryResults["prime"]; ok {
 		return img
 	}
-	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
+	return registry.Image{Exists: false, Platforms: make(map[registry.Platform]bool)}
 }
 
 type ReleaseInspector struct {
 	assets     fs.FS
-	registries map[string]RegistryClient
+	registries map[string]registry.Inspector
 	debug      bool
 }
 
-func NewReleaseInspector(fs fs.FS, registries map[string]RegistryClient, debug bool) *ReleaseInspector {
+func NewReleaseInspector(fs fs.FS, registries map[string]registry.Inspector, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
 		assets:     fs,
 		registries: registries,
@@ -177,13 +173,8 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 		refToReleaseImage[key] = img
 	}
 
-	registryClients := make(map[string]reg.RegistryClient)
-	for name, client := range r.registries {
-		registryClients[name] = reg.RegistryClient(client)
-	}
-
-	fetcher := reg.NewMultiRegistryFetcher(registryClients)
-	resultChan, _ := fetcher.FetchImages(ctx, refs)
+	group := registry.NewRegistryGroup(r.registries)
+	resultChan, _ := group.FetchImages(ctx, refs)
 
 	var results []Image
 	for fetchResult := range resultChan {

@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	reg "github.com/rancher/ecm-distro-tools/registry"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
@@ -363,6 +364,24 @@ func (k K3SContents) CSV(w io.Writer) {
 	}
 }
 
+func setupRegistries(registryConfigs map[string]config.RegistryConfig, includePrime bool) map[string]reg.Inspector {
+	registries := map[string]reg.Inspector{
+		"oss": reg.NewClient(ossRegistry, debug),
+	}
+
+	for name, regConfig := range registryConfigs {
+		registries[name] = reg.NewInspectorFromConfig(&regConfig, debug)
+	}
+
+	if includePrime && rootConfig.PrimeRegistry != "" {
+		if _, exists := registries["prime"]; !exists {
+			registries["prime"] = reg.NewClient(rootConfig.PrimeRegistry, debug)
+		}
+	}
+
+	return registries
+}
+
 var inspectCmd = &cobra.Command{
 	Use:   "inspect",
 	Short: "Inspect release artifacts",
@@ -407,27 +426,11 @@ func inspectRKE2Release(ctx context.Context, version string, cmd *cobra.Command)
 		return err
 	}
 
-	registries := make(map[string]rke2.RegistryClient)
-
-	// docker.io is always available
-	registries["oss"] = reg.NewClient(ossRegistry, debug)
-
-	if rootConfig.RKE2 != nil && rootConfig.RKE2.Registries != nil {
-		for name, regConfig := range rootConfig.RKE2.Registries {
-			// use MappingClient if repository mappings are configured
-			if len(regConfig.RepositoryMappings) > 0 {
-				registries[name] = reg.NewMappingClient(regConfig.FullRegistry(), regConfig.RepositoryMappings, debug)
-			} else {
-				registries[name] = reg.NewClient(regConfig.FullRegistry(), debug)
-			}
-		}
+	var registryConfigs map[string]config.RegistryConfig
+	if rootConfig.RKE2 != nil {
+		registryConfigs = rootConfig.RKE2.Registries
 	}
-
-	if rootConfig.PrimeRegistry != "" {
-		if _, exists := registries["prime"]; !exists {
-			registries["prime"] = reg.NewClient(rootConfig.PrimeRegistry, debug)
-		}
-	}
+	registries := setupRegistries(registryConfigs, true)
 
 	inspector := rke2.NewReleaseInspector(releaseFs, registries, debug)
 
@@ -455,19 +458,11 @@ func inspectK3SRelease(ctx context.Context, version string, cmd *cobra.Command) 
 		return err
 	}
 
-	registries := make(map[string]k3s.RegistryClient)
-
-	registries["oss"] = reg.NewClient(ossRegistry, debug)
-
-	if rootConfig.K3s != nil && rootConfig.K3s.Registries != nil {
-		for name, regConfig := range rootConfig.K3s.Registries {
-			if len(regConfig.RepositoryMappings) > 0 {
-				registries[name] = reg.NewMappingClient(regConfig.FullRegistry(), regConfig.RepositoryMappings, debug)
-			} else {
-				registries[name] = reg.NewClient(regConfig.FullRegistry(), debug)
-			}
-		}
+	var registryConfigs map[string]config.RegistryConfig
+	if rootConfig.K3s != nil {
+		registryConfigs = rootConfig.K3s.Registries
 	}
+	registries := setupRegistries(registryConfigs, false)
 
 	inspector := k3s.NewReleaseInspector(releaseFs, registries, debug)
 

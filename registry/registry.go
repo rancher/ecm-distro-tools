@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 )
 
 type Platform struct {
@@ -29,7 +30,7 @@ type Client struct {
 	registry string
 }
 
-// MappingClient wraps a Client with repository path mappings
+// MappingClient rewrites image refs
 type MappingClient struct {
 	client   *Client
 	mappings map[string]string
@@ -39,7 +40,6 @@ func NewClient(registry string, debug bool) *Client {
 	return &Client{registry}
 }
 
-// NewMappingClient creates a client with repository path mappings
 func NewMappingClient(registry string, mappings map[string]string, debug bool) *MappingClient {
 	return &MappingClient{
 		client:   NewClient(registry, debug),
@@ -47,8 +47,7 @@ func NewMappingClient(registry string, mappings map[string]string, debug bool) *
 	}
 }
 
-// Image implements RegistryClient interface with repository mappings
-func (m *MappingClient) Image(ctx context.Context, ref name.Reference) (Image, error) {
+func (m *MappingClient) Inspect(ctx context.Context, ref name.Reference) (Image, error) {
 	originalRepo := ref.Context().RepositoryStr()
 	if mappedRepo, exists := m.mappings[originalRepo]; exists {
 		newRepoName := m.client.registry + "/" + mappedRepo
@@ -62,10 +61,10 @@ func (m *MappingClient) Image(ctx context.Context, ref name.Reference) (Image, e
 			return Image{Platforms: make(map[Platform]bool)}, err
 		}
 
-		return m.client.Image(ctx, mappedRef)
+		return m.client.Inspect(ctx, mappedRef)
 	}
 
-	return m.client.Image(ctx, ref)
+	return m.client.Inspect(ctx, ref)
 }
 
 func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {
@@ -77,7 +76,7 @@ func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {
 	return name.NewTag(newRef.String() + ":" + ref.Identifier())
 }
 
-func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
+func (c *Client) Inspect(ctx context.Context, ref name.Reference) (Image, error) {
 	info := Image{
 		Platforms: make(map[Platform]bool),
 	}
@@ -158,23 +157,31 @@ type ImageFetchResult struct {
 	Results   map[string]Image // registry name -> image info
 }
 
-type RegistryClient interface {
-	Image(ctx context.Context, ref name.Reference) (Image, error)
+type Inspector interface {
+	Inspect(ctx context.Context, ref name.Reference) (Image, error)
 }
 
-type MultiRegistryFetcher struct {
-	registries map[string]RegistryClient
+func NewInspectorFromConfig(regConfig *config.RegistryConfig, debug bool) Inspector {
+	registry := regConfig.FullRegistry()
+	if len(regConfig.RepositoryMappings) > 0 {
+		return NewMappingClient(registry, regConfig.RepositoryMappings, debug)
+	}
+	return NewClient(registry, debug)
 }
 
-func NewMultiRegistryFetcher(registries map[string]RegistryClient) *MultiRegistryFetcher {
-	return &MultiRegistryFetcher{
+type RegistryGroup struct {
+	registries map[string]Inspector
+}
+
+func NewRegistryGroup(registries map[string]Inspector) *RegistryGroup {
+	return &RegistryGroup{
 		registries: registries,
 	}
 }
 
-func (f *MultiRegistryFetcher) FetchImages(ctx context.Context, refs []name.Reference) (<-chan ImageFetchResult, <-chan error) {
+func (r *RegistryGroup) FetchImages(ctx context.Context, refs []name.Reference) (<-chan ImageFetchResult, <-chan error) {
 	resultChan := make(chan ImageFetchResult, len(refs))
-	errorChan := make(chan error, len(refs)*len(f.registries))
+	errorChan := make(chan error, len(refs)*len(r.registries))
 
 	go func() {
 		defer close(resultChan)
@@ -192,8 +199,8 @@ func (f *MultiRegistryFetcher) FetchImages(ctx context.Context, refs []name.Refe
 				defer wg.Done()
 
 				results := make(map[string]Image)
-				for registryName, client := range f.registries {
-					image, err := client.Image(ctx, imageRef)
+				for registryName, client := range r.registries {
+					image, err := client.Inspect(ctx, imageRef)
 					if err != nil {
 						errorChan <- err
 						image = emptyImage

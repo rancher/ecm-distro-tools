@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	reg "github.com/rancher/ecm-distro-tools/registry"
+	"github.com/rancher/ecm-distro-tools/registry"
 )
 
 func newMockFS() fs.FS {
@@ -16,17 +16,17 @@ func newMockFS() fs.FS {
 }
 
 type mockClient struct {
-	images map[string]reg.Image
+	images map[string]registry.Image
 }
 
-func (m *mockClient) Image(ctx context.Context, ref name.Reference) (reg.Image, error) {
+func (m *mockClient) Inspect(ctx context.Context, ref name.Reference) (registry.Image, error) {
 	key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
 	if image, ok := m.images[key]; ok {
 		return image, nil
 	}
-	return reg.Image{
+	return registry.Image{
 		Exists:    false,
-		Platforms: make(map[reg.Platform]bool),
+		Platforms: make(map[registry.Platform]bool),
 	}, nil
 }
 
@@ -102,24 +102,24 @@ func TestImageMap(t *testing.T) {
 
 func TestInspectRelease(t *testing.T) {
 	mockClient := &mockClient{
-		images: map[string]reg.Image{
+		images: map[string]registry.Image{
 			"rancher/k3s:v1.33.1-k3s1": {
 				Exists: true,
-				Platforms: map[reg.Platform]bool{
+				Platforms: map[registry.Platform]bool{
 					{OS: "linux", Architecture: "amd64"}: true,
 					{OS: "linux", Architecture: "arm64"}: true,
 				},
 			},
 			"rancher/klipper-helm:v0.9.5-build20250306": {
 				Exists: true,
-				Platforms: map[reg.Platform]bool{
+				Platforms: map[registry.Platform]bool{
 					{OS: "linux", Architecture: "amd64"}: true,
 					{OS: "linux", Architecture: "arm64"}: true,
 				},
 			},
 			"rancher/mirrored-pause:3.6": {
 				Exists: true,
-				Platforms: map[reg.Platform]bool{
+				Platforms: map[registry.Platform]bool{
 					{OS: "linux", Architecture: "amd64"}: true,
 					{OS: "linux", Architecture: "arm64"}: true,
 				},
@@ -127,7 +127,11 @@ func TestInspectRelease(t *testing.T) {
 		},
 	}
 
-	inspector := NewReleaseInspector(newMockFS(), mockClient, false)
+	registries := map[string]registry.Inspector{
+		"oss": mockClient,
+	}
+
+	inspector := NewReleaseInspector(newMockFS(), registries, false)
 
 	results, err := inspector.InspectRelease(context.Background(), "v1.33.1+k3s1")
 	if err != nil {
@@ -143,7 +147,7 @@ func TestInspectRelease(t *testing.T) {
 	for _, result := range results {
 		if strings.Contains(result.Reference.String(), "rancher/k3s:v1.33.1-k3s1") {
 			found = true
-			if !result.OSSImage.Exists {
+			if !result.OSSImage().Exists {
 				t.Errorf("expected main k3s image to exist")
 			}
 			break
