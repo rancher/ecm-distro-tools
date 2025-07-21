@@ -66,6 +66,26 @@ const (
 	PrimeArtifactsBucket = "prime-artifacts"
 )
 
+// RegistryConfig defines a registry with host, optional namespace, and repository mappings.
+// The "oss" registry (docker.io) is always available by default.
+//
+//	Example registry: {"host": "example.com"}
+//	Example with namespace: {"host": "example.com", "namespace": "org"}
+//	Example with mappings:  {"host": "ghcr.io", "repository_mappings": {"rancher/k3s": "k3s-io/k3s"}}
+type RegistryConfig struct {
+	Host               string            `json:"host"`                          // Registry hostname (e.g., "ghcr.io", "example.com")
+	Namespace          string            `json:"namespace,omitempty"`           // Optional namespace path (e.g., "myorg")
+	RepositoryMappings map[string]string `json:"repository_mappings,omitempty"` // Maps original repo paths to different paths (e.g., "rancher/k3s": "k3s-io/k3s")
+}
+
+// FullRegistry returns the complete registry path (host + namespace)
+func (r RegistryConfig) FullRegistry() string {
+	if r.Namespace == "" {
+		return r.Host
+	}
+	return r.Host + "/" + r.Namespace
+}
+
 // K3sRelease
 type K3sRelease struct {
 	OldK8sVersion                 string `json:"old_k8s_version"`
@@ -108,7 +128,8 @@ type CLIRelease struct {
 
 // RKE2
 type RKE2 struct {
-	Versions []string `json:"versions"`
+	Versions   []string                  `json:"versions"`
+	Registries map[string]RegistryConfig `json:"registries,omitempty"`
 }
 
 // ChartsRelease
@@ -127,7 +148,8 @@ type User struct {
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `json:"versions"`
+	Versions   map[string]K3sRelease     `json:"versions"`
+	Registries map[string]RegistryConfig `json:"registries,omitempty"`
 }
 
 // Rancher
@@ -244,6 +266,15 @@ func ExampleConfig() (string, error) {
 					K3sUpstreamURL:                "git@github.com:k3s-io/k3s.git",
 				},
 			},
+			// Registry examples: repository mappings for different structures, namespaces for organization
+			Registries: map[string]RegistryConfig{
+				"ghcr": {
+					Host: "ghcr.io",
+					RepositoryMappings: map[string]string{
+						"rancher/k3s": "k3s-io/k3s",
+					},
+				},
+			},
 		},
 		RKE2: &RKE2{
 			Versions: []string{"v1.x.y"},
@@ -327,6 +358,8 @@ K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
 		K8s Rancher URL:  {{ $k3sValue.K8sRancherURL}}
 		Workspace:        {{ $k3sValue.Workspace}}
 		K3s Upstream URL: {{ $k3sValue.K3sUpstreamURL}}{{ end }}
+	Registries:{{ range $regName, $regConfig := .K3s.Registries }}
+		{{ $regName }}:           {{ $regConfig.Host }}{{ if $regConfig.Namespace }}/{{ $regConfig.Namespace }}{{ end }}{{ end }}
 
 Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 	{{ $rancherVersion }}:
@@ -335,6 +368,8 @@ Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 
 RKE2{{ range .RKE2.Versions }}
 	{{ . }}{{ end}}
+	Registries:{{ range $regName, $regConfig := .RKE2.Registries }}
+		{{ $regName }}:           {{ $regConfig.Host }}{{ if $regConfig.Namespace }}/{{ $regConfig.Namespace }}{{ end }}{{ end }}
 
 Charts
     Workspace:     {{.Charts.Workspace}}
