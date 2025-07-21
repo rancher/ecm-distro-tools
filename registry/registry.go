@@ -29,8 +29,43 @@ type Client struct {
 	registry string
 }
 
+// MappingClient wraps a Client with repository path mappings
+type MappingClient struct {
+	client   *Client
+	mappings map[string]string
+}
+
 func NewClient(registry string, debug bool) *Client {
 	return &Client{registry}
+}
+
+// NewMappingClient creates a client with repository path mappings
+func NewMappingClient(registry string, mappings map[string]string, debug bool) *MappingClient {
+	return &MappingClient{
+		client:   NewClient(registry, debug),
+		mappings: mappings,
+	}
+}
+
+// Image implements RegistryClient interface with repository mappings
+func (m *MappingClient) Image(ctx context.Context, ref name.Reference) (Image, error) {
+	originalRepo := ref.Context().RepositoryStr()
+	if mappedRepo, exists := m.mappings[originalRepo]; exists {
+		newRepoName := m.client.registry + "/" + mappedRepo
+		newRepo, err := name.NewRepository(newRepoName)
+		if err != nil {
+			return Image{Platforms: make(map[Platform]bool)}, err
+		}
+
+		mappedRef, err := name.NewTag(newRepo.String() + ":" + ref.Identifier())
+		if err != nil {
+			return Image{Platforms: make(map[Platform]bool)}, err
+		}
+
+		return m.client.Image(ctx, mappedRef)
+	}
+
+	return m.client.Image(ctx, ref)
 }
 
 func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {

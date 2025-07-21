@@ -28,20 +28,27 @@ type ReleaseImage struct {
 
 type Image struct {
 	ReleaseImage
-	OSSImage reg.Image
+	RegistryResults map[string]reg.Image
+}
+
+func (i Image) OSSImage() reg.Image {
+	if img, ok := i.RegistryResults["oss"]; ok {
+		return img
+	}
+	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
 }
 
 type ReleaseInspector struct {
-	assets fs.FS
-	oss    RegistryClient
-	debug  bool
+	assets     fs.FS
+	registries map[string]RegistryClient
+	debug      bool
 }
 
-func NewReleaseInspector(assets fs.FS, oss RegistryClient, debug bool) *ReleaseInspector {
+func NewReleaseInspector(assets fs.FS, registries map[string]RegistryClient, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
-		assets: assets,
-		oss:    oss,
-		debug:  debug,
+		assets:     assets,
+		registries: registries,
+		debug:      debug,
 	}
 }
 
@@ -123,7 +130,7 @@ func (r *ReleaseInspector) imageList(filename string) ([]string, error) {
 	return strings.Split(strings.TrimSpace(string(content)), "\n"), nil
 }
 
-// checkImages fetches the manifest of all k3s images in the docker registry
+// checkImages fetches the manifest of all k3s images in the configured registries
 func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[string]ReleaseImage) ([]Image, error) {
 	var refs []name.Reference
 	refToReleaseImage := make(map[string]ReleaseImage)
@@ -135,11 +142,13 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 	}
 
 	// Set up registry clients
-	registries := make(map[string]reg.RegistryClient)
-	registries["oss"] = reg.RegistryClient(r.oss)
+	registryClients := make(map[string]reg.RegistryClient)
+	for name, client := range r.registries {
+		registryClients[name] = reg.RegistryClient(client)
+	}
 
 	// Fetch images concurrently
-	fetcher := reg.NewMultiRegistryFetcher(registries)
+	fetcher := reg.NewMultiRegistryFetcher(registryClients)
 	resultChan, _ := fetcher.FetchImages(ctx, refs)
 
 	// Collect results
@@ -149,8 +158,8 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 		releaseImage := refToReleaseImage[key]
 
 		result := Image{
-			ReleaseImage: releaseImage,
-			OSSImage:     fetchResult.Results["oss"],
+			ReleaseImage:    releaseImage,
+			RegistryResults: fetchResult.Results,
 		}
 
 		results = append(results, result)

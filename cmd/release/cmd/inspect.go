@@ -64,15 +64,35 @@ func formatImageRef(ref name.Reference) string {
 }
 
 func (r RKE2Contents) Table(w io.Writer) {
+	if len(r.Images) == 0 {
+		fmt.Fprintln(w, "no images found")
+		return
+	}
+
 	results := r.Images
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
+	registryNames := make(map[string]bool)
+	for _, result := range results {
+		for regName := range result.RegistryResults {
+			registryNames[regName] = true
+		}
+	}
+
+	var registryList []string
+	for regName := range registryNames {
+		registryList = append(registryList, regName)
+	}
+	sort.Strings(registryList)
+
 	missingCount := 0
 	for _, result := range results {
-		if !result.OSSImage.Exists || !result.PrimeImage.Exists {
-			missingCount++
+		for _, regName := range registryList {
+			if img, ok := result.RegistryResults[regName]; !ok || !img.Exists {
+				missingCount++
+			}
 		}
 	}
 	if missingCount > 0 {
@@ -84,41 +104,72 @@ func (r RKE2Contents) Table(w io.Writer) {
 	tw := tabwriter.NewWriter(w, 0, 8, 2, ' ', 0)
 	defer tw.Flush()
 
-	fmt.Fprintln(tw, "image\toss\tprime\tsig\tamd64\tarm64\twin")
-	fmt.Fprintln(tw, "-----\t---\t-----\t---\t-----\t-----\t-------")
+	header := []string{"image"}
+	header = append(header, registryList...)
+	header = append(header, "sig", "amd64", "arm64", "win")
+	fmt.Fprintln(tw, strings.Join(header, "\t"))
+
+	separator := []string{"-----"}
+	for range registryList {
+		separator = append(separator, "---")
+	}
+	separator = append(separator, "---", "-----", "-----", "-------")
+	fmt.Fprintln(tw, strings.Join(separator, "\t"))
 
 	for _, result := range results {
-		ossStatus := "✗"
-		if result.OSSImage.Exists {
-			ossStatus = "✓"
+		row := []string{formatImageRef(result.Reference)}
+
+		for _, regName := range registryList {
+			status := "✗"
+			if img, ok := result.RegistryResults[regName]; ok && img.Exists {
+				status = "✓"
+			}
+			row = append(row, status)
 		}
-		primeStatus := "✗"
-		if result.PrimeImage.Exists {
-			primeStatus = "✓"
-		}
-		tw.Write([]byte(strings.Join([]string{
-			formatImageRef(result.Reference),
-			ossStatus,
-			primeStatus,
+
+		ossImg := result.OSSImage()
+		primeImg := result.PrimeImage()
+		row = append(row,
 			"?", // sigstore not implemented
-			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "amd64"}),
-			archStatus(result.ExpectsLinuxArm64, result.OSSImage, result.PrimeImage, reg.Platform{OS: "linux", Architecture: "arm64"}),
-			windowsStatus(result.ExpectsWindows, result.OSSImage.Exists && result.PrimeImage.Exists),
-			"",
-		}, "\t") + "\n"))
+			archStatus(result.ExpectsLinuxAmd64, ossImg, primeImg, reg.Platform{OS: "linux", Architecture: "amd64"}),
+			archStatus(result.ExpectsLinuxArm64, ossImg, primeImg, reg.Platform{OS: "linux", Architecture: "arm64"}),
+			windowsStatus(result.ExpectsWindows, ossImg.Exists && primeImg.Exists),
+		)
+
+		fmt.Fprintln(tw, strings.Join(row, "\t"))
 	}
 }
 
 func (k K3SContents) Table(w io.Writer) {
+	if len(k.Images) == 0 {
+		fmt.Fprintln(w, "no images found")
+		return
+	}
+
 	results := k.Images
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
+	registryNames := make(map[string]bool)
+	for _, result := range results {
+		for regName := range result.RegistryResults {
+			registryNames[regName] = true
+		}
+	}
+
+	var registryList []string
+	for regName := range registryNames {
+		registryList = append(registryList, regName)
+	}
+	sort.Strings(registryList)
+
 	missingCount := 0
 	for _, result := range results {
-		if !result.OSSImage.Exists {
-			missingCount++
+		for _, regName := range registryList {
+			if img, ok := result.RegistryResults[regName]; !ok || !img.Exists {
+				missingCount++
+			}
 		}
 	}
 	if missingCount > 0 {
@@ -130,41 +181,86 @@ func (k K3SContents) Table(w io.Writer) {
 	tw := tabwriter.NewWriter(w, 0, 8, 2, ' ', 0)
 	defer tw.Flush()
 
-	fmt.Fprintln(tw, "image\tamd64\tarm64")
-	fmt.Fprintln(tw, "-----\t-----\t-----")
+	header := []string{"image"}
+	header = append(header, registryList...)
+	header = append(header, "amd64", "arm64")
+	fmt.Fprintln(tw, strings.Join(header, "\t"))
+
+	separator := []string{"-----"}
+	for range registryList {
+		separator = append(separator, "---")
+	}
+	separator = append(separator, "-----", "-----")
+	fmt.Fprintln(tw, strings.Join(separator, "\t"))
 
 	for _, result := range results {
-		tw.Write([]byte(strings.Join([]string{
-			formatImageRef(result.Reference),
-			archStatus(result.ExpectsLinuxAmd64, result.OSSImage, reg.Image{}, reg.Platform{OS: "linux", Architecture: "amd64"}),
-			archStatus(result.ExpectsLinuxArm64, result.OSSImage, reg.Image{}, reg.Platform{OS: "linux", Architecture: "arm64"}),
-			"",
-		}, "\t") + "\n"))
+		row := []string{formatImageRef(result.Reference)}
+
+		for _, regName := range registryList {
+			status := "✗"
+			if img, ok := result.RegistryResults[regName]; ok && img.Exists {
+				status = "✓"
+			}
+			row = append(row, status)
+		}
+
+		ossImg := result.OSSImage()
+		row = append(row,
+			archStatus(result.ExpectsLinuxAmd64, ossImg, reg.Image{}, reg.Platform{OS: "linux", Architecture: "amd64"}),
+			archStatus(result.ExpectsLinuxArm64, ossImg, reg.Image{}, reg.Platform{OS: "linux", Architecture: "arm64"}),
+		)
+
+		fmt.Fprintln(tw, strings.Join(row, "\t"))
 	}
 }
 
 func (r RKE2Contents) CSV(w io.Writer) {
+	if len(r.Images) == 0 {
+		fmt.Fprintln(w, "no images found")
+		return
+	}
+
 	results := r.Images
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
-	fmt.Fprintln(w, "image,oss,prime,sig,amd64,arm64,win")
+	registryNames := make(map[string]bool)
+	for _, result := range results {
+		for regName := range result.RegistryResults {
+			registryNames[regName] = true
+		}
+	}
+
+	var registryList []string
+	for regName := range registryNames {
+		registryList = append(registryList, regName)
+	}
+	sort.Strings(registryList)
+
+	header := []string{"image"}
+	header = append(header, registryList...)
+	header = append(header, "sig", "amd64", "arm64", "win")
+	fmt.Fprintln(w, strings.Join(header, ","))
 
 	for _, result := range results {
-		ossStatus := "N"
-		if result.OSSImage.Exists {
-			ossStatus = "Y"
+		values := []string{formatImageRef(result.Reference)}
+
+		for _, regName := range registryList {
+			status := "N"
+			if img, ok := result.RegistryResults[regName]; ok && img.Exists {
+				status = "Y"
+			}
+			values = append(values, status)
 		}
-		primeStatus := "N"
-		if result.PrimeImage.Exists {
-			primeStatus = "Y"
-		}
+
+		ossImg := result.OSSImage()
+		primeImg := result.PrimeImage()
 
 		amd64Status := ""
 		if result.ExpectsLinuxAmd64 {
-			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] &&
-				result.PrimeImage.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] {
+			if ossImg.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] &&
+				primeImg.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] {
 				amd64Status = "Y"
 			} else {
 				amd64Status = "N"
@@ -173,8 +269,8 @@ func (r RKE2Contents) CSV(w io.Writer) {
 
 		arm64Status := ""
 		if result.ExpectsLinuxArm64 {
-			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] &&
-				result.PrimeImage.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
+			if ossImg.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] &&
+				primeImg.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
 				arm64Status = "Y"
 			} else {
 				arm64Status = "N"
@@ -183,38 +279,69 @@ func (r RKE2Contents) CSV(w io.Writer) {
 
 		winStatus := ""
 		if result.ExpectsWindows {
-			if result.OSSImage.Exists && result.PrimeImage.Exists {
+			if ossImg.Exists && primeImg.Exists {
 				winStatus = "Y"
 			} else {
 				winStatus = "N"
 			}
 		}
 
-		values := []string{
-			formatImageRef(result.Reference),
-			ossStatus,
-			primeStatus,
+		values = append(values,
 			"?", // sigstore not implemented
 			amd64Status,
 			arm64Status,
 			winStatus,
-		}
+		)
+
 		fmt.Fprintln(w, strings.Join(values, ","))
 	}
 }
 
 func (k K3SContents) CSV(w io.Writer) {
+	if len(k.Images) == 0 {
+		fmt.Fprintln(w, "no images found")
+		return
+	}
+
 	results := k.Images
 	sort.Slice(results, func(i, j int) bool {
 		return formatImageRef(results[i].Reference) < formatImageRef(results[j].Reference)
 	})
 
-	fmt.Fprintln(w, "image,amd64,arm64")
+	registryNames := make(map[string]bool)
+	for _, result := range results {
+		for regName := range result.RegistryResults {
+			registryNames[regName] = true
+		}
+	}
+
+	var registryList []string
+	for regName := range registryNames {
+		registryList = append(registryList, regName)
+	}
+	sort.Strings(registryList)
+
+	header := []string{"image"}
+	header = append(header, registryList...)
+	header = append(header, "amd64", "arm64")
+	fmt.Fprintln(w, strings.Join(header, ","))
 
 	for _, result := range results {
+		values := []string{formatImageRef(result.Reference)}
+
+		for _, regName := range registryList {
+			status := "N"
+			if img, ok := result.RegistryResults[regName]; ok && img.Exists {
+				status = "Y"
+			}
+			values = append(values, status)
+		}
+
+		ossImg := result.OSSImage()
+
 		amd64Status := ""
 		if result.ExpectsLinuxAmd64 {
-			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] {
+			if ossImg.Platforms[reg.Platform{OS: "linux", Architecture: "amd64"}] {
 				amd64Status = "Y"
 			} else {
 				amd64Status = "N"
@@ -223,18 +350,15 @@ func (k K3SContents) CSV(w io.Writer) {
 
 		arm64Status := ""
 		if result.ExpectsLinuxArm64 {
-			if result.OSSImage.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
+			if ossImg.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
 				arm64Status = "Y"
 			} else {
 				arm64Status = "N"
 			}
 		}
 
-		values := []string{
-			formatImageRef(result.Reference),
-			amd64Status,
-			arm64Status,
-		}
+		values = append(values, amd64Status, arm64Status)
+
 		fmt.Fprintln(w, strings.Join(values, ","))
 	}
 }
@@ -283,14 +407,29 @@ func inspectRKE2Release(ctx context.Context, version string, cmd *cobra.Command)
 		return err
 	}
 
-	ossClient := reg.NewClient(ossRegistry, debug)
+	registries := make(map[string]rke2.RegistryClient)
 
-	var primeClient *reg.Client
-	if rootConfig.PrimeRegistry != "" {
-		primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug)
+	// docker.io is always available
+	registries["oss"] = reg.NewClient(ossRegistry, debug)
+
+	if rootConfig.RKE2 != nil && rootConfig.RKE2.Registries != nil {
+		for name, regConfig := range rootConfig.RKE2.Registries {
+			// use MappingClient if repository mappings are configured
+			if len(regConfig.RepositoryMappings) > 0 {
+				registries[name] = reg.NewMappingClient(regConfig.FullRegistry(), regConfig.RepositoryMappings, debug)
+			} else {
+				registries[name] = reg.NewClient(regConfig.FullRegistry(), debug)
+			}
+		}
 	}
 
-	inspector := rke2.NewReleaseInspector(releaseFs, ossClient, primeClient, debug)
+	if rootConfig.PrimeRegistry != "" {
+		if _, exists := registries["prime"]; !exists {
+			registries["prime"] = reg.NewClient(rootConfig.PrimeRegistry, debug)
+		}
+	}
+
+	inspector := rke2.NewReleaseInspector(releaseFs, registries, debug)
 
 	images, err := inspector.InspectRelease(ctx, version)
 	if err != nil {
@@ -316,9 +455,21 @@ func inspectK3SRelease(ctx context.Context, version string, cmd *cobra.Command) 
 		return err
 	}
 
-	ossClient := reg.NewClient(ossRegistry, debug)
+	registries := make(map[string]k3s.RegistryClient)
 
-	inspector := k3s.NewReleaseInspector(releaseFs, ossClient, debug)
+	registries["oss"] = reg.NewClient(ossRegistry, debug)
+
+	if rootConfig.K3s != nil && rootConfig.K3s.Registries != nil {
+		for name, regConfig := range rootConfig.K3s.Registries {
+			if len(regConfig.RepositoryMappings) > 0 {
+				registries[name] = reg.NewMappingClient(regConfig.FullRegistry(), regConfig.RepositoryMappings, debug)
+			} else {
+				registries[name] = reg.NewClient(regConfig.FullRegistry(), debug)
+			}
+		}
+	}
+
+	inspector := k3s.NewReleaseInspector(releaseFs, registries, debug)
 
 	images, err := inspector.InspectRelease(ctx, version)
 	if err != nil {

@@ -36,26 +36,38 @@ type ReleaseImage struct {
 	ExpectsWindows    bool
 }
 
-// Image contains the manifest info of an image in the oss and prime registries
+// Image contains the manifest info of an image in multiple registries
 type Image struct {
 	ReleaseImage
-	OSSImage   reg.Image
-	PrimeImage reg.Image
+	RegistryResults map[string]reg.Image
+}
+
+func (i Image) OSSImage() reg.Image {
+	if img, ok := i.RegistryResults["oss"]; ok {
+		return img
+	}
+	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
+}
+
+// PrimeImage returns the Prime registry image for backward compatibility
+func (i Image) PrimeImage() reg.Image {
+	if img, ok := i.RegistryResults["prime"]; ok {
+		return img
+	}
+	return reg.Image{Exists: false, Platforms: make(map[reg.Platform]bool)}
 }
 
 type ReleaseInspector struct {
-	assets fs.FS
-	oss    RegistryClient
-	prime  RegistryClient
-	debug  bool
+	assets     fs.FS
+	registries map[string]RegistryClient
+	debug      bool
 }
 
-func NewReleaseInspector(fs fs.FS, oss, prime RegistryClient, debug bool) *ReleaseInspector {
+func NewReleaseInspector(fs fs.FS, registries map[string]RegistryClient, debug bool) *ReleaseInspector {
 	return &ReleaseInspector{
-		assets: fs,
-		oss:    oss,
-		prime:  prime,
-		debug:  debug,
+		assets:     fs,
+		registries: registries,
+		debug:      debug,
 	}
 }
 
@@ -154,7 +166,7 @@ func (r *ReleaseInspector) imageList(filename string) ([]string, error) {
 	return strings.Split(strings.TrimSpace(string(content)), "\n"), nil
 }
 
-// checkImages fetches the manifest of all rke2 images in the docker and prime registries
+// checkImages fetches the manifest of all rke2 images in the configured registries
 func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[string]ReleaseImage) ([]Image, error) {
 	var refs []name.Reference
 	refToReleaseImage := make(map[string]ReleaseImage)
@@ -165,13 +177,12 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 		refToReleaseImage[key] = img
 	}
 
-	registries := make(map[string]reg.RegistryClient)
-	registries["oss"] = reg.RegistryClient(r.oss)
-	if r.prime != nil {
-		registries["prime"] = reg.RegistryClient(r.prime)
+	registryClients := make(map[string]reg.RegistryClient)
+	for name, client := range r.registries {
+		registryClients[name] = reg.RegistryClient(client)
 	}
 
-	fetcher := reg.NewMultiRegistryFetcher(registries)
+	fetcher := reg.NewMultiRegistryFetcher(registryClients)
 	resultChan, _ := fetcher.FetchImages(ctx, refs)
 
 	var results []Image
@@ -180,12 +191,8 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 		releaseImage := refToReleaseImage[key]
 
 		result := Image{
-			ReleaseImage: releaseImage,
-			OSSImage:     fetchResult.Results["oss"],
-		}
-
-		if primeImage, ok := fetchResult.Results["prime"]; ok {
-			result.PrimeImage = primeImage
+			ReleaseImage:    releaseImage,
+			RegistryResults: fetchResult.Results,
 		}
 
 		results = append(results, result)
