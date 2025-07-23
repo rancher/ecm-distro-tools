@@ -183,7 +183,12 @@ runs:
     uses: docker/setup-buildx-action@v3
   - name: Install Cosign
     uses: sigstore/cosign-installer@v3.5.0
-  - uses: rancherlabs/slsactl/actions/install-slsactl@5dabfd2b8590a8c90d6f64b1c6ee215e24ed3bfd # v0.0.6
+  - name: Install slsactl
+    env:
+      SLSACTL_VERSION: v0.0.14
+    uses: rancherlabs/slsactl/actions/install-slsactl@${SLSACTL_VERSION}
+    with:
+      version: ${SLSACTL_VERSION}
 
   - name: Build and push image [Prime]
     shell: bash
