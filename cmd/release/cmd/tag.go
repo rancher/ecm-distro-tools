@@ -382,7 +382,7 @@ var cliTagSubCmd = &cobra.Command{
 			return err
 		}
 
-		previousTag = config.ValueOrDefault(previousTag, cliRelease.PreviousTag)
+		previousTag = config.ValueOrDefault(cliRelease.PreviousTag, previousTag)
 
 		cliOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
@@ -406,7 +406,7 @@ func previousPatch(tag string) (string, error) {
 		return "", errors.New("can't find previous tag for a new minor: " + tag)
 	}
 
-	patch -= patch
+	patch -= 1
 
 	previousPatch := fmt.Sprintf("v%d.%d.%d", version.Major(), version.Minor(), patch)
 	return previousPatch, nil
