@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	msemver "github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
@@ -376,6 +377,13 @@ var cliTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(cliRelease.ReleaseBranch, releaseBranch)
 
+		previousTag, err := previousPatch(tag)
+		if err != nil {
+			return err
+		}
+
+		previousTag = config.ValueOrDefault(previousTag, cliRelease.PreviousTag)
+
 		cliOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   repo,
@@ -384,8 +392,24 @@ var cliTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, cliRelease.PreviousTag, dryRun)
+		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, previousTag, dryRun)
 	},
+}
+
+func previousPatch(tag string) (string, error) {
+	version, err := msemver.NewVersion(tag)
+	if err != nil {
+		return "", err
+	}
+	patch := version.Patch()
+	if patch == 0 {
+		return "", errors.New("can't find previous tag for a new minor: " + tag)
+	}
+
+	patch -= patch
+
+	previousPatch := fmt.Sprintf("v%d.%d.%d", version.Major(), version.Minor(), patch)
+	return previousPatch, nil
 }
 
 func copyDashboardVersions() []string {
