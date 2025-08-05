@@ -297,6 +297,19 @@ func copyRancherVersions() []string {
 	return versions
 }
 
+func copyCLIVersions() []string {
+	versions := make([]string, len(rootConfig.CLI.Versions))
+
+	var i int
+
+	for version := range rootConfig.CLI.Versions {
+		versions[i] = version
+		i++
+	}
+
+	return versions
+}
+
 func copyReleaseTypes() []string {
 	versions := make([]string, len(rancher.ReleaseTypes))
 

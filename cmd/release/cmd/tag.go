@@ -97,6 +97,7 @@ var rke2TagSubCmd = &cobra.Command{
 						Branch:     "master",
 						Name:       version + suffix,
 						Prerelease: false,
+						Draft:      false,
 					}
 					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
 						return err
@@ -195,6 +196,7 @@ var rancherTagSubCmd = &cobra.Command{
 			Owner:        owner,
 			Branch:       releaseBranch,
 			Prerelease:   true,
+			Draft:        false,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)
@@ -303,6 +305,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Repo:   uiRepo,
 			Owner:  repoOwner,
 			Branch: releaseBranch,
+			Draft:  false,
 		}
 
 		if err := ui.CreateRelease(ctx, ghClient, &dashboardRelease, uiOpts, preRelease, dryRun, releaseType); err != nil {
@@ -314,6 +317,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Repo:   dashboardRepo,
 			Owner:  repoOwner,
 			Branch: releaseBranch,
+			Draft:  false,
 		}
 
 		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, preRelease, dryRun, releaseType)
@@ -323,6 +327,17 @@ var dashboardTagSubCmd = &cobra.Command{
 var cliTagSubCmd = &cobra.Command{
 	Use:   "cli [ga,rc] [version]",
 	Short: "Tag CLI releases",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyReleaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			return copyCLIVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
@@ -366,6 +381,7 @@ var cliTagSubCmd = &cobra.Command{
 			Repo:   repo,
 			Owner:  owner,
 			Branch: releaseBranch,
+			Draft:  false,
 		}
 
 		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, cliRelease.PreviousTag, dryRun)

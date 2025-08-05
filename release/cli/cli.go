@@ -33,7 +33,6 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 
 	opts.Name = opts.Tag
 	opts.Prerelease = true
-	opts.Draft = !rc
 	opts.ReleaseNotes = ""
 
 	if rc {

@@ -52,7 +52,6 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.Dash
 
 	opts.Name = opts.Tag
 	opts.Prerelease = true
-	opts.Draft = !rc
 	opts.ReleaseNotes = ""
 
 	if !rc {
