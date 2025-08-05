@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
@@ -97,6 +98,7 @@ var rke2TagSubCmd = &cobra.Command{
 						Branch:     "master",
 						Name:       version + suffix,
 						Prerelease: false,
+						Draft:      false,
 					}
 					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
 						return err
@@ -195,6 +197,7 @@ var rancherTagSubCmd = &cobra.Command{
 			Owner:        owner,
 			Branch:       releaseBranch,
 			Prerelease:   true,
+			Draft:        false,
 			ReleaseNotes: "",
 		}
 		fmt.Printf("creating release options: %+v\n", opts)
@@ -298,14 +301,22 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(dashboardRelease.ReleaseBranch, releaseBranch)
 
+		previousTag, err := previousPatch(tag)
+		if err != nil {
+			return err
+		}
+
+		previousTag = config.ValueOrDefault(dashboardRelease.PreviousTag, previousTag)
+
 		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   uiRepo,
 			Owner:  repoOwner,
 			Branch: releaseBranch,
+			Draft:  false,
 		}
 
-		if err := ui.CreateRelease(ctx, ghClient, &dashboardRelease, uiOpts, preRelease, dryRun, releaseType); err != nil {
+		if err := ui.CreateRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag); err != nil {
 			return err
 		}
 
@@ -314,15 +325,27 @@ var dashboardTagSubCmd = &cobra.Command{
 			Repo:   dashboardRepo,
 			Owner:  repoOwner,
 			Branch: releaseBranch,
+			Draft:  false,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, preRelease, dryRun, releaseType)
+		return dashboard.CreateRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag)
 	},
 }
 
 var cliTagSubCmd = &cobra.Command{
 	Use:   "cli [ga,rc] [version]",
 	Short: "Tag CLI releases",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyReleaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			return copyCLIVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("expected at least two arguments: [ga,rc] [version]")
@@ -350,17 +373,50 @@ var cliTagSubCmd = &cobra.Command{
 		if !found {
 			return NewVersionNotFoundError(tag, "cli")
 		}
-		cliRelease.DryRun = dryRun
+
+		repo := config.ValueOrDefault(rootConfig.CLIRepositoryName, config.CLIRepositoryName)
+		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := cli.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		releaseBranch = config.ValueOrDefault(cliRelease.ReleaseBranch, releaseBranch)
+
+		previousTag, err := previousPatch(tag)
+		if err != nil {
+			return err
+		}
+
+		previousTag = config.ValueOrDefault(cliRelease.PreviousTag, previousTag)
 
 		cliOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
-			Repo:   rootConfig.CLI.RepoName,
-			Owner:  rootConfig.CLI.RepoOwner,
-			Branch: cliRelease.ReleaseBranch,
+			Repo:   repo,
+			Owner:  owner,
+			Branch: releaseBranch,
+			Draft:  false,
 		}
 
-		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
+		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, previousTag, dryRun)
 	},
+}
+
+func previousPatch(tag string) (string, error) {
+	version, err := semver.NewVersion(tag)
+	if err != nil {
+		return "", err
+	}
+	patch := version.Patch()
+	if patch == 0 {
+		return "", errors.New("can't find previous tag for a new minor: " + tag)
+	}
+
+	patch -= 1
+
+	previousPatch := fmt.Sprintf("v%d.%d.%d", version.Major(), version.Minor(), patch)
+	return previousPatch, nil
 }
 
 func copyDashboardVersions() []string {
