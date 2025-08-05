@@ -211,6 +211,11 @@ var updateRancherCLICmd = &cobra.Command{
 
 		versionTrimmed, _, found := strings.Cut(tag, "-")
 
+		githubUsername := rootConfig.User.GithubUsername
+		if githubUsername == "" {
+			return errors.New("github username not found in config")
+		}
+
 		rancherRelease, found := rootConfig.Rancher.Versions[versionTrimmed]
 		if !found {
 			return NewVersionNotFoundError(tag, "rancher")
@@ -231,7 +236,7 @@ var updateRancherCLICmd = &cobra.Command{
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return rancher.UpdateCLIReferences(ctx, ghClient, tag, rancherReleaseBranch, rootConfig.User.GithubUsername, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
+		return rancher.UpdateCLIReferences(ctx, ghClient, tag, rancherReleaseBranch, githubUsername, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
 	},
 }
 
