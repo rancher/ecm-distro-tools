@@ -1,11 +1,27 @@
 package rke2
 
 import (
+	"context"
 	"io/fs"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/rancher/ecm-distro-tools/registry"
 )
+
+type mockRegistryClient struct {
+	images map[string]registry.Image
+}
+
+func (m *mockRegistryClient) Inspect(_ context.Context, ref name.Reference) (registry.Image, error) {
+	key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
+	if img, ok := m.images[key]; ok {
+		return img, nil
+	}
+	return registry.Image{Exists: false, Platforms: make(map[registry.Platform]bool)}, nil
+}
 
 func newMockFS() fs.FS {
 	return fstest.MapFS{
@@ -22,7 +38,7 @@ func newMockFS() fs.FS {
 }
 
 func TestImageMap(t *testing.T) {
-	inspector := NewReleaseInspector(newMockFS(), nil, nil, false)
+	inspector := NewReleaseInspector(newMockFS(), nil, false)
 
 	imageMap, err := inspector.imageMap()
 	if err != nil {
@@ -70,42 +86,86 @@ func TestImageMap(t *testing.T) {
 	}
 }
 
-func TestReadImageList(t *testing.T) {
-	tests := []struct {
-		name     string
-		filename string
-		want     []string
-		wantErr  bool
-	}{
-		{
-			name:     "read rke2-images-all.linux-amd64.txt",
-			filename: "rke2-images-all.linux-amd64.txt",
-			want:     []string{"rancher/rke2-runtime:v1.23.4-rke2r1", "rancher/rke2-cloud-provider:v1.23.4-rke2r1"},
+func TestInspectRelease(t *testing.T) {
+	ossImages := map[string]registry.Image{
+		"rancher/rke2-runtime:v1.23.4-rke2r1": {
+			Exists: true,
+			Platforms: map[registry.Platform]bool{
+				{OS: "linux", Architecture: "amd64"}: true,
+				{OS: "linux", Architecture: "arm64"}: true,
+			},
 		},
-		{
-			name:     "read nonexistent file",
-			filename: "fake.txt",
-			wantErr:  true,
+		"rancher/rke2-cloud-provider:v1.23.4-rke2r1": {
+			Exists: true,
+			Platforms: map[registry.Platform]bool{
+				{OS: "linux", Architecture: "amd64"}: true,
+			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			inspector := NewReleaseInspector(newMockFS(), nil, nil, false)
+	primeImages := map[string]registry.Image{
+		"rancher/rke2-runtime:v1.23.4-rke2r1": {
+			Exists: true,
+			Platforms: map[registry.Platform]bool{
+				{OS: "linux", Architecture: "amd64"}: true,
+				{OS: "linux", Architecture: "arm64"}: true,
+			},
+		},
+		"rancher/rke2-cloud-provider:v1.23.4-rke2r1": {
+			Exists: false,
+			Platforms: map[registry.Platform]bool{
+				{OS: "linux", Architecture: "amd64"}: true,
+			},
+		},
+	}
 
-			got, err := inspector.readImageList(tt.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("readImageList() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+	registries := map[string]registry.Inspector{
+		"oss":   &mockRegistryClient{images: ossImages},
+		"prime": &mockRegistryClient{images: primeImages},
+	}
 
-			if err != nil {
-				return
-			}
+	inspector := NewReleaseInspector(newMockFS(), registries, false)
 
-			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
-				t.Errorf("readImageList() = %v, want %v", got, tt.want)
+	results, err := inspector.InspectRelease(context.Background(), "v1.23.4+rke2r1")
+	if err != nil {
+		t.Fatalf("InspectRelease() error = %v", err)
+	}
+
+	if len(results) != 3 {
+		t.Errorf("InspectRelease() returned %d images, want 3", len(results))
+	}
+
+	// Check specific results
+	for _, result := range results {
+		imageName := result.Reference.Context().RepositoryStr() + ":" + result.Reference.Identifier()
+		switch imageName {
+		case "rancher/rke2-runtime:v1.23.4-rke2r1":
+			if !result.OSSImage().Exists {
+				t.Errorf("expected OSSImage to exist, but it doesn't")
 			}
-		})
+			if !result.PrimeImage().Exists {
+				t.Errorf("expected PrimeImage to exist, but it doesn't")
+			}
+		case "rancher/rke2-cloud-provider:v1.23.4-rke2r1":
+			if !result.OSSImage().Exists {
+				t.Errorf("expected OSSImage to exist, but it doesn't")
+			}
+			if result.PrimeImage().Exists {
+				t.Errorf("expected PrimeImage not to exist, but it does")
+			}
+		}
+	}
+}
+
+func TestInspectReleaseUnsupportedVersion(t *testing.T) {
+	inspector := NewReleaseInspector(newMockFS(), nil, false)
+
+	_, err := inspector.InspectRelease(context.Background(), "v1.25.4+k3s1")
+	if err == nil {
+		t.Errorf("InspectRelease() expected error for unsupported version")
+	}
+
+	if !strings.Contains(err.Error(), "only RKE2 releases are currently supported") {
+		t.Errorf("InspectRelease() error = %v, want error about RKE2 support", err)
 	}
 }
