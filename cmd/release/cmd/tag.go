@@ -350,16 +350,25 @@ var cliTagSubCmd = &cobra.Command{
 		if !found {
 			return NewVersionNotFoundError(tag, "cli")
 		}
-		cliRelease.DryRun = dryRun
+
+		repo := config.ValueOrDefault(rootConfig.CLIRepositoryName, config.CLIRepositoryName)
+		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := cli.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		releaseBranch = config.ValueOrDefault(cliRelease.ReleaseBranch, releaseBranch)
 
 		cliOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
-			Repo:   rootConfig.CLI.RepoName,
-			Owner:  rootConfig.CLI.RepoOwner,
-			Branch: cliRelease.ReleaseBranch,
+			Repo:   repo,
+			Owner:  owner,
+			Branch: releaseBranch,
 		}
 
-		return cli.CreateRelease(ctx, ghClient, &cliRelease, cliOpts, rc, releaseType)
+		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, cliRelease.PreviousTag, dryRun)
 	},
 }
 

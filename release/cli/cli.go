@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/cmd/release/config"
-	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -24,7 +21,7 @@ const (
 )
 
 // CreateRelease will create a new tag and a new release with given params.
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIRelease, opts *repository.CreateReleaseOpts, rc bool, releaseType string) error {
+func CreateRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc bool, releaseType, previousTag string, dryRun bool) error {
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
@@ -55,8 +52,8 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIR
 		}
 		opts.Tag = fmt.Sprintf("%s-%s.%d", opts.Tag, releaseType, latestRCNumber)
 	} else {
-		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, r.PreviousTag)
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, r.PreviousTag, client)
+		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, previousTag)
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, client)
 		if err != nil {
 			return err
 		}
@@ -65,7 +62,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIR
 
 	fmt.Printf("create release options: %+v\n", *opts)
 
-	if r.DryRun {
+	if dryRun {
 		fmt.Println("dry run, skipping creating release")
 		return nil
 	}
@@ -79,21 +76,27 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.CLIR
 	return nil
 }
 
-func UpdateRancherReferences(ctx context.Context, cfg *config.CLI, ghClient *github.Client, r *config.CLIRelease, u *config.User) error {
-	r.RancherUpstreamURL = cfg.RancherUpstreamURL
+func ReleaseBranchFromTag(tag string) (string, error) {
+	majorMinor := semver.MajorMinor(tag)
 
-	commitSHA, err := getRancherPkgSHA(ctx, ghClient, cfg.RancherRepoOwner, cfg.RancherRepoName, r.RancherTag)
+	if majorMinor == "" {
+		return "", errors.New("the tag isn't a valid semver: " + tag)
+	}
+
+	return majorMinor, nil
+}
+
+func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, rancherRepoName, rancherRepoOwner, rancherUpstreamURL, cliReleaseBranch, cliRepoName, githubUsername string, dryRun bool) error {
+	commitSHA, err := getRancherPkgSHA(ctx, ghClient, rancherRepoOwner, rancherRepoName, tag)
 	if err != nil {
 		return err
 	}
 
-	r.RancherCommitSHA = commitSHA
-
-	if err := updateRancherReferencesAndPush(r, u); err != nil {
+	if err := updateRancherReferencesAndPush(tag, cliReleaseBranch, commitSHA, dryRun); err != nil {
 		return err
 	}
 
-	return createCLIReferencesPR(ctx, cfg, ghClient, r, u)
+	return createCLIReferencesPR(ctx, ghClient, tag, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
 }
 
 func getRancherPkgSHA(ctx context.Context, ghClient *github.Client, owner, repo, tag string) (string, error) {
@@ -117,10 +120,21 @@ func getRancherPkgSHA(ctx context.Context, ghClient *github.Client, owner, repo,
 	return "", fmt.Errorf("unexpected reference type: %s", ref.Object.GetType())
 }
 
-func updateRancherReferencesAndPush(r *ecmConfig.CLIRelease, _ *ecmConfig.User) error {
-	funcMap := template.FuncMap{"replaceAll": strings.ReplaceAll}
+func UpdateCLIRefsBranchName(tag string) string {
+	return "update-cli-build-refs-" + tag
+}
+
+func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string, dryRun bool) error {
+	updateScriptVars := map[string]string{
+		"Tag":              tag,
+		"ReleaseBranch":    releaseBranch,
+		"RancherCommitSHA": rancherCommitSHA,
+		"DryRun":           strconv.FormatBool(dryRun),
+		"BranchName":       UpdateCLIRefsBranchName(tag),
+	}
+
 	fmt.Println("creating update cli references script template")
-	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replace_cli_ref.sh", updateRancherReferencesScript, funcMap, r)
+	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "replace_cli_ref.sh", updateRancherReferencesScript, nil, updateScriptVars)
 	if err != nil {
 		fmt.Println("error executing script")
 		return err
@@ -129,16 +143,16 @@ func updateRancherReferencesAndPush(r *ecmConfig.CLIRelease, _ *ecmConfig.User) 
 	return nil
 }
 
-func createCLIReferencesPR(ctx context.Context, cfg *config.CLI, ghClient *github.Client, r *ecmConfig.CLIRelease, u *ecmConfig.User) error {
+func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("[%s] Bump Rancher CLI version to `%s`", r.ReleaseBranch, r.RancherTag)),
-		Base:                github.String(r.ReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":update-cli-build-refs-" + r.Tag),
+		Title:               github.String("[" + releaseBranch + "]" + "Bump Rancher CLI version to " + tag),
+		Base:                github.String(releaseBranch),
+		Head:                github.String(githubUsername + UpdateCLIRefsBranchName(tag)),
 		MaintainerCanModify: github.Bool(true),
 	}
 
 	// creating a pr from your fork branch
-	pr, _, err := ghClient.PullRequests.Create(ctx, cfg.RepoOwner, cfg.RepoName, pull)
+	pr, _, err := ghClient.PullRequests.Create(ctx, cliRepoName, rancherRepoOwner, pull)
 	if err != nil {
 		return err
 	}
@@ -149,38 +163,36 @@ func createCLIReferencesPR(ctx context.Context, cfg *config.CLI, ghClient *githu
 }
 
 const updateRancherReferencesScript = `#!/bin/sh
-# Enable verbose mode and exit on any error
 set -ex
-
-# Determine the operating system
 OS=$(uname -s)
-
 # Set variables (these are populated by Go's template engine)
-DRY_RUN={{ .DryRun }}
-BRANCH_NAME=update-cli-build-refs-{{ .Tag }}
-RANCHER_VERSION={{ .RancherTag }}
-RANCHER_COMMIT_SHA={{ .RancherCommitSHA }}
+DRY_RUN="{{ .DryRun }}"
+TAG="{{ .Tag }}"
+BRANCH_NAME="{{ .BranchName }}"
+RELEASE_BRANCH="{{ .ReleaseBranch }}"
+RANCHER_COMMIT_SHA="{{ .RancherCommitSHA }}"
+UPSTREAM_URL="{{ .CLIUpstreamURL }}"
 
 # Add upstream remote if it doesn't exist
 # Note: Using ls | grep is not recommended for general use, but it's okay here
 # since we're only checking for 'rancher'
-git remote -v | grep -w upstream || git remote add upstream {{ .CLIUpstreamURL }}
+git remote -v | grep -w upstream || git remote add upstream "$UPSTREAM_URL"
 git fetch upstream
 git stash
 
 # Delete the branch if it exists, then create a new one based on upstream
 git branch -D "${BRANCH_NAME}" > /dev/null 2>&1 || true
-git checkout -B "${BRANCH_NAME}" upstream/{{.ReleaseBranch}}
+git checkout -B "${BRANCH_NAME}" "upstream/$RELEASE_BRANCH"
 # git clean -xfd
 
 # Function to update the file
 update_go_mod() {
 	echo "Updating pkg/apis module..."
-	go get github.com/rancher/rancher/pkg/apis@$RANCHER_COMMIT_SHA
+	go get "github.com/rancher/rancher/pkg/apis@$RANCHER_COMMIT_SHA"
 	sleep 2
 
 	echo "Updating pkg/client module..."
-	go get github.com/rancher/rancher/pkg/client@$RANCHER_COMMIT_SHA
+	go get "github.com/rancher/rancher/pkg/client@$RANCHER_COMMIT_SHA"
 
 	sleep 2
 	go mod tidy
@@ -199,6 +211,4 @@ git commit --signoff -m "Update Rancher refs to ${RANCHER_VERSION}"
 # Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
 	git push --set-upstream origin "${BRANCH_NAME}" # run git remote -v for your origin
-fi
-
-`
+fi`

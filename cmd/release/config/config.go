@@ -14,6 +14,7 @@ const (
 	RancherRepositoryName     = "rancher"
 	UIRepositoryName          = "ui"
 	DashboardRepositoryName   = "dashboard"
+	CLIRepositoryName         = "cli"
 	K3sGithubOrganization     = "k3s-io"
 	K3sRepositoryName         = "k3s"
 	K3sK8sRepositoryName      = "kubernetes"
@@ -38,6 +39,8 @@ const (
 	RKE2RepositoryGitURI    = "git@github.com:rancher/rancher.git"
 	K3sRepositoryURL        = "https://github.com/k3s-io/k3s"
 	K3sRepositoryGitURI     = "git@github.com:k3s-io/k3s"
+	CLIRepositoryURL        = "https://github.com/rancher/cli"
+	CLIRepositoryGitURI     = "git@github.com:rancher/cli"
 
 	RKE2SystemAgentInstallerRepositoryURL = "https://github.com/rancher/system-agent-installer-rke2"
 	RKE2SystemAgentInstallerGitURI        = "git@github.com:rancher/system-agent-installer-rke2.git"
@@ -95,15 +98,8 @@ type DashboardRelease struct {
 }
 
 type CLIRelease struct {
-	PreviousTag          string `json:"previous_tag"`
-	ReleaseBranch        string `json:"release_branch"`
-	Tag                  string `json:"-"`
-	CLIUpstreamURL       string `json:"-"`
-	RancherReleaseBranch string `json:"rancher_release_branch"`
-	RancherUpstreamURL   string `json:"rancher_upstream_url"`
-	RancherCommitSHA     string `json:"-"`
-	RancherTag           string `json:"-"`
-	DryRun               bool   `json:"dry_run"`
+	PreviousTag   string `json:"previous_tag"`
+	ReleaseBranch string `json:"release_branch"`
 }
 
 // RKE2
@@ -141,12 +137,7 @@ type Dashboard struct {
 }
 
 type CLI struct {
-	Versions           map[string]CLIRelease `json:"versions"`
-	RepoOwner          string                `json:"repo_owner"`
-	RepoName           string                `json:"repo_name"`
-	RancherRepoOwner   string                `json:"rancher_repo_owner"`
-	RancherRepoName    string                `json:"rancher_repo_name"`
-	RancherUpstreamURL string                `json:"rancher_upstream_url"`
+	Versions map[string]CLIRelease `json:"versions"`
 }
 
 // Auth
@@ -176,6 +167,8 @@ type Config struct {
 	RancherRepositoryURL      string         `json:"rancher_repository_url"`
 	UIRepositoryName          string         `json:"ui_repository_name"`
 	DashboardRepositoryName   string         `json:"dashboard_repository_name"`
+	CLIRepositoryName         string         `json:"cli_repository_name"`
+	CLIRepositoryGitURI       string         `json:"cli_repository_git_uri`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
@@ -259,7 +252,15 @@ func ExampleConfig() (string, error) {
 			Versions: map[string]DashboardRelease{
 				"v2.x.y": {
 					PreviousTag:   "v2.x.y",
-					ReleaseBranch: "release-v2.x",
+					ReleaseBranch: "release-2.x",
+				},
+			},
+		},
+		CLI: &CLI{
+			Versions: map[string]CLIRelease{
+				"v2.x.y": {
+					PreviousTag:   "v2.x.y",
+					ReleaseBranch: "v2.x",
 				},
 			},
 		},
@@ -282,6 +283,9 @@ func ExampleConfig() (string, error) {
 		RancherRepositoryName:     RancherRepositoryName,
 		RancherRepositoryGitURI:   RancherRepositoryGitURI,
 		RancherRepositoryURL:      RancherRepositoryURL,
+		UIRepositoryName:          UIRepositoryName,
+		DashboardRepositoryName:   DashboardRepositoryName,
+		CLIRepositoryName:         CLIRepositoryName,
 	}
 	b, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {

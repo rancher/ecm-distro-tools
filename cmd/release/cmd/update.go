@@ -196,75 +196,91 @@ var updateRancherCLICmd = &cobra.Command{
 	Short: "Update Rancher's CLI references and create a PR",
 	Args:  cobra.MatchAll(cobra.ExactArgs(1)),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		version := args[0]
-
-		// checking if the provided version is valid
-		if _, err := semver.NewVersion(version); err != nil {
-			return err
-		}
-
-		versionTrimmed, _, _ := strings.Cut(version, "-rc")
-		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-alpha")
-		versionTrimmed, _, _ = strings.Cut(versionTrimmed, "-test")
-
-		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
-		if !found {
-			return NewVersionNotFoundError(version, "cli")
-		}
-
-		cliRelease.Tag = version
-
-		ctx := context.Background()
-
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-
-		return rancher.UpdateCLIReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
-	},
-}
-
-var updateCLICmd = &cobra.Command{
-	Use:   "cli [version] [rancher_tag]",
-	Short: "Update CLI references and create a PR",
-	Args:  cobra.MatchAll(cobra.ExactArgs(2)),
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 1 {
+		if len(args) == 0 {
 			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
 		}
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		version := args[0]
-		rancherTag := args[1]
+		tag := args[0]
 
 		// checking if the provided version is valid
-		if _, err := semver.NewVersion(version); err != nil {
-			return fmt.Errorf("cli version not semver valid: %v", err)
+		if _, err := semver.NewVersion(tag); err != nil {
+			return err
 		}
 
-		// checking if the provided version is valid
-		if _, err := semver.NewVersion(rancherTag); err != nil {
-			return fmt.Errorf("rancher version not semver valid: %v", err)
-		}
+		versionTrimmed, _, found := strings.Cut(tag, "-")
 
-		versionTrimmed, _, _ := strings.Cut(version, "-rc")
-
-		cliRelease, found := rootConfig.CLI.Versions[versionTrimmed]
+		rancherRelease, found := rootConfig.Rancher.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(version, "cli")
+			return NewVersionNotFoundError(tag, "rancher")
 		}
 
-		cliRelease.Tag = version
-		cliRelease.RancherTag = rancherTag
-		cliRelease.CLIUpstreamURL = fmt.Sprintf("git@github.com:%s/%s.git", rootConfig.CLI.RepoOwner, rootConfig.CLI.RepoName)
+		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
+		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+		rancherRepoURL := config.ValueOrDefault(rootConfig.RancherRepositoryURL, config.RancherRepositoryURL)
+
+		rancherReleaseBranch, err := rancher.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		rancherReleaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, rancherReleaseBranch)
 
 		ctx := context.Background()
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return cli.UpdateRancherReferences(ctx, rootConfig.CLI, ghClient, &cliRelease, rootConfig.User)
+		return rancher.UpdateCLIReferences(ctx, ghClient, tag, rancherReleaseBranch, rootConfig.User.GithubUsername, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
+	},
+}
+
+var updateCLICmd = &cobra.Command{
+	Use:   "cli [tag]",
+	Short: "Update CLI references and create a PR",
+	Args:  cobra.MatchAll(cobra.ExactArgs(1)),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		tag := args[0]
+
+		// checking if the provided version is valid
+		if _, err := semver.NewVersion(tag); err != nil {
+			return fmt.Errorf("cli version not semver valid: %v", err)
+		}
+
+		githubUsername := rootConfig.User.GithubUsername
+		if githubUsername == "" {
+			return errors.New("github username not found in config")
+		}
+
+		trimmedTag, _, _ := strings.Cut(tag, "-")
+
+		cliRelease, found := rootConfig.CLI.Versions[trimmedTag]
+		if !found {
+			return NewVersionNotFoundError(tag, "cli")
+		}
+		cliBranch, err := cli.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to get release branch from tag " + tag + ": " + err.Error())
+		}
+
+		cliBranch = config.ValueOrDefault(cliRelease.ReleaseBranch, cliBranch)
+		cliRepo := config.ValueOrDefault(rootConfig.CLIRepositoryName, config.CLIRepositoryName)
+
+		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
+		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+		rancherUpstreamURL := config.ValueOrDefault(rootConfig.RancherRepositoryURL, config.RancherRepositoryURL)
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return cli.UpdateRancherReferences(ctx, ghClient, tag, rancherRepo, rancherRepoOwner, rancherUpstreamURL, cliBranch, cliRepo, githubUsername, dryRun)
 	},
 }
 
