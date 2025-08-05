@@ -168,7 +168,7 @@ type Config struct {
 	UIRepositoryName          string         `json:"ui_repository_name"`
 	DashboardRepositoryName   string         `json:"dashboard_repository_name"`
 	CLIRepositoryName         string         `json:"cli_repository_name"`
-	CLIRepositoryGitURI       string         `json:"cli_repository_git_uri`
+	CLIRepositoryGitURI       string         `json:"cli_repository_git_uri"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.
