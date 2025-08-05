@@ -301,6 +301,13 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(dashboardRelease.ReleaseBranch, releaseBranch)
 
+		previousTag, err := previousPatch(tag)
+		if err != nil {
+			return err
+		}
+
+		previousTag = config.ValueOrDefault(dashboardRelease.PreviousTag, previousTag)
+
 		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   uiRepo,
@@ -309,7 +316,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		if err := ui.CreateRelease(ctx, ghClient, &dashboardRelease, uiOpts, preRelease, dryRun, releaseType); err != nil {
+		if err := ui.CreateRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag); err != nil {
 			return err
 		}
 
@@ -321,7 +328,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, &dashboardRelease, dashboardOpts, preRelease, dryRun, releaseType)
+		return dashboard.CreateRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag)
 	},
 }
 
