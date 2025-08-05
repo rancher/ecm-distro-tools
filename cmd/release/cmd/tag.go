@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	msemver "github.com/Masterminds/semver/v3"
+	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/dashboard"
@@ -404,7 +404,7 @@ var cliTagSubCmd = &cobra.Command{
 }
 
 func previousPatch(tag string) (string, error) {
-	version, err := msemver.NewVersion(tag)
+	version, err := semver.NewVersion(tag)
 	if err != nil {
 		return "", err
 	}
