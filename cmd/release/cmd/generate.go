@@ -212,6 +212,9 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 			return errors.New("found missing images: " + strings.Join(missingImages, ","))
 		}
 		if rancherMissingImagesJSONOutput {
+			if len(missingImages) == 0 {
+				missingImages = make([]string, 0)
+			}
 			b, err := json.MarshalIndent(missingImages, "", " ")
 			if err != nil {
 				return err
