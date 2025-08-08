@@ -10,6 +10,8 @@ make
 
 ## Examples
 
+This utility expects GITHUB_TOKEN to be set in the environment.
+
 ```sh
 rel-rep v1.33.1+k3s1
 ```
