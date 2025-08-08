@@ -64,7 +64,7 @@ repo_from_tag(const char *tag)
     return NULL;
 }
 
-static const bool
+static bool
 system_agent_installer_exists(const struct release *rel)
 {
     gh_client_response_t *res;
@@ -192,7 +192,7 @@ base_release_info(void *arg)
     }
 
     const char *branch;
-    const int prerelease;
+    const int prerelease = 0;
     json_t *assets;
     int ret = json_unpack(json, "{s:s, s:b, s:o}",
                                 "target_commitish", &branch,
