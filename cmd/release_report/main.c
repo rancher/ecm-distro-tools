@@ -94,7 +94,6 @@ system_agent_installer_exists(const struct release *rel)
     int ret = json_unpack(json, "{s:s}",
                                 "target_commitish", &release_branch);
     if (ret) {
-        fprintf(stderr, "error: unpacking JSON\n");
         return false;
     }
 
@@ -230,7 +229,7 @@ base_release_info(void *arg)
     return 0;
 }
 
-const struct release*
+struct release*
 release_new(const char *org, const char *repo)
 {
     struct release *rel = calloc(1, sizeof(struct release));
@@ -263,14 +262,23 @@ main(int argc, const char **argv)
 
     setlocale(LC_CTYPE, "");
 
-    char *repo = repo_from_tag(argv[1]);
-    char *org = org_from_repo(repo);
+    const char *repo = repo_from_tag(argv[1]);
+    if (repo == NULL) {
+        fprintf(stderr, "error: invalid repo: %s\n", argv[1]);
+        return 1;
+    }
+
+    const char *org = org_from_repo(repo);
+    if (repo == NULL) {
+        fprintf(stderr, "error: org not found for repo: %s\n", repo);
+        return 1;
+    }
 
     struct release *rel = release_new(org, repo);
 
     char *versions[MAX_VERSIONS];
 
-    char *tkn = strtok(argv[1], ",");
+    char *tkn = strtok((char*)argv[1], ",");
     uint8_t i = 0;
 
 

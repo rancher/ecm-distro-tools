@@ -6,7 +6,7 @@ VERSION = 0.1.0
 BINDIR  = bin
 INCDIR  = include
 BINARY  = rel-rep
-CFLAGS  = -std=c99 -Wall -Wextra -fpic  \
+CFLAGS  = -std=c17 -Wall -Wextra -fpic  \
           -Dbin_name=$(BINARY)          \
 		  -Drel_rep_version=$(VERSION) \
 		  -Dgit_sha=$(shell git rev-parse HEAD)
