@@ -70,9 +70,9 @@ system_agent_installer_exists(const struct release *rel)
     gh_client_response_t *res;
 
     if (strstr(rel->tag, "rke2") != NULL) {
-        res = gh_client_repo_release_by_tag(rel->org, "system-agent-installer-rke2", rel->tag);
+        res = gh_client_repo_release_by_tag("rancher", "system-agent-installer-rke2", rel->tag);
     } else if (strstr(rel->tag, "k3s") != NULL) {
-        res = gh_client_repo_release_by_tag(rel->org, "system-agent-installer-k3s", rel->tag);
+        res = gh_client_repo_release_by_tag("rancher", "system-agent-installer-k3s", rel->tag);
     } else {
         return false;
     }
