@@ -72,7 +72,7 @@ func (r *ReleaseInspector) InspectRelease(ctx context.Context, version string) (
 		return nil, errors.New("only RKE2 releases are currently supported")
 	}
 
-	requiredImages, err := r.imageMap()
+	requiredImages, err := r.releaseImages()
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +80,9 @@ func (r *ReleaseInspector) InspectRelease(ctx context.Context, version string) (
 	return r.checkImages(ctx, requiredImages)
 }
 
-// imageMap reads per-platform image list files and coalesces them
+// releaseImages reads per-platform image list files and coalesces them
 // into one map to collect images for all platforms.
-func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
+func (r *ReleaseInspector) releaseImages() (map[string]ReleaseImage, error) {
 	// download image lists for release
 	var (
 		amd64Images []string
@@ -110,7 +110,7 @@ func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
 	}
 
 	// merge all images into a map
-	imageMap := make(map[string]ReleaseImage)
+	releaseImages := make(map[string]ReleaseImage)
 	for _, imagePair := range [][2]interface{}{
 		{amd64Images, LinuxAmd64},
 		{arm64Images, LinuxArm64},
@@ -128,7 +128,7 @@ func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
 			}
 
 			key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
-			info := imageMap[key]
+			info := releaseImages[key]
 			info.Reference = ref
 
 			switch arch {
@@ -140,11 +140,11 @@ func (r *ReleaseInspector) imageMap() (map[string]ReleaseImage, error) {
 				info.ExpectsWindows = true
 			}
 
-			imageMap[key] = info
+			releaseImages[key] = info
 		}
 	}
 
-	return imageMap, nil
+	return releaseImages, nil
 }
 
 func (r *ReleaseInspector) imageList(filename string) ([]string, error) {

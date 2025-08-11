@@ -349,7 +349,7 @@ func (k K3SContents) CSV(w io.Writer) {
 			}
 		}
 
-		arm64Status := ""
+		var arm64Status string
 		if result.ExpectsLinuxArm64 {
 			if ossImg.Platforms[reg.Platform{OS: "linux", Architecture: "arm64"}] {
 				arm64Status = "Y"

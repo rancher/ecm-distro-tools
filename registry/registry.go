@@ -179,7 +179,7 @@ func NewRegistryGroup(registries map[string]Inspector) *RegistryGroup {
 	}
 }
 
-func (r *RegistryGroup) FetchImages(ctx context.Context, refs []name.Reference) (<-chan ImageFetchResult, <-chan error) {
+func (r *RegistryGroup) Images(ctx context.Context, refs []name.Reference) (<-chan ImageFetchResult, <-chan error) {
 	resultChan := make(chan ImageFetchResult, len(refs))
 	errorChan := make(chan error, len(refs)*len(r.registries))
 

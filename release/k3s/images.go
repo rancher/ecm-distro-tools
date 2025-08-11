@@ -53,7 +53,7 @@ func (r *ReleaseInspector) InspectRelease(ctx context.Context, version string) (
 		return nil, errors.New("only k3s releases supported")
 	}
 
-	requiredImages, err := r.imageMap(version)
+	requiredImages, err := r.releaseImages(version)
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +61,9 @@ func (r *ReleaseInspector) InspectRelease(ctx context.Context, version string) (
 	return r.checkImages(ctx, requiredImages)
 }
 
-// imageMap reads the k3s-images.txt file and creates image map
-func (r *ReleaseInspector) imageMap(version string) (map[string]ReleaseImage, error) {
-	imageMap := make(map[string]ReleaseImage)
+// releaseImages reads the k3s-images.txt file and creates image map
+func (r *ReleaseInspector) releaseImages(version string) (map[string]ReleaseImage, error) {
+	releaseImages := make(map[string]ReleaseImage)
 
 	// convert version format for docker tag
 	imageTag := strings.ReplaceAll(version, "+", "-")
@@ -74,7 +74,7 @@ func (r *ReleaseInspector) imageMap(version string) (map[string]ReleaseImage, er
 	}
 
 	key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
-	imageMap[key] = ReleaseImage{
+	releaseImages[key] = ReleaseImage{
 		Reference:         ref,
 		ExpectsLinuxAmd64: true,
 		ExpectsLinuxArm64: true,
@@ -100,14 +100,14 @@ func (r *ReleaseInspector) imageMap(version string) (map[string]ReleaseImage, er
 		}
 
 		key := ref.Context().RepositoryStr() + ":" + ref.Identifier()
-		imageMap[key] = ReleaseImage{
+		releaseImages[key] = ReleaseImage{
 			Reference:         ref,
 			ExpectsLinuxAmd64: true,
 			ExpectsLinuxArm64: true,
 		}
 	}
 
-	return imageMap, nil
+	return releaseImages, nil
 }
 
 // imageList reads an image list file and returns its contents
@@ -139,7 +139,7 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 
 	// Fetch images concurrently
 	group := registry.NewRegistryGroup(r.registries)
-	resultChan, _ := group.FetchImages(ctx, refs)
+	resultChan, _ := group.Images(ctx, refs)
 
 	// Collect results
 	var results []Image
