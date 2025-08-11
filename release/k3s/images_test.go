@@ -33,9 +33,9 @@ func (m *mockClient) Inspect(ctx context.Context, ref name.Reference) (registry.
 func TestImageMap(t *testing.T) {
 	inspector := NewReleaseInspector(newMockFS(), nil, false)
 
-	imageMap, err := inspector.imageMap("v1.33.1+k3s1")
+	images, err := inspector.releaseImages("v1.33.1+k3s1")
 	if err != nil {
-		t.Fatalf("imageMap() error = %v", err)
+		t.Fatalf("releaseImages() error = %v", err)
 	}
 
 	expectedImages := map[string]struct {
@@ -80,12 +80,12 @@ func TestImageMap(t *testing.T) {
 		},
 	}
 
-	if len(imageMap) != len(expectedImages) {
-		t.Errorf("imageMap() length = %v, want %v", len(imageMap), len(expectedImages))
+	if len(images) != len(expectedImages) {
+		t.Errorf("releaseImages() length = %v, want %v", len(images), len(expectedImages))
 	}
 
 	for imageName, expected := range expectedImages {
-		image, ok := imageMap[imageName]
+		image, ok := images[imageName]
 		if !ok {
 			t.Errorf("imageMap() missing expected image %s", imageName)
 			continue

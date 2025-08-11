@@ -40,9 +40,9 @@ func newMockFS() fs.FS {
 func TestImageMap(t *testing.T) {
 	inspector := NewReleaseInspector(newMockFS(), nil, false)
 
-	imageMap, err := inspector.imageMap()
+	images, err := inspector.releaseImages()
 	if err != nil {
-		t.Fatalf("imageMap() error = %v", err)
+		t.Fatalf("releaseImage() error = %v", err)
 	}
 
 	expectedImages := map[string]struct {
@@ -68,9 +68,9 @@ func TestImageMap(t *testing.T) {
 	}
 
 	for imageName, expected := range expectedImages {
-		image, ok := imageMap[imageName]
+		image, ok := images[imageName]
 		if !ok {
-			t.Errorf("imageMap() missing expected image %s", imageName)
+			t.Errorf("releaseImages() missing expected image %s", imageName)
 			continue
 		}
 
