@@ -78,7 +78,7 @@ var rke2TagSubCmd = &cobra.Command{
 
 		switch args[0] {
 		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2Flags.AlpineVersion, dryRun); err != nil {
+			if err := rke2.ImageBuildBaseRelease(ctx, client, dryRun); err != nil {
 				return err
 			}
 		case "image-build-kubernetes":
