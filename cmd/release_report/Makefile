@@ -10,7 +10,15 @@ CFLAGS  = -std=c17 -Wall -Wextra -fpic  \
           -Dbin_name=$(BINARY)          \
 		  -Drel_rep_version=$(VERSION) \
 		  -Dgit_sha=$(shell git rev-parse HEAD)
-LDFLAGS = -lcurl -lpthread -ljansson
+LDFLAGS = -lpthread
+ifeq ($(UNAME_S),Darwin)
+	LDFLAGS += $(shell pkg-config jansson --libs)
+	LDFLAGS += $(shell pkg-config libcurl --libs)
+	CFLAGS  += $(shell pkg-config jansson --cflags)
+	CFLAGS  += $(shell pkg-config libcurl --cflags)
+else
+	LDFLAGS += -lcurl -ljansson
+endif
 
 PREFIX = /usr/local
 
