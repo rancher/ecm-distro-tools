@@ -174,7 +174,7 @@ func (r *ReleaseInspector) checkImages(ctx context.Context, requiredImages map[s
 	}
 
 	group := registry.NewRegistryGroup(r.registries)
-	resultChan, _ := group.FetchImages(ctx, refs)
+	resultChan, _ := group.Images(ctx, refs)
 
 	var results []Image
 	for fetchResult := range resultChan {
