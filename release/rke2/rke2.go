@@ -42,7 +42,7 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 		goVersion := strings.Split(version.Version, "go")[1]
 
 		// Dynamically find the Alpine version for this Go version.
-		alpineVersion, err := getAlpineVersionForGo(goVersion)
+		alpineVersion, err := alpineGoVersion(goVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find a corresponding alpine version for go %s: %v", goVersion, err)
 		}
@@ -87,9 +87,9 @@ type dockerHubResponse struct {
 	} `json:"results"`
 }
 
-// getAlpineVersionForGo queries the Docker Hub API to find the Alpine version
+// alpineGoVersion queries the Docker Hub API to find the Alpine version
 // associated with a specific Go version.
-func getAlpineVersionForGo(goVersion string) (string, error) {
+func alpineGoVersion(goVersion string) (string, error) {
 	// Compile regex to find a tag like "1.22.5-alpine3.20" and extract "3.20"
 	re := regexp.MustCompile(fmt.Sprintf(`^%s-alpine(\d+\.\d+)$`, regexp.QuoteMeta(goVersion)))
 
