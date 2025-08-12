@@ -19,7 +19,6 @@ import (
 )
 
 type tagRKE2CmdFlags struct {
-	AlpineVersion  *string
 	ReleaseVersion *string
 	RCVersion      *string
 	RPMVersion     *int
@@ -69,16 +68,12 @@ var rke2TagSubCmd = &cobra.Command{
 	Use:   "rke2",
 	Short: "Tag rke2 releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(*tagRKE2Flags.AlpineVersion) != 2 {
-			return errors.New("invalid release version")
-		}
-
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		switch args[0] {
 		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, *tagRKE2Flags.AlpineVersion, dryRun); err != nil {
+			if err := rke2.ImageBuildBaseRelease(ctx, client, dryRun); err != nil {
 				return err
 			}
 		case "image-build-kubernetes":
@@ -443,7 +438,6 @@ func init() {
 	tagCmd.AddCommand(cliTagSubCmd)
 
 	// rke2
-	tagRKE2Flags.AlpineVersion = rke2TagSubCmd.Flags().StringP("alpine-version", "a", "", "Alpine version")
 	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
 	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")

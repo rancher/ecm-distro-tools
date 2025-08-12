@@ -20,11 +20,6 @@ func imageBuildBaseReleaseCommand() *cli.Command {
 				EnvVars:  []string{"GITHUB_TOKEN"},
 				Required: true,
 			},
-			&cli.StringFlag{
-				Name:     "alpine-version",
-				Aliases:  []string{"a"},
-				Required: true,
-			},
 			&cli.BoolFlag{
 				Name:     "dry-run",
 				Aliases:  []string{"r"},
@@ -40,9 +35,8 @@ func imageBuildBaseRelease(c *cli.Context) error {
 	if token == "" {
 		return errors.New("env var GITHUB_TOKEN is required")
 	}
-	alpineVersion := c.String("alpine-version")
 	dryRun := c.Bool("dry-run")
 	ctx := context.Background()
 	ghClient := repository.NewGithub(ctx, token)
-	return rke2.ImageBuildBaseRelease(ctx, ghClient, alpineVersion, dryRun)
+	return rke2.ImageBuildBaseRelease(ctx, ghClient, dryRun)
 }
