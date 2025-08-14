@@ -162,14 +162,15 @@ var updateRancherDashboardCmd = &cobra.Command{
 		}
 
 		versionTrimmed, _, _ := strings.Cut(tag, "-")
+		fmt.Println(versionTrimmed)
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(tag, "dashboard")
+			return NewVersionNotFoundError(versionTrimmed, "dashboard")
 		}
 		rancherRelease, found := rootConfig.Rancher.Versions[versionTrimmed]
 		if !found {
-			return NewVersionNotFoundError(tag, "rancher")
+			return NewVersionNotFoundError(versionTrimmed, "rancher")
 		}
 
 		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
