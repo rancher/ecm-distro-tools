@@ -162,7 +162,6 @@ var updateRancherDashboardCmd = &cobra.Command{
 		}
 
 		versionTrimmed, _, _ := strings.Cut(tag, "-")
-		fmt.Println(versionTrimmed)
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[versionTrimmed]
 		if !found {
