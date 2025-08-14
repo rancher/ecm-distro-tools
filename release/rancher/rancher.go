@@ -238,13 +238,17 @@ func UpdateDashboardReferences(ctx context.Context, ghClient *github.Client, r *
 	return createDashboardReferencesPR(ctx, ghClient, u, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner)
 }
 
+func UpdateDashboardRefsBranchName(tag string) string {
+	return dashboardUpdateRefsBranchBase + "-" + tag
+}
+
 func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstreamURL string, dryRun bool) error {
 	updateScriptVars := map[string]string{
 		"Tag":                  tag,
 		"RancherReleaseBranch": rancherReleaseBranch,
 		"RancherUpstreamURL":   rancherUpstreamURL,
 		"DryRun":               strconv.FormatBool(dryRun),
-		"BranchBaseName":       dashboardUpdateRefsBranchBase,
+		"BranchBaseName":       UpdateDashboardRefsBranchName(tag),
 	}
 	updateScriptOut, err := ecmExec.RunTemplatedScript("./", "update_dashboard_refs.sh", updateDashboardReferencesScript, nil, updateScriptVars)
 	if err != nil {
@@ -258,7 +262,7 @@ func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u
 	pull := &github.NewPullRequest{
 		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
 		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":" + dashboardUpdateRefsBranchBase + "-" + tag),
+		Head:                github.String(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
 		MaintainerCanModify: github.Bool(true),
 	}
 
