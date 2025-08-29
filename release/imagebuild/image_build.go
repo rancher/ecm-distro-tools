@@ -35,7 +35,7 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", owner, repo, err)
 	}
 
-	tags := make(map[string]struct{})
+	tags := make(map[string]struct{}, len(releases))
 	for _, release := range releases {
 		// removes suffixes to build a map to check
 		// the existence of tags in image-build repo
