@@ -36,7 +36,7 @@ var syncImageBuildCmd = &cobra.Command{
 		}
 		ghClient := repository.NewGithub(ctx, ghToken)
 
-		return imagebuild.SyncImageBuild(ctx, ghClient, imageBuildOwner, imageBuildRepo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
+		return imagebuild.Sync(ctx, ghClient, imageBuildOwner, imageBuildRepo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
 	},
 }
 
