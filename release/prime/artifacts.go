@@ -14,13 +14,10 @@ import (
 )
 
 const (
-	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
-	rancherImagesFileName    = "/rancher-images.txt"
-	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
-	rancherArtifactsBucket   = "prime-artifacts"
-	rancherArtifactsPrefix   = "rancher/v"
-	rke2ArtifactsPrefix      = "rke2/v"
-	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
+	rancherArtifactsBucket  = "prime-artifacts"
+	rancherArtifactsPrefix  = "rancher/v"
+	rke2ArtifactsPrefix     = "rke2/v"
+	rancherArtifactsBaseURL = "https://prime.ribs.rancher.io"
 )
 
 type ArtifactsIndexContent struct {
