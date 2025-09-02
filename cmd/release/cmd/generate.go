@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/kdm"
 	"github.com/rancher/ecm-distro-tools/release/metrics"
+	"github.com/rancher/ecm-distro-tools/release/prime"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
@@ -46,6 +47,7 @@ var (
 	rke2PrevMilestone                     string
 	rke2Milestone                         string
 	rancherArtifactsIndexWriteToPath      string
+	rancherArtifactsDir                   string
 	rancherArtifactsIndexIgnoreVersions   []string
 	rancherImagesDigestsOutputFile        string
 	rancherImagesDigestsRegistry          string
@@ -149,11 +151,24 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 			return err
 		}
 
-		client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String("https://s3.us-east-1.amazonaws.com")
-		})
+		var lister prime.ArtifactLister
 
-		return rancher.GeneratePrimeArtifactsIndex(ctx, rancherArtifactsIndexWriteToPath, rancherArtifactsIndexIgnoreVersions, client)
+		if rancherArtifactsDir != "" {
+			lister = prime.NewArtifactDir(rancherArtifactsDir)
+		} else {
+			client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+				o.BaseEndpoint = aws.String("https://s3.us-east-1.amazonaws.com")
+			})
+			lister = prime.NewArtifactBucket(client)
+		}
+
+		// knownOmissions contains versions that should always be omitted for various reasons
+		knownOmissions := []string{
+			"v2.6.4", // test version of rancher
+		}
+		ignoreVersions := append(rancherArtifactsIndexIgnoreVersions, knownOmissions...)
+
+		return prime.GenerateArtifactsIndex(ctx, rancherArtifactsIndexWriteToPath, ignoreVersions, lister)
 	},
 }
 
@@ -493,11 +508,8 @@ func init() {
 
 	// rancher artifacts-index
 	rancherGenerateArtifactsIndexSubCmd.Flags().StringSliceVarP(&rancherArtifactsIndexIgnoreVersions, "ignore-versions", "i", []string{}, "Versions to ignore on the index")
-	rancherGenerateArtifactsIndexSubCmd.Flags().StringVarP(&rancherArtifactsIndexWriteToPath, "write-path", "w", "", "Write To Path")
-	if err := rancherGenerateArtifactsIndexSubCmd.MarkFlagRequired("write-path"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	rancherGenerateArtifactsIndexSubCmd.Flags().StringVarP(&rancherArtifactsIndexWriteToPath, "write-path", "w", ".", "Output directory, defaults to current working directory")
+	rancherGenerateArtifactsIndexSubCmd.Flags().StringVarP(&rancherArtifactsDir, "dir", "d", "", "Local artifacts directory, for testing purposes")
 
 	// rancher generate images-locations
 	rancherGenerateImagesLocationsSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
