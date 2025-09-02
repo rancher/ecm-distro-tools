@@ -21,19 +21,19 @@ const (
 )
 
 type ArtifactsIndexContent struct {
-	GA         ArtifactsIndexContentGroup `json:"ga"`
-	PreRelease ArtifactsIndexContentGroup `json:"preRelease"`
+	GA         ArtifactsIndexContentGroup
+	PreRelease ArtifactsIndexContentGroup
 }
 
 type ArtifactsIndexVersions struct {
-	Versions      []string            `json:"versions"`
-	VersionsFiles map[string][]string `json:"versionsFiles"`
+	Versions      []string
+	VersionsFiles map[string][]string
 }
 
 type ArtifactsIndexContentGroup struct {
 	Rancher ArtifactsIndexVersions
 	RKE2    ArtifactsIndexVersions
-	BaseURL string `json:"baseUrl"`
+	BaseURL string
 }
 
 type ArtifactLister interface {
