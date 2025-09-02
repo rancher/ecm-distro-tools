@@ -271,6 +271,8 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
     .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
     .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
     .hidden { display: none; overflow: hidden; }
+	.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
+	.release-title:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
     </style>
   </head>
   <body>
@@ -279,11 +281,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
       <h1>PRIME ARTIFACTS</h1>
     </header>
     <main>
-      <div class="project-rancher project">
-        <h2>rancher</h2>
+			<div class="project-rancher project">
+				<h2 id="rancher">
+				  <a class="anchor" href="#rancher">#</a>rancher
+				</h2>
         {{ range $i, $version := .Rancher.Versions }}
-        <div class="release-{{ $version }} release">
+        <div id="rancher-{{ $version }}" class="release-{{ $version }} release">
           <div class="release-title">
+						<a class="anchor" href="#rancher-{{ $version }}">#</a>
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
           </div>
@@ -298,10 +303,13 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 				{{ end }}
       </div>
 	  <div class="project-rke2 project">
-        <h2>rke2</h2>
+        <h2 id="rke2">
+		  <a class="anchor" href="#rke2">#</a>rke2
+		</h2>
         {{ range $i, $version := .RKE2.Versions }}
-        <div class="release-{{ $version }} release">
+        <div id="rke2-{{ $version }}" class="release-{{ $version }} release">
           <div class="release-title">
+		  				<a class="anchor" href="#rke2-{{ $version }}">#</a>
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
           </div>
