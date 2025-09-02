@@ -65,24 +65,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: 'Checkout ECM repository'
-      uses: actions/checkout@v4
-      with:
-        repository: 'rancher/ecm-distro-tools'
-        ref: 'feature/auto-tag-image-build'
-
-    - name: 'Set up Go environment'
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
-
-    - name: 'Build the release CLI tool'
-      shell: bash
-      run: go build -v -o release-cli ./cmd/release
+    - name: setup ecm-distro-tools
+      uses: rancher/ecm-distro-tools@master
 
     - name: 'Generate config file'
       shell: bash
-      run: ./release-cli config gen > ecm-config.json
+      run: release config gen > ecm-config.json
 
     - name: 'Run Sync Command'
       env:
@@ -90,7 +78,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.GH_TOKEN }}
       shell: bash
       run: |
-        ./release-cli sync image-build \
+        release sync image-build \
           --upstream-owner "${{ inputs.upstream-owner }}" \
           --upstream-repo "${{ inputs.upstream-repo }}" \
           --image-build-owner "${{ inputs.image-build-owner }}" \
