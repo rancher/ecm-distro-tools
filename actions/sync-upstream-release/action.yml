@@ -1,0 +1,87 @@
+# This Github action encapsulates all the necessary steps to sync 
+# the current repo tags with an upstream source, made specifically for 
+# image-build-* repos.
+# Reference usage:
+#
+# name: 'Sync Upstream on Schedule'
+# 
+# on:
+#   schedule:
+#     - cron: '0 4 * * *'
+#   workflow_dispatch:
+# 
+# jobs:
+#   sync:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: "Read Secrets"
+#         uses: rancher-eio/read-vault-secrets@main
+#         with:
+#           secrets: |
+#             secret/data/github/repo/${{ github.repository }}/github/app-credentials appId | APP_ID ;
+#             secret/data/github/repo/${{ github.repository }}/github/app-credentials privateKey | PRIVATE_KEY
+#   
+#       - name: Generate GitHub App token
+#         id: generate-token
+#         uses: actions/create-github-app-token@v1
+#         with:
+#           app-id: ${{ env.APP_ID }}
+#           private-key: ${{ env.PRIVATE_KEY }}
+#           owner: rancher
+#           repositories: |
+#            image-build-repo 
+#
+#       - name: Sync Kubernetes Release
+#         uses: rancher/ecm-distro-tools/actions/sync-upstream-release@master
+#         with:
+#           upstream-owner: 'kubernetes'
+#           upstream-repo: 'kubernetes'
+#           image-build-repo: 'image-build-kubernetes'
+#           GH_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+
+name: 'Sync Upstream Release'
+
+inputs:
+  upstream-owner:
+    description: 'The owner of the upstream repository (e.g., "kubernetes")'
+    required: true
+  upstream-repo:
+    description: 'The name of the upstream repository (e.g., "kubernetes")'
+    required: true
+  image-build-repo:
+    description: 'The name of the target image-build repository'
+    required: true
+  image-build-owner:
+    description: 'The owner of the image-build repository'
+    required: false
+    default: 'rancher'
+  tag-prefix:
+    description: 'Optional prefix to filter upstream tags and trim from the new tag'
+    required: false
+  GH_TOKEN:
+    description: 'A GitHub token with permissions to create releases in the target repo'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: setup ecm-distro-tools
+      uses: rancher/ecm-distro-tools@master
+
+    - name: 'Generate config file'
+      shell: bash
+      run: release config gen > ecm-config.json
+
+    - name: 'Run Sync Command'
+      env:
+        # The token input is passed as an environment variable to the CLI.
+        GITHUB_TOKEN: ${{ inputs.GH_TOKEN }}
+      shell: bash
+      run: |
+        release sync image-build \
+          --upstream-owner "${{ inputs.upstream-owner }}" \
+          --upstream-repo "${{ inputs.upstream-repo }}" \
+          --image-build-owner "${{ inputs.image-build-owner }}" \
+          --image-build-repo "${{ inputs.image-build-repo }}" \
+          --tag-prefix "${{ inputs.tag-prefix }}" \
+          --config-file "ecm-config.json"
