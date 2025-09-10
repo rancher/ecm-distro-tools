@@ -17,11 +17,8 @@ const (
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
-	opts := &github.ListOptions{
-		PerPage: 100,
-	}
-
-	upstreamReleases, _, err := client.Repositories.ListReleases(ctx, upstreamOwner, upstreamRepo, opts)
+	// retrieve the last 10 upstream releases
+	upstreamReleases, _, err := client.Repositories.ListReleases(ctx, upstreamOwner, upstreamRepo, &github.ListOptions{PerPage: 10})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", upstreamOwner, upstreamRepo, err)
 	}
@@ -30,7 +27,8 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		return fmt.Errorf("retrieved list of releases is empty for '%s/%s'", upstreamOwner, upstreamRepo)
 	}
 
-	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, opts)
+	// retrieve the last 100 image build releases
+	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{PerPage: 100})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", owner, repo, err)
 	}
@@ -98,4 +96,3 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 	}
 	return nil
 }
-
