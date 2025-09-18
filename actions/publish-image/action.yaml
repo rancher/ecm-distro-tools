@@ -110,6 +110,10 @@ inputs:
     description: The container registry used for Prime images.
     type: string
 
+  prime-staging-registry:
+    description: The container registry used for RC Prime images.
+    type: string
+
   prime-repo:
     description: |
       The repository component in a fully qualified image. For reference:
@@ -121,9 +125,19 @@ inputs:
       The username used to authenticate against the Prime registry.
     type: string
 
+  prime-staging-username:
+    description: |
+      The username used to authenticate against the Prime Staging registry.
+    type: string
+
   prime-password:
     description: |
       The password used to authenticate against the Prime registry.
+    type: string
+
+  prime-staging-password:
+    description: |
+      The password used to authenticate against the Prime Staging registry.
     type: string
 
   make-target:
@@ -155,6 +169,25 @@ runs:
     env:
       REGISTRY: ${{ inputs.prime-registry }}
 
+  - name: Validate Prime Staging Registry
+    shell: bash
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && contains(inputs.tag, '-rc') }}
+    run: |
+      export GITHUB_REPOSITORY=${{ github.repository }}
+      GITHUB_REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
+
+      if [[ -z "${REGISTRY}" ]]; then
+        echo "Prime registry cannot be empty"
+        exit 1
+      fi
+
+      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${GITHUB_REPOSITORY}" != "ecm-distro-tools" ]]; then
+        echo "Prime registry cannot be docker.io"
+        exit 2
+      fi
+    env:
+      REGISTRY: ${{ inputs.prime-staging-registry }}
+
   # Login to all registries before starting the pushing process.
   # Short-circuit if either fails. This should decrease the likelihood
   # of only one registry getting updated while the other fails.
@@ -173,6 +206,17 @@ runs:
       registry: ${{ inputs.prime-registry }}
       username: ${{ inputs.prime-username }}
       password: ${{ inputs.prime-password }}
+
+  - name: Login to registry [Prime Staging]
+    # Only login to Staging Prime Registry if:
+    #   - push-to-prime input is true 
+    #   - release tag contains '-rc'
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && contains(inputs.tag, '-rc') }}
+    uses: docker/login-action@v3
+    with:
+      registry: ${{ inputs.prime-staging-registry }}
+      username: ${{ inputs.prime-staging-username }}
+      password: ${{ inputs.prime-staging-password }}
 
   - name: Setup QEMU
     uses: docker/setup-qemu-action@v3
@@ -211,6 +255,33 @@ runs:
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
       REGISTRY: ${{ inputs.prime-registry }}
+
+  - name: Build and push image [Staging Prime]
+    shell: bash
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && !contains(inputs.tag, '-rc') }}
+    run: |
+      export IID_FILE=$(mktemp)
+      export IID_FILE_FLAG="--iidfile ${IID_FILE}"
+      
+      make ${{ inputs.make-target }}
+      IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
+
+      IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
+      IDENTITY="$IDENTITY_REGISTRY/${{ inputs.prime-repo }}/${{ inputs.image }}"
+
+      cosign sign \
+        --oidc-provider=github-actions \
+        --yes \
+        --sign-container-identity="$IDENTITY" \
+        "${IMG_NAME}"
+      echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_ENV}"
+        
+    env:
+      IDENTITY_REGISTRY: ${{ inputs.identity-registry }}
+      TAG: ${{ inputs.tag }}
+      TARGET_PLATFORMS: ${{ inputs.platforms }}
+      REPO: ${{ inputs.prime-staging-registry }}/${{ inputs.prime-repo }}
+      REGISTRY: ${{ inputs.prime-staging-registry }}
 
   - name: Build and push image [Public]
     shell: bash
