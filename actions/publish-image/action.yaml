@@ -106,6 +106,12 @@ inputs:
     default: true
     type: boolean
 
+  push-to-prime-staging:
+    description: |
+      Indicates whether the image should be pushed to the Prime Staging registry.
+    default: false
+    type: boolean
+
   prime-registry:
     description: The container registry used for Prime images.
     type: string
@@ -171,7 +177,7 @@ runs:
 
   - name: Validate Prime Staging Registry
     shell: bash
-    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
     run: |
       export GITHUB_REPOSITORY=${{ github.repository }}
       GITHUB_REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
@@ -211,7 +217,7 @@ runs:
     # Only login to Staging Prime Registry if:
     #   - push-to-prime input is true 
     #   - release tag contains '-rc'
-    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
     uses: docker/login-action@v3
     with:
       registry: ${{ inputs.prime-staging-registry }}
@@ -258,7 +264,7 @@ runs:
 
   - name: Build and push image [Staging Prime]
     shell: bash
-    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && !contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
     run: |
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
