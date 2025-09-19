@@ -38,6 +38,11 @@
 #          prime-repo: ${{ secrets.PRIME_REGISTRY_REPO }}
 #          prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
 #          prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
+#
+#          push-to-prime-staging: 
+#          prime-staging-registry: ${{ secrets.PRIME_REGISTRY }}
+#          prime-staging-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
+#          prime-staging-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
 
 name: publish-image
 
@@ -177,7 +182,7 @@ runs:
 
   - name: Validate Prime Staging Registry
     shell: bash
-    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true')
     run: |
       export GITHUB_REPOSITORY=${{ github.repository }}
       GITHUB_REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
@@ -214,10 +219,7 @@ runs:
       password: ${{ inputs.prime-password }}
 
   - name: Login to registry [Prime Staging]
-    # Only login to Staging Prime Registry if:
-    #   - push-to-prime input is true 
-    #   - release tag contains '-rc'
-    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') }}
     uses: docker/login-action@v3
     with:
       registry: ${{ inputs.prime-staging-registry }}
@@ -237,7 +239,7 @@ runs:
 
   - name: Build and push image [Prime]
     shell: bash
-    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') }}
     run: |
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
@@ -264,7 +266,7 @@ runs:
 
   - name: Build and push image [Staging Prime]
     shell: bash
-    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') && contains(inputs.tag, '-rc') }}
+    if: ${{ (inputs.push-to-prime-staging == true || inputs.push-to-prime-staging == 'true') }}
     run: |
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
