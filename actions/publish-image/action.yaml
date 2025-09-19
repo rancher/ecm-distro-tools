@@ -237,7 +237,14 @@ runs:
 
   - name: Build and push image [Prime]
     shell: bash
-    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
+    # | `push-to-prime` is `true`? | `push-to-prime-staging` is `true`? | `tag` contains `-rc`? | Job Runs? | Explanation                                                                                     |
+    # | :------------------------: | :--------------------------------: | :-------------------: | :-------: | :---------------------------------------------------------------------------------------------- |
+    # | ✅ Yes                     | ❌ No                              | ✅ Yes                | ✅ Yes    | Since staging is `false`, the job runs.                                                         |
+    # | ✅ Yes                     | ❌ No                              | ❌ No                 | ✅ Yes    | Since staging is `false`, the job runs.                                                         |
+    # | ✅ Yes                     | ✅ Yes                             | ✅ Yes                | ❌ No     | Staging is `true`, so the `-rc` check is performed. The presence of `-rc` does not run the job. |
+    # | ✅ Yes                     | ✅ Yes                             | ❌ No                 | ✅ Yes    | Staging is `true`, and the tag is not an `-rc`, so the job runs.                                |
+    # | ❌ No                      | *Anything*                         | *Anything*            | ❌ No     | The main `push-to-prime` flag is `false`, so nothing runs.                                      |
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && (!inputs.push-to-prime-staging || !contains(inputs.tag, '-rc')) }}
     run: |
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
