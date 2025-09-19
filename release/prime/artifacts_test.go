@@ -8,7 +8,8 @@ import (
 func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	rancherKeys := []string{"rancher/v2.10.0/images.txt"}
 	rke2Keys := []string{"rke2/v1.30.1+rke2r1/images.txt"}
-	got := generateArtifactsIndexContent(rancherKeys, rke2Keys, nil)
+	k3sKeys := []string{"k3s/v1.30.1+k3s1/images.txt"}
+	got := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, nil)
 	if !slices.Equal(got.GA.Rancher.Versions, []string{"v2.10.0"}) {
 		t.Fatalf("unexpected GA rancher versions: %v", got.GA.Rancher.Versions)
 	}
@@ -21,6 +22,12 @@ func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	if len(got.PreRelease.RKE2.Versions) != 0 {
 		t.Fatalf("expected no prerelease rke2 versions, got %v", got.PreRelease.RKE2.Versions)
 	}
+	if !slices.Equal(got.GA.K3s.Versions, []string{"v1.30.1+k3s1"}) {
+		t.Fatalf("unexpected GA k3s versions: %v", got.GA.K3s.Versions)
+	}
+	if len(got.PreRelease.K3s.Versions) != 0 {
+		t.Fatalf("expected no prerelease k3s versions, got %v", got.PreRelease.K3s.Versions)
+	}
 }
 
 func TestGenerateArtifactsIndexContentPreRelease(t *testing.T) {
@@ -29,7 +36,7 @@ func TestGenerateArtifactsIndexContentPreRelease(t *testing.T) {
 		"rancher/v2.9.0-rc1/foo.txt",
 		"rancher/v2.9.0-hotfix-1/images.txt",
 	}
-	got := generateArtifactsIndexContent(rancherKeys, nil, nil)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil)
 	wantPre := []string{"v2.9.0-rc1", "v2.9.0-hotfix-1"}
 	if !slices.Equal(got.PreRelease.Rancher.Versions, wantPre) {
 		t.Fatalf("unexpected prerelease versions: %v", got.PreRelease.Rancher.Versions)
@@ -49,7 +56,7 @@ func TestGenerateArtifactsIndexContentIgnoredVersions(t *testing.T) {
 		"rancher/v2.8.2/images.txt",
 	}
 	ignore := map[string]bool{"v2.8.1": true}
-	got := generateArtifactsIndexContent(rancherKeys, nil, ignore)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, ignore)
 	if len(got.GA.Rancher.Versions) != 1 || got.GA.Rancher.Versions[0] != "v2.8.2" {
 		t.Fatalf("expected only v2.8.2, got %v", got.GA.Rancher.Versions)
 	}
@@ -64,7 +71,7 @@ func TestGenerateArtifactsIndexContentSkipUnexpectedKeys(t *testing.T) {
 		"rancher/v2.11.0/",
 		"rancher/v2.11.0/file.txt",
 	}
-	got := generateArtifactsIndexContent(rancherKeys, nil, nil)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil)
 	if !slices.Equal(got.GA.Rancher.Versions, []string{"v2.11.0"}) {
 		t.Fatalf("expected only valid version captured, got %v", got.GA.Rancher.Versions)
 	}
