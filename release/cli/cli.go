@@ -146,7 +146,7 @@ func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, re
 	pull := &github.NewPullRequest{
 		Title:               github.String("[" + releaseBranch + "]" + "Bump Rancher CLI version to " + tag),
 		Base:                github.String(releaseBranch),
-		Head:                github.String(githubUsername + UpdateCLIRefsBranchName(tag)),
+		Head:                github.String(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
 		MaintainerCanModify: github.Bool(true),
 	}
 
