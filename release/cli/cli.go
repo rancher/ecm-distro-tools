@@ -144,7 +144,7 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string,
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String("[" + releaseBranch + "]" + "Bump Rancher CLI version to " + tag),
+		Title:               github.String("Bump Rancher version to " + tag),
 		Base:                github.String(releaseBranch),
 		Head:                github.String(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
 		MaintainerCanModify: github.Bool(true),
