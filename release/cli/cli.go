@@ -151,7 +151,7 @@ func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, re
 	}
 
 	// creating a pr from your fork branch
-	pr, _, err := ghClient.PullRequests.Create(ctx, cliRepoName, rancherRepoOwner, pull)
+	pr, _, err := ghClient.PullRequests.Create(ctx, rancherRepoOwner, cliRepoName, pull)
 	if err != nil {
 		return err
 	}
