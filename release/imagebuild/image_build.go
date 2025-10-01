@@ -15,6 +15,11 @@ const (
 	imageBuildBase = "image-build-base"
 )
 
+var (
+	// Define the cutoff time: 2 days ago
+	cutoff = time.Now().Add(-time.Hour * 24 * 2)
+)
+
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
@@ -43,27 +48,41 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 	}
 
 	for _, upstreamTag := range upstreamTags {
-		upstreamTag := upstreamTag.GetName()
+		upstreamTagName := upstreamTag.GetName()
+
+		isOlder, err := isTagOlderThanCutoff(ctx, client, upstreamOwner, upstreamRepo, upstreamTagName, cutoff)
+
+		if err != nil {
+			logrus.Warnf("Could not determine age of upstream tag '%s', skipping: %v", upstreamTagName, err)
+			continue
+		}
+
+		// if the tag is older than the defined cutoff time
+		if isOlder {
+			logrus.Infof("'%s/%s' tag '%s' is older than 2 days, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+			continue
+		}
+		// if the release is older than a couple of day it can be ignored
 		if tagPrefix != "" {
-			if !strings.HasPrefix(upstreamTag, tagPrefix) {
+			if !strings.HasPrefix(upstreamTagName, tagPrefix) {
 				continue
 			}
-			upstreamTag = strings.TrimPrefix(upstreamTag, tagPrefix)
+			upstreamTagName = strings.TrimPrefix(upstreamTagName, tagPrefix)
 		}
 
 		// skip current upstream release if not GA
-		if strings.Contains(upstreamTag, "rc") || strings.Contains(upstreamTag, "alpha") || strings.Contains(upstreamTag, "beta") {
+		if strings.Contains(upstreamTagName, "rc") || strings.Contains(upstreamTagName, "alpha") || strings.Contains(upstreamTagName, "beta") {
 			continue
 		}
 
-		if _, found := tagsMap[upstreamTag]; found {
-			logrus.Infof("'%s/%s' tag '%s' found in '%s/%s', skipping release.", upstreamOwner, upstreamRepo, upstreamTag, owner, repo)
+		if _, found := tagsMap[upstreamTagName]; found {
+			logrus.Infof("'%s/%s' tag '%s' found in '%s/%s', skipping release.", upstreamOwner, upstreamRepo, upstreamTagName, owner, repo)
 			continue
 		}
 
-		logrus.Infof("'%s/%s' tag '%s' not found in 'rancher/%s'.", upstreamOwner, upstreamRepo, upstreamTag, repo)
+		logrus.Infof("'%s/%s' tag '%s' not found in 'rancher/%s'.", upstreamOwner, upstreamRepo, upstreamTagName, repo)
 
-		imageBuildTag := upstreamTag
+		imageBuildTag := upstreamTagName
 
 		// for image-build-kubernetes repo, there's a -rker1 suffix for new k8s releases.
 		if repo == imageBuildK8s {
@@ -90,6 +109,7 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 			logrus.Infof("Dry run, skipping tag '%s' creation for '%s/%s'", imageBuildTag, owner, repo)
 			continue
 		}
+
 		if _, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newRelease); err != nil {
 			return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, imageBuildTag, err)
 		}
@@ -97,4 +117,38 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		logrus.Infof("Successfully created '%s/%s' release '%s'", owner, repo, imageBuildTag)
 	}
 	return nil
+}
+
+// isTagOlderThanCutoff checks if a given tag in a repository was created before the cutoff time.
+// It returns true if the tag is older, and false otherwise; also handles both annotated tags (using the tagger date) and lightweight tags (using the committer date).
+func isTagOlderThanCutoff(ctx context.Context, client *github.Client, owner, repo, tagName string, cutoff time.Time) (bool, error) {
+	var tagDate time.Time
+
+	ref, _, err := client.Git.GetRef(ctx, owner, repo, "tags/"+tagName)
+	if err != nil {
+		return false, fmt.Errorf("could not get ref for tag '%s': %w", tagName, err)
+	}
+
+	// Determine the date based on the object type returned by the ref.
+	switch ref.Object.GetType() {
+	case "tag": // This is an annotated tag.
+		tagObject, _, err := client.Git.GetTag(ctx, owner, repo, ref.Object.GetSHA())
+		if err != nil {
+			return false, fmt.Errorf("could not get annotated tag object for '%s': %w", tagName, err)
+		}
+		tagDate = tagObject.Tagger.GetDate()
+
+	case "commit": // This is a lightweight tag that points directly to a commit.
+		commit, _, err := client.Git.GetCommit(ctx, owner, repo, ref.Object.GetSHA())
+		if err != nil {
+			return false, fmt.Errorf("could not get commit object for '%s': %w", tagName, err)
+		}
+		tagDate = commit.Committer.GetDate()
+
+	default:
+		return false, fmt.Errorf("unknown object type '%s' for tag '%s'", ref.Object.GetType(), tagName)
+	}
+
+	// Compare the fetched date with the cutoff and return the result.
+	return tagDate.Before(cutoff), nil
 }
