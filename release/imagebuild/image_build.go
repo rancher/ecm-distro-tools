@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v39/github"
 	"github.com/sirupsen/logrus"
 )
@@ -50,6 +51,12 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 
 	for _, upstreamTag := range upstreamTags {
 		upstreamTagName := upstreamTag.GetName()
+
+		// skip if the current upstream tag name isn't valid.
+		if !validateTagFormat(upstreamTagName, tagPrefix) {
+			logrus.Infof("'%s/%s' tag '%s' is not in expected format, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+			continue
+		}
 
 		isOlder, err := isTagOlderThanCutoff(ctx, client, upstreamOwner, upstreamRepo, upstreamTagName, cutoff)
 
@@ -110,7 +117,6 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 			logrus.Infof("Dry run, skipping tag '%s' creation for '%s/%s'", imageBuildTag, owner, repo)
 			continue
 		}
-
 		if _, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newRelease); err != nil {
 			return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, imageBuildTag, err)
 		}
@@ -152,4 +158,31 @@ func isTagOlderThanCutoff(ctx context.Context, client *github.Client, owner, rep
 
 	// Compare the fetched date with the cutoff and return the result.
 	return tagDate.Before(cutoff), nil
+}
+
+// validateTagFormat checks if a provided tag respects the expected format.
+// If tagPrefix is provided, the tagName must start with it.
+// If tagPrefix is empty, the tagName must not have any other prefix (besides the optional 'v').
+// It returns a boolean indicating if the format is valid.
+func validateTagFormat(tagName, tagPrefix string) bool {
+	var versionStr string
+
+	// Case 1: A specific prefix is required.
+	if tagPrefix != "" {
+		if !strings.HasPrefix(tagName, tagPrefix) {
+			return false
+		}
+		versionStr = strings.TrimPrefix(tagName, tagPrefix)
+	} else {
+		// Case 2: No prefix is allowed, the tag itself must be the version.
+		versionStr = tagName
+	}
+
+	// semver library to validate the version string, if it contains a prefix (besides 'v' it fails).
+	if _, err := semver.NewVersion(versionStr); err != nil {
+		// If parsing fails, it's not a valid semantic version.
+		return false
+	}
+
+	return true
 }
