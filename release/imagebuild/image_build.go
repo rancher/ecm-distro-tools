@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -17,32 +18,32 @@ const (
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
-	// retrieve the last 10 upstream releases
-	upstreamReleases, _, err := client.Repositories.ListReleases(ctx, upstreamOwner, upstreamRepo, &github.ListOptions{PerPage: 10})
+	// retrieve the last 150 upstream releases
+	upstreamTags, _, err := client.Repositories.ListTags(ctx, upstreamOwner, upstreamRepo, &github.ListOptions{PerPage: 150})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", upstreamOwner, upstreamRepo, err)
+		return fmt.Errorf("failed to retrieve '%s/%s' tags: %v", upstreamOwner, upstreamRepo, err)
 	}
 
-	if len(upstreamReleases) == 0 {
-		return fmt.Errorf("retrieved list of releases is empty for '%s/%s'", upstreamOwner, upstreamRepo)
+	if len(upstreamTags) == 0 {
+		return fmt.Errorf("retrieved list of tags is empty for '%s/%s'", upstreamOwner, upstreamRepo)
 	}
 
-	// retrieve the last 100 image build releases
-	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{PerPage: 100})
+	// retrieve the last 300 image build releases
+	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{PerPage: 300})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", owner, repo, err)
 	}
 
-	tags := make(map[string]struct{}, len(releases))
-	for _, release := range releases {
-		// removes suffixes to build a map to check
+	tagsMap := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		// removes any suffixes (e.g. -buildYYYYMMDD) to build a map to check
 		// the existence of tags in image-build repo
-		tag, _, _ := strings.Cut(release.GetTagName(), "-")
-		tags[tag] = struct{}{}
+		tag, _, _ := strings.Cut(tag.GetName(), "-")
+		tagsMap[tag] = struct{}{}
 	}
 
-	for _, upstreamRelease := range upstreamReleases {
-		upstreamTag := upstreamRelease.GetTagName()
+	for _, upstreamTag := range upstreamTags {
+		upstreamTag := upstreamTag.GetName()
 		if tagPrefix != "" {
 			if !strings.HasPrefix(upstreamTag, tagPrefix) {
 				continue
@@ -55,11 +56,12 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 			continue
 		}
 
-		if _, found := tags[upstreamTag]; found {
+		if _, found := tagsMap[upstreamTag]; found {
+			logrus.Infof("'%s/%s' tag '%s' found in '%s/%s', skipping release.", upstreamOwner, upstreamRepo, upstreamTag, owner, repo)
 			continue
 		}
 
-		fmt.Printf("'%s/%s' tag '%s' not found in 'rancher/%s'.\n", upstreamOwner, upstreamRepo, upstreamTag, repo)
+		logrus.Infof("'%s/%s' tag '%s' not found in 'rancher/%s'.", upstreamOwner, upstreamRepo, upstreamTag, repo)
 
 		imageBuildTag := upstreamTag
 
@@ -85,14 +87,14 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		if dryrun {
-			fmt.Printf("Dry run, skipping tag '%s' creation for '%s/%s'\n", imageBuildTag, owner, repo)
+			logrus.Infof("Dry run, skipping tag '%s' creation for '%s/%s'", imageBuildTag, owner, repo)
 			continue
 		}
 		if _, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newRelease); err != nil {
 			return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, imageBuildTag, err)
 		}
 
-		fmt.Printf("Successfully created '%s/%s' release '%s'\n", owner, repo, imageBuildTag)
+		logrus.Infof("Successfully created '%s/%s' release '%s'", owner, repo, imageBuildTag)
 	}
 	return nil
 }
