@@ -2,6 +2,7 @@ package imagebuild
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -146,7 +147,7 @@ func isTagOlderThanCutoff(ctx context.Context, client *github.Client, owner, rep
 		tagDate = commit.Committer.GetDate()
 
 	default:
-		return false, fmt.Errorf("unknown object type '%s' for tag '%s'", ref.Object.GetType(), tagName)
+		return false, errors.New("unknown object type '" + ref.Object.GetType() + "' for tag '" + tagName + "'")
 	}
 
 	// Compare the fetched date with the cutoff and return the result.
