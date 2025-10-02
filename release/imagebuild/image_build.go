@@ -25,10 +25,28 @@ var (
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
-	// retrieve the last 150 upstream releases
-	upstreamTags, _, err := client.Repositories.ListTags(ctx, upstreamOwner, upstreamRepo, &github.ListOptions{PerPage: 150})
-	if err != nil {
-		return fmt.Errorf("failed to retrieve '%s/%s' tags: %v", upstreamOwner, upstreamRepo, err)
+
+	logrus.Infof("Retrieving all upstream tags for '%s/%s'...", upstreamOwner, upstreamRepo)
+
+	// This slice will hold all tags gathered from all pages.
+	var upstreamTags []*github.RepositoryTag
+	opt := &github.ListOptions{PerPage: 100}
+
+	for {
+		tagsPage, resp, err := client.Repositories.ListTags(ctx, upstreamOwner, upstreamRepo, opt)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve page %d of '%s/%s' tags: %w", opt.Page, upstreamOwner, upstreamRepo, err)
+		}
+
+		upstreamTags = append(upstreamTags, tagsPage...)
+
+		// If NextPage is 0 there's no more tags to retrieve so we can break out of the loop
+		if resp.NextPage == 0 {
+			break
+		}
+
+		// set the page for the next iteration.
+		opt.Page = resp.NextPage
 	}
 
 	if len(upstreamTags) == 0 {
@@ -79,7 +97,7 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		// skip current upstream release if not GA
-		if strings.Contains(upstreamTagName, "rc") || strings.Contains(upstreamTagName, "alpha") || strings.Contains(upstreamTagName, "beta") {
+		if strings.Contains(upstreamTagName, "rc") || strings.Contains(upstreamTagName, "alpha") || strings.Contains(upstreamTagName, "beta") || strings.Contains(upstreamTagName, "dev") {
 			continue
 		}
 
@@ -179,8 +197,19 @@ func validateTagFormat(tagName, tagPrefix string) bool {
 	}
 
 	// semver library to validate the version string, if it contains a prefix (besides 'v' it fails).
-	if _, err := semver.NewVersion(versionStr); err != nil {
+	v, err := semver.NewVersion(versionStr)
+	if err != nil {
 		// If parsing fails, it's not a valid semantic version.
+		return false
+	}
+
+	// this checks for any suffix that a tag may have, and we ignore those with suffixes:
+	// example:
+	// - v3.21.1 <------------ correct
+	// - v3.21.1-typha <------ will be skipped
+	// - v3.21.1-pod2daemon <- will be skipped
+	// - v3.24.2-0.dev <------ will be skipped
+	if v.Prerelease() != "" {
 		return false
 	}
 
