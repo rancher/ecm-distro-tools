@@ -71,6 +71,7 @@ RUN zypper update -y && \
         net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport-linux-amd64 /usr/local/bin/backport
+COPY --from=builder /ecm-distro-tools/cmd/rpm/bin/rpm-linux-amd64 /usr/local/bin/rpm
 COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report-linux-amd64 /usr/local/bin/gen_release_report
 COPY --from=builder /ecm-distro-tools/cmd/release/bin/release-linux-amd64 /usr/local/bin/release
 COPY --from=builder /ecm-distro-tools/cmd/rancher_release/bin/rancher_release-linux-amd64 /usr/local/bin/rancher_release
