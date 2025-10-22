@@ -13,7 +13,7 @@ examples:
     $0 -d"
 }
 
-while getopts 'idh' c; do
+while getopts 'dh' c; do
     case $c in
     d)
         DRY_RUN=true
