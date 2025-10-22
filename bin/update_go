@@ -3,6 +3,7 @@
 set -e
 
 . liblogger-ecm.sh
+. libstd-ecm.sh
 
 usage() {
     echo "usage: $0 [onrsph]
@@ -16,6 +17,8 @@ usage() {
 examples: 
     $0 -o 1.16.3b7 -n 1.17.3b7 -r image-build-etcd"
 }
+
+has_gh
 
 get_repo() {
     repo=$1
