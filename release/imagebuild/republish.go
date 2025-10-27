@@ -11,7 +11,6 @@ import (
 )
 
 func Republish(ctx context.Context, client *github.Client, owner, repo, targetCommitish string, dryrun bool) error {
-
 	logrus.Infof("Retrieving latest release of '%s/%s'...", owner, repo)
 
 	release, _, err := client.Repositories.GetLatestRelease(ctx, owner, repo)
@@ -29,7 +28,7 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 	now := time.Now()
 	tag += fmt.Sprintf("-build%d%02d%02d", now.Year(), now.Month(), now.Day())
 
-	newRelease := &github.RepositoryRelease{
+	newReleaseOpts := &github.RepositoryRelease{
 		TagName:         github.String(tag),
 		TargetCommitish: github.String(targetCommitish),
 		Name:            github.String(tag),
@@ -41,11 +40,12 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 		return nil
 	}
 
-	if _, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newRelease); err != nil {
+	newRelease, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newReleaseOpts)
+	if err != nil {
 		return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, tag, err)
 	}
 
-	logrus.Infof("Successfully created '%s/%s' release '%s'", owner, repo, tag)
+	logrus.Infof("Successfully created '%s/%s' release '%s': %s", owner, repo, tag, newRelease.GetURL())
 
 	return nil
 }

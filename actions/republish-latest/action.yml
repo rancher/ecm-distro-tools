@@ -76,7 +76,7 @@ runs:
       shell: bash
       run: |
         release sync republish-latest \
-          --image-build-owner "${{ inputs.owner }}" \
-          --image-build-repo "${{ inputs.repo }}" \
+          --owner "${{ inputs.owner }}" \
+          --repo "${{ inputs.repo }}" \
           --commitish "${{ inputs.commitish }}" \
           --config-file "ecm-config.json"
