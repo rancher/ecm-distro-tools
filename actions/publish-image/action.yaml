@@ -236,6 +236,7 @@ runs:
           fi
           if [ "${i}" -eq "$(( max_retries - 1 ))" ]; then
               echo "ERROR: Failed to generate slsav1 provenance. Check whether the image is present in the Prime registry."
+              cat provenance-slsav1.json
               exit 1
           fi
           i=$(( i + 1 ))
