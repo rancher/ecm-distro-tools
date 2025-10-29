@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	imageBuildOwner   string
-	imageBuildRepo    string
+	owner             string
 	upstreamOwner     string
 	upstreamRepo      string
 	upstreamTagPrefix string
+	commitish         string
 )
 
 var syncCmd = &cobra.Command{
@@ -36,7 +36,23 @@ var syncImageBuildCmd = &cobra.Command{
 		}
 		ghClient := repository.NewGithub(ctx, ghToken)
 
-		return imagebuild.Sync(ctx, ghClient, imageBuildOwner, imageBuildRepo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
+		return imagebuild.Sync(ctx, ghClient, owner, *repo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
+	},
+}
+
+var syncRepublishLatestReleaseCmd = &cobra.Command{
+	Use:       "republish-latest",
+	Short:     "Republish the latest release",
+	ValidArgs: []string{},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		ghToken := os.Getenv("GITHUB_TOKEN")
+		if ghToken == "" {
+			return errors.New("GITHUB_TOKEN env is empty")
+		}
+		ghClient := repository.NewGithub(ctx, ghToken)
+
+		return imagebuild.Republish(ctx, ghClient, owner, *repo, commitish, dryRun)
 	},
 }
 
@@ -44,6 +60,7 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.AddCommand(syncImageBuildCmd)
+	syncCmd.AddCommand(syncRepublishLatestReleaseCmd)
 
 	syncImageBuildCmd.Flags().StringVar(&upstreamTagPrefix, "tag-prefix", "", "Upstream tag Prefix")
 	syncImageBuildCmd.Flags().StringVar(&upstreamRepo, "upstream-repo", "", "Upstream repository name")
@@ -56,13 +73,30 @@ func init() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	syncImageBuildCmd.Flags().StringVar(&imageBuildRepo, "image-build-repo", "", "Image build repository name")
+	syncImageBuildCmd.Flags().StringVar(repo, "image-build-repo", "", "Image build repository name")
 	if err := syncImageBuildCmd.MarkFlagRequired("image-build-repo"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	syncImageBuildCmd.Flags().StringVar(&imageBuildOwner, "image-build-owner", "rancher", "Image build repository owner")
+	syncImageBuildCmd.Flags().StringVar(&owner, "image-build-owner", "rancher", "Image build repository owner")
 	if err := syncImageBuildCmd.MarkFlagRequired("image-build-owner"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	syncRepublishLatestReleaseCmd.Flags().StringVar(repo, "repo", "", "Image build repository name")
+	if err := syncRepublishLatestReleaseCmd.MarkFlagRequired("repo"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	syncRepublishLatestReleaseCmd.Flags().StringVar(&owner, "owner", "rancher", "Image build repository owner")
+	if err := syncRepublishLatestReleaseCmd.MarkFlagRequired("owner"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	syncRepublishLatestReleaseCmd.Flags().StringVar(&commitish, "commitish", "master", "The commitish target")
+	if err := syncRepublishLatestReleaseCmd.MarkFlagRequired("commitish"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
