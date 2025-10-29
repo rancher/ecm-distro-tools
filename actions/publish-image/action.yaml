@@ -160,7 +160,7 @@ runs:
   # of only one registry getting updated while the other fails.
   - name: Login to registry [Public]
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
-    uses: docker/login-action@v3
+    uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
     with:
       registry: ${{ inputs.public-registry }}
       username: ${{ inputs.public-username }}
@@ -168,22 +168,22 @@ runs:
 
   - name: Login to registry [Prime]
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
-    uses: docker/login-action@v3
+    uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
     with:
       registry: ${{ inputs.prime-registry }}
       username: ${{ inputs.prime-username }}
       password: ${{ inputs.prime-password }}
 
   - name: Setup QEMU
-    uses: docker/setup-qemu-action@v3
+    uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
     with:
       image: tonistiigi/binfmt:qemu-v8.1.5
       cache-image: false
   - name: Setup Docker Buildx
-    uses: docker/setup-buildx-action@v3
+    uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
   - name: Install Cosign
-    uses: sigstore/cosign-installer@v3.5.0
-  - uses: rancherlabs/slsactl/actions/install-slsactl@2d93bf8d6f66b350ed455dea5da7b5bcd6e4ebc0 # v0.0.20
+    uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+  - uses: rancherlabs/slsactl/actions/install-slsactl@c5e097631982f01c5554a034329f21f37381630c # before v0.0.22
 
   - name: Build and push image [Prime]
     shell: bash
