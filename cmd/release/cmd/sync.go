@@ -60,6 +60,7 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.AddCommand(syncImageBuildCmd)
+	syncCmd.AddCommand(syncRepublishLatestReleaseCmd)
 
 	syncImageBuildCmd.Flags().StringVar(&upstreamTagPrefix, "tag-prefix", "", "Upstream tag Prefix")
 	syncImageBuildCmd.Flags().StringVar(&upstreamRepo, "upstream-repo", "", "Upstream repository name")

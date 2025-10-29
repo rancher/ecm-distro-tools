@@ -45,7 +45,7 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 		return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, tag, err)
 	}
 
-	logrus.Infof("Successfully created '%s/%s' release '%s': %s", owner, repo, tag, newRelease.GetURL())
+	logrus.Infof("Successfully created '%s/%s' release '%s': %s", owner, repo, tag, newRelease.GetHTMLURL())
 
 	return nil
 }
