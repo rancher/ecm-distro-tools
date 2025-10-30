@@ -280,6 +280,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
     header { display: flex; flex-direction: row; justify-items: center; }
     #rancher-logo { width: 200px; }
     .project { margin-left: 20px; }
+		.project-link a:hover, a:visited, a:link, a:active { text-decoration: none; }
     .release { margin-left: 40px; margin-bottom: 20px; }
     .release h3 { margin-bottom: 0px; }
     .files { margin-left: 60px; display: flex; flex-direction: column; }
@@ -294,12 +295,16 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
     <header>
       <img src="https://prime.ribs.rancher.io/assets/img/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
       <h1>PRIME ARTIFACTS</h1>
+			<ul> Jump to Project:
+			  <li><a class="project-link" href="#rancher">rancher</a></li>
+			  <li><a class="project-link" href="#rke2">rke2</a></li>
+			</ul>
     </header>
     <main>
       <div class="project-rancher project">
-        <h2>rancher</h2>
+        <h2 id="rancher">rancher <a class="project-link" href="#rancher">&para;</a></h2>
         {{ range $i, $version := .Rancher.Versions }}
-        <div class="release-{{ $version }} release">
+        <div class="release-{{ $version }} release" id="rancher-{{ $version }}"">
           <div class="release-title">
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
@@ -315,9 +320,9 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 				{{ end }}
       </div>
 	  <div class="project-rke2 project">
-        <h2>rke2</h2>
+        <h2 id="rke2">rke2 <a class="project-link" href="#rke2">&para;</a></h2>
         {{ range $i, $version := .RKE2.Versions }}
-        <div class="release-{{ $version }} release">
+        <div class="release-{{ $version }} release" id="rke2-{{ $version }}">
           <div class="release-title">
 						<b class="release-title-tag">{{ $version }}</b>
             <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
