@@ -245,5 +245,6 @@ runs:
 
       cat provenance-slsav1.json
       cosign attest --yes --predicate provenance-slsav1.json --type slsaprovenance1 "${IMG_NAME}"
+      rm provenance-slsav1.json
     env:
       LANDLOCK_MODE: DISABLED
