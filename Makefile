@@ -48,6 +48,10 @@ upstream_go_version:
 semv:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: rpm
+rpm:
+	cd cmd/$@ && $(MAKE)
+
 .PHONY: test
 test:
 	go test -v -cover ./...
