@@ -296,12 +296,14 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(dashboardRelease.ReleaseBranch, releaseBranch)
 
-		previousTag, err := previousPatch(tag)
-		if err != nil {
-			return err
-		}
+		previousTag := dashboardRelease.PreviousTag
 
-		previousTag = config.ValueOrDefault(dashboardRelease.PreviousTag, previousTag)
+		if previousTag == "" {
+			previousTag, err = previousPatch(tag)
+			if err != nil {
+				return err
+			}
+		}
 
 		uiOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
@@ -379,12 +381,14 @@ var cliTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(cliRelease.ReleaseBranch, releaseBranch)
 
-		previousTag, err := previousPatch(tag)
-		if err != nil {
-			return err
-		}
+		previousTag := cliRelease.PreviousTag
 
-		previousTag = config.ValueOrDefault(cliRelease.PreviousTag, previousTag)
+		if previousTag == "" {
+			previousTag, err = previousPatch(tag)
+			if err != nil {
+				return err
+			}
+		}
 
 		cliOpts := &repository.CreateReleaseOpts{
 			Tag:    tag,
