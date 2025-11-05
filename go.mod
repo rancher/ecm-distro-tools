@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.30.4
 	github.com/aws/aws-sdk-go-v2/config v1.27.29
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.60.1
-	github.com/briandowns/spinner v1.23.1
+	github.com/briandowns/spinner v1.23.2
 	github.com/spf13/cobra v1.8.0
 	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/sync v0.8.0
