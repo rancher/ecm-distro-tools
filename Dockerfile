@@ -3,12 +3,12 @@
 # Needed to speed up the process of building
 
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
-ARG GO_IMAGE=rancher/hardened-build-base:v1.22.1b1
-FROM ${BCI_IMAGE} as bci
+ARG GO_IMAGE=rancher/hardened-build-base:v1.24.10b1
+FROM ${BCI_IMAGE} AS bci
 
 # Builder and xx only need to support the host architecture.
-FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.3.0 as xx
-FROM --platform=$BUILDPLATFORM ${GO_IMAGE} as builder 
+FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.3.0 AS xx
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS builder
 
 # https://github.com/tonistiigi/xx/?tab=readme-ov-file#xx-apk-xx-apt-xx-apt-get---installing-packages-for-target-architecture
 RUN apk --no-cache add \
