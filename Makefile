@@ -20,10 +20,6 @@ all: $(BINARIES)
 gen_release_report:
 	cd cmd/$@ && $(MAKE)
 
-.PHONY: rancher_release
-rancher_release:
-	cd cmd/$@ && $(MAKE)
-
 .PHONY: rke2_release
 rke2_release:
 	cd cmd/$@ && $(MAKE)
