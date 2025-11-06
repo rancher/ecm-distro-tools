@@ -18,7 +18,7 @@ require (
 
 require (
 	github.com/MetalBlueberry/go-plotly v0.4.0
-	github.com/aws/aws-sdk-go-v2 v1.30.4
+	github.com/aws/aws-sdk-go-v2 v1.39.6
 	github.com/aws/aws-sdk-go-v2/config v1.27.29
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.60.1
 	github.com/briandowns/spinner v1.23.2
@@ -46,7 +46,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.22.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.26.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.30.5 // indirect
-	github.com/aws/smithy-go v1.20.4 // indirect
+	github.com/aws/smithy-go v1.23.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
