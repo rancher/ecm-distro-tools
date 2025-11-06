@@ -8,9 +8,9 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/go-github/v39 v39.2.0
 	github.com/sirupsen/logrus v1.9.3
-	go.opentelemetry.io/otel v1.36.0
+	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/sdk v1.25.0
-	go.opentelemetry.io/otel/trace v1.36.0
+	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/crypto v0.39.0
 	golang.org/x/mod v0.25.0
 	golang.org/x/oauth2 v0.30.0
@@ -70,7 +70,7 @@ require (
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	go.opentelemetry.io/otel/metric v1.36.0 // indirect
+	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 )
 
