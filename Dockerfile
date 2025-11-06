@@ -73,7 +73,6 @@ RUN zypper update -y && \
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport-linux-amd64 /usr/local/bin/backport
 COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report-linux-amd64 /usr/local/bin/gen_release_report
 COPY --from=builder /ecm-distro-tools/cmd/release/bin/release-linux-amd64 /usr/local/bin/release
-COPY --from=builder /ecm-distro-tools/cmd/rancher_release/bin/rancher_release-linux-amd64 /usr/local/bin/rancher_release
 COPY --from=builder /ecm-distro-tools/cmd/rke2_release/bin/rke2_release-linux-amd64 /usr/local/bin/rke2_release
 COPY --from=builder /ecm-distro-tools/cmd/semv/bin/semv-linux-amd64 /usr/local/bin/semv
 COPY --from=builder /ecm-distro-tools/cmd/test_coverage/bin/test_coverage-linux-amd64 /usr/local/bin/test_coverage
