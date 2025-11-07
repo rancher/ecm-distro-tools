@@ -11,11 +11,6 @@ var (
 	version   = "development"
 	rootFlags = []cli.Flag{
 		&cli.BoolFlag{
-			Name:    "verbose",
-			Aliases: []string{"v"},
-			Usage:   "verbose output",
-		},
-		&cli.BoolFlag{
 			Name:    "graph",
 			Aliases: []string{"g"},
 			Usage:   "display results as a graph",
@@ -42,7 +37,7 @@ var (
 func main() {
 	app := cli.NewApp()
 	app.Name = "test-coverage"
-	app.Usage = "Generate coverage report for E2E/Integration tests"
+	app.Usage = "Generate coverage report for E2E/Integration/Docker tests"
 	app.UseShortOptionHandling = true
 	app.Flags = rootFlags
 	app.Action = coverage
