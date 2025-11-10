@@ -7,7 +7,7 @@ ARG GO_IMAGE=rancher/hardened-build-base:v1.24.10b1
 FROM ${BCI_IMAGE} AS bci
 
 # Builder and xx only need to support the host architecture.
-FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.3.0 AS xx
+FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.6.1 AS xx
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS builder
 
 # https://github.com/tonistiigi/xx/?tab=readme-ov-file#xx-apk-xx-apt-xx-apt-get---installing-packages-for-target-architecture
