@@ -1,0 +1,56 @@
+name: Sync Upstream
+
+on:
+  workflow_call:
+    inputs:
+      upstream-repo:
+        required: true
+        type: string
+        description: 'Upstream repository to sync from (format: owner/repo)'
+      branches:
+        required: true
+        type: string
+        description: 'JSON array of branches to sync'
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      statuses: write
+
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(inputs.branches) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/${{ inputs.upstream-repo }}.git
+          git fetch upstream ${{ matrix.branch }}
+
+      - name: Sync branch
+        run: |
+          git checkout -B ${{ matrix.branch }} upstream/${{ matrix.branch }}
+          git push -f origin ${{ matrix.branch }}
+
+      - name: Update branch status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ matrix.branch }}
+        run: |
+          SHA=$(git rev-parse HEAD)
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/$SHA \
+            -f state=success \
+            -f description="Branch synced with upstream" \
+            -f context="Branch Sync Status"
