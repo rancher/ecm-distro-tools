@@ -10,7 +10,7 @@ import (
 
 	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
 	"github.com/MetalBlueberry/go-plotly/offline"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"sigs.k8s.io/yaml"
 )
 
