@@ -148,10 +148,6 @@ runs:
         exit 1
       fi
 
-      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${GITHUB_REPOSITORY}" != "ecm-distro-tools" ]]; then
-        echo "Prime registry cannot be docker.io"
-        exit 2
-      fi
     env:
       REGISTRY: ${{ inputs.prime-registry }}
 
