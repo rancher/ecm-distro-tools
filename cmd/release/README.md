@@ -23,26 +23,24 @@ release -h
 * A valid config file at `~/.ecm-distro-tools/config.json`
 
 #### Commands
-```bash
+```sh
 release generate k3s tags v1.29.2
 release push k3s tags v1.29.2
 release update k3s references v1.29.2
 release tag k3s rc v1.29.2
-release tag system-agent-installer-k3s rc v1.29.2
 release tag k3s ga v1.29.2
-release tag system-agent-installer-k3s ga v1.29.2
 release stats -r rke2 -s 2024-01-01 -e 2024-12-31
 release inspect v1.29.2+rke2r1
 ```
 
 #### Cache Permissions and Docker:
-```bash
+```sh
 $ release generate k3s tags v1.26.12
 > failed to rebase and create tags: chown: changing ownership of '/home/go/.cache': Operation not permitted
 failed to initialize build cache at /home/go/.cache: mkdir /home/go/.cache/00: permission denied
 ```
 Verify if the `$GOPATH/.cache` directory is owned by the same user that is running the command. If not, change the ownership of the directory:
-```bash
+```sh
 $ ls -la $GOPATH/
 > drwxr-xr-x  2 root root 4096 Dec 20 15:50 .cache
 $ sudo chown $USER $GOPATH/.cache
@@ -52,7 +50,7 @@ $ sudo chown $USER $GOPATH/.cache
 #### Examples
 ##### List all RC and dev components in a git ref
 Git ref can be a tag, branch, or commit hash.
-```bash
+```sh
 release list rancher rc-deps release/v2.7
 release list rancher rc-deps 8c7bbcaabcfabb00b1c89e55ed4f68117f938262
 release list rancher rc-deps v2.7.12-rc1
@@ -62,7 +60,7 @@ release list rancher rc-deps v2.7.12-rc1
 #### Examples
 ##### Default workflow
 
-```bash
+```sh
 release list charts 2.9
 release update charts 2.9 rancher-vsphere-csi 104.0.1+up3.3.0-rancher2
 release push charts 2.9
