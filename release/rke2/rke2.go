@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v78/github"
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/sirupsen/logrus"
