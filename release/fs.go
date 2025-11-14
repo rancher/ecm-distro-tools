@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v78/github"
 )
 
 // FS implements fs.FS for GitHub release assets

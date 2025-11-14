@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v78/github"
 	"github.com/sirupsen/logrus"
 )
 
