@@ -193,7 +193,7 @@ runs:
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
       
       make ${{ inputs.make-target }}
-      IMG_NAME="${REPO}/${{ inputs.image }}@$(head -n 1 ${IID_FILE})"
+      IMG_NAME="${REPO}/${{ inputs.image }}:${TAG}@$(head -n 1 ${IID_FILE})"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
       IDENTITY="$IDENTITY_REGISTRY/${{ inputs.prime-repo }}/${{ inputs.image }}"
