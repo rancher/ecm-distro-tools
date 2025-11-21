@@ -6,10 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
-	grob "github.com/MetalBlueberry/go-plotly/graph_objects"
-	"github.com/MetalBlueberry/go-plotly/offline"
+	grob "github.com/MetalBlueberry/go-plotly/generated/v2.34.0/graph_objects"
+	"github.com/MetalBlueberry/go-plotly/pkg/offline"
+	"github.com/MetalBlueberry/go-plotly/pkg/types"
 	"github.com/urfave/cli/v2"
 	"sigs.k8s.io/yaml"
 )
@@ -21,9 +23,10 @@ type TestCov struct {
 }
 
 // discoverTestFiles returns a list of all the e2e files in the program directory
-func discoverTestFiles(programName string) ([]string, []string, error) {
+func discoverTestFiles(programName string) ([]string, []string, []string, error) {
 	vagrantFiles := []string{}
 	integrationFiles := []string{}
+	dockerFiles := []string{}
 	testRoot := filepath.Join(programName, "tests")
 	err := filepath.Walk(testRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -37,7 +40,18 @@ func discoverTestFiles(programName string) ([]string, []string, error) {
 		}
 		return nil
 	})
-	return vagrantFiles, integrationFiles, err
+	dockerTestPath := filepath.Join(testRoot, "docker")
+	err = filepath.Walk(dockerTestPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(info.Name(), "_test.go") {
+			dockerFiles = append(dockerFiles, path)
+		}
+		return nil
+	})
+
+	return vagrantFiles, integrationFiles, dockerFiles, err
 }
 
 func extractConfigYaml(e2eFile, programPath string) (TestCov, error) {
@@ -167,7 +181,7 @@ func coverage(c *cli.Context) error {
 	if _, err := os.Stat(program); err != nil {
 		return fmt.Errorf("unable to find binary at %s", program)
 	}
-	e2eFiles, intTestFiles, err := discoverTestFiles(programPath)
+	e2eFiles, intTestFiles, dockerFiles, err := discoverTestFiles(programPath)
 	if err != nil {
 		return err
 	}
@@ -228,6 +242,26 @@ func coverage(c *cli.Context) error {
 		return err
 	}
 
+	// For docker tests, work backwards. Go through ever sever flag and search each docker test for a use of that flag.
+	// Instead of attempting to extract args from docker tests, as flag locations vary widely.
+	dockerCoverage := []TestCov{}
+	for _, dockerFile := range dockerFiles {
+		tc := TestCov{
+			shortPath:       strings.TrimPrefix(dockerFile, programPath+"/tests/"),
+			serverArguments: make(map[string]bool),
+		}
+		for flag := range serverFlagSet {
+			b, err := os.ReadFile(dockerFile)
+			if err != nil {
+				return err
+			}
+			if strings.Contains(string(b), flag) || strings.Contains(string(b), "--"+flag+"=") {
+				tc.serverArguments[flag] = true
+			}
+		}
+		dockerCoverage = append(dockerCoverage, tc)
+	}
+
 	// Record covered flags and filter out invalid entries
 	for flag := range serverFlagSet {
 		for _, vC := range vagrantCoverage {
@@ -237,6 +271,11 @@ func coverage(c *cli.Context) error {
 		}
 		for _, intC := range intCoverage {
 			if intC.serverArguments[flag] {
+				serverFlagSet[flag] += 1
+			}
+		}
+		for _, dC := range dockerCoverage {
+			if dC.serverArguments[flag] {
 				serverFlagSet[flag] += 1
 			}
 		}
@@ -263,7 +302,7 @@ func coverage(c *cli.Context) error {
 	fmt.Printf("Covering %d out of %d (%.2f%%) of agent flags\n", totalUsedFlags, len(agentFlagSet), percentageCover)
 
 	if c.Bool("graph") {
-		graphResults(serverFlagSet, vagrantCoverage, intCoverage)
+		graphResults(serverFlagSet, vagrantCoverage, intCoverage, dockerCoverage)
 	}
 
 	usedFlags := []string{}
@@ -322,14 +361,16 @@ func coverage(c *cli.Context) error {
 	return nil
 }
 
-func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCoverage []TestCov) {
-	data := grob.Traces{}
+func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCoverage []TestCov, dockerCoverage []TestCov) {
 	xFlagNames := []string{}
-
+	data := []types.Trace{}
 	for k := range serverFlagSet {
 		xFlagNames = append(xFlagNames, k)
 	}
-	for _, test := range append(vagrantCoverage, intCoverage...) {
+	sort.Strings(xFlagNames)
+	allTests := append(vagrantCoverage, intCoverage...)
+	allTests = append(allTests, dockerCoverage...)
+	for _, test := range allTests {
 		var testGroup string
 		switch {
 		case strings.Contains(test.shortPath, "integration"):
@@ -338,6 +379,8 @@ func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCo
 			testGroup = "install"
 		case strings.Contains(test.shortPath, "e2e"):
 			testGroup = "e2e"
+		case strings.Contains(test.shortPath, "docker"):
+			testGroup = "docker"
 		}
 
 		flagHits := make([]int, len(xFlagNames))
@@ -347,11 +390,10 @@ func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCo
 			}
 		}
 		data = append(data, &grob.Bar{
-			Name:        test.shortPath,
-			X:           xFlagNames,
-			Y:           flagHits,
-			Type:        grob.TraceTypeBar,
-			Legendgroup: testGroup,
+			Name:        types.StringType(test.shortPath),
+			X:           types.DataArray(xFlagNames),
+			Y:           types.DataArray(flagHits),
+			Legendgroup: types.StringType(testGroup),
 		})
 	}
 
@@ -362,7 +404,7 @@ func graphResults(serverFlagSet map[string]int, vagrantCoverage []TestCov, intCo
 				Text: "Server Argument Coverage",
 			},
 			Xaxis: &grob.LayoutXaxis{
-				Tickangle: 60,
+				Tickangle: types.N(40),
 			},
 			Yaxis: &grob.LayoutYaxis{
 				Title: &grob.LayoutYaxisTitle{
