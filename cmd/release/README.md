@@ -42,6 +42,13 @@ release generate k3s release notes \
   --milestone v1.29.2-rc1+k3s1
 ```
 
+For new minor releases, use a commit SHA for `--prev-milestone` to begin after the last Kubernetes bump.
+
+```sh
+git log -G 'k8s.io/kubernetes' --since='1 month ago' -- go.mod # last k8s bump in main branch
+release generate k3s release notes --prev-milestone 5411cbd3 --milestone v1.29.2-rc1+k3s1
+```
+
 ### Cache Permissions and Docker
 ```bash
 $ release generate k3s tags v1.26.12
@@ -67,6 +74,13 @@ release stats -r rke2 -s 2024-01-01 -e 2024-12-31
 release generate rke2 release notes \
   --prev-milestone v1.29.1+rke2r1 \
   --milestone v1.29.2-rc1+rke2r1
+```
+
+For new minor releases, use a commit SHA for `--prev-milestone` to begin after the last Kubernetes bump:
+
+```sh
+git log -G 'KUBERNETES_VERSION' --since='1 month ago' -- Dockerfile # last k8s bump in main branch
+release generate rke2 release notes --prev-milestone 5411cbd3 --milestone v1.29.2-rc1+rke2r1
 ```
 
 ## Image build
