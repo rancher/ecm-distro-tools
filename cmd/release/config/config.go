@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	RancherGithubOrganization = "rancher"
-	RancherRepositoryName     = "rancher"
-	UIRepositoryName          = "ui"
-	DashboardRepositoryName   = "dashboard"
-	CLIRepositoryName         = "cli"
-	K3sGithubOrganization     = "k3s-io"
-	K3sRepositoryName         = "k3s"
-	K3sK8sRepositoryName      = "kubernetes"
+	RancherGithubOrganization  = "rancher"
+	RancherRepositoryName      = "rancher"
+	RancherPrimeRepositoryName = "rancher-prime"
+	UIRepositoryName           = "ui"
+	DashboardRepositoryName    = "dashboard"
+	CLIRepositoryName          = "cli"
+	K3sGithubOrganization      = "k3s-io"
+	K3sRepositoryName          = "k3s"
+	K3sK8sRepositoryName       = "kubernetes"
 )
 
 const (
@@ -152,23 +153,24 @@ type Auth struct {
 
 // Config
 type Config struct {
-	User                      *User          `json:"user"`
-	K3s                       *K3s           `json:"k3s"`
-	Rancher                   *Rancher       `json:"rancher"`
-	RKE2                      *RKE2          `json:"rke2"`
-	Charts                    *ChartsRelease `json:"charts"`
-	Auth                      *Auth          `json:"auth"`
-	Dashboard                 *Dashboard     `json:"dashboard"`
-	CLI                       *CLI           `json:"cli"`
-	PrimeRegistry             string         `json:"prime_registry"`
-	RancherGithubOrganization string         `json:"rancher_github_organization"`
-	RancherRepositoryName     string         `json:"rancher_repository_name"`
-	RancherRepositoryGitURI   string         `json:"rancher_repository_git_uri"`
-	RancherRepositoryURL      string         `json:"rancher_repository_url"`
-	UIRepositoryName          string         `json:"ui_repository_name"`
-	DashboardRepositoryName   string         `json:"dashboard_repository_name"`
-	CLIRepositoryName         string         `json:"cli_repository_name"`
-	CLIRepositoryGitURI       string         `json:"cli_repository_git_uri"`
+	User                       *User          `json:"user"`
+	K3s                        *K3s           `json:"k3s"`
+	Rancher                    *Rancher       `json:"rancher"`
+	RKE2                       *RKE2          `json:"rke2"`
+	Charts                     *ChartsRelease `json:"charts"`
+	Auth                       *Auth          `json:"auth"`
+	Dashboard                  *Dashboard     `json:"dashboard"`
+	CLI                        *CLI           `json:"cli"`
+	PrimeRegistry              string         `json:"prime_registry"`
+	RancherGithubOrganization  string         `json:"rancher_github_organization"`
+	RancherRepositoryName      string         `json:"rancher_repository_name"`
+	RancherPrimeRepositoryName string         `json:"rancher_repository_name"`
+	RancherRepositoryGitURI    string         `json:"rancher_repository_git_uri"`
+	RancherRepositoryURL       string         `json:"rancher_repository_url"`
+	UIRepositoryName           string         `json:"ui_repository_name"`
+	DashboardRepositoryName    string         `json:"dashboard_repository_name"`
+	CLIRepositoryName          string         `json:"cli_repository_name"`
+	CLIRepositoryGitURI        string         `json:"cli_repository_git_uri"`
 }
 
 // OpenOnEditor opens the given config file on the user's default text editor.

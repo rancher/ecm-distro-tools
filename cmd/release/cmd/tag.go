@@ -243,6 +243,73 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 	},
 }
 
+var rancherPrimeTagSubCmd = &cobra.Command{
+	Use:   "rancher-prime [ga, rc, alpha] [version]",
+	Short: "Tag Rancher Prime releases",
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return copyReleaseTypes(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc,alpha] [version]")
+		}
+
+		releaseType := args[0]
+		preRelease, err := releaseTypePreRelease(releaseType)
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+		rancherRelease, found := rootConfig.Rancher.Versions[tag]
+		if !found {
+			return NewVersionNotFoundError(tag, "rancher")
+		}
+
+		repo := config.ValueOrDefault(rootConfig.RancherPrimeRepositoryName, config.RancherPrimeRepositoryName)
+		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
+
+		releaseBranch, err := rancher.ReleaseBranchFromTag(tag)
+		if err != nil {
+			return errors.New("failed to generate release branch from tag: " + err.Error())
+		}
+
+		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		opts := &repository.CreateReleaseOpts{
+			Tag:          tag,
+			Repo:         repo,
+			Owner:        owner,
+			Branch:       releaseBranch,
+			Prerelease:   true,
+			Draft:        false,
+			ReleaseNotes: "",
+		}
+		fmt.Printf("creating release options: %+v\n", opts)
+		if dryRun {
+			fmt.Println("dry run, skipping creating release")
+			return nil
+		}
+		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
+		if err != nil {
+			return err
+		}
+		fmt.Println("created release: " + releaseURL)
+		return nil
+	},
+}
+
 var dashboardTagSubCmd = &cobra.Command{
 	Use:   "dashboard [ga,rc,alpha] [version]",
 	Short: "Tag dashboard releases",
@@ -437,6 +504,7 @@ func init() {
 	tagCmd.AddCommand(k3sTagSubCmd)
 	tagCmd.AddCommand(rke2TagSubCmd)
 	tagCmd.AddCommand(rancherTagSubCmd)
+	tagCmd.AddCommand(rancherPrimeTagSubCmd)
 	tagCmd.AddCommand(systemAgentInstallerK3sTagSubCmd)
 	tagCmd.AddCommand(dashboardTagSubCmd)
 	tagCmd.AddCommand(cliTagSubCmd)
