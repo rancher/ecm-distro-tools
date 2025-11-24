@@ -94,6 +94,9 @@ type rke2ReleaseNoteData struct {
 	SnapshotControllerChartVersion        string
 	SnapshotControllerCRDChartVersion     string
 	SnapshotValidationWebhookChartVersion string
+	TraefikImageVersion                   string
+	TraefikVersion                        string
+	TraefikCRDVersion                     string
 	releaseNoteData
 }
 
@@ -122,6 +125,9 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
 	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
 
+	traefikImageVersion := imageTagVersion("hardened-traefik", rke2Repo, milestone)
+	rd.TraefikImageVersion = strings.Split(traefikImageVersion, "-")[0] // removing the metadata to link to upstream traefik/traefik
+
 	// get charts versions
 	chartsData, err := rke2ChartsVersion(milestone)
 	if err != nil {
@@ -142,6 +148,8 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
+	rd.TraefikVersion = chartsData["rke2-traefik.yaml"].Version
+	rd.TraefikCRDVersion = chartsData["rke2-traefik-crd.yaml"].Version
 
 	return nil
 }
@@ -991,6 +999,8 @@ cat /var/lib/rancher/rke2/server/token
 | rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
 | rke2-snapshot-controller-crd | [{{.SnapshotControllerCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-crd-{{.SnapshotControllerCRDChartVersion}}.tgz) |
 | rke2-snapshot-validation-webhook | [{{.SnapshotValidationWebhookChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-validation-webhook/rke2-snapshot-validation-webhook-{{.SnapshotValidationWebhookChartVersion}}.tgz) |
+| rke2-traefik | [{{.TraefikVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-{{.TraefikVersion}}.tgz) |
+| rke2-traefik-crd | [{{.TraefikCRDVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-crd-{{.TraefikCRDVersion}}.tgz) |
 
 
 ## Packaged Component Versions
@@ -1004,6 +1014,7 @@ cat /var/lib/rancher/rke2/server/token
 | CoreDNS | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}}) |
 | Ingress-Nginx | [{{.IngressNginxVersion}}](https://github.com/rancher/ingress-nginx/releases/tag/{{.IngressNginxVersion}}) |
 | Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
+{{if .TraefikImageVersion}}| Traefik | [{{.TraefikImageVersion}}](https://github.com/traefik/traefik/releases/tag/{{.TraefikImageVersion}}) |{{end}}
 
 ### Available CNIs
 | Component | Version | FIPS Compliant |
