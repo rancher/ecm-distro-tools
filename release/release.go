@@ -94,6 +94,7 @@ type rke2ReleaseNoteData struct {
 	SnapshotControllerChartVersion        string
 	SnapshotControllerCRDChartVersion     string
 	SnapshotValidationWebhookChartVersion string
+	TraefikImageVersion                   string
 	TraefikVersion                        string
 	TraefikCRDVersion                     string
 	releaseNoteData
@@ -123,6 +124,9 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
 	rd.CalicoURL = createCalicoURL(rd.CalicoVersion)
+
+	traefikImageVersion := imageTagVersion("hardened-traefik", rke2Repo, milestone)
+	rd.TraefikImageVersion = strings.Split(traefikImageVersion, "-")[0] // removing the metadata to link to upstream traefik/traefik
 
 	// get charts versions
 	chartsData, err := rke2ChartsVersion(milestone)
@@ -1010,6 +1014,7 @@ cat /var/lib/rancher/rke2/server/token
 | CoreDNS | [{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/{{.CoreDNSVersion}}) |
 | Ingress-Nginx | [{{.IngressNginxVersion}}](https://github.com/rancher/ingress-nginx/releases/tag/{{.IngressNginxVersion}}) |
 | Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
+{{if .TraefikImageVersion}}| Traefik | [{{.TraefikImageVersion}}](https://github.com/traefik/traefik/releases/tag/{{.TraefikImageVersion}}) |{{end}}
 
 ### Available CNIs
 | Component | Version | FIPS Compliant |
