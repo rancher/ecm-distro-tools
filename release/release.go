@@ -94,6 +94,8 @@ type rke2ReleaseNoteData struct {
 	SnapshotControllerChartVersion        string
 	SnapshotControllerCRDChartVersion     string
 	SnapshotValidationWebhookChartVersion string
+	TraefikVersion                        string
+	TraefikCRDVersion                     string
 	releaseNoteData
 }
 
@@ -142,6 +144,8 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
+	rd.TraefikVersion = chartsData["rke2-traefik.yaml"].Version
+	rd.TraefikCRDVersion = chartsData["rke2-traefik-crd.yaml"].Version
 
 	return nil
 }
@@ -991,6 +995,8 @@ cat /var/lib/rancher/rke2/server/token
 | rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
 | rke2-snapshot-controller-crd | [{{.SnapshotControllerCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-crd-{{.SnapshotControllerCRDChartVersion}}.tgz) |
 | rke2-snapshot-validation-webhook | [{{.SnapshotValidationWebhookChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-validation-webhook/rke2-snapshot-validation-webhook-{{.SnapshotValidationWebhookChartVersion}}.tgz) |
+| rke2-traefik | [{{.TraefikVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-{{.TraefikVersion}}.tgz) |
+| rke2-traefik-crd | [{{.TraefikCRDVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-crd-{{.TraefikCRDVersion}}.tgz) |
 
 
 ## Packaged Component Versions
