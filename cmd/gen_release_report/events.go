@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/drone/drone-go/drone"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v79/github"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 )
