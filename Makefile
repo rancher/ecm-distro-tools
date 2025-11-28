@@ -46,7 +46,7 @@ semv:
 
 .PHONY: test
 test:
-	go test -v -cover ./...
+	go test -v -cover -race ./...
 
 .PHONY: buildx-machine
 buildx-machine: ## create rancher dockerbuildx machine targeting platform defined by DEFAULT_PLATFORMS.
