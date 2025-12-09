@@ -14,7 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v79/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"

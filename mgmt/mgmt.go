@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v79/github"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"golang.org/x/crypto/pbkdf2"
 )
