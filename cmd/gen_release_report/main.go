@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/drone/drone-go/drone"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 
