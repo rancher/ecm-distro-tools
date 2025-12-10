@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func componentsCommand() *cli.Command {
