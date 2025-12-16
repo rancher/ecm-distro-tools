@@ -15,7 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
@@ -200,8 +200,8 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 		assignee = types.StringPtr("")
 	}
 	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
-		Title:    github.String(title),
-		Body:     github.String(body),
+		Title:    github.Ptr(title),
+		Body:     github.Ptr(body),
 		Labels:   &[]string{"kind/backport"},
 		Assignee: assignee,
 	})
@@ -372,7 +372,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 			continue
 		}
 
-		prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, sha, &github.PullRequestListOptions{})
+		prs, _, err := client.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, sha, &github.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
