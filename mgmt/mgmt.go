@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -289,14 +289,12 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 	}
 	for i := 1; i <= weeks; i++ {
 		week := time.Now().AddDate(0, 0, -7*i)
-		var (
-			openedIssues,
+		var openedIssues,
 			closedIssues,
 			openedMemberPRs,
 			closedMemberPRs,
 			openedCommunityPRs,
 			closedCommunityPRs int
-		)
 		for _, issue := range issues {
 			if (issue.GetClosedAt().Before(week) &&
 				issue.GetCreatedAt().Before(week)) ||

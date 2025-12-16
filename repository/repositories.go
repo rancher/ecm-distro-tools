@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// RKE2HardenedImages
 var RKE2HardenedImages = []string{
 	"rancher/image-build-base",
 	"rancher/image-build-calico",
@@ -30,7 +29,6 @@ var RKE2HardenedImages = []string{
 	"rancher/ingress-nginx",
 }
 
-// RKE2MirroredImages
 var RKE2MirroredImages = []string{
 	"mirrored-ingress-nginx-kube-webhook-certgen",
 	"mirrored-cilium-cilium",
@@ -55,7 +53,6 @@ var RKE2MirroredImages = []string{
 	"mirrored-sig-storage-csi-provisioner",
 }
 
-// RKE2Adjacent
 var RKE2Adjacent = []string{
 	"rancher/rke2-upgrade",
 	"rancher/rke2-packaging",

@@ -1,3 +1,4 @@
+// Package imagebuild handles tags of image-build repos
 package imagebuild
 
 import (
@@ -8,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,15 +18,12 @@ const (
 	imageBuildBase = "image-build-base"
 )
 
-var (
-	// Define the cutoff time: 2 days ago
-	cutoff = time.Now().Add(-time.Hour * 24 * 2)
-)
+// Define the cutoff time: 2 days ago
+var cutoff = time.Now().Add(-time.Hour * 24 * 2)
 
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
-
 	logrus.Infof("Retrieving all upstream tags for '%s/%s'...", upstreamOwner, upstreamRepo)
 
 	// This slice will hold all tags gathered from all pages.
@@ -77,7 +75,6 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		isOlder, err := isTagOlderThanCutoff(ctx, client, upstreamOwner, upstreamRepo, upstreamTagName, cutoff)
-
 		if err != nil {
 			logrus.Warnf("Could not determine age of upstream tag '%s', skipping: %v", upstreamTagName, err)
 			continue
@@ -125,10 +122,10 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		newRelease := &github.RepositoryRelease{
-			TagName:         github.String(imageBuildTag),
-			TargetCommitish: github.String("master"),
-			Name:            github.String(imageBuildTag),
-			Draft:           github.Bool(false),
+			TagName:         github.Ptr(imageBuildTag),
+			TargetCommitish: github.Ptr("master"),
+			Name:            github.Ptr(imageBuildTag),
+			Draft:           github.Ptr(false),
 		}
 
 		if dryrun {
@@ -161,14 +158,14 @@ func isTagOlderThanCutoff(ctx context.Context, client *github.Client, owner, rep
 		if err != nil {
 			return false, fmt.Errorf("could not get annotated tag object for '%s': %w", tagName, err)
 		}
-		tagDate = tagObject.Tagger.GetDate()
+		tagDate = tagObject.Tagger.GetDate().Time
 
 	case "commit": // This is a lightweight tag that points directly to a commit.
 		commit, _, err := client.Git.GetCommit(ctx, owner, repo, ref.Object.GetSHA())
 		if err != nil {
 			return false, fmt.Errorf("could not get commit object for '%s': %w", tagName, err)
 		}
-		tagDate = commit.Committer.GetDate()
+		tagDate = commit.Committer.GetDate().Time
 
 	default:
 		return false, errors.New("unknown object type '" + ref.Object.GetType() + "' for tag '" + tagName + "'")
