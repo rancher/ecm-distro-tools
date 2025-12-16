@@ -1,3 +1,4 @@
+// Package repository interacts with git and github
 package repository
 
 import (
@@ -28,7 +29,6 @@ const (
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
 	httpTimeout        = time.Second * 10
-	ghContentURL       = "https://raw.githubusercontent.com"
 )
 
 // stripBackportTag returns a string with a prefix backport tag removed
@@ -41,12 +41,10 @@ func stripBackportTag(s string) string {
 	return s
 }
 
-// TokenSource
 type TokenSource struct {
 	AccessToken string
 }
 
-// Token
 func (t *TokenSource) Token() (*oauth2.Token, error) {
 	token := &oauth2.Token{
 		AccessToken: t.AccessToken,
@@ -71,7 +69,6 @@ func NewGithub(ctx context.Context, token string) *github.Client {
 	return github.NewClient(oauthClient)
 }
 
-// CreateReleaseOpts
 type CreateReleaseOpts struct {
 	Owner        string `json:"owner"`
 	Repo         string `json:"repo"`
@@ -83,7 +80,6 @@ type CreateReleaseOpts struct {
 	Draft        bool   `json:"draft"`
 }
 
-// ListReleases
 func ListReleases(ctx context.Context, client *github.Client, owner, repo string) ([]*github.RepositoryRelease, error) {
 	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
@@ -93,7 +89,6 @@ func ListReleases(ctx context.Context, client *github.Client, owner, repo string
 	return releases, nil
 }
 
-// ListTags
 func ListTags(ctx context.Context, client *github.Client, owner, repo string) ([]*github.RepositoryTag, error) {
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
@@ -116,7 +111,6 @@ func LatestTag(ctx context.Context, client *github.Client, owner, repo string) (
 	return tags[0], nil
 }
 
-// CreateRelease
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
 	if cro == nil {
 		return nil, errors.New("CreateReleaseOpts cannot be nil")
@@ -143,7 +137,6 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 	return release, nil
 }
 
-// CreateReleaseIssueOpts
 type CreateReleaseIssueOpts struct {
 	Owner   string
 	Repo    string
@@ -151,7 +144,6 @@ type CreateReleaseIssueOpts struct {
 	Captain string
 }
 
-// CreateReleaseIssue
 func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateReleaseIssueOpts) (*github.Issue, error) {
 	body := fmt.Sprintf(cutRKE2ReleaseIssue, cri.Release, cri.Release)
 	ir := github.IssueRequest{
@@ -169,7 +161,6 @@ func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateR
 	return issue, nil
 }
 
-// RetrieveOriginalIssue
 func RetrieveOriginalIssue(ctx context.Context, client *github.Client, owner, repo string, issueID uint) (*github.Issue, error) {
 	issue, _, err := client.Issues.Get(ctx, owner, repo, int(issueID))
 	if err != nil {
@@ -195,7 +186,6 @@ type ChangeLog struct {
 	URL    string
 }
 
-// CreateBackportIssues
 func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue *github.Issue, owner, repo, branch, user string, i *Issue) (*github.Issue, error) {
 	caser := cases.Title(language.English)
 	title := fmt.Sprintf(i.Title, caser.String(branch), origIssue.GetTitle())
@@ -222,7 +212,6 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	return issue, nil
 }
 
-// PerformBackportOpts
 type PerformBackportOpts struct {
 	Owner           string   `json:"owner"`
 	Repo            string   `json:"repo"`
@@ -574,7 +563,7 @@ func findUniqueCommits(r *git.Repository, localRef, remoteRef *plumbing.Referenc
 		return nil, err
 	}
 
-	var remoteCommitMap = make(map[plumbing.Hash]struct{}, len(remoteCommits))
+	remoteCommitMap := make(map[plumbing.Hash]struct{}, len(remoteCommits))
 
 	for _, c := range remoteCommits {
 		remoteCommitMap[c.Hash] = struct{}{}
@@ -610,7 +599,6 @@ func commits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
 		count++
 		return nil
 	})
-
 	if err != nil {
 		if err != io.EOF {
 			return commits, err

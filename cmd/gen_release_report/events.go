@@ -150,7 +150,6 @@ func (c Client) getRKE2Release(ctx context.Context, version, branch string) (RKE
 				break
 			}
 		}
-
 	}
 
 	// get Drone builds in a time range inclusive of the RKE2 release
@@ -188,7 +187,7 @@ func (c Client) getRKE2Release(ctx context.Context, version, branch string) (RKE
 }
 
 type Build struct {
-	Url   string
+	URL   string
 	Owner string
 	Repo  string
 	*drone.Build

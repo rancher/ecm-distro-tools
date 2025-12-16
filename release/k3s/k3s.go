@@ -125,7 +125,7 @@ func GenerateTags(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3s
 
 func writeTagsFile(r *ecmConfig.K3sRelease, tags []string) error {
 	tagFile := filepath.Join(r.Workspace, "tags-"+r.NewK8sVersion)
-	return os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0644)
+	return os.WriteFile(tagFile, []byte(strings.Join(tags, "\n")), 0o644)
 }
 
 // setupK8sRemotes will clone the kubernetes upstream repo and proceed with setting up remotes
@@ -140,7 +140,7 @@ func setupK8sRemotes(r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath stri
 		}
 
 		fmt.Println("dir doesn't exists, creating")
-		if err := os.MkdirAll(r.Workspace, 0755); err != nil {
+		if err := os.MkdirAll(r.Workspace, 0o755); err != nil {
 			return err
 		}
 	}
@@ -387,7 +387,7 @@ func buildGoWrapper(r *ecmConfig.K3sRelease) (string, error) {
 	devDockerfile := strings.ReplaceAll(dockerDevImage, "%goimage%", goImageVersion)
 
 	fmt.Println("writing dockerfile")
-	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(r.Workspace, "dockerfile"), []byte(devDockerfile), 0o644); err != nil {
 		return "", err
 	}
 
@@ -417,7 +417,7 @@ func setupGitArtifacts(r *ecmConfig.K3sRelease, u *ecmConfig.User) (string, erro
 	}
 
 	fmt.Println("writing .gitconfig at: " + gitconfigFile)
-	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0644); err != nil {
+	if err := os.WriteFile(gitconfigFile, []byte(gitconfigFileContent), 0o644); err != nil {
 		return "", err
 	}
 
@@ -491,7 +491,6 @@ func tagsCmdsFromFile(r *ecmConfig.K3sRelease) ([]string, error) {
 	}
 
 	return tagCmds, nil
-
 }
 
 func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
@@ -608,7 +607,7 @@ func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) erro
 
 		fmt.Println("workspace dir doesn't exists, creating it")
 
-		if err := os.MkdirAll(r.Workspace, 0755); err != nil {
+		if err := os.MkdirAll(r.Workspace, 0o755); err != nil {
 			return err
 		}
 	}

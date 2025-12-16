@@ -24,9 +24,9 @@ type traceResource struct {
 }
 
 type traceSpan struct {
-	TraceId           string           `json:"traceId"`
-	SpanId            string           `json:"spanId"`
-	ParentSpanId      string           `json:"parentSpanId"`
+	TraceID           string           `json:"traceId"`
+	SpanID            string           `json:"spanId"`
+	ParentSpanID      string           `json:"parentSpanId"`
 	Name              string           `json:"name"`
 	Kind              string           `json:"kind"`
 	StartTimeUnixNano string           `json:"startTimeUnixNano"`
@@ -43,29 +43,29 @@ type traceBatch struct {
 	InstrumentationLibrarySpans []traceInstrumentationLibrarySpan `json:"instrumentationLibrarySpans"`
 }
 
-type traceJson struct {
+type traceJSON struct {
 	Batches []traceBatch `json:"batches"`
 }
 
-type GrafanaJsonTraceExporter struct {
+type GrafanaJSONTraceExporter struct {
 	mux sync.Mutex
 	w   io.Writer
 }
 
 // ExportSpans formats the provided spans in JSON compatible with Grafana
-func (exp *GrafanaJsonTraceExporter) ExportSpans(ctx context.Context, roSpans []trace.ReadOnlySpan) error {
-	exp.mux.Lock()
-	defer exp.mux.Unlock()
-	enc := json.NewEncoder(exp.w)
+func (x *GrafanaJSONTraceExporter) ExportSpans(ctx context.Context, roSpans []trace.ReadOnlySpan) error {
+	x.mux.Lock()
+	defer x.mux.Unlock()
+	enc := json.NewEncoder(x.w)
 
 	// each span is a separate batch to enable spans with descriptive service names
 	batches := make([]traceBatch, 0, len(roSpans))
 
 	for _, span := range roSpans {
 		ts := traceSpan{
-			TraceId:           span.SpanContext().TraceID().String(),
-			SpanId:            span.SpanContext().SpanID().String(),
-			ParentSpanId:      span.Parent().SpanID().String(),
+			TraceID:           span.SpanContext().TraceID().String(),
+			SpanID:            span.SpanContext().SpanID().String(),
+			ParentSpanID:      span.Parent().SpanID().String(),
 			Name:              span.Name(),
 			Kind:              span.SpanKind().String(),
 			StartTimeUnixNano: strconv.FormatInt(span.StartTime().UnixNano(), 10),
@@ -98,13 +98,13 @@ func (exp *GrafanaJsonTraceExporter) ExportSpans(ctx context.Context, roSpans []
 		batches = append(batches, batch)
 	}
 
-	return enc.Encode(traceJson{Batches: batches})
+	return enc.Encode(traceJSON{Batches: batches})
 }
 
-func (x *GrafanaJsonTraceExporter) Shutdown(ctx context.Context) error {
+func (x *GrafanaJSONTraceExporter) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func makeGrafanaJsonTraceExporter(w io.Writer) (trace.SpanExporter, error) {
-	return &GrafanaJsonTraceExporter{w: w}, nil
+func makeGrafanaJSONTraceExporter(w io.Writer) (trace.SpanExporter, error) {
+	return &GrafanaJSONTraceExporter{w: w}, nil
 }

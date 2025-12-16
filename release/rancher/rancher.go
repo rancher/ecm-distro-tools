@@ -533,7 +533,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 		return err
 	}
 
-	return os.WriteFile(outputPath, b, 0644)
+	return os.WriteFile(outputPath, b, 0o644)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {

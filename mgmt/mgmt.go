@@ -289,14 +289,12 @@ func RepoReportStats(ctx context.Context, client *github.Client, repo string, we
 	}
 	for i := 1; i <= weeks; i++ {
 		week := time.Now().AddDate(0, 0, -7*i)
-		var (
-			openedIssues,
+		var openedIssues,
 			closedIssues,
 			openedMemberPRs,
 			closedMemberPRs,
 			openedCommunityPRs,
 			closedCommunityPRs int
-		)
 		for _, issue := range issues {
 			if (issue.GetClosedAt().Before(week) &&
 				issue.GetCreatedAt().Before(week)) ||
