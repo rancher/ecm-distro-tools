@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/drone/drone-go/drone"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 )
@@ -150,12 +150,11 @@ func (c Client) getRKE2Release(ctx context.Context, version, branch string) (RKE
 				break
 			}
 		}
-
 	}
 
 	// get Drone builds in a time range inclusive of the RKE2 release
 	start := k8s.PublishedAt.Time
-	end := ga.PublishedAt.Time.Add(time.Hour * 24)
+	end := ga.PublishedAt.Add(time.Hour * 24)
 	rke2PrBuilds, err := c.BuildList("rancher", "rke2", start, end)
 	if err != nil {
 		logrus.Errorln("Failed to get rancher/rke2 builds from drone-pr.rancher.io:", err)
@@ -188,7 +187,7 @@ func (c Client) getRKE2Release(ctx context.Context, version, branch string) (RKE
 }
 
 type Build struct {
-	Url   string
+	URL   string
 	Owner string
 	Repo  string
 	*drone.Build

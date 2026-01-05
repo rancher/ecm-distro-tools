@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"github.com/drone/drone-go/drone"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 
@@ -48,13 +49,12 @@ Examples:
 func main() {
 	flag.Usage = func() {
 		w := os.Stderr
-		for _, arg := range os.Args {
-			if arg == "-h" {
-				w = os.Stdout
-				break
-			}
+		if slices.Contains(os.Args, "-h") {
+			w = os.Stdout
 		}
-		fmt.Fprintf(w, usage, version, os.Args[0])
+		if _, err := fmt.Fprintf(w, usage, version, os.Args[0]); err != nil {
+			logrus.Fatal(err.Error())
+		}
 	}
 
 	flag.BoolVar(&vers, "v", false, "")
@@ -92,7 +92,7 @@ func main() {
 
 	ctx := context.Background()
 	w := io.Writer(os.Stdout)
-	exp, err := makeGrafanaJsonTraceExporter(w)
+	exp, err := makeGrafanaJSONTraceExporter(w)
 	if err != nil {
 		logrus.Fatalf("failed to crete grafana json trace exporter %v", err)
 	}

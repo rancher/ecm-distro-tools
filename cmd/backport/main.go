@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/repository"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

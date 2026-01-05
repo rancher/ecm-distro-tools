@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 )
 
 // FS implements fs.FS for GitHub release assets
@@ -104,7 +104,7 @@ type releaseFileInfo struct {
 
 func (r *releaseFileInfo) Name() string       { return r.asset.GetName() }
 func (r *releaseFileInfo) Size() int64        { return int64(r.asset.GetSize()) }
-func (r *releaseFileInfo) Mode() fs.FileMode  { return 0444 } // read only
+func (r *releaseFileInfo) Mode() fs.FileMode  { return 0o444 } // read only
 func (r *releaseFileInfo) ModTime() time.Time { return r.asset.GetCreatedAt().Time }
 func (r *releaseFileInfo) IsDir() bool        { return false }
 func (r *releaseFileInfo) Sys() interface{}   { return r.asset }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -47,7 +47,7 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 
 	// trace every release and every build triggered by the release
 	for _, rc := range r.rcs {
-		releaseEnd := rc.CreatedAt.Time.Add(time.Minute)
+		releaseEnd := rc.CreatedAt.Add(time.Minute)
 		// start a span for the release
 		traceOpts = []trace.SpanStartOption{
 			trace.WithAttributes(attribute.String("service", "github")),
@@ -69,7 +69,7 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 
 	// trace every pull request and every build triggered by the pull request
 	for _, pr := range r.prs {
-		pullEnd := *pr.pull.MergedAt
+		pullEnd := *pr.pull.MergedAt.GetTime()
 		// start a span for the release
 		traceOpts = []trace.SpanStartOption{
 			trace.WithAttributes(attribute.String("service", "github")),
@@ -77,7 +77,7 @@ func (r *RKE2Release) trace() (context.Context, trace.Span, error) {
 			trace.WithAttributes(attribute.String("repo", "rancher/rke2")),
 			trace.WithAttributes(attribute.String("ref", *pr.pull.Base.Ref)),
 			trace.WithAttributes(attribute.String("link", *pr.pull.HTMLURL)),
-			trace.WithTimestamp(*pr.pull.CreatedAt),
+			trace.WithTimestamp(*pr.pull.CreatedAt.GetTime()),
 		}
 		tracer := otel.Tracer("github")
 		name := fmt.Sprintf("#%d", *pr.pull.Number)

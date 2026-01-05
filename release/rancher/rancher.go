@@ -19,7 +19,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v80/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -533,7 +533,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 		return err
 	}
 
-	return os.WriteFile(outputPath, b, 0644)
+	return os.WriteFile(outputPath, b, 0o644)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
