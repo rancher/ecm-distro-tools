@@ -28,6 +28,10 @@ func TestStripBackportTag(t *testing.T) {
 			want: "Release race condition",
 		},
 		{
+			line: "[release-1.24] Release race condition",
+			want: "Release race condition",
+		},
+		{
 			line: "[master] Release race condition",
 			want: "Release race condition",
 		},
