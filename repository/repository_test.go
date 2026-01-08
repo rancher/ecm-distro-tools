@@ -23,6 +23,22 @@ func TestStripBackportTag(t *testing.T) {
 			line: "[release-1.24] Some backport",
 			want: "Some backport",
 		},
+		{
+			line: "Release race condition",
+			want: "Release race condition",
+		},
+		{
+			line: "[release-1.24] Release race condition",
+			want: "Release race condition",
+		},
+		{
+			line: "[master] Release race condition",
+			want: "Release race condition",
+		},
+		{
+			line: "[master] Feature",
+			want: "Feature",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
