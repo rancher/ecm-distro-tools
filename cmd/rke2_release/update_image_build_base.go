@@ -6,7 +6,7 @@ import (
 
 	"github.com/rancher/ecm-distro-tools/release/rke2"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func imageBuildBaseReleaseCommand() *cli.Command {

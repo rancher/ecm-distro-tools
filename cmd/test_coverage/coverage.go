@@ -12,7 +12,7 @@ import (
 	grob "github.com/MetalBlueberry/go-plotly/generated/v2.34.0/graph_objects"
 	"github.com/MetalBlueberry/go-plotly/pkg/offline"
 	"github.com/MetalBlueberry/go-plotly/pkg/types"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"sigs.k8s.io/yaml"
 )
 
