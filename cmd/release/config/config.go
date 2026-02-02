@@ -15,10 +15,12 @@ const (
 	RancherPrimeRepositoryName = "rancher-prime"
 	UIRepositoryName           = "ui"
 	DashboardRepositoryName    = "dashboard"
+	RKE2RepositoryName         = "rke2"
 	CLIRepositoryName          = "cli"
 	K3sGithubOrganization      = "k3s-io"
 	K3sRepositoryName          = "k3s"
 	K3sK8sRepositoryName       = "kubernetes"
+	RPMRepositoryName          = "rke2-packaging"
 )
 
 const (
