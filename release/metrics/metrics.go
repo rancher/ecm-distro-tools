@@ -3,7 +3,7 @@ package metrics
 import (
 	"strings"
 
-	"github.com/google/go-github/v81/github"
+	"github.com/google/go-github/v82/github"
 )
 
 type (
