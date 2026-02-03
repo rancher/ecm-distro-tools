@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rancher/ecm-distro-tools/release/verify"
@@ -42,4 +43,16 @@ var verifyGACmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.AddCommand(verifyGACmd)
+
+	verifyGACmd.Flags().StringVar(repo, "repo", "", "Repository name")
+	if err := verifyGACmd.MarkFlagRequired("repo"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	verifyGACmd.Flags().StringVar(&owner, "owner", "", "Repository owner")
+	if err := verifyGACmd.MarkFlagRequired("owner"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
