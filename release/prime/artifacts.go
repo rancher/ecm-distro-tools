@@ -269,13 +269,13 @@ func listS3Objects(ctx context.Context, s3Client *s3.Client, bucketName string, 
 const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Rancher Prime Artifacts</title>
-    <link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
-    <style>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<title>Rancher Prime Artifacts</title>
+		<link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
+		<style>
 			body { font-family: 'Courier New', monospace, Verdana, Geneneva; }
 			header { display: flex; flex-direction: row; justify-items: center; }
 			#rancher-logo { width: 200px; }
@@ -291,14 +291,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			.hidden { display: none; overflow: hidden; }
 			.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
 			.flex-row:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
-    </style>
-  </head>
-  <body>
-    <header>
-      <img src="https://prime.ribs.rancher.io/assets/img/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
-      <h1>PRIME ARTIFACTS</h1>
-    </header>
-    <main>
+		</style>
+	</head>
+	<body>
+		<header>
+			<img src="https://prime.ribs.rancher.io/assets/img/rancher-suse-logo-horizontal-color.svg" alt="rancher logo" id="rancher-logo" />
+			<h1>PRIME ARTIFACTS</h1>
+		</header>
+		<main>
 			<div class="project-rancher project">
 				<div class="flex-row">
 					<h2 id="rancher" class="project-title"><a class="anchor" href="#rancher">#</a>rancher</h2>
@@ -313,16 +313,13 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
-							<ul>
-								{{ range index $.Rancher.VersionsFiles $version }}
-								<li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
-								{{ end }}
-							</ul>
+							<ul>{{ range index $.Rancher.VersionsFiles $version }}
+							<li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
+							{{ end }}</ul>
 						</div>
-					</div>
-					{{ end }}
+					</div>{{ end }}
 				</div>
-      </div>
+			</div>
 			<div class="project-rke2 project">
 				<div class="flex-row">
 					<h2 id="rke2" class="project-title"><a class="anchor" href="#rke2">#</a>rke2</h2>
@@ -338,9 +335,9 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
-								{{ range index $.RKE2.VersionsFiles $version }}
-								<li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
-								{{ end }}
+							{{ range index $.RKE2.VersionsFiles $version }}
+							<li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
+							{{ end }}
 							</ul>
 						</div>
 					</div>
@@ -362,9 +359,9 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
-								{{ range index $.K3s.VersionsFiles $version }}
-								<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
-								{{ end }}
+							{{ range index $.K3s.VersionsFiles $version }}
+							<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
+							{{ end }}
 							</ul>
 						</div>
 					</div>
@@ -372,32 +369,32 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 				</div>
 			</div>
 		</main>
-		<script>
-			hideFiles()
-			function toggleProject(project) {
-				const projectId = "project-" + project + "-releases"
-				const expandButtonId = "project-" + project + "-expand"
-				toggleSection(projectId, expandButtonId)
-			}
-			function toggleFiles(tag) {
-				const filesId = "release-" + tag + "-files"
-				const expandButtonId = "release-" + tag + "-expand"
-				toggleSection(filesId, expandButtonId)
-			}
-			function toggleSection(sectionId, buttonId) {
-				const button = document.getElementById(buttonId)
-				document.getElementById(sectionId).classList.toggle("hidden")
-				button.classList.toggle("expand-active")
+	<script>
+	hideFiles()
+	function toggleProject(project) {
+		const projectId = "project-" + project + "-releases"
+		const expandButtonId = "project-" + project + "-expand"
+		toggleSection(projectId, expandButtonId)
+	}
+	function toggleFiles(tag) {
+		const filesId = "release-" + tag + "-files"
+		const expandButtonId = "release-" + tag + "-expand"
+		toggleSection(filesId, expandButtonId)
+	}
+	function toggleSection(sectionId, buttonId) {
+		const button = document.getElementById(buttonId)
+		document.getElementById(sectionId).classList.toggle("hidden")
+		button.classList.toggle("expand-active")
 
-				button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
-			}
-			function hideFiles() {
-				const files = document.getElementsByClassName('files')
-				for (let i = 0; i < files.length; i++) {
-					files[i].classList.add('hidden')
-				}
-			}
-		</script>
-  </body>
+		button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
+	}
+	function hideFiles() {
+		const files = document.getElementsByClassName('files')
+		for (let i = 0; i < files.length; i++) {
+		files[i].classList.add('hidden')
+		}
+	}
+	</script>
+	</body>
 </html>
 {{end}}`
