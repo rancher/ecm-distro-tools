@@ -1,3 +1,4 @@
+// Package cli updates cli references in rancher and rancher references in cli
 package cli
 
 import (
