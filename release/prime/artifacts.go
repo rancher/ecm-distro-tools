@@ -369,32 +369,32 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 				</div>
 			</div>
 		</main>
-	<script>
-	hideFiles()
-	function toggleProject(project) {
-		const projectId = "project-" + project + "-releases"
-		const expandButtonId = "project-" + project + "-expand"
-		toggleSection(projectId, expandButtonId)
-	}
-	function toggleFiles(tag) {
-		const filesId = "release-" + tag + "-files"
-		const expandButtonId = "release-" + tag + "-expand"
-		toggleSection(filesId, expandButtonId)
-	}
-	function toggleSection(sectionId, buttonId) {
-		const button = document.getElementById(buttonId)
-		document.getElementById(sectionId).classList.toggle("hidden")
-		button.classList.toggle("expand-active")
-
-		button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
-	}
-	function hideFiles() {
-		const files = document.getElementsByClassName('files')
-		for (let i = 0; i < files.length; i++) {
-		files[i].classList.add('hidden')
+		<script>
+		hideFiles()
+		function toggleProject(project) {
+			const projectId = "project-" + project + "-releases"
+			const expandButtonId = "project-" + project + "-expand"
+			toggleSection(projectId, expandButtonId)
 		}
-	}
-	</script>
+		function toggleFiles(tag) {
+			const filesId = "release-" + tag + "-files"
+			const expandButtonId = "release-" + tag + "-expand"
+			toggleSection(filesId, expandButtonId)
+		}
+		function toggleSection(sectionId, buttonId) {
+			const button = document.getElementById(buttonId)
+			document.getElementById(sectionId).classList.toggle("hidden")
+			button.classList.toggle("expand-active")
+
+			button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
+		}
+		function hideFiles() {
+			const files = document.getElementsByClassName('files')
+			for (let i = 0; i < files.length; i++) {
+			files[i].classList.add('hidden')
+			}
+		}
+		</script>
 	</body>
 </html>
 {{end}}`
