@@ -321,23 +321,33 @@ User
 
 K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
 	{{ $k3sVersion }}:
-		Old K8s Version:  {{ $k3sValue.OldK8sVersion}}
-		New K8s Version:  {{ $k3sValue.NewK8sVersion}}
-		Old K8s Client:   {{ $k3sValue.OldK8sClient}}
-		New K8s Client:   {{ $k3sValue.NewK8sClient}}
-		Old Suffix:       {{ $k3sValue.OldSuffix}}
-		New Suffix:       {{ $k3sValue.NewSuffix}}
-		Release Branch:   {{ $k3sValue.ReleaseBranch}}
-		Dry Run:          {{ $k3sValue.DryRun}}
-		K3s Repo Owner:   {{ $k3sValue.K3sRepoOwner}}
-		K8s Rancher URL:  {{ $k3sValue.K8sRancherURL}}
-		Workspace:        {{ $k3sValue.Workspace}}
-		K3s Upstream URL: {{ $k3sValue.K3sUpstreamURL}}{{ end }}
+		Old K8s Version:                   {{ $k3sValue.OldK8sVersion }}
+		New K8s Version:                   {{ $k3sValue.NewK8sVersion }}
+		Old K8s Client:                    {{ $k3sValue.OldK8sClient }}
+		New K8s Client:                    {{ $k3sValue.NewK8sClient }}
+		Old Suffix:                        {{ $k3sValue.OldSuffix }}
+		New Suffix:                        {{ $k3sValue.NewSuffix }}
+		Release Branch:                    {{ $k3sValue.ReleaseBranch }}
+		Dry Run:                           {{ $k3sValue.DryRun }}
+		K3s Repo Owner:                    {{ $k3sValue.K3sRepoOwner }}
+		K8s Rancher URL:                   {{ $k3sValue.K8sRancherURL }}
+		Workspace:                         {{ $k3sValue.Workspace }}
+		System Agent Installer Repo Owner: {{ $k3sValue.SystemAgentInstallerRepoOwner }}
+		K3s Upstream URL:                  {{ $k3sValue.K3sUpstreamURL }}{{ end }}
 
 Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 	{{ $rancherVersion }}:
-		Release Branch:     {{ $rancherValue.ReleaseBranch }}
-		Rancher Repo Owner: {{ $rancherValue.RancherRepoOwner }}{{ end }}
+		Release Branch:     {{ $rancherValue.ReleaseBranch }}{{ end }}
+
+Dashboard {{ range $dashboardVersion, $dashboardValue := .Dashboard.Versions }}
+	{{ $dashboardVersion }}:
+		Release Branch:     {{ $dashboardValue.ReleaseBranch }}
+		PreviousTag:        {{ $dashboardValue.PreviousTag }}{{ end }}
+
+CLI {{ range $cliVersion, $cliValue := .CLI.Versions }}
+	{{ $cliVersion }}:
+		Release Branch:     {{ $cliValue.ReleaseBranch }}
+		PreviousTag:        {{ $cliValue.PreviousTag }}{{ end }}
 
 RKE2{{ range .RKE2.Versions }}
 	{{ . }}{{ end}}
