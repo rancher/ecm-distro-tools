@@ -90,7 +90,7 @@ func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, 
 		return err
 	}
 
-	return createCLIReferencesPR(ctx, ghClient, tag, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
+	return createCLIReferencesPR(ctx, ghClient, tag, commitSHA, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
 }
 
 func getRancherPkgSHA(ctx context.Context, ghClient *github.Client, owner, repo, tag string) (string, error) {
@@ -137,11 +137,12 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string,
 	return nil
 }
 
-func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
+func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, tagSHA, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
 		Title:               github.Ptr("Bump Rancher version to " + tag),
 		Base:                github.Ptr(releaseBranch),
 		Head:                github.Ptr(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
+		Body:                github.Ptr("```" + tag + ": " + tagSHA + "```"),
 		MaintainerCanModify: github.Ptr(true),
 	}
 
