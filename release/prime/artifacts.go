@@ -386,7 +386,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			}
 			function toggleSection(sectionId, buttonId) {
 				const button = document.getElementById(buttonId)
-				document.getElementById(sctionId).classList.toggle("hidden")
+				document.getElementById(sectionId).classList.toggle("hidden")
 				button.classList.toggle("expand-active")
 
 				button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
