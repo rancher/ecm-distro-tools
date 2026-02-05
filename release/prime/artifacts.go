@@ -302,7 +302,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-rancher project">
 				<div class="flex-row">
 					<h2 id="rancher" class="project-title"><a class="anchor" href="#rancher">#</a>rancher</h2>
-					<button onclick="expandProject('rancher')" id="project-rancher-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('rancher')" id="project-rancher-expand" class="release-title-expand expand-active">hide</button>
 				</div>
 				<div id="project-rancher-releases">
 					{{ range $i, $version := .Rancher.Versions }}
@@ -310,7 +310,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#rancher-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
@@ -326,7 +326,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-rke2 project">
 				<div class="flex-row">
 					<h2 id="rke2" class="project-title"><a class="anchor" href="#rke2">#</a>rke2</h2>
-					<button onclick="expandProject('rke2')" id="project-rke2-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('rke2')" id="project-rke2-expand" class="release-title-expand expand-active">hide</button>
 				</div>
 				<div id="project-rke2-releases">
 					{{ range $i, $version := .RKE2.Versions }}
@@ -334,7 +334,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#rke2-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
@@ -350,7 +350,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-k3s project">
 				<div class="flex-row">
 					<h2 id="k3s" class="project-title"><a class="anchor" href="#k3s">#</a>k3s</h2>
-					<button onclick="expandProject('k3s')" id="project-k3s-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('k3s')" id="project-k3s-expand" class="release-title-expand expand-active">hide</button>
 				</div>
 				<div id="project-k3s-releases">
 					{{ range $i, $version := .K3s.Versions }}
@@ -358,7 +358,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#k3s-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
@@ -374,12 +374,12 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 		</main>
 		<script>
 			hideFiles()
-			function expandProject(project) {
+			function toggleProject(project) {
 				const projectId = "project-" + project + "-releases"
 				const expandButtonId = "project-" + project + "-expand"
 				toggleSection(projectId, expandButtonId)
 			}
-			function expand(tag) {
+			function toggleFiles(tag) {
 				const filesId = "release-" + tag + "-files"
 				const expandButtonId = "release-" + tag + "-expand"
 				toggleSection(filesId, expandButtonId)
