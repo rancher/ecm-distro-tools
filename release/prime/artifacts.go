@@ -276,20 +276,21 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
     <title>Rancher Prime Artifacts</title>
     <link rel="icon" type="image/png" href="https://prime.ribs.rancher.io/assets/img/favicon.png">
     <style>
-    body { font-family: 'Courier New', monospace, Verdana, Geneneva; }
-    header { display: flex; flex-direction: row; justify-items: center; }
-    #rancher-logo { width: 200px; }
-    .project { margin-left: 20px; }
-    .release { margin-left: 40px; margin-bottom: 20px; }
-    .release h3 { margin-bottom: 0px; }
-    .files { margin-left: 60px; display: flex; flex-direction: column; }
-    .release-title { display: flex; flex-direction: row; }
-    .release-title-tag { margin-right: 20px; min-width: 70px; }
-    .release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; }
-    .release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
-    .hidden { display: none; overflow: hidden; }
-	.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
-	.release-title:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
+			body { font-family: 'Courier New', monospace, Verdana, Geneneva; }
+			header { display: flex; flex-direction: row; justify-items: center; }
+			#rancher-logo { width: 200px; }
+			.project { margin-left: 20px; }
+			.release { margin-left: 40px; margin-bottom: 20px; }
+			.release h3 { margin-bottom: 0px; }
+			.files { margin-left: 60px; display: flex; flex-direction: column; }
+			.flex-row { display: flex; flex-direction: row; align-items: center; }
+			.project-title { margin-right: 20px; }
+			.release-title-tag { margin-right: 20px; min-width: 70px; }
+			.release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; max-height: 20px; }
+			.release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
+			.hidden { display: none; overflow: hidden; }
+			.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
+			.flex-row:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
     </style>
   </head>
   <body>
@@ -299,79 +300,105 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
     </header>
     <main>
 			<div class="project-rancher project">
-				<h2 id="rancher">
-				  <a class="anchor" href="#rancher">#</a>rancher
-				</h2>
-        {{ range $i, $version := .Rancher.Versions }}
-        <div id="rancher-{{ $version }}" class="release-{{ $version }} release">
-          <div class="release-title">
-						<a class="anchor" href="#rancher-{{ $version }}">#</a>
-						<b class="release-title-tag">{{ $version }}</b>
-            <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
-          </div>
-          <div class="files" id="release-{{ $version }}-files">
-            <ul>
-              {{ range index $.Rancher.VersionsFiles $version }}
-              <li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
-              {{ end }}
-            </ul>
-          </div>
-        </div>
-				{{ end }}
+				<div class="flex-row">
+					<h2 id="rancher" class="project-title"><a class="anchor" href="#rancher">#</a>rancher</h2>
+					<button onclick="expandProject('rancher')" id="project-rancher-expand" class="release-title-expand expand-active">hide</button>
+				</div>
+				<div id="project-rancher-releases">
+					{{ range $i, $version := .Rancher.Versions }}
+					<div id="rancher-{{ $version }}" class="release-{{ $version }} release">
+						<div class="flex-row">
+							<a class="anchor" href="#rancher-{{ $version }}">#</a>
+							<b class="release-title-tag">{{ $version }}</b>
+							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+						</div>
+						<div class="files" id="release-{{ $version }}-files">
+							<ul>
+								{{ range index $.Rancher.VersionsFiles $version }}
+								<li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
+								{{ end }}
+							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
       </div>
-	  <div class="project-rke2 project">
-        <h2 id="rke2">
-		  <a class="anchor" href="#rke2">#</a>rke2
-		</h2>
-        {{ range $i, $version := .RKE2.Versions }}
-        <div id="rke2-{{ $version }}" class="release-{{ $version }} release">
-          <div class="release-title">
-		  				<a class="anchor" href="#rke2-{{ $version }}">#</a>
-						<b class="release-title-tag">{{ $version }}</b>
-            <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
-          </div>
-          <div class="files" id="release-{{ $version }}-files">
-            <ul>
-              {{ range index $.RKE2.VersionsFiles $version }}
-              <li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
-              {{ end }}
-            </ul>
-          </div>
-        </div>
-		{{ end }}
-      </div>
-	  	  <div class="project-k3s project">
-        <h2>k3s</h2>
-        {{ range $i, $version := .K3s.Versions }}
-        <div class="release-{{ $version }} release">
-          <div class="release-title">
-						<b class="release-title-tag">{{ $version }}</b>
-            <button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">expand</button>
-          </div>
-          <div class="files" id="release-{{ $version }}-files">
-            <ul>
-              {{ range index $.K3s.VersionsFiles $version }}
-              <li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
-              {{ end }}
-            </ul>
-          </div>
-        </div>
-		{{ end }}
-      </div>
-    </main>
-  <script>
-    hideFiles()
-    function expand(tag) {
-      const filesId = "release-" + tag + "-files"
-      const expandButtonId = "release-" + tag + "-expand"
-      document.getElementById(filesId).classList.toggle("hidden")
-      document.getElementById(expandButtonId).classList.toggle("expand-active")
-    }
-    function hideFiles() {
-        const fileDivs = document.querySelectorAll(".files")
-        fileDivs.forEach(f => f.classList.add("hidden"))
-    }
-  </script>
+			<div class="project-rke2 project">
+				<div class="flex-row">
+					<h2 id="rke2" class="project-title"><a class="anchor" href="#rke2">#</a>rke2</h2>
+					<button onclick="expandProject('rke2')" id="project-rke2-expand" class="release-title-expand expand-active">hide</button>
+				</div>
+				<div id="project-rke2-releases">
+					{{ range $i, $version := .RKE2.Versions }}
+					<div id="rke2-{{ $version }}" class="release-{{ $version }} release">
+						<div class="flex-row">
+							<a class="anchor" href="#rke2-{{ $version }}">#</a>
+							<b class="release-title-tag">{{ $version }}</b>
+							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+						</div>
+						<div class="files" id="release-{{ $version }}-files">
+							<ul>
+								{{ range index $.RKE2.VersionsFiles $version }}
+								<li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
+								{{ end }}
+							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
+			</div>
+			<div class="project-k3s project">
+				<div class="flex-row">
+					<h2 id="k3s" class="project-title"><a class="anchor" href="#k3s">#</a>k3s</h2>
+					<button onclick="expandProject('k3s')" id="project-k3s-expand" class="release-title-expand expand-active">hide</button>
+				</div>
+				<div id="project-k3s-releases">
+					{{ range $i, $version := .K3s.Versions }}
+					<div id="k3s-{{ $version }}" class="release-{{ $version }} release">
+						<div class="flex-row">
+							<a class="anchor" href="#k3s-{{ $version }}">#</a>
+							<b class="release-title-tag">{{ $version }}</b>
+							<button onclick="expand('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+						</div>
+						<div class="files" id="release-{{ $version }}-files">
+							<ul>
+								{{ range index $.K3s.VersionsFiles $version }}
+								<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
+								{{ end }}
+							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
+			</div>
+		</main>
+		<script>
+			hideFiles()
+			function expandProject(project) {
+				const projectId = "project-" + project + "-releases"
+				const expandButtonId = "project-" + project + "-expand"
+				const expandButton = document.getElementById(expandButtonId)
+				document.getElementById(projectId).classList.toggle("hidden")
+				expandButton.classList.toggle("expand-active")
+
+				expandButton.innerText == "hide" ? expandButton.innerText = "show" : expandButton.innerText = "hide"
+			}
+			function expand(tag) {
+				const filesId = "release-" + tag + "-files"
+				const expandButtonId = "release-" + tag + "-expand"
+				const expandButton = document.getElementById(expandButtonId)
+				document.getElementById(filesId).classList.toggle("hidden")
+				expandButton.classList.toggle("expand-active")
+
+				expandButton.innerText == "hide" ? expandButton.innerText = "show" : expandButton.innerText = "hide"
+			}
+			function hideFiles() {
+				const files = document.getElementsByClassName('files')
+				for (let i = 0; i < files.length; i++) {
+					files[i].classList.add('hidden')
+				}
+			}
+		</script>
   </body>
 </html>
 {{end}}`
