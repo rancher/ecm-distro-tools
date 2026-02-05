@@ -15,12 +15,6 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const (
-	cliOrg           = "rancher"
-	cliRepo          = "cli"
-	cliImagesBaseURL = "https://github.com/" + cliOrg + "/" + cliRepo + "/releases"
-)
-
 // CreateRelease will create a new tag and a new release with given params.
 func CreateRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc bool, releaseType, previousTag string, dryRun bool) error {
 	if !semver.IsValid(opts.Tag) {
