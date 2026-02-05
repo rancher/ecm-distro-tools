@@ -126,10 +126,10 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outPath, "index.html"), gaIndex, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outPath, "index.html"), gaIndex, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(outPath, "index-prerelease.html"), preReleaseIndex, 0644)
+	return os.WriteFile(filepath.Join(outPath, "index-prerelease.html"), preReleaseIndex, 0o644)
 }
 
 func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
