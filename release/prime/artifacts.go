@@ -377,20 +377,19 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			function expandProject(project) {
 				const projectId = "project-" + project + "-releases"
 				const expandButtonId = "project-" + project + "-expand"
-				const expandButton = document.getElementById(expandButtonId)
-				document.getElementById(projectId).classList.toggle("hidden")
-				expandButton.classList.toggle("expand-active")
-
-				expandButton.innerText == "hide" ? expandButton.innerText = "show" : expandButton.innerText = "hide"
+				toggleSection(projectId, expandButtonId)
 			}
 			function expand(tag) {
 				const filesId = "release-" + tag + "-files"
 				const expandButtonId = "release-" + tag + "-expand"
-				const expandButton = document.getElementById(expandButtonId)
-				document.getElementById(filesId).classList.toggle("hidden")
-				expandButton.classList.toggle("expand-active")
+				toggleSection(filesId, expandButtonId)
+			}
+			function toggleSection(sectionId, buttonId) {
+				const button = document.getElementById(buttonId)
+				document.getElementById(sctionId).classList.toggle("hidden")
+				button.classList.toggle("expand-active")
 
-				expandButton.innerText == "hide" ? expandButton.innerText = "show" : expandButton.innerText = "hide"
+				button.innerText == "hide" ? button.innerText = "show" : button.innerText = "hide"
 			}
 			function hideFiles() {
 				const files = document.getElementsByClassName('files')
