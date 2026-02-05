@@ -171,15 +171,6 @@ func RetrieveOriginalIssue(ctx context.Context, client *github.Client, owner, re
 	return issue, nil
 }
 
-// RetrieveRelease function will get the Release based on org, repo and version string.
-func RetrieveRelease(ctx context.Context, client *github.Client, owner, repo, version string) (*github.RepositoryRelease, error) {
-	rel, _, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, version)
-	if err != nil {
-		return nil, err
-	}
-	return rel, nil
-}
-
 type Issue struct {
 	ID    uint
 	Title string

@@ -4,12 +4,12 @@ package verify
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/google/go-github/v81/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
-	"github.com/rancher/ecm-distro-tools/repository"
 )
 
 var (
@@ -50,7 +50,7 @@ func GA(ctx context.Context, ghClient *github.Client, version string) error {
 
 func verifyRKE2(ctx context.Context, ghClient *github.Client, version string) error {
 	versionWithRC := appendRC1(version)
-	rel, err := repository.RetrieveRelease(
+	found, err := checkRelease(
 		ctx,
 		ghClient,
 		config.RancherGithubOrganization,
@@ -60,15 +60,16 @@ func verifyRKE2(ctx context.Context, ghClient *github.Client, version string) er
 	if err != nil {
 		return err
 	}
-	if rel == nil {
-		return fmt.Errorf("RKE2 RC release '%s' not found", versionWithRC)
+	if found {
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
 }
 
 func verifyK3s(ctx context.Context, ghClient *github.Client, version string) error {
 	versionWithRC := appendRC1(version)
-	rel, err := repository.RetrieveRelease(
+	found, err := checkRelease(
 		ctx,
 		ghClient,
 		config.K3sGithubOrganization,
@@ -78,35 +79,38 @@ func verifyK3s(ctx context.Context, ghClient *github.Client, version string) err
 	if err != nil {
 		return err
 	}
-	if rel == nil {
-		return fmt.Errorf("K3s RC release '%s' not found", versionWithRC)
+	if found {
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
 }
 
 func verifyRancher(ctx context.Context, ghClient *github.Client, version string) error {
 	versionWithRC := appendRC1(version)
-	rel, err := repository.RetrieveRelease(
+	found, err := checkRelease(
 		ctx,
 		ghClient,
 		config.RancherGithubOrganization,
 		config.RancherRepositoryName,
 		versionWithRC,
 	)
+
 	if err != nil {
 		return err
 	}
-	if rel == nil {
-		return fmt.Errorf("rancher RC release '%s' not found", versionWithRC)
+	if found {
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("previous rancher RC not found '%s'", versionWithRC)
 }
 
 func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) error {
 	// For RPM 'testing' GA releases it SHOULD have a 'testing' RC release
 	if strings.Contains(version, "testing") {
 		versionWithRC := appendRC1(version)
-		rel, err := repository.RetrieveRelease(
+		found, err := checkRelease(
 			ctx,
 			ghClient,
 			config.RancherGithubOrganization,
@@ -116,16 +120,17 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) e
 		if err != nil {
 			return err
 		}
-		if rel == nil {
-			return fmt.Errorf("RPM RC release '%s' not found", versionWithRC)
+		if found {
+			return nil
 		}
-		return nil
+
+		return fmt.Errorf("previous RC testing RPM not found '%s'", versionWithRC)
 	}
 
 	// For RPM 'latest' releases it SHOULD have a 'testing' release
 	if strings.Contains(version, "latest") {
 		testingVersion := channelRegex.ReplaceAllString(version, "testing.0")
-		rel, err := repository.RetrieveRelease(
+		found, err := checkRelease(
 			ctx,
 			ghClient,
 			config.RancherGithubOrganization,
@@ -135,29 +140,31 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) e
 		if err != nil {
 			return err
 		}
-		if rel == nil {
-			return fmt.Errorf("RPM testing channel release '%s' not found", testingVersion)
+		if found {
+			return nil
 		}
-		return nil
+
+		return fmt.Errorf("previous testing RPM not found for '%s'", testingVersion)
 	}
 
 	// For RPM 'stable' releases it SHOULD have a 'latest' release
 	if strings.Contains(version, "stable") {
-		testingVersion := channelRegex.ReplaceAllString(version, "latest.0")
-		rel, err := repository.RetrieveRelease(
+		latestVersion := channelRegex.ReplaceAllString(version, "latest.0")
+		found, err := checkRelease(
 			ctx,
 			ghClient,
 			config.RancherGithubOrganization,
 			config.RPMRepositoryName,
-			testingVersion,
+			latestVersion,
 		)
 		if err != nil {
 			return err
 		}
-		if rel == nil {
-			return fmt.Errorf("RPM latest channel release '%s' not found", testingVersion)
+		if found {
+			return nil
 		}
-		return nil
+
+		return fmt.Errorf("previous latest RPM not found for '%s'", latestVersion)
 	}
 	return nil
 }
@@ -171,4 +178,19 @@ func appendRC1(version string) string {
 	default:
 		return version + "-rc1"
 	}
+}
+
+// checkRelease will verify if the given release exists
+func checkRelease(ctx context.Context, client *github.Client, owner, repo, version string) (bool, error) {
+	_, res, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, version)
+
+	if res.StatusCode == http.StatusOK {
+		return true, nil
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	return false, err
 }
