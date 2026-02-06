@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"text/template"
 )
@@ -171,24 +170,6 @@ type Config struct {
 	DashboardRepositoryName    string         `json:"dashboard_repository_name"`
 	CLIRepositoryName          string         `json:"cli_repository_name"`
 	CLIRepositoryGitURI        string         `json:"cli_repository_git_uri"`
-}
-
-// OpenOnEditor opens the given config file on the user's default text editor.
-func OpenOnEditor(configFile string) error {
-	cmd := exec.Command(textEditorName(), configFile)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-
-	return cmd.Run()
-}
-
-func textEditorName() string {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-
-	return editor
 }
 
 // Load reads the given config file and returns a struct

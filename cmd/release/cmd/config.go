@@ -34,12 +34,11 @@ var viewConfigSubCmd = &cobra.Command{
 	},
 }
 
-var editConfigSubCmd = &cobra.Command{
-	Use:   "edit",
-	Short: "Open the config file in your default editor",
-	Long:  ``,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return config.OpenOnEditor(configFile)
+var configLocationSubCmd = &cobra.Command{
+	Use:   "location",
+	Short: "Print the config location",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(configFile)
 	},
 }
 
@@ -48,5 +47,5 @@ func init() {
 
 	configCmd.AddCommand(genConfigSubCmd)
 	configCmd.AddCommand(viewConfigSubCmd)
-	configCmd.AddCommand(editConfigSubCmd)
+	configCmd.AddCommand(configLocationSubCmd)
 }
