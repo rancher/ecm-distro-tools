@@ -164,7 +164,7 @@ type Config struct {
 	PrimeRegistry              string         `json:"prime_registry"`
 	RancherGithubOrganization  string         `json:"rancher_github_organization"`
 	RancherRepositoryName      string         `json:"rancher_repository_name"`
-	RancherPrimeRepositoryName string         `json:"rancher_repository_name"`
+	RancherPrimeRepositoryName string         `json:"rancher_prime_repository_name"`
 	RancherRepositoryGitURI    string         `json:"rancher_repository_git_uri"`
 	RancherRepositoryURL       string         `json:"rancher_repository_url"`
 	UIRepositoryName           string         `json:"ui_repository_name"`
