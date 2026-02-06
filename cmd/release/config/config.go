@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -187,7 +188,7 @@ func Load(configFile string) (*Config, error) {
 func Read(r io.Reader) (*Config, error) {
 	var c Config
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read config: %s", err.Error())
 	}
 
 	return &c, nil
