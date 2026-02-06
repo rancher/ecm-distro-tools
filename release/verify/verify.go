@@ -107,29 +107,9 @@ func verifyRancher(ctx context.Context, ghClient *github.Client, version string)
 }
 
 func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) error {
-	// For RPM 'testing' GA releases it SHOULD have a 'testing' RC release
-	if strings.Contains(version, "testing") {
-		versionWithRC := appendRC1(version)
-		found, err := checkRelease(
-			ctx,
-			ghClient,
-			config.RancherGithubOrganization,
-			config.RPMRepositoryName,
-			versionWithRC,
-		)
-		if err != nil {
-			return err
-		}
-		if found {
-			return nil
-		}
-
-		return fmt.Errorf("previous RC testing RPM not found '%s'", versionWithRC)
-	}
-
 	// For RPM 'latest' releases it SHOULD have a 'testing' release
 	if strings.Contains(version, "latest") {
-		testingVersion := channelRegex.ReplaceAllString(version, "testing.0")
+		testingVersion := channelRegex.ReplaceAllString(version, ".testing.0")
 		found, err := checkRelease(
 			ctx,
 			ghClient,
@@ -149,7 +129,7 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) e
 
 	// For RPM 'stable' releases it SHOULD have a 'latest' release
 	if strings.Contains(version, "stable") {
-		latestVersion := channelRegex.ReplaceAllString(version, "latest.0")
+		latestVersion := channelRegex.ReplaceAllString(version, ".latest.0")
 		found, err := checkRelease(
 			ctx,
 			ghClient,
@@ -184,13 +164,12 @@ func appendRC1(version string) string {
 func checkRelease(ctx context.Context, client *github.Client, owner, repo, version string) (bool, error) {
 	_, res, err := client.Repositories.GetReleaseByTag(ctx, owner, repo, version)
 
-	if res.StatusCode == http.StatusOK {
-		return true, nil
+	if err != nil {
+		if res != nil && res.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+		return false, err
 	}
 
-	if res.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-
-	return false, err
+	return true, nil
 }
