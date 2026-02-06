@@ -1,3 +1,4 @@
+// Package cli updates rancher references in the cli repo
 package cli
 
 import (
@@ -12,12 +13,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
-)
-
-const (
-	cliOrg           = "rancher"
-	cliRepo          = "cli"
-	cliImagesBaseURL = "https://github.com/" + cliOrg + "/" + cliRepo + "/releases"
 )
 
 // CreateRelease will create a new tag and a new release with given params.
@@ -95,7 +90,7 @@ func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, 
 		return err
 	}
 
-	return createCLIReferencesPR(ctx, ghClient, tag, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
+	return createCLIReferencesPR(ctx, ghClient, tag, commitSHA, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
 }
 
 func getRancherPkgSHA(ctx context.Context, ghClient *github.Client, owner, repo, tag string) (string, error) {
@@ -142,12 +137,13 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string,
 	return nil
 }
 
-func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
+func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, tagSHA, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String("Bump Rancher version to " + tag),
-		Base:                github.String(releaseBranch),
-		Head:                github.String(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
-		MaintainerCanModify: github.Bool(true),
+		Title:               github.Ptr("Bump Rancher version to " + tag),
+		Base:                github.Ptr(releaseBranch),
+		Head:                github.Ptr(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
+		Body:                github.Ptr("```" + tag + ": " + tagSHA + "```"),
+		MaintainerCanModify: github.Ptr(true),
 	}
 
 	// creating a pr from your fork branch
