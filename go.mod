@@ -13,7 +13,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/crypto v0.47.0
 	golang.org/x/mod v0.32.0
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 )
 
 require (
