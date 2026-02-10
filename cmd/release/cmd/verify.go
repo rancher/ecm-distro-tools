@@ -36,7 +36,7 @@ var verifyGACmd = &cobra.Command{
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return verify.GA(ctx, ghClient, version)
+		return verify.GA(ctx, ghClient, owner, *repo, version)
 	},
 }
 

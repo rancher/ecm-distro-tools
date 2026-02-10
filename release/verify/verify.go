@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v81/github"
-	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 )
 
 var (
@@ -23,40 +22,34 @@ var (
 	channelRegex = regexp.MustCompile(`.(testing|latest|stable)\.\d$`)
 )
 
-func GA(ctx context.Context, ghClient *github.Client, version string) error {
+func GA(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
 	switch {
 	// The rpmRegex should be the first case to avoid RKE2 releases being pulled in for containing rke2r*
 	case rpmRegex.MatchString(version):
-		if err := verifyRPMGA(ctx, ghClient, version); err != nil {
+		if err := verifyRPMGA(ctx, ghClient, owner, repo, version); err != nil {
 			return err
 		}
 	case strings.Contains(version, "rke2"):
-		if err := verifyRKE2(ctx, ghClient, version); err != nil {
+		if err := verifyRKE2(ctx, ghClient, owner, repo, version); err != nil {
 			return err
 		}
 
 	case strings.Contains(version, "k3s"):
-		if err := verifyK3s(ctx, ghClient, version); err != nil {
+		if err := verifyK3s(ctx, ghClient, owner, repo, version); err != nil {
 			return err
 		}
 	// Rancher versions will be handled in default
 	default:
-		if err := verifyRancher(ctx, ghClient, version); err != nil {
+		if err := verifyRancher(ctx, ghClient, owner, repo, version); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func verifyRKE2(ctx context.Context, ghClient *github.Client, version string) error {
+func verifyRKE2(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
 	versionWithRC := appendRC1(version)
-	found, err := checkRelease(
-		ctx,
-		ghClient,
-		config.RancherGithubOrganization,
-		config.RKE2RepositoryName,
-		versionWithRC,
-	)
+	found, err := checkRelease(ctx, ghClient, owner, repo, versionWithRC)
 	if err != nil {
 		return err
 	}
@@ -67,15 +60,9 @@ func verifyRKE2(ctx context.Context, ghClient *github.Client, version string) er
 	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
 }
 
-func verifyK3s(ctx context.Context, ghClient *github.Client, version string) error {
+func verifyK3s(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
 	versionWithRC := appendRC1(version)
-	found, err := checkRelease(
-		ctx,
-		ghClient,
-		config.K3sGithubOrganization,
-		config.K3sRepositoryName,
-		versionWithRC,
-	)
+	found, err := checkRelease(ctx, ghClient, owner, repo, versionWithRC)
 	if err != nil {
 		return err
 	}
@@ -86,16 +73,9 @@ func verifyK3s(ctx context.Context, ghClient *github.Client, version string) err
 	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
 }
 
-func verifyRancher(ctx context.Context, ghClient *github.Client, version string) error {
+func verifyRancher(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
 	versionWithRC := appendRC1(version)
-	found, err := checkRelease(
-		ctx,
-		ghClient,
-		config.RancherGithubOrganization,
-		config.RancherRepositoryName,
-		versionWithRC,
-	)
-
+	found, err := checkRelease(ctx, ghClient, owner, repo, versionWithRC)
 	if err != nil {
 		return err
 	}
@@ -106,17 +86,11 @@ func verifyRancher(ctx context.Context, ghClient *github.Client, version string)
 	return fmt.Errorf("previous rancher RC not found '%s'", versionWithRC)
 }
 
-func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) error {
+func verifyRPMGA(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
 	// For RPM 'latest' releases it SHOULD have a 'testing' release
 	if strings.Contains(version, "latest") {
 		testingVersion := channelRegex.ReplaceAllString(version, ".testing.0")
-		found, err := checkRelease(
-			ctx,
-			ghClient,
-			config.RancherGithubOrganization,
-			config.RPMRepositoryName,
-			testingVersion,
-		)
+		found, err := checkRelease(ctx, ghClient, owner, repo, testingVersion)
 		if err != nil {
 			return err
 		}
@@ -130,13 +104,7 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, version string) e
 	// For RPM 'stable' releases it SHOULD have a 'latest' release
 	if strings.Contains(version, "stable") {
 		latestVersion := channelRegex.ReplaceAllString(version, ".latest.0")
-		found, err := checkRelease(
-			ctx,
-			ghClient,
-			config.RancherGithubOrganization,
-			config.RPMRepositoryName,
-			latestVersion,
-		)
+		found, err := checkRelease(ctx, ghClient, owner, repo, latestVersion)
 		if err != nil {
 			return err
 		}
