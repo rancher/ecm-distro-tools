@@ -34,6 +34,11 @@ var verifyGACmd = &cobra.Command{
 			return nil
 		}
 		ctx := context.Background()
+
+		if rootConfig.Auth.GithubToken == "" {
+			rootConfig.Auth.GithubToken = os.Getenv("GH_TOKEN")
+		}
+
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		return verify.GA(ctx, ghClient, owner, *repo, version)
