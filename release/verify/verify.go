@@ -26,25 +26,18 @@ func GA(ctx context.Context, ghClient *github.Client, owner, repo, version strin
 	switch {
 	// The rpmRegex should be the first case to avoid RKE2 releases being pulled in for containing rke2r*
 	case rpmRegex.MatchString(version):
-		if err := verifyRPMGA(ctx, ghClient, owner, repo, version); err != nil {
-			return err
-		}
+		return verifyRPMGA(ctx, ghClient, owner, repo, version)
+
 	case strings.Contains(version, "rke2"):
-		if err := verifyRKE2(ctx, ghClient, owner, repo, version); err != nil {
-			return err
-		}
+		return verifyRKE2(ctx, ghClient, owner, repo, version)
 
 	case strings.Contains(version, "k3s"):
-		if err := verifyK3s(ctx, ghClient, owner, repo, version); err != nil {
-			return err
-		}
+		return verifyK3s(ctx, ghClient, owner, repo, version)
+
 	// Rancher versions will be handled in default
 	default:
-		if err := verifyRancher(ctx, ghClient, owner, repo, version); err != nil {
-			return err
-		}
+		return verifyRancher(ctx, ghClient, owner, repo, version)
 	}
-	return nil
 }
 
 func verifyRKE2(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
@@ -57,7 +50,7 @@ func verifyRKE2(ctx context.Context, ghClient *github.Client, owner, repo, versi
 		return nil
 	}
 
-	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
+	return fmt.Errorf("previous '%s/%s' RC not found '%s'", owner, repo, versionWithRC)
 }
 
 func verifyK3s(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
@@ -70,7 +63,7 @@ func verifyK3s(ctx context.Context, ghClient *github.Client, owner, repo, versio
 		return nil
 	}
 
-	return fmt.Errorf("previous k3s RC not found '%s'", versionWithRC)
+	return fmt.Errorf("previous '%s/%s' RC not found '%s'", owner, repo, versionWithRC)
 }
 
 func verifyRancher(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
@@ -83,7 +76,7 @@ func verifyRancher(ctx context.Context, ghClient *github.Client, owner, repo, ve
 		return nil
 	}
 
-	return fmt.Errorf("previous rancher RC not found '%s'", versionWithRC)
+	return fmt.Errorf("previous '%s/%s' RC not found '%s'", owner, repo, versionWithRC)
 }
 
 func verifyRPMGA(ctx context.Context, ghClient *github.Client, owner, repo, version string) error {
@@ -98,7 +91,7 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, owner, repo, vers
 			return nil
 		}
 
-		return fmt.Errorf("previous testing RPM not found for '%s'", testingVersion)
+		return fmt.Errorf("previous '%s/%s' testing RPM not found '%s'", owner, repo, testingVersion)
 	}
 
 	// For RPM 'stable' releases it SHOULD have a 'latest' release
@@ -112,7 +105,7 @@ func verifyRPMGA(ctx context.Context, ghClient *github.Client, owner, repo, vers
 			return nil
 		}
 
-		return fmt.Errorf("previous latest RPM not found for '%s'", latestVersion)
+		return fmt.Errorf("previous '%s/%s' latest RPM not found '%s'", owner, repo, latestVersion)
 	}
 	return nil
 }
