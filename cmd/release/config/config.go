@@ -2,9 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"text/template"
 )
@@ -164,31 +164,13 @@ type Config struct {
 	PrimeRegistry              string         `json:"prime_registry"`
 	RancherGithubOrganization  string         `json:"rancher_github_organization"`
 	RancherRepositoryName      string         `json:"rancher_repository_name"`
-	RancherPrimeRepositoryName string         `json:"rancher_repository_name"`
+	RancherPrimeRepositoryName string         `json:"rancher_prime_repository_name"`
 	RancherRepositoryGitURI    string         `json:"rancher_repository_git_uri"`
 	RancherRepositoryURL       string         `json:"rancher_repository_url"`
 	UIRepositoryName           string         `json:"ui_repository_name"`
 	DashboardRepositoryName    string         `json:"dashboard_repository_name"`
 	CLIRepositoryName          string         `json:"cli_repository_name"`
 	CLIRepositoryGitURI        string         `json:"cli_repository_git_uri"`
-}
-
-// OpenOnEditor opens the given config file on the user's default text editor.
-func OpenOnEditor(configFile string) error {
-	cmd := exec.Command(textEditorName(), configFile)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-
-	return cmd.Run()
-}
-
-func textEditorName() string {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-
-	return editor
 }
 
 // Load reads the given config file and returns a struct
@@ -206,7 +188,7 @@ func Load(configFile string) (*Config, error) {
 func Read(r io.Reader) (*Config, error) {
 	var c Config
 	if err := json.NewDecoder(r).Decode(&c); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read config: %s", err.Error())
 	}
 
 	return &c, nil
