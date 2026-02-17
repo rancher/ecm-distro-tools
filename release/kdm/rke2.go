@@ -181,16 +181,19 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 		return "", err
 	}
 
-	for i := release; i > 1; i-- {
-		prevVersion := fmt.Sprintf(rke2VersionTemplate, major, minor, patch, i)
-		_, err := u.previousReleasePos(prevVersion)
-		if err != nil {
-			if i == 1 {
-				return "", err
+	// for +rke2r2 and forward
+	if release > 1 {
+		for i := release; i > 1; i-- {
+			prevVersion := fmt.Sprintf(rke2VersionTemplate, major, minor, patch, i)
+			_, err := u.previousReleasePos(prevVersion)
+			if err != nil {
+				if i == 1 {
+					return "", err
+				}
+				continue
 			}
-			continue
+			return prevVersion, nil
 		}
-		return prevVersion, nil
 	}
 
 	// when the patch number is 0, e.g "v1.33.0+rke2r1" we need
@@ -203,7 +206,22 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 		return prevVersion, nil
 	}
 
-	return fmt.Sprintf(rke2VersionTemplate, major, minor, patch-1, 1), nil
+	// checking the previous
+	prevVersion := ""
+	for i := 1; i < 10; i++ {
+		// this version may exists, so we first store it in a separate variable
+		// and if the version exists it is assigned to prevVersion
+		v := fmt.Sprintf(rke2VersionTemplate, major, minor, patch-1, i)
+		if _, err := u.previousReleasePos(v); err != nil {
+			if prevVersion == "" {
+				return "", err
+			}
+		} else {
+			prevVersion = v
+		}
+	}
+
+	return prevVersion, nil
 }
 
 func (u *RKE2ChannelsUpdater) rke2LatestMinor(major, minor int) (string, error) {
