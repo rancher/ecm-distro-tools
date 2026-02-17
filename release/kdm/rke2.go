@@ -214,7 +214,7 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 		v := fmt.Sprintf(rke2VersionTemplate, major, minor, patch-1, i)
 		if _, err := u.previousReleasePos(v); err != nil {
 			if prevVersion == "" {
-				return "", errors.New("previous release not found for: " + version)
+				return "", err
 			}
 		} else {
 			prevVersion = v
