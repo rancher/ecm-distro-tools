@@ -169,8 +169,9 @@ runs:
       echo "MAKE_TARGET=${MAKE_TARGET}" >> "${GITHUB_ENV}"
 
       if [[ -z "${PRIME_MAKE_TARGET}" ]]; then
-        echo "PRIME_MAKE_TARGET=${MAKE_TARGET}" >> "${GITHUB_ENV}"
+        PRIME_MAKE_TARGET=${MAKE_TARGET}
       fi
+      echo "PRIME_MAKE_TARGET=${PRIME_MAKE_TARGET}" >> "${GITHUB_ENV}"
 
   # Login to all registries before starting the pushing process.
   # Short-circuit if either fails. This should decrease the likelihood
