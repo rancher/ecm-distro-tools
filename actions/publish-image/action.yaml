@@ -77,7 +77,7 @@ inputs:
       registry.
     default: true
     type: boolean
-  
+ 
   public-registry:
     description: The container registry used for Public images.
     type: string
@@ -132,6 +132,11 @@ inputs:
     default: push-image
     type: string
 
+  prime-make-target:
+    description: |
+      The prime make target used to build and push the container image to the prime registry. When empty, the `make-target` value is used.
+    type: string
+
 runs:
   using: composite
 
@@ -154,6 +159,19 @@ runs:
       fi
     env:
       REGISTRY: ${{ inputs.prime-registry }}
+
+  - name: Add make targets to env
+    shell: bash
+    env:
+      MAKE_TARGET: ${{ inputs.make-target }}
+      PRIME_MAKE_TARGET: ${{ inputs.prime-make-target }}
+    run: |
+      echo "MAKE_TARGET=${MAKE_TARGET}" >> "${GITHUB_ENV}"
+
+      if [[ -z "${PRIME_MAKE_TARGET}" ]]; then
+        PRIME_MAKE_TARGET=${MAKE_TARGET}
+      fi
+      echo "PRIME_MAKE_TARGET=${PRIME_MAKE_TARGET}" >> "${GITHUB_ENV}"
 
   # Login to all registries before starting the pushing process.
   # Short-circuit if either fails. This should decrease the likelihood
@@ -192,7 +210,7 @@ runs:
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
       
-      make ${{ inputs.make-target }}
+      make "${PRIME_MAKE_TARGET}"
       IMG_NAME="${REPO}/${{ inputs.image }}:${TAG}@$(head -n 1 ${IID_FILE})"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
@@ -216,7 +234,7 @@ runs:
     shell: bash
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     run: |
-      make ${{ inputs.make-target }}
+      make "${MAKE_TARGET}"
     env:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
