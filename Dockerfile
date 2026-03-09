@@ -45,7 +45,7 @@ RUN mkdir -p /tmp/etcd-download-test                                            
     tar xzvf /tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1                                                             && \
     rm -f /tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz                                                                                                                && \
     cp /tmp/etcd-download-test/etcdctl /usr/local/bin
-RUN wget https://github.com/aquasecurity/trivy/releases/download/v0.37.3/trivy_0.37.3_Linux-64bit.tar.gz && \
+RUN wget https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz && \
     tar -zxvf trivy_0.37.3_Linux-64bit.tar.gz                                                            && \
     mv trivy /usr/local/bin
 RUN wget https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz && \
