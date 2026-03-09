@@ -1,6 +1,6 @@
 module github.com/rancher/ecm-distro-tools
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/drone/drone-go v1.7.1
@@ -13,7 +13,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/crypto v0.48.0
 	golang.org/x/mod v0.33.0
-	golang.org/x/oauth2 v0.35.0
+	golang.org/x/oauth2 v0.36.0
 )
 
 require (
