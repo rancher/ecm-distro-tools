@@ -16,7 +16,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
           check-latest: false
-          cache: true
+          cache: false
           cache-dependency-path: 'go.sum'
       - name: Build ECM Distro Tools
         run: |
