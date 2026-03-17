@@ -3,7 +3,7 @@
 # Needed to speed up the process of building
 
 ARG BCI_IMAGE=registry.suse.com/bci/bci-base:latest
-ARG GO_IMAGE=rancher/hardened-build-base:v1.24.10b1
+ARG GO_IMAGE=rancher/hardened-build-base:v1.26.1b1
 FROM ${BCI_IMAGE} AS bci
 
 # Builder and xx only need to support the host architecture.
