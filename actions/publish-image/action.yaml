@@ -42,7 +42,7 @@
 #          prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
 #          prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
 #          prime-make-target: "prime-push-image" # optional, but encouraged
-#          make-target-directory: "build" # optional, adds the '--directory' flag to the 'make' command
+#          prime-make-target-directory: "build" # optional, adds the '--directory' flag to the 'make' command
 
 name: publish-image
 
