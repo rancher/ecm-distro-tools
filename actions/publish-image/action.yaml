@@ -226,13 +226,14 @@ runs:
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
 
-      # base command
-      cmd=(make "${PRIME_MAKE_TARGET}")
+      cmd=(make)
 
       # only add the make directory flag when the env is set
       if [[ -n "$PRIME_MAKE_TARGET_DIRECTORY" ]]; then
           cmd+=(--directory "$PRIME_MAKE_TARGET_DIRECTORY")
       fi
+
+      cmd=+=("${PRIME_MAKE_TARGET}")
 
       # execute the command
       "${cmd[@]}"
@@ -261,13 +262,14 @@ runs:
     shell: bash
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     run: |
-      # base command
-      cmd=(make "${MAKE_TARGET}")
+      cmd=(make)
 
       # only add the make directory flag when the env is set
       if [[ -n "$MAKE_TARGET_DIRECTORY" ]]; then
           cmd+=(--directory "$MAKE_TARGET_DIRECTORY")
       fi
+
+      cmd+=("${MAKE_TARGET}")
 
       # execute the command
       "${cmd[@]}"
