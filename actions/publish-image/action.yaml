@@ -233,7 +233,7 @@ runs:
           cmd+=(--directory "$PRIME_MAKE_TARGET_DIRECTORY")
       fi
 
-      cmd=+=("${PRIME_MAKE_TARGET}")
+      cmd+=("${PRIME_MAKE_TARGET}")
 
       # execute the command
       "${cmd[@]}"
