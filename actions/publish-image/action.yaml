@@ -24,20 +24,25 @@
 #      - name: Publish manifest
 #        uses: rancher/ecm-distro-tools/actions/publish-image@master
 #        with:
-#          image: security-scan
-#          tag: ${{ github.ref_name }}${{ matrix.tag-suffix }}
-#          platforms: ${{ matrix.platforms }}
-#          identity-registry: ${{ secrets.PRODUCTION_PRIME_REGISTRY }}
+#          image: security-scan # required
+#          tag: ${{ github.ref_name }}${{ matrix.tag-suffix }} # required
+#          platforms: ${{ matrix.platforms }} # optional
+#          identity-registry: ${{ secrets.PRODUCTION_PRIME_REGISTRY }} # optional, but necessary if pushing to a staging registry
 #
+#          push-to-public: true # optional
 #          public-registry: ${{ vars.PUBLIC_REGISTRY }}
 #          public-repo: ${{ vars.PUBLIC_REGISTRY_REPO }}
 #          public-username: ${{ secrets.PUBLIC_REGISTRY_USERNAME }}
 #          public-password: ${{ secrets.PUBLIC_REGISTRY_PASSWORD }}
+#          make-target: "push-image" # optional
+#          make-target-directory: "build" # optional, adds the '--directory' flag to the 'make' command
 #
 #          prime-registry: ${{ secrets.PRIME_REGISTRY }}
 #          prime-repo: ${{ secrets.PRIME_REGISTRY_REPO }}
 #          prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}
 #          prime-password: ${{ secrets.PRIME_REGISTRY_PASSWORD }}
+#          prime-make-target: "prime-push-image" # optional, but encouraged
+#          make-target-directory: "build" # optional, adds the '--directory' flag to the 'make' command
 
 name: publish-image
 
@@ -131,11 +136,21 @@ inputs:
       The make target used to build and push the container image.
     default: push-image
     type: string
+  make-target-directory:
+    description: |
+      The directory where the Makefile is located.
+    type: string
+    default: ""
 
   prime-make-target:
     description: |
       The prime make target used to build and push the container image to the prime registry. When empty, the `make-target` value is used.
     type: string
+  prime-make-target-directory:
+    description: |
+      The directory where the prime Makefile is located.
+    type: string
+    default: ""
 
 runs:
   using: composite
@@ -171,11 +186,12 @@ runs:
       if [[ -z "${PRIME_MAKE_TARGET}" ]]; then
         PRIME_MAKE_TARGET=${MAKE_TARGET}
       fi
+
       echo "PRIME_MAKE_TARGET=${PRIME_MAKE_TARGET}" >> "${GITHUB_ENV}"
 
-  # Login to all registries before starting the pushing process.
-  # Short-circuit if either fails. This should decrease the likelihood
-  # of only one registry getting updated while the other fails.
+    # Login to all registries before starting the pushing process.
+    # Short-circuit if either fails. This should decrease the likelihood
+    # of only one registry getting updated while the other fails.
   - name: Login to registry [Public]
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
@@ -209,8 +225,18 @@ runs:
     run: |
       export IID_FILE=$(mktemp)
       export IID_FILE_FLAG="--iidfile ${IID_FILE}"
-      
-      make "${PRIME_MAKE_TARGET}"
+
+      # base command
+      cmd=(make "${PRIME_MAKE_TARGET}")
+
+      # only add the make directory flag when the env is set
+      if [[ -n "$PRIME_MAKE_TARGET_DIRECTORY" ]]; then
+          cmd+=(--directory "$PRIME_MAKE_TARGET_DIRECTORY")
+      fi
+
+      # execute the command
+      "${cmd[@]}"
+
       IMG_NAME="${REPO}/${{ inputs.image }}:${TAG}@$(head -n 1 ${IID_FILE})"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
@@ -229,16 +255,27 @@ runs:
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
       REGISTRY: ${{ inputs.prime-registry }}
+      PRIME_MAKE_TARGET_DIRECTORY: ${{ inputs.prime-make-target-directory }}
 
   - name: Build and push image [Public]
     shell: bash
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
     run: |
-      make "${MAKE_TARGET}"
+      # base command
+      cmd=(make "${MAKE_TARGET}")
+
+      # only add the make directory flag when the env is set
+      if [[ -n "$MAKE_TARGET_DIRECTORY" ]]; then
+          cmd+=(--directory "$MAKE_TARGET_DIRECTORY")
+      fi
+
+      # execute the command
+      "${cmd[@]}"
     env:
       TAG: ${{ inputs.tag }}
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
+      MAKE_TARGET_DIRECTORY: ${{ inputs.make-target-directory }}
 
   - name: Attest provenance
     shell: bash
