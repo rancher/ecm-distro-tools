@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -23,7 +24,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
 	"golang.org/x/mod/semver"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -341,8 +341,10 @@ type K8sBuildDependencies struct {
 	} `yaml:"dependencies"`
 }
 
+var reGoVersion = regexp.MustCompile(`[0-9]+\.[0-9]+\.[0-9]+`)
+
 func goVersion(r *ecmConfig.K3sRelease) (string, error) {
-	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/build/dependencies.yaml"
+	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/.go-version"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -351,7 +353,7 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch dependencies.yaml, unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
+		return "", fmt.Errorf("failed to fetch '.go-version', unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
 	}
 
 	dat, err := io.ReadAll(resp.Body)
@@ -359,19 +361,11 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 		return "", err
 	}
 
-	var deps K8sBuildDependencies
-
-	if err := yaml.Unmarshal(dat, &deps); err != nil {
-		return "", err
+	if reGoVersion.Match(dat) {
+		return strings.TrimSpace(string(dat)), nil
 	}
 
-	for _, dep := range deps.Dependencies {
-		if dep.Name == "golang: upstream version" {
-			return dep.Version, nil
-		}
-	}
-
-	return "", errors.New("can not find Go dependency")
+	return "", errors.New("invalid '.go-version' content: " + string(dat))
 }
 
 func buildGoWrapper(r *ecmConfig.K3sRelease) (string, error) {
