@@ -19,12 +19,14 @@ instead of copying a pre-compiled binary from disk.
 
 * The release workflow MUST be named `.github/workflows/release.yml`
 
+* Configure renovate to autobump dependencies
+
 ## Makefile example
 
 Notes:
 
 * `TARGET_PLATFORMS` is set by the action based on the `platforms` input.
-* `IID_FILE_FLAG` is set by the action and the make target **must** include this flag.
+* `IID_FILE_FLAG` is set by the action and the prime make target **must** include this flag.
 
 ```make
 MACHINE := rancher
