@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -23,7 +23,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
-	"golang.org/x/mod/semver"
 )
 
 const (
@@ -334,15 +333,6 @@ func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmC
 	return "", errors.New("no Git ref found with k8s version: " + r.OldK8sVersion)
 }
 
-type K8sBuildDependencies struct {
-	Dependencies []struct {
-		Name    string `yaml:"name"`
-		Version string `yaml:"version"`
-	} `yaml:"dependencies"`
-}
-
-var reGoVersion = regexp.MustCompile(`[0-9]+\.[0-9]+\.[0-9]+`)
-
 func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/.go-version"
 
@@ -360,12 +350,12 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	if reGoVersion.Match(dat) {
-		return strings.TrimSpace(string(dat)), nil
+	ver, err := semver.NewVersion(string(dat))
+	if err != nil {
+		return "", errors.New("invalid '.go-version' content: " + string(dat))
 	}
 
-	return "", errors.New("invalid '.go-version' content: " + string(dat))
+	return ver.String(), nil
 }
 
 func buildGoWrapper(r *ecmConfig.K3sRelease) (string, error) {
@@ -743,9 +733,11 @@ func cleanGitRepo(dir string) error {
 
 func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, rc bool) error {
 	fmt.Println("validating tag")
-	if !semver.IsValid(opts.Tag) {
+	_, err := semver.NewVersion(opts.Tag)
+	if err != nil {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
+
 	name := r.NewK8sVersion + "+" + r.NewSuffix
 	oldName := r.OldK8sVersion + "+" + r.OldSuffix
 
