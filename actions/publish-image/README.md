@@ -23,8 +23,8 @@ instead of copying a pre-compiled binary from disk.
 
 Notes:
 
-* `TARGET_PLATFORMS` is set by the action based on the `platforms` input
-* `IID_FILE_FLAG` is set by the action
+* `TARGET_PLATFORMS` is set by the action based on the `platforms` input.
+* `IID_FILE_FLAG` is set by the action and the make target **must** include this flag.
 
 ```make
 MACHINE := rancher
