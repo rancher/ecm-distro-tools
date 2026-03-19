@@ -37,7 +37,7 @@ DEFAULT_PLATFORMS := linux/amd64,linux/arm64,darwin/arm64,darwin/amd64
 TAG ?= dev
 REPO ?= rancher
 IMAGE ?= ecm-distro-tools
-IMAGE ?= $(REPO):$(TAG)
+IMAGE_NAME ?= $(REPO)/$(IMAGE_NAME):$(TAG)
 
 buildx-machine: ## create rancher machine targeting platform defined by DEFAULT_PLATFORMS.
  @docker buildx ls | grep $(MACHINE) || \
@@ -49,7 +49,7 @@ push-image:
   $(IID_FILE_FLAG) \
   $(BUILDX_ARGS) \
   --platform=$(TARGET_PLATFORMS) \
-  --tag $(IMAGE) \
+  --tag $(IMAGE_NAME) \
   --push \
   .
 
