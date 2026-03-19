@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -22,8 +23,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	ssh2 "golang.org/x/crypto/ssh"
-	"golang.org/x/mod/semver"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -334,15 +333,8 @@ func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmC
 	return "", errors.New("no Git ref found with k8s version: " + r.OldK8sVersion)
 }
 
-type K8sBuildDependencies struct {
-	Dependencies []struct {
-		Name    string `yaml:"name"`
-		Version string `yaml:"version"`
-	} `yaml:"dependencies"`
-}
-
 func goVersion(r *ecmConfig.K3sRelease) (string, error) {
-	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/build/dependencies.yaml"
+	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/.go-version"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -351,27 +343,19 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch dependencies.yaml, unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
+		return "", fmt.Errorf("failed to fetch '.go-version', unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
 	}
 
 	dat, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-
-	var deps K8sBuildDependencies
-
-	if err := yaml.Unmarshal(dat, &deps); err != nil {
-		return "", err
+	ver, err := semver.NewVersion(string(dat))
+	if err != nil {
+		return "", errors.New("invalid '.go-version' content: " + string(dat))
 	}
 
-	for _, dep := range deps.Dependencies {
-		if dep.Name == "golang: upstream version" {
-			return dep.Version, nil
-		}
-	}
-
-	return "", errors.New("can not find Go dependency")
+	return ver.String(), nil
 }
 
 func buildGoWrapper(r *ecmConfig.K3sRelease) (string, error) {
@@ -749,9 +733,11 @@ func cleanGitRepo(dir string) error {
 
 func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, rc bool) error {
 	fmt.Println("validating tag")
-	if !semver.IsValid(opts.Tag) {
+	_, err := semver.NewVersion(opts.Tag)
+	if err != nil {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
+
 	name := r.NewK8sVersion + "+" + r.NewSuffix
 	oldName := r.OldK8sVersion + "+" + r.OldSuffix
 
