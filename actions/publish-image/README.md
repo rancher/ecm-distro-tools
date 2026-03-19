@@ -370,7 +370,7 @@ jobs:
 
 ### Release only to prime using the directory input
 
-It's not usually not recommended to push images directly to the prime registry without
+It's not recommended to push images directly to the prime registry without
 validating release candidates on staging.
 
 Note: the `Makefile` is located at the `build` directory
