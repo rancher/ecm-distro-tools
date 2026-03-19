@@ -201,7 +201,7 @@ git add go.mod go.sum
 # Cleaning temp files/scripts
 git clean -f
 
-git commit --signoff -m "Update Rancher refs to ${RANCHER_VERSION}"
+git commit --signoff -m "Update Rancher refs to ${TAG}"
 
 # Push the changes if not a dry run
 if [ "${DRY_RUN}" = false ]; then
