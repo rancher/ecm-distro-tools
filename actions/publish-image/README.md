@@ -338,7 +338,6 @@ jobs:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
         platforms: linux/amd64,linux/arm64
-        push-to-public: false
 
         public-repo: rancher
         public-username: ${{ env.DOCKER_USERNAME }}
