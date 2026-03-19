@@ -37,7 +37,7 @@ DEFAULT_PLATFORMS := linux/amd64,linux/arm64,darwin/arm64,darwin/amd64
 TAG ?= dev
 REPO ?= rancher
 IMAGE ?= ecm-distro-tools
-IMAGE_NAME ?= $(REPO)/$(IMAGE_NAME):$(TAG)
+IMAGE_NAME ?= $(REPO)/$(IMAGE):$(TAG)
 
 buildx-machine: ## create rancher machine targeting platform defined by DEFAULT_PLATFORMS.
  @docker buildx ls | grep $(MACHINE) || \
@@ -97,7 +97,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD ;
 
     - name: Push image to public
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -112,7 +112,7 @@ jobs:
 
     - name: Push image to prime
       if: ${{ !contains(github.ref_name, '-rc') }} # never push pre-release images to prime
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -166,7 +166,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials password | PRIME_STG_REGISTRY_PASSWORD ;
 
     - name: Push images
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -215,7 +215,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
 
     - name: Push images
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -265,7 +265,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD ;
 
     - name: Push image to staging
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -281,7 +281,7 @@ jobs:
 
     - name: Push image to prime
       if: ${{ !contains(github.ref_name, '-rc') }} # never push pre-release images to prime
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -333,7 +333,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD ;
 
     - name: Push image to public and staging
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -353,7 +353,7 @@ jobs:
 
     - name: Push image to prime
       if: ${{ !contains(github.ref_name, '-rc') }} # never push pre-release images to prime
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
@@ -403,7 +403,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD ;
 
     - name: Push image to prime
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
       with:
         image: ecm-distro-tools
         tag: ${{ github.ref_name }}
