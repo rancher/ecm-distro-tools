@@ -1,4 +1,4 @@
-# This Github action encapsulates all the necessary steps to sync 
+# This GitHub action encapsulates all the necessary steps to sync 
 # the current repo tags with an upstream source, made specifically for 
 # image-build-* repos.
 # Reference usage:
@@ -40,6 +40,7 @@
 #           GH_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
 
 name: 'Sync Upstream Release'
+description: This GitHub action encapsulates all the necessary steps to sync the current repo tags with an upstream source, made specifically for image-build-* repos.
 
 inputs:
   upstream-owner:
@@ -76,12 +77,17 @@ runs:
       env:
         # The token input is passed as an environment variable to the CLI.
         GITHUB_TOKEN: ${{ inputs.GH_TOKEN }}
+        UPSTREAM_OWNER: ${{ inputs.upstream-owner }}
+        UPSTREAM_REPO: ${{ inputs.upstream-repo }}
+        IMAGE_BUILD_OWNER: ${{ inputs.image-build-owner }}
+        IMAGE_BUILD_REPO: ${{ inputs.image-build-repo }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
       shell: bash
       run: |
         release sync image-build \
-          --upstream-owner "${{ inputs.upstream-owner }}" \
-          --upstream-repo "${{ inputs.upstream-repo }}" \
-          --image-build-owner "${{ inputs.image-build-owner }}" \
-          --image-build-repo "${{ inputs.image-build-repo }}" \
-          --tag-prefix "${{ inputs.tag-prefix }}" \
+          --upstream-owner "${UPSTREAM_OWNER}" \
+          --upstream-repo "${UPSTREAM_REPO}" \
+          --image-build-owner "${IMAGE_BUILD_OWNER}" \
+          --image-build-repo "${IMAGE_BUILD_REPO}" \
+          --tag-prefix "${TAG_PREFIX}" \
           --config-file "ecm-config.json"

@@ -35,13 +35,14 @@ on:
   schedule:
     - cron: '30 4,6 * * 1-5'
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 jobs:
   call-workflow:
     uses: rancher/renovate-config/.github/workflows/renovate-vault.yml@c88cbe41a49d02648b9bf83aa5a64902151323fa # release
+    permissions:
+      contents: read
+      id-token: write
     with:
       configMigration: ${{ inputs.configMigration || 'true' }}
       logLevel: ${{ inputs.logLevel || 'info' }}

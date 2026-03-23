@@ -45,6 +45,7 @@
 #          prime-make-target-directory: "build" # optional, adds the '--directory' flag to the 'make' command
 
 name: publish-image
+description: This GitHub action aims to abstract the logic behind pushing container images for projects within the Rancher ecosystem. Depending on the project its images may need to be pushed to the Public or Prime registry, in some cases both (default).  Use push-to-public and push-to-prime to pick the target registries.
 
 inputs:
   image:
@@ -160,34 +161,34 @@ runs:
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
-      export GITHUB_REPOSITORY=${{ github.repository }}
-      GITHUB_REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
+      REPOSITORY="${GITHUB_REPOSITORY#*/}" # trim the owner
 
       if [[ -z "${REGISTRY}" ]]; then
         echo "Prime registry cannot be empty"
         exit 1
       fi
 
-      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${GITHUB_REPOSITORY}" != "ecm-distro-tools" ]]; then
+      if [[ "${REGISTRY}" == "docker.io" ]] && [[ "${REPOSITORY}" != "ecm-distro-tools" ]]; then
         echo "Prime registry cannot be docker.io"
         exit 2
       fi
     env:
       REGISTRY: ${{ inputs.prime-registry }}
 
-  - name: Add make targets to env
+  - name: Set make targets to output
+    id: make-targets
     shell: bash
     env:
       MAKE_TARGET: ${{ inputs.make-target }}
       PRIME_MAKE_TARGET: ${{ inputs.prime-make-target }}
     run: |
-      echo "MAKE_TARGET=${MAKE_TARGET}" >> "${GITHUB_ENV}"
+      echo "MAKE_TARGET=${MAKE_TARGET}" >> "${GITHUB_OUTPUT}"
 
       if [[ -z "${PRIME_MAKE_TARGET}" ]]; then
         PRIME_MAKE_TARGET=${MAKE_TARGET}
       fi
 
-      echo "PRIME_MAKE_TARGET=${PRIME_MAKE_TARGET}" >> "${GITHUB_ENV}"
+      echo "PRIME_MAKE_TARGET=${PRIME_MAKE_TARGET}" >> "${GITHUB_OUTPUT}"
 
     # Login to all registries before starting the pushing process.
     # Short-circuit if either fails. This should decrease the likelihood
@@ -220,6 +221,7 @@ runs:
   - uses: rancherlabs/slsactl/actions/install-slsactl@16acc8b2429423d162c617a2b71bdc7d626fea48 # v0.1.24
 
   - name: Build and push image [Prime]
+    id: push-prime
     shell: bash
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
     run: |
@@ -238,18 +240,18 @@ runs:
       # execute the command
       "${cmd[@]}"
 
-      IMG_NAME="${REPO}/${{ inputs.image }}:${TAG}@$(head -n 1 ${IID_FILE})"
+      IMG_NAME="${REPO}/${DOCKER_IMAGE}:${TAG}@$(head -n 1 "${IID_FILE}")"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
-      IDENTITY="$IDENTITY_REGISTRY/${{ inputs.prime-repo }}/${{ inputs.image }}"
+      IDENTITY="$IDENTITY_REGISTRY/${PRIME_REPO}/${DOCKER_IMAGE}"
 
       cosign sign \
         --oidc-provider=github-actions \
         --yes \
         --sign-container-identity="$IDENTITY" \
         "${IMG_NAME}"
-      echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_ENV}"
-        
+
+      echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_OUTPUT}"
     env:
       IDENTITY_REGISTRY: ${{ inputs.identity-registry }}
       TAG: ${{ inputs.tag }}
@@ -257,6 +259,9 @@ runs:
       REPO: ${{ inputs.prime-registry }}/${{ inputs.prime-repo }}
       REGISTRY: ${{ inputs.prime-registry }}
       PRIME_MAKE_TARGET_DIRECTORY: ${{ inputs.prime-make-target-directory }}
+      PRIME_REPO: ${{ inputs.prime-repo }}
+      PRIME_MAKE_TARGET: ${{ steps.make-targets.outputs.PRIME_MAKE_TARGET }}
+      DOCKER_IMAGE: ${{ inputs.image }}
 
   - name: Build and push image [Public]
     shell: bash
@@ -278,6 +283,7 @@ runs:
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
       MAKE_TARGET_DIRECTORY: ${{ inputs.make-target-directory }}
+      MAKE_TARGET: ${{ steps.make-targets.outputs.MAKE_TARGET }}
 
   - name: Attest provenance
     shell: bash
@@ -305,3 +311,4 @@ runs:
       rm provenance-slsav1.json
     env:
       LANDLOCK_MODE: DISABLED
+      IMG_NAME: ${{ steps.push-prime.outputs.IMG_NAME }}
