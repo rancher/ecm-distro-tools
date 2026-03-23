@@ -240,7 +240,7 @@ runs:
       # execute the command
       "${cmd[@]}"
 
-      IMG_NAME="${REPO}/${DOCKER_IMAGE}:${TAG}@$(head -n 1 ${IID_FILE})"
+      IMG_NAME="${REPO}/${DOCKER_IMAGE}:${TAG}@$(head -n 1 "${IID_FILE}")"
 
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
       IDENTITY="$IDENTITY_REGISTRY/${PRIME_REPO}/${DOCKER_IMAGE}"
