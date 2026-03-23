@@ -1,4 +1,4 @@
-# This Github action encapsulates all the necessary steps to republish
+# This GitHub action encapsulates all the necessary steps to republish
 # the latest release of a given repository.
 # Reference usage:
 #
@@ -42,7 +42,7 @@
 #           GH_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
 
 name: 'Republish Latest Release'
-description: This Github action encapsulates all the necessary steps to republish the latest release of a given repository.
+description: This GitHub action encapsulates all the necessary steps to republish the latest release of a given repository.
 
 inputs:
   repo:
@@ -76,11 +76,11 @@ runs:
         GITHUB_TOKEN: ${{ inputs.GH_TOKEN }}
         OWNER: ${{ inputs.owner }}
         REPO: ${{ inputs.repo }}
-        COMMITSH: ${{ inputs.commitsh }}
+        COMMITISH: ${{ inputs.commitish }}
       shell: bash
       run: |
         release sync republish-latest \
           --owner "${OWNER}" \
           --repo "${REPO}" \
-          --commitish "${COMMITSH}" \
+          --commitish "${COMMITISH}" \
           --config-file "ecm-config.json"

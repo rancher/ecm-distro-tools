@@ -30,7 +30,7 @@ jobs:
       - name: Publish Binaries
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" "${GITHUB_WORKSPACE}/dist/*"
+        run: gh release upload -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" ${GITHUB_WORKSPACE}/dist/* --clobber
       - name: Load Secrets from Vault
         uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
         with:
