@@ -175,7 +175,7 @@ runs:
     env:
       REGISTRY: ${{ inputs.prime-registry }}
 
-  - name: Set maket targets to output
+  - name: Set make targets to output
     id: make-targets
     shell: bash
     env:
