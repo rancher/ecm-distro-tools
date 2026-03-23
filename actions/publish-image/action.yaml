@@ -175,7 +175,7 @@ runs:
     env:
       REGISTRY: ${{ inputs.prime-registry }}
 
-  - name: Add make targets to env
+  - name: Set maket targets to output
     id: make-targets
     shell: bash
     env:
@@ -283,6 +283,7 @@ runs:
       TARGET_PLATFORMS: ${{ inputs.platforms }}
       REPO: ${{ inputs.public-registry }}/${{ inputs.public-repo }}
       MAKE_TARGET_DIRECTORY: ${{ inputs.make-target-directory }}
+      MAKE_TARGET: ${{ steps.make-targets.outputs.MAKE_TARGET }}
 
   - name: Attest provenance
     shell: bash
