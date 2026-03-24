@@ -1,3 +1,4 @@
+// Package rancher holds tools to release rancher and sync images
 package rancher
 
 import (
