@@ -699,7 +699,11 @@ func createAssetFile(outputFile string, contents fmt.Stringer) error {
 	if err != nil {
 		return err
 	}
-	defer fo.Close()
+	defer func() {
+		if closeErr := errors.Join(fo.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	_, err = fo.Write([]byte(contents.String()))
 	return err
 }
@@ -710,7 +714,11 @@ func artifactImageList(imagesFileURL, registry string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	list, err := getLinesFromReader(res.Body)
 	if err != nil {
@@ -788,7 +796,11 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if err != nil {
 		return "", 0, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
@@ -833,7 +845,11 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	if res.StatusCode != http.StatusOK {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	var auth registryAuthToken
 	if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
@@ -849,7 +865,11 @@ func ImagesFromArtifact(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	var file []string
 	scanner := bufio.NewScanner(res.Body)
