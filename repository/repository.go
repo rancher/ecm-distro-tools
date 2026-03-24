@@ -409,8 +409,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 			var releaseNote string
 			var inNote bool
 			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) && !strings.Contains(body, noneReleaseNote) {
-				lines := strings.Split(body, "\n")
-				for _, line := range lines {
+				for line := range strings.SplitSeq(body, "\n") {
 					if strings.Contains(line, releaseNoteSection) {
 						inNote = true
 						continue
