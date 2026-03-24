@@ -259,63 +259,51 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	return releaseBranch, nil
 }
 
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, sha, branch string) error {
-	if !semver.IsValid(tag) {
-		return errors.New("the tag")
+// CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
+// If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
+// Returns tag, commit sha, error
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease bool) (string, string, error) {
+	if !semver.IsValid(baseTag) {
+		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
 
 	if sha == "" {
 		commitSHA, err := repository.RefCommitSHA(ctx, ghClient, owner, repo, "heads/"+branch)
 		if err != nil {
-			return err
+			return "", "", err
 		}
 		sha = commitSHA
 	}
 
-	_, _, err := ghClient.Git.CreateRef(ctx, "rancher", "rancher", github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
-	if err != nil {
-		return err
-	}
-	return nil
-}
+	tag := baseTag
 
-// CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
-func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
-	if !semver.IsValid(opts.Tag) {
-		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
-	}
-	if _, ok := ReleaseTypes[releaseType]; !ok {
-		return "", errors.New("invalid release type")
-	}
-
-	releaseName := opts.Tag
 	if preRelease {
 		latestVersionNumber := 1
-		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
+		latestVersion, err := release.LatestPreRelease(ctx, ghClient, owner, repo, baseTag, releaseType)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		if latestVersion != nil {
-			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, opts.Tag+"-"+releaseType)
+			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, baseTag+"-"+releaseType)
 			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
 			if err != nil {
-				return "", errors.New("failed to parse trimmed latest version number: " + err.Error())
+				return "", "", errors.New("failed to parse trimmed latest version number: " + err.Error())
 			}
 			latestVersionNumber = currentVersionNumber + 1
 		}
-		opts.Tag = opts.Tag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
-		releaseName = "Pre-release " + opts.Tag
+		tag = baseTag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
 	}
 
-	opts.Name = releaseName
-	opts.Prerelease = true
-	opts.ReleaseNotes = ""
+	if !semver.IsValid(tag) {
+		return "", "", errors.New("the tag is invalid: " + tag)
+	}
 
-	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
-
-	// GetHTMLURL will return an empty value if it isn't present
-	return createdRelease.GetHTMLURL(), err
+	_, _, err := ghClient.Git.CreateRef(ctx, "rancher", "rancher", github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	if err != nil {
+		return "", "", err
+	}
+	return tag, sha, nil
 }
 
 func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps, error) {

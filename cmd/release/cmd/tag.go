@@ -186,25 +186,15 @@ var rancherTagSubCmd = &cobra.Command{
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		opts := &repository.CreateReleaseOpts{
-			Tag:          tag,
-			Repo:         repo,
-			Owner:        owner,
-			Branch:       releaseBranch,
-			Prerelease:   true,
-			Draft:        false,
-			ReleaseNotes: "",
-		}
-		fmt.Printf("creating release options: %+v\n", opts)
 		if dryRun {
 			fmt.Println("dry run, skipping creating release")
 			return nil
 		}
-		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease)
 		if err != nil {
 			return err
 		}
-		fmt.Println("created release: " + releaseURL)
+		fmt.Println("created release: " + createdTag + ": " + tagCommit)
 		return nil
 	},
 }
@@ -287,25 +277,16 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		opts := &repository.CreateReleaseOpts{
-			Tag:          tag,
-			Repo:         repo,
-			Owner:        owner,
-			Branch:       releaseBranch,
-			Prerelease:   true,
-			Draft:        false,
-			ReleaseNotes: "",
-		}
-		fmt.Printf("creating release options: %+v\n", opts)
 		if dryRun {
 			fmt.Println("dry run, skipping creating release")
 			return nil
 		}
-		releaseURL, err := rancher.CreateRelease(ctx, ghClient, &rancherRelease, opts, preRelease, releaseType)
+
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease)
 		if err != nil {
 			return err
 		}
-		fmt.Println("created release: " + releaseURL)
+		fmt.Println("created release: " + createdTag + ": " + tagCommit)
 		return nil
 	},
 }
