@@ -194,7 +194,7 @@ var rancherTagSubCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println("created release: " + createdTag + ": " + tagCommit)
+		fmt.Println("created tag: " + createdTag + ": " + tagCommit)
 		return nil
 	},
 }
@@ -286,7 +286,7 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println("created release: " + createdTag + ": " + tagCommit)
+		fmt.Println("created tag: " + createdTag + ": " + tagCommit)
 		return nil
 	},
 }

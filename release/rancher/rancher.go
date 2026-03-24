@@ -687,7 +687,7 @@ func createAssetFile(outputFile string, contents fmt.Stringer) (err error) {
 	if err != nil {
 		return err
 	}
-	// the named return is necessary to check the errors of the defered function
+	// the named return is necessary to check the errors of the deferred function
 	defer func() {
 		if closeErr := errors.Join(fo.Close()); closeErr != nil {
 			err = errors.Join(err, closeErr)
