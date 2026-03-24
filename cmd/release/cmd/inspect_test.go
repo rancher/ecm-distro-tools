@@ -96,11 +96,3 @@ func TestInspectAndCSVOutput(t *testing.T) {
 		t.Errorf("csv() output = %q, want %q", got, expected)
 	}
 }
-
-func mustParseRef(s string) name.Reference {
-	ref, err := name.ParseReference(s)
-	if err != nil {
-		panic(err)
-	}
-	return ref
-}
