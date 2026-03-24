@@ -181,10 +181,10 @@ func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstream
 
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
-		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
+		Base:                new(rancherReleaseBranch),
+		Head:                new(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch
@@ -228,10 +228,10 @@ func updateCLIReferencesAndPush(tag, rancherUpstreamURL, rancherReleaseBranch st
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, rancherReleaseBranch, githubUsername, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String("Bump Rancher CLI version to " + tag),
-		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag)),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new("Bump Rancher CLI version to " + tag),
+		Base:                new(rancherReleaseBranch),
+		Head:                new(githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag)),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch

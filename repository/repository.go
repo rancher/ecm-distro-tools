@@ -222,8 +222,8 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 		assignee = types.StringPtr("")
 	}
 	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
-		Title:    github.Ptr(title),
-		Body:     github.Ptr(body),
+		Title:    &title,
+		Body:     &body,
 		Labels:   &[]string{"kind/backport"},
 		Assignee: assignee,
 	})
