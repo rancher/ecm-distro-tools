@@ -682,11 +682,12 @@ func dockerImagesDigests(imagesFileURL, registry, username, password string) (im
 	return imagesDigests, nil
 }
 
-func createAssetFile(outputFile string, contents fmt.Stringer) error {
+func createAssetFile(outputFile string, contents fmt.Stringer) (err error) {
 	fo, err := os.Create(outputFile)
 	if err != nil {
 		return err
 	}
+	// the named return is necessary to check the errors of the defered function
 	defer func() {
 		if closeErr := errors.Join(fo.Close()); closeErr != nil {
 			err = errors.Join(err, closeErr)
@@ -696,7 +697,7 @@ func createAssetFile(outputFile string, contents fmt.Stringer) error {
 	return err
 }
 
-func artifactImageList(imagesFileURL, registry string) ([]string, error) {
+func artifactImageList(imagesFileURL, registry string) (list []string, err error) {
 	client := http.Client{Timeout: time.Second * 15}
 	res, err := client.Get(imagesFileURL)
 	if err != nil {
@@ -708,7 +709,7 @@ func artifactImageList(imagesFileURL, registry string) ([]string, error) {
 		}
 	}()
 
-	list, err := getLinesFromReader(res.Body)
+	list, err = getLinesFromReader(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +765,7 @@ func getLinesFromReader(body io.Reader) ([]string, error) {
 	return strings.Split(string(lines), "\n"), nil
 }
 
-func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, int, error) {
+func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDigest string, statusCode int, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
@@ -793,7 +794,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
 	}
-	dockerDigest := res.Header.Get("Docker-Content-Digest")
+	dockerDigest = res.Header.Get("Docker-Content-Digest")
 	if dockerDigest == "" {
 		return "", res.StatusCode, errors.New("empty digest header 'Docker-Content-Digest'")
 	}
@@ -815,7 +816,7 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 	return true, nil
 }
 
-func registryAuth(authURL, service, image, username, password string) (string, error) {
+func registryAuth(authURL, service, image, username, password string) (token string, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	scope := "repository:" + image + ":pull"
 	url := authURL + "?scope=" + scope + "&service=" + service
@@ -847,7 +848,7 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	return auth.Token, nil
 }
 
-func ImagesFromArtifact(url string) ([]string, error) {
+func ImagesFromArtifact(url string) (images []string, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {
