@@ -28,11 +28,11 @@ func TestImageSliceToMap(t *testing.T) {
 	if _, ok := images[imagesWithoutVersion[0]]; !ok {
 		t.Error("expected image not found on map " + imagesWithoutVersion[0])
 	}
-	images, err = imageSliceToMap(imagesWithVersion, true)
+	_, err = imageSliceToMap(imagesWithVersion, true)
 	if err == nil {
 		t.Error("expected to flag image with version as malformed")
 	}
-	images, err = imageSliceToMap(imagesWithVersion, false)
+	_, err = imageSliceToMap(imagesWithVersion, false)
 	if err != nil {
 		t.Error("didn't expect to flag image with version as malformed")
 	}

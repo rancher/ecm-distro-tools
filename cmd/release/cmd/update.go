@@ -209,7 +209,7 @@ var updateRancherCLICmd = &cobra.Command{
 			return err
 		}
 
-		versionTrimmed, _, found := strings.Cut(tag, "-")
+		versionTrimmed, _, _ := strings.Cut(tag, "-")
 
 		githubUsername := rootConfig.User.GithubUsername
 		if githubUsername == "" {
