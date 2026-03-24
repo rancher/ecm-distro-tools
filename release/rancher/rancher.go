@@ -181,7 +181,7 @@ func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstream
 
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               new(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
+		Title:               new("Bump Dashboard to " + tag),
 		Base:                new(rancherReleaseBranch),
 		Head:                new(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
 		MaintainerCanModify: new(true),
