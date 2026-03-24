@@ -258,6 +258,26 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	return releaseBranch, nil
 }
 
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, sha, branch string) error {
+	if !semver.IsValid(tag) {
+		return errors.New("the tag")
+	}
+
+	if sha == "" {
+		commitSHA, err := repository.RefCommitSHA(ctx, ghClient, owner, repo, "heads/"+branch)
+		if err != nil {
+			return err
+		}
+		sha = commitSHA
+	}
+
+	_, _, err := ghClient.Git.CreateRef(ctx, "rancher", "rancher", github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
 func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
 	if !semver.IsValid(opts.Tag) {

@@ -138,6 +138,27 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 	return release, nil
 }
 
+func RefCommitSHA(ctx context.Context, ghClient *github.Client, owner, repo, ref string) (string, error) {
+	r, _, err := ghClient.Git.GetRef(ctx, owner, repo, ref)
+	if err != nil {
+		return "", fmt.Errorf("error getting reference: %v", err)
+	}
+
+	if r.Object.GetType() == "commit" {
+		return r.Object.GetSHA(), nil
+	}
+
+	if r.Object.GetType() == "tag" {
+		tagObj, _, err := ghClient.Git.GetTag(ctx, owner, repo, r.Object.GetSHA())
+		if err != nil {
+			return "", fmt.Errorf("error getting tag object: %v", err)
+		}
+		return tagObj.Object.GetSHA(), nil
+	}
+
+	return "", fmt.Errorf("unexpected reference type: %s", r.Object.GetType())
+}
+
 type CreateReleaseIssueOpts struct {
 	Owner   string
 	Repo    string
