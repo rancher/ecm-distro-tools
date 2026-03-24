@@ -299,7 +299,7 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 		return "", "", errors.New("the tag is invalid: " + tag)
 	}
 
-	_, _, err := ghClient.Git.CreateRef(ctx, "rancher", "rancher", github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
 	if err != nil {
 		return "", "", err
 	}
