@@ -1,6 +1,9 @@
 package prime
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -9,8 +12,9 @@ func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	rancherKeys := []string{"rancher/v2.10.0/images.txt"}
 	rke2Keys := []string{"rke2/v1.30.1+rke2r1/images.txt"}
 	k3sKeys := []string{"k3s/v1.30.1+k3s1/images.txt"}
+	suseVirtKeys := []string{"suse-virtualization/v1.9.1/suse-virtualization-v1.9.1-amd64.iso"}
 	toolsKeys := []string{"tools/rke2-patcher/v1.0.0/tools.txt"}
-	got := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil)
+	got := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys, nil)
 	if !slices.Equal(got.GA.Rancher.Versions, []string{"v2.10.0"}) {
 		t.Fatalf("unexpected GA rancher versions: %v", got.GA.Rancher.Versions)
 	}
@@ -29,6 +33,13 @@ func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	if len(got.PreRelease.K3s.Versions) != 0 {
 		t.Fatalf("expected no prerelease k3s versions, got %v", got.PreRelease.K3s.Versions)
 	}
+	if !slices.Equal(got.GA.SUSEVirt.Versions, []string{"v1.9.1"}) {
+		t.Fatalf("unexpected GA suse-virtualization versions: %v", got.GA.SUSEVirt.Versions)
+	}
+	if len(got.PreRelease.SUSEVirt.Versions) != 0 {
+		t.Fatalf("expected no prerelease suse-virtualization versions, got %v", got.PreRelease.SUSEVirt.Versions)
+	}
+
 	if !slices.Equal(got.GA.Tools.ProgramVersions["rke2-patcher"].Versions, []string{"v1.0.0"}) {
 		t.Fatalf("unexpected GA tools versions: %v", got.GA.Tools.ProgramVersions["rke2-patcher"].Versions)
 	}
@@ -43,7 +54,7 @@ func TestGenerateArtifactsIndexContentPreRelease(t *testing.T) {
 		"rancher/v2.9.0-rc1/foo.txt",
 		"rancher/v2.9.0-hotfix-1/images.txt",
 	}
-	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, nil)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, nil, nil)
 	wantPre := []string{"v2.9.0-rc1", "v2.9.0-hotfix-1"}
 	if !slices.Equal(got.PreRelease.Rancher.Versions, wantPre) {
 		t.Fatalf("unexpected prerelease versions: %v", got.PreRelease.Rancher.Versions)
@@ -63,7 +74,7 @@ func TestGenerateArtifactsIndexContentIgnoredVersions(t *testing.T) {
 		"rancher/v2.8.2/images.txt",
 	}
 	ignore := map[string]bool{"v2.8.1": true}
-	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, ignore)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, nil, ignore)
 	if len(got.GA.Rancher.Versions) != 1 || got.GA.Rancher.Versions[0] != "v2.8.2" {
 		t.Fatalf("expected only v2.8.2, got %v", got.GA.Rancher.Versions)
 	}
@@ -78,11 +89,68 @@ func TestGenerateArtifactsIndexContentSkipUnexpectedKeys(t *testing.T) {
 		"rancher/v2.11.0/",
 		"rancher/v2.11.0/file.txt",
 	}
-	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, nil)
+	got := generateArtifactsIndexContent(rancherKeys, nil, nil, nil, nil, nil)
 	if !slices.Equal(got.GA.Rancher.Versions, []string{"v2.11.0"}) {
 		t.Fatalf("expected only valid version captured, got %v", got.GA.Rancher.Versions)
 	}
 	if files := got.GA.Rancher.VersionsFiles["v2.11.0"]; !slices.Equal(files, []string{"file.txt"}) {
 		t.Fatalf("unexpected files for v2.11.0: %v", files)
+	}
+}
+
+func TestArtifactDirListSUSEVirtRequiresVersionPrefix(t *testing.T) {
+	dir := t.TempDir()
+	for _, p := range []string{
+		"suse-virtualization/v1.9.1/suse-virtualization-v1.9.1-amd64.iso",
+		"suse-virtualization/latest/version.yaml",
+	} {
+		full := filepath.Join(dir, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, _, _, suseVirtKeys, _, err := NewArtifactDir(dir).List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"suse-virtualization/v1.9.1/suse-virtualization-v1.9.1-amd64.iso"}
+	if !slices.Equal(suseVirtKeys, want) {
+		t.Fatalf("unexpected suse-virtualization keys: %v", suseVirtKeys)
+	}
+}
+
+func TestGenerateArtifactsIndexContentSUSEVirtSkipsBranchHeads(t *testing.T) {
+	suseVirtKeys := []string{
+		"suse-virtualization/v1.9/suse-virtualization-v1.9-amd64.iso",
+		"suse-virtualization/v1.10/suse-virtualization-v1.10-amd64.iso",
+		"suse-virtualization/v1.9.1/suse-virtualization-v1.9.1-amd64.iso",
+		"suse-virtualization/v1.10.0-rc1/suse-virtualization-v1.10.0-rc1-amd64.iso",
+	}
+	got := generateArtifactsIndexContent(nil, nil, nil, suseVirtKeys, nil, nil)
+	if !slices.Equal(got.GA.SUSEVirt.Versions, []string{"v1.9.1"}) {
+		t.Fatalf("unexpected GA suse-virtualization versions: %v", got.GA.SUSEVirt.Versions)
+	}
+	if !slices.Equal(got.PreRelease.SUSEVirt.Versions, []string{"v1.10.0-rc1"}) {
+		t.Fatalf("unexpected prerelease suse-virtualization versions: %v", got.PreRelease.SUSEVirt.Versions)
+	}
+}
+
+func TestIsFullSemver(t *testing.T) {
+	for v, want := range map[string]bool{
+		"v1.9.1":         true,
+		"v1.10.0-rc1":    true,
+		"v1.9.1+build.1": true,
+		"v1.9":           false,
+		"v1.10":          false,
+		"v1":             false,
+		"latest":         false,
+		"v1.9.x":         false,
+	} {
+		if got := isFullSemver(v); got != want {
+			t.Errorf("isFullSemver(%q) = %v, want %v", v, got, want)
+		}
 	}
 }
