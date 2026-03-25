@@ -81,7 +81,7 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 }
 
 func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, rancherRepoName, rancherRepoOwner, rancherUpstreamURL, cliReleaseBranch, cliRepoName, githubUsername string, dryRun bool) error {
-	commitSHA, err := getRancherPkgSHA(ctx, ghClient, rancherRepoOwner, rancherRepoName, tag)
+	commitSHA, err := repository.RefCommitSHA(ctx, ghClient, rancherRepoOwner, rancherRepoName, "tags/"+tag)
 	if err != nil {
 		return err
 	}
@@ -91,27 +91,6 @@ func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, 
 	}
 
 	return createCLIReferencesPR(ctx, ghClient, tag, commitSHA, cliReleaseBranch, cliRepoName, rancherRepoOwner, githubUsername)
-}
-
-func getRancherPkgSHA(ctx context.Context, ghClient *github.Client, owner, repo, tag string) (string, error) {
-	ref, _, err := ghClient.Git.GetRef(ctx, owner, repo, "tags/"+tag)
-	if err != nil {
-		return "", fmt.Errorf("error getting tag reference: %v", err)
-	}
-
-	if ref.Object.GetType() == "commit" {
-		return ref.Object.GetSHA(), nil
-	}
-
-	if ref.Object.GetType() == "tag" {
-		tagObj, _, err := ghClient.Git.GetTag(ctx, owner, repo, ref.Object.GetSHA())
-		if err != nil {
-			return "", fmt.Errorf("error getting tag object: %v", err)
-		}
-		return tagObj.Object.GetSHA(), nil
-	}
-
-	return "", fmt.Errorf("unexpected reference type: %s", ref.Object.GetType())
 }
 
 func UpdateCLIRefsBranchName(tag string) string {
@@ -139,11 +118,11 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string,
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, tagSHA, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.Ptr("Bump Rancher version to " + tag),
-		Base:                github.Ptr(releaseBranch),
-		Head:                github.Ptr(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
-		Body:                github.Ptr("```" + tag + ": " + tagSHA + "```"),
-		MaintainerCanModify: github.Ptr(true),
+		Title:               new("Bump Rancher version to " + tag),
+		Base:                new(releaseBranch),
+		Head:                new(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
+		Body:                new("```" + tag + ": " + tagSHA + "```"),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch

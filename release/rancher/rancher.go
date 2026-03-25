@@ -1,3 +1,4 @@
+// Package rancher holds tools to release rancher and sync images
 package rancher
 
 import (
@@ -180,10 +181,10 @@ func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstream
 
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("Bump Dashboard to `%s`", tag)),
-		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new("Bump Dashboard to " + tag),
+		Base:                new(rancherReleaseBranch),
+		Head:                new(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch
@@ -227,10 +228,10 @@ func updateCLIReferencesAndPush(tag, rancherUpstreamURL, rancherReleaseBranch st
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, rancherReleaseBranch, githubUsername, rancherRepoName, rancherRepoOwner string) error {
 	pull := &github.NewPullRequest{
-		Title:               github.String("Bump Rancher CLI version to " + tag),
-		Base:                github.String(rancherReleaseBranch),
-		Head:                github.String(githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag)),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new("Bump Rancher CLI version to " + tag),
+		Base:                new(rancherReleaseBranch),
+		Head:                new(githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag)),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch
@@ -258,43 +259,51 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	return releaseBranch, nil
 }
 
-// CreateRelease gets the latest commit in a release branch, checks if CI is passing and creates a github release, returning the created release HTML URL or an error
-func CreateRelease(ctx context.Context, ghClient *github.Client, r *ecmConfig.RancherRelease, opts *repository.CreateReleaseOpts, preRelease bool, releaseType string) (string, error) {
-	if !semver.IsValid(opts.Tag) {
-		return "", errors.New("the tag isn't a valid semver: " + opts.Tag)
-	}
-	if _, ok := ReleaseTypes[releaseType]; !ok {
-		return "", errors.New("invalid release type")
+// CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
+// If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
+// Returns tag, commit sha, error
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease bool) (string, string, error) {
+	if !semver.IsValid(baseTag) {
+		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
 
-	releaseName := opts.Tag
+	if sha == "" {
+		commitSHA, err := repository.RefCommitSHA(ctx, ghClient, owner, repo, "heads/"+branch)
+		if err != nil {
+			return "", "", err
+		}
+		sha = commitSHA
+	}
+
+	tag := baseTag
+
 	if preRelease {
 		latestVersionNumber := 1
-		latestVersion, err := release.LatestPreRelease(ctx, ghClient, opts.Owner, opts.Repo, opts.Tag, releaseType)
+		latestVersion, err := release.LatestPreRelease(ctx, ghClient, owner, repo, baseTag, releaseType)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		if latestVersion != nil {
-			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, opts.Tag+"-"+releaseType)
+			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, baseTag+"-"+releaseType)
 			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
 			if err != nil {
-				return "", errors.New("failed to parse trimmed latest version number: " + err.Error())
+				return "", "", errors.New("failed to parse trimmed latest version number: " + err.Error())
 			}
 			latestVersionNumber = currentVersionNumber + 1
 		}
-		opts.Tag = opts.Tag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
-		releaseName = "Pre-release " + opts.Tag
+		tag = baseTag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
 	}
 
-	opts.Name = releaseName
-	opts.Prerelease = true
-	opts.ReleaseNotes = ""
+	if !semver.IsValid(tag) {
+		return "", "", errors.New("the tag is invalid: " + tag)
+	}
 
-	createdRelease, err := repository.CreateRelease(ctx, ghClient, opts)
-
-	// GetHTMLURL will return an empty value if it isn't present
-	return createdRelease.GetHTMLURL(), err
+	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	if err != nil {
+		return "", "", err
+	}
+	return tag, sha, nil
 }
 
 func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps, error) {
@@ -673,25 +682,34 @@ func dockerImagesDigests(imagesFileURL, registry, username, password string) (im
 	return imagesDigests, nil
 }
 
-func createAssetFile(outputFile string, contents fmt.Stringer) error {
+func createAssetFile(outputFile string, contents fmt.Stringer) (err error) {
 	fo, err := os.Create(outputFile)
 	if err != nil {
 		return err
 	}
-	defer fo.Close()
+	// the named return is necessary to check the errors of the deferred function
+	defer func() {
+		if closeErr := errors.Join(fo.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	_, err = fo.Write([]byte(contents.String()))
 	return err
 }
 
-func artifactImageList(imagesFileURL, registry string) ([]string, error) {
+func artifactImageList(imagesFileURL, registry string) (list []string, err error) {
 	client := http.Client{Timeout: time.Second * 15}
 	res, err := client.Get(imagesFileURL)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
-	list, err := getLinesFromReader(res.Body)
+	list, err = getLinesFromReader(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +765,7 @@ func getLinesFromReader(body io.Reader) ([]string, error) {
 	return strings.Split(string(lines), "\n"), nil
 }
 
-func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, int, error) {
+func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDigest string, statusCode int, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
@@ -767,12 +785,16 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	if err != nil {
 		return "", 0, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
 	}
-	dockerDigest := res.Header.Get("Docker-Content-Digest")
+	dockerDigest = res.Header.Get("Docker-Content-Digest")
 	if dockerDigest == "" {
 		return "", res.StatusCode, errors.New("empty digest header 'Docker-Content-Digest'")
 	}
@@ -794,7 +816,7 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 	return true, nil
 }
 
-func registryAuth(authURL, service, image, username, password string) (string, error) {
+func registryAuth(authURL, service, image, username, password string) (token string, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	scope := "repository:" + image + ":pull"
 	url := authURL + "?scope=" + scope + "&service=" + service
@@ -812,7 +834,11 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	if res.StatusCode != http.StatusOK {
 		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	var auth registryAuthToken
 	if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
@@ -822,13 +848,17 @@ func registryAuth(authURL, service, image, username, password string) (string, e
 	return auth.Token, nil
 }
 
-func ImagesFromArtifact(url string) ([]string, error) {
+func ImagesFromArtifact(url string) (images []string, err error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	res, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 
 	var file []string
 	scanner := bufio.NewScanner(res.Body)

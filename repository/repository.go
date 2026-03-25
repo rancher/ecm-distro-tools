@@ -138,6 +138,27 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 	return release, nil
 }
 
+func RefCommitSHA(ctx context.Context, ghClient *github.Client, owner, repo, ref string) (string, error) {
+	r, _, err := ghClient.Git.GetRef(ctx, owner, repo, ref)
+	if err != nil {
+		return "", errors.New("error getting reference: " + err.Error())
+	}
+
+	if r.Object.GetType() == "commit" {
+		return r.Object.GetSHA(), nil
+	}
+
+	if r.Object.GetType() == "tag" {
+		tagObj, _, err := ghClient.Git.GetTag(ctx, owner, repo, r.Object.GetSHA())
+		if err != nil {
+			return "", errors.New("error getting tag object: " + err.Error())
+		}
+		return tagObj.Object.GetSHA(), nil
+	}
+
+	return "", errors.New("unexpected reference type: " + r.Object.GetType())
+}
+
 type CreateReleaseIssueOpts struct {
 	Owner   string
 	Repo    string
@@ -201,8 +222,8 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 		assignee = types.StringPtr("")
 	}
 	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
-		Title:    github.Ptr(title),
-		Body:     github.Ptr(body),
+		Title:    &title,
+		Body:     &body,
 		Labels:   &[]string{"kind/backport"},
 		Assignee: assignee,
 	})
@@ -388,8 +409,7 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 			var releaseNote string
 			var inNote bool
 			if strings.Contains(body, releaseNoteSection) && !strings.Contains(body, emptyReleaseNote) && !strings.Contains(body, noneReleaseNote) {
-				lines := strings.Split(body, "\n")
-				for _, line := range lines {
+				for line := range strings.SplitSeq(body, "\n") {
 					if strings.Contains(line, releaseNoteSection) {
 						inNote = true
 						continue
