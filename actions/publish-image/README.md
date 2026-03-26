@@ -139,66 +139,6 @@ jobs:
         run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
 ```
 
-### Release to public and staging
-
-Recommended if you're building images for charts or rancher that will be at `rancher-images.txt`
-
-Note: the `identity-registry` input is recommended here to ensure that the pull
-reference will match the signature after syncing the image from staging to prime.
-
-Result images:
-
-* `docker.io/rancher/ecm-distro-tools:v0.0.1` (linux/amd64,linux/arm64)
-* `staging.registry/rancher/ecm-distro-tools:v0.0.1` (linux/amd64,linux/arm64)
-
-```yml
-name: Release
-on:
-  push:
-    tags:
-      - '*'
-jobs:
-  push-multiarch:
-    permissions:
-      contents: read
-      id-token: write
-    runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v6
-
-    - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
-      with:
-        secrets: |
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials password | DOCKER_PASSWORD ;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials registry | PRIME_STG_REGISTRY ;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials username | PRIME_STG_REGISTRY_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials password | PRIME_STG_REGISTRY_PASSWORD ;
-
-    - name: Push images
-      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
-      with:
-        image: ecm-distro-tools
-        tag: ${{ github.ref_name }}
-        platforms: linux/amd64,linux/arm64
-
-        public-repo: rancher
-        public-username: ${{ env.DOCKER_USERNAME }}
-        public-password: ${{ env.DOCKER_PASSWORD }}
-        make-target: push-image
-
-        prime-repo: rancher
-        identity-registry: ${{ env.PRIME_REGISTRY }}
-        prime-registry: ${{ env.PRIME_STG_REGISTRY }}
-        prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
-        prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
-        prime-make-target: push-prime-image
-```
-
-
 ### Release to public and prime
 
 Recommended if you're building base images
