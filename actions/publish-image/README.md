@@ -93,7 +93,7 @@ on:
 jobs:
   push-multiarch:
     permissions:
-      contents: read
+      contents: write
       id-token: write
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
