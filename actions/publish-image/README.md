@@ -6,6 +6,25 @@ Depending on the project its images may need to be pushed to the Public
 or Prime registry, in some cases both (default).
 Use push-to-public and push-to-prime to pick the target registries.
 
+## Immutable releases
+
+GitHub docs: https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
+
+Releases and tags are only immutable after they have been published,
+when moving to immutable releases, you need to make sure that publishing
+the release is the last step of the release or a manual action.
+Release notes can be updated after the release has been published.
+
+When using multi-job workflows, remember to correctly configure job
+dependencies, always making the publish job the last to run.
+
+`job.<job_id>.needs` doc: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#example-requiring-successful-dependent-jobs
+
+### Immutable releases examples:
+* Goreleaser action: [`rancherlabs/slsactl`](https://github.com/rancherlabs/slsactl/blob/main/.github/workflows/release.yml)
+* Simple, single-job action: [`rancher/ecm-distro-tools`](https://github.com/rancher/ecm-distro-tools/blob/master/.github/workflows/release.yml)
+* Simple, single-job action: [Release only to staging and push artifacts to an immutable release](#release-only-to-staging-and-push-artifacts-to-an-immutable-release)
+
 ## General guidance
 
 * Transition the project to build images using Docker buildx
@@ -62,6 +81,65 @@ push-prime-image:
 ```
 
 ## Action usage examples
+
+### Release only to staging and push artifacts to an immutable release
+
+```yml
+name: Release
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+  push-multiarch:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v6
+
+    - name: Build binaries
+      shell: bash
+      run: make build-binaries
+
+    - name: Publish Binaries and create draft release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release create -R "${GITHUB_REPOSITORY}" --draft --generate-notes "${GITHUB_REF_NAME}" "${GITHUB_WORKSPACE}"/dist/*
+
+    - name: "Read secrets"
+      uses: rancher-eio/read-vault-secrets@main
+      with:
+        secrets: |
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials registry | PRIME_STG_REGISTRY ;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials username | PRIME_STG_REGISTRY_USERNAME ;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials password | PRIME_STG_REGISTRY_PASSWORD ;
+
+    - name: Push images
+      uses: rancher/ecm-distro-tools/actions/publish-image@<commit-sha>
+      with:
+        image: ecm-distro-tools
+        tag: ${{ github.ref_name }}
+        platforms: linux/amd64,linux/arm64
+
+        push-to-public: false
+
+        prime-repo: rancher
+        identity-registry: ${{ env.PRIME_REGISTRY }}
+        prime-registry: ${{ env.PRIME_STG_REGISTRY }}
+        prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
+        prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
+        prime-make-target: push-prime-image
+
+   - name: Publish the release
+     shell: bash
+     env:
+       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
+```
 
 ### Release to public and prime
 
