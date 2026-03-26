@@ -10,13 +10,16 @@ Use push-to-public and push-to-prime to pick the target registries.
 
 GitHub docs: https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
 
-Releases and tags are only immutable after they have been published,
-when moving to immutable releases, you need to make sure that publishing
+Releases and tags are only immutable after they have been published.
+When moving to immutable releases, you need to make sure that publishing
 the release is the last step of the release or a manual action.
 Release notes can be updated after the release has been published.
 
 When using multi-job workflows, remember to correctly configure job
 dependencies, always making the publish job the last to run.
+
+Assets uploaded to a draft release are **not** available until the release is published, if you use release assets
+in CI, replace it with [`actions/upload-artifact`](https://github.com/actions/upload-artifact).
 
 `job.<job_id>.needs` doc: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#example-requiring-successful-dependent-jobs
 
