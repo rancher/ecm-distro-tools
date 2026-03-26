@@ -105,9 +105,9 @@ jobs:
       run: make build-binaries
 
     - name: Publish Binaries and create draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create -R "${GITHUB_REPOSITORY}" --draft --generate-notes "${GITHUB_REF_NAME}" "${GITHUB_WORKSPACE}"/dist/*
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release create -R "${GITHUB_REPOSITORY}" --draft --generate-notes "${GITHUB_REF_NAME}" "${GITHUB_WORKSPACE}"/dist/*
 
     - name: "Read secrets"
       uses: rancher-eio/read-vault-secrets@main
@@ -135,8 +135,10 @@ jobs:
         prime-make-target: push-prime-image
 
    - name: Publish the release
-        shell: bash
-        run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
+     shell: bash
+     env:
+       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     run: gh release edit -R "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" --draft=false
 ```
 
 ### Release to public and prime
