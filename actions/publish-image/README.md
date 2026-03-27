@@ -101,7 +101,7 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: Build binaries
       shell: bash
@@ -113,7 +113,7 @@ jobs:
       run: gh release create -R "${GITHUB_REPOSITORY}" --draft --generate-notes "${GITHUB_REF_NAME}" "${GITHUB_WORKSPACE}"/dist/*
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
@@ -167,10 +167,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -235,10 +235,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -288,10 +288,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -334,10 +334,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-staging-registry/credentials registry | PRIME_STG_REGISTRY ;
@@ -400,10 +400,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -475,10 +475,10 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu22-full-x64
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@<commit-sha>
 
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@<commit-sha>
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
@@ -508,7 +508,7 @@ forks, as it will use whatever input data that is provided to it.
 To test it on a fork simply create your secrets within the GitHub fork and pass
 them on as per GH syntax: prime-username: ${{ secrets.PRIME_REGISTRY_USERNAME }}.
 
-When used in combination with rancher-eio/read-vault-secrets@main forks are no
+When used in combination with rancher-eio/read-vault-secrets@<commit-sha> forks are no
 longer supported, as read-vault-secrets requires a valid HashiCorp Vault
 instance in order for it to work. In this case, the recommended approach is to
 cut release candidate versions to test the end-to-end process.
