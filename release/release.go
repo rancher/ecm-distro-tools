@@ -119,7 +119,7 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
 	rd.ContainerdVersion = containerdVersion
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
-	rd.IngressNginxVersion = imageTagVersion("nginx-ingress-controller", rke2Repo, milestone)
+	rd.IngressNginxVersion = imageEnvVersion("INGRESS_NGINX_TAG", rke2Repo, milestone)
 	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
@@ -646,6 +646,21 @@ func imageTagVersion(ImageName, repo, branchVersion string) string {
 	}
 
 	return ""
+}
+
+func imageEnvVersion(envName, repo, branchVersion string) string {
+	repoName := "k3s-io/k3s"
+
+	imageListURL := "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/airgap/image-list.txt"
+	if repo == rke2Repo {
+		repoName = "rancher/rke2"
+		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
+	}
+
+	var regex = fmt.Sprintf(`^(%s)=.+$`, envName)
+	submatch := findInURL(imageListURL, regex, envName, true)
+
+	return strings.Trim(submatch[0], envName+"=")
 }
 
 func sqliteVersionBinding(sqliteVersion string) string {
