@@ -245,6 +245,9 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	Use:   "docker-images-digests",
 	Short: "Generate a file with images digests from an images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(rancherImagesDigestsImages) == 0 && rancherImagesDigestsImagesURL == "" {
+			return errors.New("either --images-list or --images-url must be provided")
+		}
 		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, username, password, rancherImagesDigestsImages, verbose)
 	},
 }
