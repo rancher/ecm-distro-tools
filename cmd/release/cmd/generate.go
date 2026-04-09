@@ -52,6 +52,7 @@ var (
 	rancherImagesDigestsOutputFile        string
 	rancherImagesDigestsRegistry          string
 	rancherImagesDigestsImagesURL         string
+	rancherImagesDigestsImages            []string
 	rancherSyncImages                     []string
 	rancherSourceRegistry                 string
 	rancherTargetRegistry                 string
@@ -244,7 +245,7 @@ var rancherGenerateDockerImagesDigestsSubCmd = &cobra.Command{
 	Use:   "docker-images-digests",
 	Short: "Generate a file with images digests from an images list",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, username, password, verbose)
+		return rancher.GenerateDockerImageDigests(rancherImagesDigestsOutputFile, rancherImagesDigestsImagesURL, rancherImagesDigestsRegistry, username, password, rancherImagesDigestsImages, verbose)
 	},
 }
 
@@ -540,10 +541,7 @@ func init() {
 		os.Exit(1)
 	}
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsImagesURL, "images-url", "i", "", "Images list artifact URL")
-	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("images-url"); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringSliceVarP(&rancherImagesDigestsImages, "images-list", "k", make([]string, 0), "Images list")
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsRegistry, "registry", "r", "", "Docker Registry e.g: docker.io")
 	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("registry"); err != nil {
 		fmt.Println(err.Error())

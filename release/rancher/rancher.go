@@ -632,20 +632,23 @@ func validateRepoImage(repoImage string) error {
 	return nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, password string, verbose bool) error {
-	imagesDigests, err := dockerImagesDigests(imagesFileURL, registry, username, password)
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, password string, imagesList []string, verbose bool) error {
+	var err error
+	if len(imagesList) == 0 {
+		imagesList, err = artifactImageList(imagesFileURL, registry)
+		if err != nil {
+			return err
+		}
+	}
+
+	imagesDigests, err := dockerImagesDigests(imagesList, registry, username, password)
 	if err != nil {
 		return err
 	}
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func dockerImagesDigests(imagesFileURL, registry, username, password string) (imageDigest, error) {
-	imagesList, err := artifactImageList(imagesFileURL, registry)
-	if err != nil {
-		return nil, err
-	}
-
+func dockerImagesDigests(imagesList []string, registry, username, password string) (imageDigest, error) {
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
