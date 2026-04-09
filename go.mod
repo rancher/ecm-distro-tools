@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/drone/drone-go v1.7.1
-	github.com/go-git/go-git/v5 v5.17.1
+	github.com/go-git/go-git/v5 v5.17.2
 	github.com/google/go-containerregistry v0.21.3
 	github.com/google/go-github/v84 v84.0.0
 	github.com/sirupsen/logrus v1.9.4
