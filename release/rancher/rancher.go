@@ -635,6 +635,9 @@ func validateRepoImage(repoImage string) error {
 func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, password string, imagesList []string, verbose bool) error {
 	var err error
 	if len(imagesList) == 0 {
+		if imagesFileURL == "" {
+			return errors.New("images file url can't be empty")
+		}
 		imagesList, err = artifactImageList(imagesFileURL, registry)
 		if err != nil {
 			return err
