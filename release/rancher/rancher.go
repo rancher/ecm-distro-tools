@@ -641,6 +641,8 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, p
 		}
 	}
 
+	imagesList = cleanImages(imagesList, registry)
+
 	imagesDigests, err := dockerImagesDigests(imagesList, registry, username, password)
 	if err != nil {
 		return err
@@ -721,15 +723,18 @@ func artifactImageList(imagesFileURL, registry string) (list []string, err error
 		return list, fmt.Errorf("no outputFile %s found or contents were empty, can not proceed", imagesFileURL)
 	}
 
-	for k, im := range list {
+	return list, nil
+}
+
+func cleanImages(images []string, registry string) []string {
+	for k, im := range images {
 		if im == "" || im == " " {
 			continue
 		}
 		image := cleanImage(im, registry)
-		list[k] = image
+		images[k] = image
 	}
-
-	return list, nil
+	return images
 }
 
 func cleanImage(image, registry string) string {
