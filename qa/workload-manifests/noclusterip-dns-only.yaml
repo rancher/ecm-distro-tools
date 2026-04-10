@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: busyb
+spec:
+  selector:
+    app: busy
+  clusterIP: None
+  ports:
+  - name: foo # Actually, no port is needed.
+    port: 1234
+    targetPort: 1234
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busydep
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: busy
+  template:
+    metadata:
+      labels:
+        app: busy
+    spec:
+      containers:
+        - name: busybox
+          image: busybox:1.28
+          command:
+            - sleep
+            - "3600"
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            

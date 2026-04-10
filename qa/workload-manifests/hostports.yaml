@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-hostport-deployment
+spec:
+  selector:
+    matchLabels:
+      app: test-hostport-app
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: test-hostport-app
+    spec:
+      containers:
+      - name: test-hostport
+        image: ranchertest/mytestcontainer:unprivileged
+        ports:
+        - containerPort: 8080
+          hostPort: 8080
+          

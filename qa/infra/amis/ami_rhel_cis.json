@@ -1,0 +1,66 @@
+{
+    "variables": {
+        "name":"RHEL 8.9 - FIPS and nm-cloud-setup disabled",
+        "source_ami":"ami-0e1dce856ab3c6ec1",
+        "access_key":"",
+        "secret_key":"",
+        "region":"us-east-2"
+    },
+    "builders": [{
+        "type": "amazon-ebs",
+        "access_key": "{{user `access_key`}}",
+        "secret_key":"{{user `secret_key`}}",
+        "ami_name": "{{user `name`}}",
+        "ami_description": "RHEL 8.9 minimal with FIPS enabled, nm-cloud-setup disabled, and selinux enforcing. Requires using an RSA key to ssh in",
+        "region": "{{user `region`}}",
+        "ami_regions": [
+            "us-east-1",
+            "us-east-2",
+            "us-west-1",
+            "us-west-2"
+        ],
+        "source_ami": "{{user `source_ami`}}",
+        "instance_type": "t2.medium",
+        "communicator": "ssh",
+        "ssh_username": "ec2-user",
+        "force_deregister": true,
+        "run_tags":{"Name":"{{user `name`}}"}
+    }],
+    "provisioners": [
+    {
+        "type": "file",
+        "source": "enable_fips.sh",
+        "destination": "/tmp/enable_fips.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/enable_fips.sh && sudo /tmp/enable_fips.sh rhel9"
+    },
+    {
+        "type": "file",
+        "source": "disable_nm_cloud_setup.sh",
+        "destination": "/tmp/disable_nm_cloud_setup.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh rhel8"
+    },
+    {
+        "type": "file",
+        "source": "install_rpms.sh",
+        "destination": "/tmp/install_rpms.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/install_rpms.sh && sudo /tmp/install_rpms.sh"
+    },
+    {
+        "type": "file",
+        "source": "cis_ready.sh",
+        "destination": "/tmp/cis_ready.sh"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo chmod +x /tmp/cis_ready.sh && sudo /tmp/cis_ready.sh"
+    }]
+}

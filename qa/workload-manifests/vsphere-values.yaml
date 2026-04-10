@@ -1,0 +1,55 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rancher-vsphere-cpi
+  labels:
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    vCenter:
+      host: "YOUR_HOSTNAME"
+      datacenters: "YOUR_DATA_CENTER"
+      username: "YOUR_USERNAME"
+      password: "YOUR_PASSWORD"
+      credentialsSecret:
+        generate: true
+      labels:
+        generate: true
+        zone: "test-zone"
+        region: "test-region"
+    cloudControllerManager:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rancher-vsphere-csi
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    vCenter:
+      host: "YOUR_HOSTNAME"
+      datacenters: "YOUR_DATA_CENTER"
+      username: "YOUR_USERNAME"
+      password: "YOUR_PASSWORD"
+      clusterId: "YOUR_NODE_HOSTNAME"
+      configSecret:
+        configTemplate: |
+         [Global]
+         cluster-id = {{ required ".Values.vCenter.clusterId must be provided" (default .Values.vCenter.clusterId .Values.global.cattle.clusterId) | quote }}
+         user = {{ .Values.vCenter.username | quote }}
+         password = {{ .Values.vCenter.password | quote }}
+         port = {{ .Values.vCenter.port | quote }}
+         insecure-flag = {{ .Values.vCenter.insecureFlag | quote }}
+         [VirtualCenter {{ .Values.vCenter.host | quote }}]
+         datacenters = {{ .Values.vCenter.datacenters | quote }}
+         [Labels]
+         zone = "test-zone"
+         region = "test-region"
+    storageClass:
+      datastoreURL: "YOUR_DATA_STORE_URL"
+    csiController:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+        
