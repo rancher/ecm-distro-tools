@@ -10,7 +10,7 @@ spec:
   version: v1.22.8-rc1-rke2r1
   nodeSelector:
     matchExpressions:
-      - {key: node-role.kubernetes.io/master, operator: In, values: ["true"]}
+      - { key: node-role.kubernetes.io/master, operator: In, values: ["true"] }
   serviceAccountName: system-upgrade
   cordon: true
   #drain:
@@ -30,7 +30,11 @@ spec:
   version: v1.22.8-rc1-rke2r1
   nodeSelector:
     matchExpressions:
-      - {key: node-role.kubernetes.io/master, operator: NotIn, values: ["true"]}
+      - {
+          key: node-role.kubernetes.io/master,
+          operator: NotIn,
+          values: ["true"],
+        }
   serviceAccountName: system-upgrade
   prepare:
     image: rancher/rke2-upgrade
@@ -39,4 +43,3 @@ spec:
     force: true
   upgrade:
     image: rancher/rke2-upgrade
-    

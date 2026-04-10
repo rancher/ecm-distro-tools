@@ -15,7 +15,7 @@ Pre-Requisites:
     ```
     export PREFIX="prefix"  # Set this to your name abbreviation. Used to tag the ec2 instances to identify they are yours
     export KEY_NAME="ssh-key-pair-name"  # Set the key-pair login information to connect securely to the ec2 instances launched
-    export KEY_FILE_PATH="/path/to/your/name.pem"  # Set the full file path to your .pem file. Needed to ssh to your instances
+    export PEM_FILE_PATH="/path/to/your/name.pem"  # Set the full file path to your .pem file. Needed to ssh to your instances
 
     ```
 

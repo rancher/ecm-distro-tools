@@ -19,7 +19,7 @@ do
             echo "
         Usage: 
             
-            $(basename "$0") [-l] [-d] [-t] [-g] [-o os_name] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-h]
+            $(basename "$0") [-l] [-d] [-t] [-g] [-o os_name] [-p prefix] [-k key_name] [-f pem_file_path] [-c count] [-v volume_size] [-s server_count] [-h]
 
             -l: logging is in 'debug' mode and detailed
             -d: deploy ec2 instances. displays ssh command output to setup deployed. 
@@ -363,8 +363,11 @@ fi
 
 
 get_ips () {
-    aws ec2 describe-instances --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" > "${DEPLOYED_FILE_PATH}"
-    grep PublicIp "${DEPLOYED_FILE_PATH}" | grep -v "''" | awk '{print $2}' | uniq > "${PUBLIC_IPS_FILE_PATH}"
+    aws ec2 describe-instances \
+        --filters Name=key-name,Values="${KEY_NAME_VAR}" Name=image-id,Values="${IMAGE_ID}" Name=instance-state-name,Values="running" \
+        --query 'Reservations[].Instances[].PublicIpAddress' \
+        --output text > "${DEPLOYED_FILE_PATH}"
+    tr '\t' '\n' < "${DEPLOYED_FILE_PATH}" | grep -v '^None$' | grep -v '^$' | uniq > "${PUBLIC_IPS_FILE_PATH}"
 }
 
 get_ssh_info () {

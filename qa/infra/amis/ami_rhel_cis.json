@@ -46,6 +46,7 @@
         "inline": "sudo chmod +x /tmp/disable_nm_cloud_setup.sh && sudo /tmp/disable_nm_cloud_setup.sh rhel8"
     },
     {
+        "type": "file",
         "_comment": "This is a note for developers",
         "//": "Need to pre-install container-selinux and k3s/rke2 if required",
         "active": true

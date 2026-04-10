@@ -6,16 +6,15 @@ metadata:
     name: "basic"
 spec:
   containers:
-    - name: "basic"
-      image: ranchertest/mytestcontainer:unprivileged
-      ports:
-        - containerPort: 8080
-          name: "basic"
-      volumeMounts:
-        - mountPath: "/data"
-          name: "pvol"
+  - name: "basic"
+    image: ranchertest/mytestcontainer:unprivileged
+    ports:
+    - containerPort: 8080
+      name: "basic"
+    volumeMounts:
+    - mountPath: "/data"
+      name: "pvol"
   volumes:
-    - name: "pvol"
-      persistentVolumeClaim:
-        claimName: "claim1"
-        
+  - name: "pvol"
+    persistentVolumeClaim:
+      claimName: "claim1"

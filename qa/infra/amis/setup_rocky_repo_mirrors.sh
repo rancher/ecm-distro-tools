@@ -5,23 +5,21 @@
 RELEASE_VER="$1"
 BASE_ARCH="$2"
 CONTENT_DIR="pub/rocky"
-APPSTREAM_FILE="/tmp/repo_content_file"
-DEVEL_FILE="/tmp/repo_content_file"
 
-echo "[appstream]
+sudo tee /etc/yum.repos.d/Appstream.repo > /dev/null <<EOF
+[appstream]
 name=Rocky Linux ${RELEASE_VER} - AppStream
 mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=${BASE_ARCH}&repo=AppStream-${RELEASE_VER}
 #baseurl=http://dl.rockylinux.org/${CONTENT_DIR}/${RELEASE_VER}/AppStream/${BASE_ARCH}/os/
 gpgcheck=0
-enabled=1" > "${APPSTREAM_FILE}"
+enabled=1
+EOF
 
-cat "${APPSTREAM_FILE}" | sudo tee -a /etc/yum.repos.d/Appstream.repo
-
-echo "[develrepo]
+sudo tee /etc/yum.repos.d/Devel.repo > /dev/null <<EOF
+[develrepo]
 name=Rocky Linux ${RELEASE_VER} - Devel
 mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=${BASE_ARCH}&repo=rocky-devel-${RELEASE_VER}
 #baseurl=https://dl.rockylinux.org/${CONTENT_DIR}/${RELEASE_VER}/devel/${BASE_ARCH}/os/
 gpgcheck=0
-enabled=1" > "${DEVEL_FILE}"
-
-cat "${DEVEL_FILE}" | sudo tee -a /etc/yum.repos.d/Devel.repo
+enabled=1
+EOF

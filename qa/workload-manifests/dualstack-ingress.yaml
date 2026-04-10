@@ -14,9 +14,9 @@ spec:
         app: dualstack-ing
     spec:
       containers:
-      - name: dualstack-ing-ds
-        image: ranchertest/mytestcontainer:unprivileged
-        imagePullPolicy: Always
+        - name: dualstack-ing-ds
+          image: ranchertest/mytestcontainer:unprivileged
+          imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Service
@@ -28,10 +28,10 @@ metadata:
 spec:
   ipFamilyPolicy: PreferDualStack
   ports:
-   - port: 8080
-     targetPort: 8080
-     protocol: TCP
-     name: http
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
   selector:
     app: dualstack-ing
 ---
@@ -41,13 +41,12 @@ metadata:
   name: dualstack-ingress
 spec:
   rules:
-  - host: test1.com
-    http:
-      paths:
-      - backend:
-          service:
-            name: dualstack-ing-svc
-            port:
-              number: 8080
-        pathType: ImplementationSpecific
-        
+    - host: test1.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: dualstack-ing-svc
+                port:
+                  number: 8080
+            pathType: ImplementationSpecific

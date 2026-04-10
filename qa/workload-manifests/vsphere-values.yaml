@@ -2,7 +2,7 @@ apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
   name: rancher-vsphere-cpi
-  labels:
+  labels: vsphere-cpi
   namespace: kube-system
 spec:
   valuesContent: |-
@@ -52,4 +52,3 @@ spec:
     csiController:
       nodeSelector:
         node-role.kubernetes.io/control-plane: "true"
-        

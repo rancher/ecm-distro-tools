@@ -29,9 +29,8 @@ spec:
   ipFamilyPolicy: PreferDualStack
   type: NodePort
   ports:
-    - port: 8080
-      nodePort: 30097
-      name: http
+  - port: 8080
+    nodePort: 30097
+    name: http
   selector:
     app: dualstack-nodeport
-    

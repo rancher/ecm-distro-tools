@@ -33,4 +33,3 @@ spec:
       name: http
   selector:
     app: nginx-app-node
-    

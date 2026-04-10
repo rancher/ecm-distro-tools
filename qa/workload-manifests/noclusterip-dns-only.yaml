@@ -26,12 +26,11 @@ spec:
         app: busy
     spec:
       containers:
-        - name: busybox
-          image: busybox:1.28
-          command:
-            - sleep
-            - "3600"
-          securityContext:
-            runAsUser: 1000
-            runAsNonRoot: true
-            
+      - name: busybox
+        image: busybox:1.28
+        command:
+          - sleep
+          - "3600"
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
