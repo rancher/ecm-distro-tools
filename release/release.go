@@ -119,7 +119,7 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.CiliumVersion = imageTagVersion("cilium-cilium", rke2Repo, milestone)
 	rd.ContainerdVersion = containerdVersion
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", rke2Repo, milestone)
-	rd.IngressNginxVersion = imageEnvVersion("INGRESS_NGINX_TAG", rke2Repo, milestone)
+	rd.IngressNginxVersion = imageEnvVersion("INGRESS_NGINX_HARDENED_TAG", rke2Repo, milestone)
 	rd.FlannelVersion = imageTagVersion("flannel", rke2Repo, milestone)
 	rd.MultusVersion = imageTagVersion("multus-cni", rke2Repo, milestone)
 	rd.CalicoVersion = imageTagVersion("calico-node", rke2Repo, milestone)
@@ -659,6 +659,10 @@ func imageEnvVersion(envName, repo, branchVersion string) string {
 
 	var regex = fmt.Sprintf(`^(%s)=.+$`, envName)
 	submatch := findInURL(imageListURL, regex, envName, true)
+	if len(submatch) == 0 {
+		logrus.Debugf("env %s not found in %s", envName, imageListURL)
+		return ""
+	}
 
 	return strings.Trim(submatch[0], envName+"=")
 }
