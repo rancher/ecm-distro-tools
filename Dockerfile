@@ -42,12 +42,12 @@ RUN OSs=${OS} ARCHS=${ARCH} make all
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV ETCD_VERSION=v3.5.7
+ENV ETCD_VERSION=v3.6.10
 RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         if [ "${ARCH}" = "amd64" ]; then \
-            ETCD_SHA256="a43119af79c592a874e8f59c4f23832297849d0c479338f9df36e196b86bc396"; \
+            ETCD_SHA256="ed579fafab5701e3aaa95509969e7bc74776a4ae5269d32e3928408b406456ec"; \
         else \
-            ETCD_SHA256="1a35314900da7db006b198dd917e923459b462128101736c63a3cda57ecdbf51"; \
+            ETCD_SHA256="e40dc34b7a512b99c651f7700c1014e9b76e02415e2e24365b248966b173524c"; \
         fi; \
         curl -fsSL "https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/etcd.tar.gz && \
         echo "${ETCD_SHA256}  /tmp/etcd.tar.gz" | sha256sum -c - && \
