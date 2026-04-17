@@ -11,7 +11,7 @@ require (
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/sdk v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
-	golang.org/x/crypto v0.49.0
+	golang.org/x/crypto v0.50.0
 	golang.org/x/mod v0.34.0
 	golang.org/x/oauth2 v0.36.0
 )
@@ -72,7 +72,7 @@ require (
 	github.com/vbatts/tar-split v0.12.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
-	golang.org/x/term v0.41.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
 
@@ -94,7 +94,7 @@ require (
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
