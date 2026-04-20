@@ -54,13 +54,13 @@ var k3sTagSubCmd = &cobra.Command{
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		opts := repository.CreateReleaseOpts{
+		opts := repository.CreateRefOpts{
 			Tag:    tag,
 			Repo:   "k3s",
 			Owner:  k3sRelease.K3sRepoOwner,
 			Branch: k3sRelease.ReleaseBranch,
 		}
-		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, &opts, rc)
+		return k3s.CreateRef(ctx, ghClient, &k3sRelease, &opts, rc)
 	},
 }
 
