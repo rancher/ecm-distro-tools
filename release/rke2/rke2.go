@@ -103,7 +103,7 @@ func CreateRef(ctx context.Context, client *github.Client, r *ecmConfig.RKE2Rele
 	if rc {
 		latestRCNumber := 1
 		if latestRC != nil {
-			trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(*latestRC, r.NewK8sVersion+"-rc"), "+k3s")
+			trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(*latestRC, r.NewK8sVersion+"-rc"), "+rke2r")
 			if !found {
 				return errors.New("failed to parse rc number from " + *latestRC)
 			}
