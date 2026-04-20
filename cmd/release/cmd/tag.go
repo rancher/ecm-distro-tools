@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
@@ -65,80 +64,34 @@ var k3sTagSubCmd = &cobra.Command{
 }
 
 var rke2TagSubCmd = &cobra.Command{
-	Use:   "rke2",
+	Use:   "rke2 [ga,rc] [version]",
 	Short: "Tag rke2 releases",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-
-		switch args[0] {
-		case "image-build-base":
-			if err := rke2.ImageBuildBaseRelease(ctx, client, dryRun); err != nil {
-				return err
-			}
-		case "image-build-kubernetes":
-			now := time.Now().UTC().Format("20060102")
-			suffix := "-rke2" + *tagRKE2Flags.ReleaseVersion + "-build" + now
-
-			if dryRun {
-				fmt.Println("dry-run:")
-				for _, version := range rootConfig.RKE2.Versions {
-					fmt.Println("\t" + version + suffix)
-				}
-			} else {
-				for _, version := range rootConfig.RKE2.Versions {
-					cro := repository.CreateReleaseOpts{
-						Owner:      "rancher",
-						Repo:       "image-build-kubernetes",
-						Branch:     "master",
-						Name:       version + suffix,
-						Prerelease: false,
-						Draft:      false,
-					}
-					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
-						return err
-					}
-
-					fmt.Println("tag " + version + suffix + " created successfully")
-				}
-			}
-		case "rke2":
-			//
-		case "rpm":
-			if len(args) == 1 {
-				return errors.New("invalid rpm tag. expected {testinglatest|stable}")
-			}
-
-			rpmTag := fmt.Sprintf("+rke2%s.%s.%d", *tagRKE2Flags.ReleaseVersion, args[1], *tagRKE2Flags.RPMVersion)
-			if *tagRKE2Flags.RCVersion != "" {
-				rpmTag = fmt.Sprintf("+rke2%s-rc%s.%s.%d", *tagRKE2Flags.ReleaseVersion, *tagRKE2Flags.RCVersion, args[1], *tagRKE2Flags.RPMVersion)
-			}
-
-			if dryRun {
-				fmt.Print("(dry-run)\n\nTagging github.com/rancher/rke2-packaging:\n\n")
-				for _, version := range rootConfig.RKE2.Versions {
-					fmt.Println("\t" + version + rpmTag)
-				}
-			} else {
-				for _, version := range rootConfig.RKE2.Versions {
-					cro := repository.CreateReleaseOpts{
-						Owner:      "rancher",
-						Repo:       "rke2-packaging",
-						Branch:     "master",
-						Name:       version + rpmTag,
-						Tag:        version + rpmTag,
-						Prerelease: false,
-					}
-					if _, err := repository.CreateRelease(ctx, client, &cro); err != nil {
-						return err
-					}
-				}
-			}
-		default:
-			return errors.New("unrecognized resource")
+		if len(args) < 2 {
+			return errors.New("expected at least two arguments: [ga,rc] [version]")
 		}
 
-		return nil
+		rc, err := releaseTypePreRelease(args[0])
+		if err != nil {
+			return err
+		}
+
+		tag := args[1]
+		rke2Release, found := rootConfig.RKE2.Versions[tag]
+		if !found {
+			return NewVersionNotFoundError(tag, "rke2")
+		}
+
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		opts := repository.CreateRefOpts{
+			Tag:    tag,
+			Repo:   rke2Release.RKE2RepoName,
+			Owner:  rke2Release.RKE2RepoOwner,
+			Branch: rke2Release.ReleaseBranch,
+		}
+		return rke2.CreateRef(ctx, ghClient, &rke2Release, &opts, rc)
 	},
 }
 
