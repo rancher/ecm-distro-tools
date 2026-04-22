@@ -81,6 +81,13 @@ type CreateReleaseOpts struct {
 	Draft        bool   `json:"draft"`
 }
 
+type CreateRefOpts struct {
+	Owner  string `json:"owner"`
+	Repo   string `json:"repo"`
+	Tag    string `json:"tag"`
+	Branch string `json:"branch"`
+}
+
 func ListReleases(ctx context.Context, client *github.Client, owner, repo string) ([]*github.RepositoryRelease, error) {
 	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
@@ -136,6 +143,32 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 	}
 
 	return release, nil
+}
+
+func CreateRef(ctx context.Context, client *github.Client, cro *CreateRefOpts) (*github.Reference, error) {
+	if cro == nil {
+		return nil, errors.New("CreateReleaseOpts cannot be nil")
+	}
+
+	branchRefStr := "heads/" + cro.Branch
+	branchRef, _, err := client.Git.GetRef(ctx, cro.Owner, cro.Repo, branchRefStr)
+	if err != nil {
+		return nil, err
+	}
+
+	commitSHA := branchRef.Object.GetSHA()
+	tagRefStr := "refs/tags/" + cro.Tag
+	newRef := github.CreateRef{
+		Ref: tagRefStr,
+		SHA: commitSHA,
+	}
+
+	createdRef, _, err := client.Git.CreateRef(ctx, cro.Owner, cro.Repo, newRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return createdRef, nil
 }
 
 func RefCommitSHA(ctx context.Context, ghClient *github.Client, owner, repo, ref string) (string, error) {

@@ -792,3 +792,52 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	fmt.Println("release created: " + *createdRelease.HTMLURL)
 	return nil
 }
+
+func CreateRef(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateRefOpts, rc bool) error {
+	fmt.Println("validating tag")
+	_, err := semver.NewVersion(opts.Tag)
+	if err != nil {
+		return errors.New("tag isn't a valid semver: " + opts.Tag)
+	}
+
+	name := r.NewK8sVersion + "+" + r.NewSuffix
+
+	latestRC, err := release.LatestRC(ctx, opts.Owner, opts.Repo, r.NewK8sVersion, r.NewSuffix, client)
+	if err != nil {
+		return err
+	}
+	if latestRC == nil && !rc {
+		return errors.New("couldn't find the latest RC")
+	}
+	if rc {
+		latestRCNumber := 1
+		if latestRC != nil {
+			trimmedRCNumber, _, found := strings.Cut(strings.TrimPrefix(*latestRC, r.NewK8sVersion+"-rc"), "+k3s")
+			if !found {
+				return errors.New("failed to parse rc number from " + *latestRC)
+			}
+			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
+			if err != nil {
+				return err
+			}
+			latestRCNumber = currentRCNumber + 1
+		}
+		name = r.NewK8sVersion + "-rc" + strconv.Itoa(latestRCNumber) + "+" + r.NewSuffix
+	}
+
+	opts.Tag = name
+
+	fmt.Printf("create ref options: %+v\n", *opts)
+
+	if r.DryRun {
+		fmt.Println("dry run, skipping creating tag")
+		return nil
+	}
+	createdRef, err := repository.CreateRef(ctx, client, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("ref created: " + *createdRef.URL)
+	return nil
+}

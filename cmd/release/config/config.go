@@ -88,6 +88,18 @@ type K3sRelease struct {
 	DryRun                        bool   `json:"dry_run"`
 }
 
+// RKE2Release
+type RKE2Release struct {
+	OldK8sVersion string `json:"old_k8s_version"`
+	NewK8sVersion string `json:"new_k8s_version"`
+	OldSuffix     string `json:"old_suffix"`
+	NewSuffix     string `json:"new_suffix"`
+	ReleaseBranch string `json:"release_branch"`
+	RKE2RepoOwner string `json:"rke2_repo_owner"`
+	RKE2RepoName  string `json:"rke2_repo_name"`
+	DryRun        bool   `json:"dry_run"`
+}
+
 // RancherRelease
 type RancherRelease struct {
 	ReleaseBranch string `json:"release_branch"`
@@ -105,7 +117,7 @@ type CLIRelease struct {
 
 // RKE2
 type RKE2 struct {
-	Versions []string `json:"versions"`
+	Versions map[string]RKE2Release `json:"versions"`
 }
 
 // ChartsRelease
@@ -223,7 +235,18 @@ func ExampleConfig() (string, error) {
 			},
 		},
 		RKE2: &RKE2{
-			Versions: []string{"v1.x.y"},
+			Versions: map[string]RKE2Release{
+				"v1.x.y": {
+					OldK8sVersion: "v1.x.z",
+					NewK8sVersion: "v1.x.y",
+					OldSuffix:     "k3s1",
+					NewSuffix:     "k3s1",
+					ReleaseBranch: "release-1.x",
+					DryRun:        false,
+					RKE2RepoOwner: "rancher",
+					RKE2RepoName:  "rke2",
+				},
+			},
 		},
 		Rancher: &Rancher{
 			Versions: map[string]RancherRelease{
