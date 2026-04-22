@@ -55,6 +55,7 @@ type releaseNoteData struct {
 	Milestone        string
 	MajorMinor       string
 	ChangeLogVersion string
+	Alert            string
 	ChangeLogData    changeLogData
 }
 
@@ -264,9 +265,25 @@ func capitalize(s string) string {
 	return s
 }
 
+const (
+	AlertNote      = "note"
+	AlertTip       = "tip"
+	AlertImportant = "important"
+	AlertWarning   = "warning"
+	AlertCaution   = "caution"
+)
+
+var AlertMap = map[string]struct{}{
+	AlertNote:      {},
+	AlertTip:       {},
+	AlertImportant: {},
+	AlertWarning:   {},
+	AlertCaution:   {},
+}
+
 // GenReleaseNotes genereates release notes based on the given milestone,
 // previous milestone, and repository.
-func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone string, client *github.Client) (*bytes.Buffer, error) {
+func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone, alert string, client *github.Client) (*bytes.Buffer, error) {
 	funcMap := template.FuncMap{
 		"majMin":      majMin,
 		"trimPeriods": trimPeriods,
@@ -318,6 +335,14 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone 
 		MajorMinor:       majorMinor,
 		ChangeLogVersion: markdownVersion,
 		ChangeLogData:    cgData,
+	}
+
+	if _, ok := AlertMap[alert]; !ok && alert != "" {
+		return nil, errors.New("invalid alert type: it must be note, tip, important, warning or caution, received " + alert)
+	}
+
+	if alert != "" {
+		commonRD.Alert = fmt.Sprintf(alertTemplate, strings.ToUpper(alert))
 	}
 
 	switch repo {
@@ -1013,7 +1038,7 @@ var changelogTemplate = `
 const rke2ReleaseNoteTemplate = `
 {{- define "rke2" -}}
 <!-- {{.Milestone}} -->
-
+{{ if .Alert }}{{.Alert}}{{ end }}
 This release updates Kubernetes to {{.K8sVersion}}.
 
 **Important Note**
@@ -1081,7 +1106,7 @@ As always, we welcome and appreciate feedback from our community of users. Pleas
 const k3sReleaseNoteTemplate = `
 {{- define "k3s" -}}
 <!-- {{.Milestone}} -->
-
+{{ if .Alert }}{{.Alert}}{{ end }}
 This release updates Kubernetes to {{.K8sVersion}}, and fixes a number of issues.
 
 For more details on what's new, see the [Kubernetes release notes](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-{{.MajorMinor}}.md#changelog-since-{{.ChangeLogSince}}).
@@ -1121,3 +1146,8 @@ const defaultReleaseNoteTemplate = `
 
 {{ template "changelog" . }}
 {{ end }}`
+
+const alertTemplate = `> [!%s]
+> Fill this section with important information for users to know about this release, such as breaking changes, deprecations, or critical bug fixes. 
+> This will be highlighted in the release notes to ensure users see it.
+`
