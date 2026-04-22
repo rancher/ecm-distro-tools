@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,12 @@ const (
 
 // Define the cutoff time: 2 days ago
 var cutoff = time.Now().Add(-time.Hour * 24 * 2)
+
+// buildSuffixRE matches the trailing "-buildYYYYMMDD" suffix appended by this tool.
+var buildSuffixRE = regexp.MustCompile(`-build\d+$`)
+
+// k3sPrereleaseRE matches the only allowed prerelease string: -k3sN (e.g. k3s1, k3s2).
+var k3sPrereleaseRE = regexp.MustCompile(`^k3s\d+$`)
 
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
@@ -59,10 +66,14 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 
 	tagsMap := make(map[string]struct{}, len(tags))
 	for _, tag := range tags {
-		// removes any suffixes (e.g. -buildYYYYMMDD) to build a map to check
-		// the existence of tags in image-build repo
-		tag, _, _ := strings.Cut(tag.GetName(), "-")
-		tagsMap[tag] = struct{}{}
+		name := tag.GetName()
+		// ignore build-date tags (e.g. v3.6.7-build20260415) — they are
+		// not canonical tag names and are treated as invalid, just as
+		// validateTagFormat does for upstream tags.
+		if buildSuffixRE.MatchString(name) {
+			continue
+		}
+		tagsMap[name] = struct{}{}
 	}
 
 	for _, upstreamTag := range upstreamTags {
@@ -200,13 +211,15 @@ func validateTagFormat(tagName, tagPrefix string) bool {
 		return false
 	}
 
-	// this checks for any suffix that a tag may have, and we ignore those with suffixes:
+	// this checks for any suffix that a tag may have; we allow "-k3sN" prerelease
+	// strings but reject any other prerelease suffix:
 	// example:
-	// - v3.21.1 <------------ correct
-	// - v3.21.1-typha <------ will be skipped
+	// - v3.21.1          <------------ correct
+	// - v3.6.7-k3s1      <------------ correct
+	// - v3.21.1-typha    <------ will be skipped
 	// - v3.21.1-pod2daemon <- will be skipped
-	// - v3.24.2-0.dev <------ will be skipped
-	if v.Prerelease() != "" {
+	// - v3.24.2-0.dev    <------ will be skipped
+	if pre := v.Prerelease(); pre != "" && !k3sPrereleaseRE.MatchString(pre) {
 		return false
 	}
 
