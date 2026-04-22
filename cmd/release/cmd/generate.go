@@ -35,6 +35,8 @@ var (
 	cliPrevMilestone string
 	cliMilestone     string
 
+	releaseNotesAlert string
+
 	concurrencyLimit                      int
 	imagesListURL                         string
 	registry                              string
@@ -81,7 +83,7 @@ var k3sGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", k3sMilestone, k3sPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", k3sMilestone, k3sPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
@@ -122,7 +124,7 @@ var rke2GenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", rke2Milestone, rke2PrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", rke2Milestone, rke2PrevMilestone, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
@@ -320,7 +322,7 @@ var uiGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "ui", dashboardMilestone, dashboardPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "ui", dashboardMilestone, dashboardPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
@@ -343,7 +345,7 @@ var dashboardGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "dashboard", dashboardMilestone, dashboardPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "dashboard", dashboardMilestone, dashboardPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
@@ -366,7 +368,7 @@ var cliGenerateReleaseNotesSubCmd = &cobra.Command{
 		ctx := context.Background()
 		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		notes, err := release.GenReleaseNotes(ctx, "rancher", "cli", cliMilestone, cliPrevMilestone, client)
+		notes, err := release.GenReleaseNotes(ctx, "rancher", "cli", cliMilestone, cliPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
@@ -451,6 +453,7 @@ func init() {
 	generateCmd.AddCommand(kdmGenerateSubCmd)
 
 	// k3s release notes
+	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&releaseNotesAlert, "alert", "a", "", "Appends the specified alert type in the release notes. Valid values are: 'note', 'tip', 'important', 'warning' and 'caution'")
 	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sPrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
 	k3sGenerateReleaseNotesSubCmd.Flags().StringVarP(&k3sMilestone, "milestone", "m", "", "Milestone")
 	if err := k3sGenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {
@@ -463,6 +466,7 @@ func init() {
 	}
 
 	// rke2 release notes
+	rke2GenerateReleaseNotesSubCmd.Flags().StringVarP(&releaseNotesAlert, "alert", "a", "", "Appends the specified alert type in the release notes. Valid values are: 'note', 'tip', 'important', 'warning' and 'caution'")
 	rke2GenerateReleaseNotesSubCmd.Flags().StringVarP(&rke2PrevMilestone, "prev-milestone", "p", "", "Previous Milestone")
 	rke2GenerateReleaseNotesSubCmd.Flags().StringVarP(&rke2Milestone, "milestone", "m", "", "Milestone")
 	if err := rke2GenerateReleaseNotesSubCmd.MarkFlagRequired("prev-milestone"); err != nil {

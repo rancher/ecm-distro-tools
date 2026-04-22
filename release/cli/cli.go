@@ -16,7 +16,7 @@ import (
 )
 
 // CreateRelease will create a new tag and a new release with given params.
-func CreateRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc bool, releaseType, previousTag string, dryRun bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc bool, releaseType, previousTag, releaseNotesAlert string, dryRun bool) error {
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
@@ -47,7 +47,7 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 		opts.Tag = fmt.Sprintf("%s-%s.%d", opts.Tag, releaseType, latestRCNumber)
 	} else {
 		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, previousTag)
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, client)
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}

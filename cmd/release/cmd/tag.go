@@ -182,7 +182,7 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 			Branch: "main",
 		}
 
-		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, rc)
+		return k3s.CreateRelease(ctx, ghClient, &k3sRelease, opts, releaseNotesAlert, rc)
 	},
 }
 
@@ -314,7 +314,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		if err := ui.CreateRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag); err != nil {
+		if err := ui.CreateRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert); err != nil {
 			return err
 		}
 
@@ -326,7 +326,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag)
+		return dashboard.CreateRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert)
 	},
 }
 
@@ -399,7 +399,7 @@ var cliTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, previousTag, dryRun)
+		return cli.CreateRelease(ctx, ghClient, cliOpts, rc, releaseType, previousTag, releaseNotesAlert, dryRun)
 	},
 }
 

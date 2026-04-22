@@ -731,7 +731,7 @@ func cleanGitRepo(dir string) error {
 	return nil
 }
 
-func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, rc bool) error {
+func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sRelease, opts *repository.CreateReleaseOpts, releaseNotesAlert string, rc bool) error {
 	fmt.Println("validating tag")
 	_, err := semver.NewVersion(opts.Tag)
 	if err != nil {
@@ -773,7 +773,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 	fmt.Printf("create release options: %+v\n", *opts)
 
 	if !rc && opts.Repo == "k3s" {
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, *latestRC, oldName, client)
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, *latestRC, oldName, releaseNotesAlert, client)
 		if err != nil {
 			return err
 		}
