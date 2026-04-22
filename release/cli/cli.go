@@ -118,11 +118,11 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string,
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, tagSHA, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
 	pull := &github.NewPullRequest{
-		Title:               new("Bump Rancher version to " + tag),
-		Base:                new(releaseBranch),
-		Head:                new(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
-		Body:                new("```" + tag + ": " + tagSHA + "```"),
-		MaintainerCanModify: new(true),
+		Title:               github.Ptr("Bump Rancher version to " + tag),
+		Base:                github.Ptr(releaseBranch),
+		Head:                github.Ptr(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
+		Body:                github.Ptr("```" + tag + ": " + tagSHA + "```"),
+		MaintainerCanModify: github.Ptr(true),
 	}
 
 	// creating a pr from your fork branch
