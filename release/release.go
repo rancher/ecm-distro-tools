@@ -781,24 +781,30 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 
 // LatestRC will get the latest rc created for the k8s version in either rke2 or k3s
 func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string, client *github.Client) (*string, error) {
-	var rcs []*github.RepositoryTag
+	var latestFoundRC *string
+	rcNumber := 1
 
-	allTags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{
-		Page:    0,
-		PerPage: 40,
-	})
-	if err != nil {
-		return nil, err
-	}
+	for {
+		tagName := fmt.Sprintf("%s-rc%d+%s", k8sVersion, rcNumber, projectSuffix)
 
-	for _, tag := range allTags {
-		tagName := *tag.Name
-		if strings.Contains(tagName, k8sVersion+"-rc") && strings.Contains(tagName, projectSuffix) {
-			rcs = append(rcs, tag)
+		ref := "tags/" + tagName
+
+		// checking if the tags exists in the repository
+		_, resp, err := client.Git.GetRef(ctx, owner, repo, ref)
+		if err != nil {
+			// if the call returns a 404 error it means that the tag doesn't exist
+			// and we can stop looking for more RCs, otherwise we return the error
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				break
+			}
+			return nil, err
 		}
+		found := tagName
+		latestFoundRC = &found
+		rcNumber++
 	}
 
-	return latestTag(rcs), nil
+	return latestFoundRC, nil
 }
 
 func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, version, preReleaseSuffix string) (*string, error) {
