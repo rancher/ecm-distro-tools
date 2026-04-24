@@ -71,15 +71,20 @@ RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         rm -f /tmp/gh.tar.gz && \
         cp /tmp/gh-download/bin/gh /usr/local/bin; \
     fi
+# renovate: datasource=github-release-attachments depName=mikefarah/yq
 ENV YQ_VERSION=v4.52.5
+# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.52.5
+ENV YQ_CHECKSUM_amd64="c529c33e6b545d95e39445c37f673e31ca110c3ca9310b47ccea78f9190b061e"
+# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.52.5
+ENV YQ_CHECKSUM_arm64="33cf72426fc5f5e7d9b99801a58d34c6fa7e4426dad594569fb972dde5891109"
 RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         if [ "${ARCH}" = "amd64" ]; then \
-            YQ_SHA256="c529c33e6b545d95e39445c37f673e31ca110c3ca9310b47ccea78f9190b061e"; \
+            YQ_CHECKSUM="${YQ_CHECKSUM_amd64}"; \
         else \
-            YQ_SHA256="33cf72426fc5f5e7d9b99801a58d34c6fa7e4426dad594569fb972dde5891109"; \
+            YQ_CHECKSUM="${YQ_CHECKSUM_arm64}"; \
         fi; \
         curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH}.tar.gz" -o /tmp/yq.tar.gz && \
-        echo "${YQ_SHA256}  /tmp/yq.tar.gz" | sha256sum -c - && \
+        echo "${YQ_CHECKSUM}  /tmp/yq.tar.gz" | sha256sum -c - && \
         mkdir -p /tmp/yq-download && \
         tar xzvf /tmp/yq.tar.gz -C /tmp/yq-download && \
         rm -f /tmp/yq.tar.gz && \
