@@ -74,9 +74,9 @@ RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
 # renovate: datasource=github-release-attachments depName=mikefarah/yq
 ENV YQ_VERSION=v4.53.2
 # renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.2
-ENV YQ_CHECKSUM_amd64="c529c33e6b545d95e39445c37f673e31ca110c3ca9310b47ccea78f9190b061e"
+ENV YQ_CHECKSUM_amd64="44c3c6df6c58ef1460d98425954ca5e832926e0e8a1d75c5c8fd261691351510"
 # renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.2
-ENV YQ_CHECKSUM_arm64="33cf72426fc5f5e7d9b99801a58d34c6fa7e4426dad594569fb972dde5891109"
+ENV YQ_CHECKSUM_arm64="c8180249ff9ff0577f4976c4481d0d0962d170d24ab390d325ef0be608df5706"
 RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         if [ "${ARCH}" = "amd64" ]; then \
             YQ_CHECKSUM="${YQ_CHECKSUM_amd64}"; \
