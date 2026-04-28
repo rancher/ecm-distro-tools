@@ -262,7 +262,7 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 // CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
 // If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
 // Returns tag, commit sha, error
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease bool) (string, string, error) {
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease, dryRun bool) (string, string, error) {
 	if !semver.IsValid(baseTag) {
 		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
@@ -297,6 +297,11 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 
 	if !semver.IsValid(tag) {
 		return "", "", errors.New("the tag is invalid: " + tag)
+	}
+
+	if dryRun {
+		fmt.Println("dry run, skipping creating tag")
+		return tag, sha, nil
 	}
 
 	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})

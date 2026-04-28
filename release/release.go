@@ -682,7 +682,7 @@ func imageEnvVersion(envName, repo, branchVersion string) string {
 		imageListURL = "https://raw.githubusercontent.com/" + repoName + "/" + branchVersion + "/scripts/build-images"
 	}
 
-	var regex = fmt.Sprintf(`^(%s)=.+$`, envName)
+	regex := fmt.Sprintf(`^(%s)=.+$`, envName)
 	submatch := findInURL(imageListURL, regex, envName, true)
 	if len(submatch) == 0 {
 		logrus.Debugf("env %s not found in %s", envName, imageListURL)
@@ -808,23 +808,27 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string
 }
 
 func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, version, preReleaseSuffix string) (*string, error) {
-	var versions []*github.RepositoryRelease
+	var latestFoundPreRelease *string
+	preReleaseNumber := 1
 
-	allReleases, _, err := client.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{
-		Page:    0,
-		PerPage: 40,
-	})
-	if err != nil {
-		return nil, err
-	}
+	for {
+		tagName := fmt.Sprintf("%s-%s%d", version, preReleaseSuffix, preReleaseNumber)
 
-	for _, release := range allReleases {
-		if strings.Contains(*release.TagName, version+"-"+preReleaseSuffix) {
-			versions = append(versions, release)
+		ref := "tags/" + tagName
+
+		_, resp, err := client.Git.GetRef(ctx, owner, repo, ref)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				break
+			}
+			return nil, err
 		}
+		found := tagName
+		latestFoundPreRelease = &found
+		preReleaseNumber++
 	}
 
-	return latestRelease(versions), nil
+	return latestFoundPreRelease, nil
 }
 
 // StatsMonthly
@@ -951,44 +955,6 @@ func Stats(ctx context.Context, client *github.Client, startDate, endDate time.T
 	}
 
 	return &sd, nil
-}
-
-func latestRelease(versions []*github.RepositoryRelease) *string {
-
-	sort.Slice(versions, func(i, j int) bool {
-
-		return versions[i].PublishedAt.Before(versions[j].PublishedAt.Time)
-
-	})
-
-	if len(versions) == 0 {
-
-		return nil
-
-	}
-
-	return versions[len(versions)-1].TagName
-
-}
-
-func latestTag(versions []*github.RepositoryTag) *string {
-	if len(versions) == 0 {
-		return nil
-	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		nameI := *versions[i].Name
-		nameJ := *versions[j].Name
-
-		cmp := semver.Compare(nameI, nameJ)
-		if cmp == 0 {
-			return nameI < nameJ
-		}
-
-		return cmp < 0
-	})
-
-	return versions[len(versions)-1].Name
 }
 
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file
