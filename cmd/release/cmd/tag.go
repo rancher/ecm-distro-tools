@@ -138,12 +138,7 @@ var rancherTagSubCmd = &cobra.Command{
 
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-
-		if dryRun {
-			fmt.Println("dry run, skipping creating release")
-			return nil
-		}
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
 		if err != nil {
 			return err
 		}
@@ -230,12 +225,7 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		if dryRun {
-			fmt.Println("dry run, skipping creating release")
-			return nil
-		}
-
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
 		if err != nil {
 			return err
 		}
