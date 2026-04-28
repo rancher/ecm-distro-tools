@@ -957,38 +957,6 @@ func Stats(ctx context.Context, client *github.Client, startDate, endDate time.T
 	return &sd, nil
 }
 
-func latestRelease(versions []*github.RepositoryRelease) *string {
-	sort.Slice(versions, func(i, j int) bool {
-		return versions[i].PublishedAt.Before(versions[j].PublishedAt.Time)
-	})
-
-	if len(versions) == 0 {
-		return nil
-	}
-
-	return versions[len(versions)-1].TagName
-}
-
-func latestTag(versions []*github.RepositoryTag) *string {
-	if len(versions) == 0 {
-		return nil
-	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		nameI := *versions[i].Name
-		nameJ := *versions[j].Name
-
-		cmp := semver.Compare(nameI, nameJ)
-		if cmp == 0 {
-			return nameI < nameJ
-		}
-
-		return cmp < 0
-	})
-
-	return versions[len(versions)-1].Name
-}
-
 // rke2ChartVersion will return the version of the rke2 chart from the chart versions file
 func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 	chartVersionsURL := "https://raw.githubusercontent.com/rancher/rke2/" + branchVersion + "/charts/" + rke2ChartsVersionsFile
