@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v84/github"
+	"github.com/google/go-github/v85/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"

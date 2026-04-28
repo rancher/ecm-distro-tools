@@ -16,7 +16,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/google/go-github/v84/github"
+	"github.com/google/go-github/v85/github"
 	httpecm "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
