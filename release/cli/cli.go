@@ -80,13 +80,13 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	return majorMinor, nil
 }
 
-func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, rancherRepoName, rancherRepoOwner, rancherUpstreamURL, cliReleaseBranch, cliRepoName, githubUsername string, dryRun bool) error {
+func UpdateRancherReferences(ctx context.Context, ghClient *github.Client, tag, rancherRepoName, rancherRepoOwner, cliUpstreamURL, cliReleaseBranch, cliRepoName, githubUsername string, dryRun bool) error {
 	commitSHA, err := repository.RefCommitSHA(ctx, ghClient, rancherRepoOwner, rancherRepoName, "tags/"+tag)
 	if err != nil {
 		return err
 	}
 
-	if err := updateRancherReferencesAndPush(tag, cliReleaseBranch, commitSHA, dryRun); err != nil {
+	if err := updateRancherReferencesAndPush(tag, cliReleaseBranch, commitSHA, cliUpstreamURL, dryRun); err != nil {
 		return err
 	}
 
@@ -97,13 +97,14 @@ func UpdateCLIRefsBranchName(tag string) string {
 	return "update-cli-build-refs-" + tag
 }
 
-func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA string, dryRun bool) error {
+func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA, cliUpstreamURL string, dryRun bool) error {
 	updateScriptVars := map[string]string{
 		"Tag":              tag,
 		"ReleaseBranch":    releaseBranch,
 		"RancherCommitSHA": rancherCommitSHA,
 		"DryRun":           strconv.FormatBool(dryRun),
 		"BranchName":       UpdateCLIRefsBranchName(tag),
+		"CLIUpstreamURL":   cliUpstreamURL,
 	}
 
 	fmt.Println("creating update cli references script template")
