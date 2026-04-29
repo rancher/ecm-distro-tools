@@ -182,7 +182,7 @@ type Config struct {
 	UIRepositoryName           string         `json:"ui_repository_name"`
 	DashboardRepositoryName    string         `json:"dashboard_repository_name"`
 	CLIRepositoryName          string         `json:"cli_repository_name"`
-	CLIRepositoryGitURI        string         `json:"cli_repository_git_uri"`
+	CLIRepositoryURL           string         `json:"cli_repository_url"`
 }
 
 // Load reads the given config file and returns a struct

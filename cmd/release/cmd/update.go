@@ -279,13 +279,13 @@ var updateCLICmd = &cobra.Command{
 
 		rancherRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
 		rancherRepoOwner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
-		cliUpstreamURI := config.ValueOrDefault(rootConfig.CLIRepositoryGitURI, config.CLIRepositoryGitURI)
+		cliUpstreamURL := config.ValueOrDefault(rootConfig.CLIRepositoryURL, config.CLIRepositoryURL)
 
 		ctx := context.Background()
 
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
-		return cli.UpdateRancherReferences(ctx, ghClient, tag, rancherRepo, rancherRepoOwner, cliUpstreamURI, cliBranch, cliRepo, githubUsername, dryRun)
+		return cli.UpdateRancherReferences(ctx, ghClient, tag, rancherRepo, rancherRepoOwner, cliUpstreamURL, cliBranch, cliRepo, githubUsername, dryRun)
 	},
 }
 
