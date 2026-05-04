@@ -1028,22 +1028,54 @@ cat /var/lib/rancher/rke2/server/token
 ## Charts Versions
 | Component | Version |
 | --- | --- |
+{{- if not (eq .CiliumChartVersion "0.0.0") }}
 | rke2-cilium | [{{.CiliumChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-cilium/rke2-cilium-{{.CiliumChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .CanalChartVersion "0.0.0") }}
 | rke2-canal | [{{.CanalChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-canal/rke2-canal-{{.CanalChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .CalicoChartVersion "0.0.0") }}
 | rke2-calico | [{{.CalicoChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-calico/rke2-calico-{{.CalicoChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .CalicoCRDChartVersion "0.0.0") }}
 | rke2-calico-crd | [{{.CalicoCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-calico/rke2-calico-crd-{{.CalicoCRDChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .CoreDNSChartVersion "0.0.0") }}
 | rke2-coredns | [{{.CoreDNSChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-coredns/rke2-coredns-{{.CoreDNSChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .IngressNginxChartVersion "0.0.0") }}
 | rke2-ingress-nginx | [{{.IngressNginxChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-ingress-nginx/rke2-ingress-nginx-{{.IngressNginxChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .MetricsServerChartVersion "0.0.0") }}
 | rke2-metrics-server | [{{.MetricsServerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-metrics-server/rke2-metrics-server-{{.MetricsServerChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .VsphereCSIChartVersion "0.0.0") }}
 | rancher-vsphere-csi | [{{.VsphereCSIChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rancher-vsphere-csi/rancher-vsphere-csi-{{.VsphereCSIChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .VsphereCPIChartVersion "0.0.0") }}
 | rancher-vsphere-cpi | [{{.VsphereCPIChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rancher-vsphere-cpi/rancher-vsphere-cpi-{{.VsphereCPIChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .HarvesterCloudProviderChartVersion "0.0.0") }}
 | harvester-cloud-provider | [{{.HarvesterCloudProviderChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-cloud-provider-{{.HarvesterCloudProviderChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .HarvesterCSIDriverChartVersion "0.0.0") }}
 | harvester-csi-driver | [{{.HarvesterCSIDriverChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-csi-driver-{{.HarvesterCSIDriverChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .SnapshotControllerChartVersion "0.0.0") }}
 | rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .SnapshotControllerCRDChartVersion "0.0.0") }}
 | rke2-snapshot-controller-crd | [{{.SnapshotControllerCRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-crd-{{.SnapshotControllerCRDChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .SnapshotValidationWebhookChartVersion "0.0.0") }}
 | rke2-snapshot-validation-webhook | [{{.SnapshotValidationWebhookChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-validation-webhook/rke2-snapshot-validation-webhook-{{.SnapshotValidationWebhookChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .TraefikVersion "0.0.0") }}
 | rke2-traefik | [{{.TraefikVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-{{.TraefikVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .TraefikCRDVersion "0.0.0") }}
 | rke2-traefik-crd | [{{.TraefikCRDVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-traefik-crd-{{.TraefikCRDVersion}}.tgz) |
+{{- end }}
 
 
 ## Packaged Component Versions
