@@ -524,8 +524,15 @@ func UpstreamRemote(r *git.Repository, remoteURL string) (string, error) {
 		return "", err
 	}
 
+	normalizedTarget := normalizeGitURL(remoteURL)
+
 	for _, remote := range remotes {
-		if remote.Config().URLs[0] == remoteURL {
+		remoteURLs := remote.Config().URLs
+		if len(remoteURLs) == 0 {
+			continue
+		}
+		normalizedRemote := normalizeGitURL(remoteURLs[0])
+		if normalizedRemote == normalizedTarget {
 			return remote.Config().Name, nil
 		}
 	}
@@ -660,4 +667,16 @@ func commits(r *git.Repository, h plumbing.Hash) ([]*object.Commit, error) {
 	}
 	// Handle error as nil if it was forced by the limit (i.e: err == io.EOF)
 	return commits, nil
+}
+
+// normalizeGitURL removes .git suffix and normalizes URL format for flexible matching
+func normalizeGitURL(url string) string {
+	normalized := strings.TrimSuffix(url, ".git")
+	// Remove protocol first: https://github.com/owner/repo → github.com/owner/repo
+	normalized = strings.TrimPrefix(normalized, "https://")
+	normalized = strings.TrimPrefix(normalized, "http://")
+	// Convert SSH format to comparable form: git@github.com:owner/repo → github.com/owner/repo
+	normalized = strings.Replace(normalized, "git@", "", 1)
+	normalized = strings.Replace(normalized, ":", "/", 1)
+	return normalized
 }
