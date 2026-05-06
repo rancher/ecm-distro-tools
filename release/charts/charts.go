@@ -19,30 +19,23 @@ import (
 
 // chartsReleasePRBody is the default PR body for the charts release PR
 const chartsReleasePRBody = `
-## Charts Checklist (built for v0.9.X charts-build-scripts)
+## Charts Release Checklist
 
-### Checkpoint 0: Validate **release.yaml**
+Issue: <enter_here>
 
-Validation steps:
-- [ ] Each chart version in **release.yaml** DOES NOT modify an already released chart. If so, stop and modify the versions so that it releases a net-new chart.
-- [ ] Each chart version in **release.yaml** IS exactly 1 more patch version than the last released chart version. If not, stop and modify the versions so that it releases a net-new chart.
+## Charts Release Checklist
 
-### Checkpoint 1: Compare contents of assets/ to charts/
+Issue: <enter_here>
 
-Validation steps:
-- [ ] Running **make unzip** to regenerate the **charts/** from scratch, then **git diff** to check differences between **assets/** and **charts/** yields NO differences or innocuous differences.
+| Status | Checkpoint | Step | Details |
+|--------|------------|------|---------|
+| [ ] | 0 | never modify already released chart | Each chart version in **release.yaml** DOES NOT modify an already released chart. If so, stop and modify the versions so that it releases a net-new chart. |
+| [ ] | 0 | increment patch/minor version by exactly 1 | Each chart version in **release.yaml** IS exactly 1 more patch or minor version than the last released chart version. If not, stop and modify the versions so that it releases a net-new chart. |
+| [ ] | 1 | assets/ and charts/ sync validation | Running **make unzip** to regenerate the **charts/** from scratch, then **git diff** to check differences between **assets/** and **charts/** yields NO differences or innocuous differences. **IMPORTANT:** Do not undo these changes for future steps since we want to keep the charts/ that match the current contents of assets! |
+| [ ] | 2 | index.yaml has entry for each chart | The **index.yaml** file has an entry for each chart version. |
+| [ ] | 2 | index.yaml matches Chart.yaml | The **index.yaml** entries for each chart matches the **Chart.yaml** for each chart. |
+| [ ] | 2 | all required annotations present | Each chart has ALL required annotations: kube-version annotation, rancher-version annotation, permits-os annotation (indicates Windows and/or Linux) |
 
-IMPORTANT: Do not undo these changes for future steps since we want to keep the charts/ that match the current contents of assets!
-
-### Checkpoint 2: Compare assets against index.yaml
-
-Validation steps:
-- [ ] The **index.yaml** file has an entry for each chart version.
-- [ ] The **index.yaml** entries for each chart matches the **Chart.yaml** for each chart.
-- [ ] Each chart has ALL required annotations
-- kube-version annotation
-- rancher-version annotation
-- permits-os annotation (indicates Windows and/or Linux)
 `
 
 // List prints the lifecycle status of the charts
