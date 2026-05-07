@@ -266,19 +266,19 @@ func capitalize(s string) string {
 }
 
 const (
-	AlertNote      = "note"
-	AlertTip       = "tip"
-	AlertImportant = "important"
-	AlertWarning   = "warning"
-	AlertCaution   = "caution"
+	alertNote      = "note"
+	alertTip       = "tip"
+	alertImportant = "important"
+	alertWarning   = "warning"
+	alertCaution   = "caution"
 )
 
-var AlertMap = map[string]struct{}{
-	AlertNote:      {},
-	AlertTip:       {},
-	AlertImportant: {},
-	AlertWarning:   {},
-	AlertCaution:   {},
+var alerts = map[string]struct{}{
+	alertNote:      {},
+	alertTip:       {},
+	alertImportant: {},
+	alertWarning:   {},
+	alertCaution:   {},
 }
 
 // GenReleaseNotes genereates release notes based on the given milestone,
@@ -337,7 +337,7 @@ func GenReleaseNotes(ctx context.Context, owner, repo, milestone, prevMilestone,
 		ChangeLogData:    cgData,
 	}
 
-	if _, ok := AlertMap[alert]; !ok && alert != "" {
+	if _, ok := alerts[alert]; !ok && alert != "" {
 		return nil, errors.New("invalid alert type: it must be note, tip, important, warning or caution, received " + alert)
 	}
 
