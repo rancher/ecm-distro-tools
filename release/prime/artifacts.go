@@ -14,11 +14,12 @@ import (
 )
 
 const (
-	rancherArtifactsBucket  = "prime-artifacts"
-	rancherArtifactsPrefix  = "rancher/v"
-	rke2ArtifactsPrefix     = "rke2/v"
-	k3sArtifactsPrefix      = "k3s/v"
-	rancherArtifactsBaseURL = "https://prime.ribs.rancher.io"
+	rancherArtifactsBucket   = "prime-artifacts"
+	rancherArtifactsPrefix   = "rancher/v"
+	rke2ArtifactsPrefix      = "rke2/v"
+	k3sArtifactsPrefix       = "k3s/v"
+	harvesterArtifactsPrefix = "harvester/v"
+	rancherArtifactsBaseURL  = "https://prime.ribs.rancher.io"
 )
 
 type ArtifactsIndexContent struct {
@@ -32,14 +33,15 @@ type ArtifactsIndexVersions struct {
 }
 
 type ArtifactsIndexContentGroup struct {
-	Rancher ArtifactsIndexVersions
-	RKE2    ArtifactsIndexVersions
-	K3s     ArtifactsIndexVersions
-	BaseURL string
+	Rancher   ArtifactsIndexVersions
+	RKE2      ArtifactsIndexVersions
+	K3s       ArtifactsIndexVersions
+	Harvester ArtifactsIndexVersions
+	BaseURL   string
 }
 
 type ArtifactLister interface {
-	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, err error)
+	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, harvesterKeys []string, err error)
 }
 
 type ArtifactBucket struct {
@@ -54,20 +56,24 @@ func NewArtifactBucket(client *s3.Client) ArtifactBucket {
 	}
 }
 
-func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, error) {
+func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, []string, error) {
 	rancherKeys, err := listS3Objects(ctx, a.client, a.bucket, rancherArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	rke2Keys, err := listS3Objects(ctx, a.client, a.bucket, rke2ArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	k3sKeys, err := listS3Objects(ctx, a.client, a.bucket, k3sArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, nil
+	harvesterKeys, err := listS3Objects(ctx, a.client, a.bucket, harvesterArtifactsPrefix)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return rancherKeys, rke2Keys, k3sKeys, harvesterKeys, nil
 }
 
 type ArtifactDir struct {
@@ -78,8 +84,8 @@ func NewArtifactDir(dir string) ArtifactDir {
 	return ArtifactDir{dir}
 }
 
-func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, error) {
-	var rancherKeys, rke2Keys, k3sKeys []string
+func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, []string, error) {
+	var rancherKeys, rke2Keys, k3sKeys, harvesterKeys []string
 	err := filepath.WalkDir(a.dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -98,13 +104,15 @@ func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, er
 			rke2Keys = append(rke2Keys, rel)
 		} else if strings.HasPrefix(rel, "k3s/v") {
 			k3sKeys = append(k3sKeys, rel)
+		} else if strings.HasPrefix(rel, "harvester/v") {
+			harvesterKeys = append(harvesterKeys, rel)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, nil
+	return rancherKeys, rke2Keys, k3sKeys, harvesterKeys, nil
 }
 
 // GenerateArtifactsIndex lists artifacts and writes index.html and index-prerelease.html
@@ -113,11 +121,11 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
-	rancherKeys, rke2Keys, k3sKeys, err := lister.List(ctx)
+	rancherKeys, rke2Keys, k3sKeys, harvesterKeys, err := lister.List(ctx)
 	if err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, ignore)
+	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, harvesterKeys, ignore)
 	gaIndex, err := generateArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -132,7 +140,7 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	return os.WriteFile(filepath.Join(outPath, "index-prerelease.html"), preReleaseIndex, 0o644)
 }
 
-func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
+func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, harvesterKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Rancher: ArtifactsIndexVersions{
@@ -144,6 +152,10 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, igno
 				VersionsFiles: map[string][]string{},
 			},
 			K3s: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			Harvester: ArtifactsIndexVersions{
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
@@ -162,6 +174,10 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, igno
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
+			Harvester: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
 			BaseURL: rancherArtifactsBaseURL,
 		},
 	}
@@ -169,6 +185,7 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, igno
 	indexContent.GA.Rancher, indexContent.PreRelease.Rancher = parseVersionsFromKeys(rancherKeys, "rancher/", ignoreVersions)
 	indexContent.GA.RKE2, indexContent.PreRelease.RKE2 = parseVersionsFromKeys(rke2Keys, "rke2/", ignoreVersions)
 	indexContent.GA.K3s, indexContent.PreRelease.K3s = parseVersionsFromKeys(k3sKeys, "k3s/", ignoreVersions)
+	indexContent.GA.Harvester, indexContent.PreRelease.Harvester = parseVersionsFromKeys(harvesterKeys, "harvester/", ignoreVersions)
 
 	return indexContent
 }
@@ -361,6 +378,30 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 							<ul>
 							{{ range index $.K3s.VersionsFiles $version }}
 							<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
+							{{ end }}
+							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
+			</div>
+			<div class="project-harvester project">
+				<div class="flex-row">
+					<h2 id="harvester" class="project-title"><a class="anchor" href="#harvester">#</a>harvester</h2>
+					<button onclick="toggleProject('harvester')" id="project-harvester-expand" class="release-title-expand expand-active">hide</button>
+				</div>
+				<div id="project-harvester-releases">
+					{{ range $i, $version := .Harvester.Versions }}
+					<div id="harvester-{{ $version }}" class="release-{{ $version }} release">
+						<div class="flex-row">
+							<a class="anchor" href="#harvester-{{ $version }}">#</a>
+							<b class="release-title-tag">{{ $version }}</b>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+						</div>
+						<div class="files" id="release-{{ $version }}-files">
+							<ul>
+							{{ range index $.Harvester.VersionsFiles $version }}
+							<li><a href="{{ $.BaseURL }}/harvester/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/harvester/{{ $version }}/{{ . }}</a></li>
 							{{ end }}
 							</ul>
 						</div>
