@@ -42,7 +42,7 @@ RUN OSs=${OS} ARCHS=${ARCH} make all
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV ETCD_VERSION=v3.6.10
+ENV ETCD_VERSION=v3.6.11
 RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         if [ "${ARCH}" = "amd64" ]; then \
             ETCD_SHA256="ed579fafab5701e3aaa95509969e7bc74776a4ae5269d32e3928408b406456ec"; \
