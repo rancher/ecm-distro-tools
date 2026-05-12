@@ -350,9 +350,10 @@ func goVersion(r *ecmConfig.K3sRelease) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ver, err := semver.NewVersion(string(dat))
+	verStr := strings.TrimSpace(string(dat))
+	ver, err := semver.NewVersion(verStr)
 	if err != nil {
-		return "", errors.New("invalid '.go-version' content: " + string(dat))
+		return "", errors.New("invalid '.go-version' content: " + verStr)
 	}
 
 	return ver.String(), nil
