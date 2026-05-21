@@ -10,6 +10,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/rancher/ecm-distro-tools/release"
+	"github.com/rancher/ecm-distro-tools/release/metrics"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -28,9 +29,16 @@ var repoToOwner = map[string]string{
 	"k3s":     "k3s-io",
 }
 
-// statsCmd represents the stats command
+// statsCmd represents the base stats parent command
 var statsCmd = &cobra.Command{
 	Use:   "stats",
+	Short: "Statistics commands",
+	Long:  `Retrieve various statistics including releases and CVEs.`,
+}
+
+// releasesStatsCmd represents the release statistics command
+var releasesStatsCmd = &cobra.Command{
+	Use:   "releases",
 	Short: "Release statistics",
 	Long:  `Retrieve release statistics for a time period.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,28 +96,32 @@ var cveStatsSubCmd = &cobra.Command{
 	Short: "CVE statistics command",
 	Long:  `Retrieve CVE statistics from current releases.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		return nil
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		return metrics.CVEsMetrics(ctx, ghClient)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(statsCmd)
 
-	repo = statsCmd.Flags().StringP("repo", "r", "", "repository")
-	startDate = statsCmd.Flags().StringP("start", "s", "", "start date")
-	endDate = statsCmd.Flags().StringP("end", "e", "", "end date")
-	format = statsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
+	statsCmd.AddCommand(releasesStatsCmd)
+	statsCmd.AddCommand(cveStatsSubCmd)
 
-	if err := statsCmd.MarkFlagRequired("repo"); err != nil {
+	repo = releasesStatsCmd.Flags().StringP("repo", "r", "", "repository")
+	startDate = releasesStatsCmd.Flags().StringP("start", "s", "", "start date")
+	endDate = releasesStatsCmd.Flags().StringP("end", "e", "", "end date")
+	format = releasesStatsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
+
+	if err := releasesStatsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	if err := statsCmd.MarkFlagRequired("start"); err != nil {
+	if err := releasesStatsCmd.MarkFlagRequired("start"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	if err := statsCmd.MarkFlagRequired("end"); err != nil {
+	if err := releasesStatsCmd.MarkFlagRequired("end"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
