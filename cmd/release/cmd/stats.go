@@ -98,7 +98,12 @@ var cveStatsSubCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
-		return metrics.CVEsMetrics(ctx, ghClient)
+		reports, err := metrics.CVEsMetrics(ctx, ghClient)
+		if err != nil {
+			return err
+		}
+
+		return reports.PrintCVEsBySeverity("critical")
 	},
 }
 
