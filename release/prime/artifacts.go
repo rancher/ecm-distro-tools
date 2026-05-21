@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -18,7 +19,7 @@ const (
 	rancherArtifactsPrefix  = "rancher/v"
 	rke2ArtifactsPrefix     = "rke2/v"
 	k3sArtifactsPrefix      = "k3s/v"
-	toolsArtifactsPrefix    = "tools/v"
+	toolsArtifactsPrefix    = "tools/"
 	rancherArtifactsBaseURL = "https://prime.ribs.rancher.io"
 )
 
@@ -32,11 +33,18 @@ type ArtifactsIndexVersions struct {
 	VersionsFiles map[string][]string
 }
 
+// ToolsIndex supports the Tool sectionÇ
+// tools/<program>/<version>/<files>
+type ToolsIndex struct {
+	Programs        []string
+	ProgramVersions map[string]ArtifactsIndexVersions
+}
+
 type ArtifactsIndexContentGroup struct {
 	Rancher ArtifactsIndexVersions
 	RKE2    ArtifactsIndexVersions
 	K3s     ArtifactsIndexVersions
-	Tools   ArtifactsIndexVersions
+	Tools   ToolsIndex
 	BaseURL string
 }
 
@@ -157,9 +165,9 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
-			Tools: ArtifactsIndexVersions{
-				Versions:      []string{},
-				VersionsFiles: map[string][]string{},
+			Tools: ToolsIndex{
+				Programs:        []string{},
+				ProgramVersions: map[string]ArtifactsIndexVersions{},
 			},
 			BaseURL: rancherArtifactsBaseURL,
 		},
@@ -176,9 +184,9 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
-			Tools: ArtifactsIndexVersions{
-				Versions:      []string{},
-				VersionsFiles: map[string][]string{},
+			Tools: ToolsIndex{
+				Programs:        []string{},
+				ProgramVersions: map[string]ArtifactsIndexVersions{},
 			},
 			BaseURL: rancherArtifactsBaseURL,
 		},
@@ -187,7 +195,7 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 	indexContent.GA.Rancher, indexContent.PreRelease.Rancher = parseVersionsFromKeys(rancherKeys, "rancher/", ignoreVersions)
 	indexContent.GA.RKE2, indexContent.PreRelease.RKE2 = parseVersionsFromKeys(rke2Keys, "rke2/", ignoreVersions)
 	indexContent.GA.K3s, indexContent.PreRelease.K3s = parseVersionsFromKeys(k3sKeys, "k3s/", ignoreVersions)
-	indexContent.GA.Tools, indexContent.PreRelease.Tools = parseVersionsFromKeys(toolsKeys, "tools/", ignoreVersions)
+	indexContent.GA.Tools, indexContent.PreRelease.Tools = parseToolsFromKeys(toolsKeys, "tools/", ignoreVersions)
 
 	return indexContent
 }
@@ -244,6 +252,77 @@ func parseVersionsFromKeys(keys []string, prefix string, ignoreVersions map[stri
 	}
 
 	return gaVersions, preReleaseVersions
+}
+
+// parseToolsFromKeys parses tools following the <program>/<version>/<file> structure
+func parseToolsFromKeys(keys []string, prefix string, ignoreVersions map[string]bool) (ToolsIndex, ToolsIndex) {
+	gaTemp := make(map[string]map[string][]string)
+	preTemp := make(map[string]map[string][]string)
+
+	for _, key := range keys {
+		if !strings.Contains(key, prefix) {
+			continue
+		}
+		keyParts := strings.Split(strings.TrimPrefix(key, prefix), "/")
+		// Expecting at least <program>/<version>/<file>
+		if len(keyParts) < 3 || keyParts[1] == "" {
+			continue
+		}
+		program := keyParts[0]
+		version := keyParts[1]
+		file := strings.Join(keyParts[2:], "/")
+
+		if _, ok := ignoreVersions[version]; ok {
+			continue
+		}
+
+		if strings.Contains(version, "-") {
+			if preTemp[program] == nil {
+				preTemp[program] = make(map[string][]string)
+			}
+			preTemp[program][version] = append(preTemp[program][version], file)
+		} else {
+			if gaTemp[program] == nil {
+				gaTemp[program] = make(map[string][]string)
+			}
+			gaTemp[program][version] = append(gaTemp[program][version], file)
+		}
+	}
+
+	return buildToolsIndex(gaTemp), buildToolsIndex(preTemp)
+}
+
+func buildToolsIndex(temp map[string]map[string][]string) ToolsIndex {
+	var programs []string
+	for p := range temp {
+		programs = append(programs, p)
+	}
+	sort.Strings(programs)
+
+	ti := ToolsIndex{
+		Programs:        programs,
+		ProgramVersions: make(map[string]ArtifactsIndexVersions),
+	}
+
+	for _, prog := range programs {
+		versionsMap := temp[prog]
+		var versions []string
+		for v := range versionsMap {
+			versions = append(versions, v)
+		}
+		semver.Sort(versions)
+
+		var sortedVersions []string
+		for i := len(versions) - 1; i >= 0; i-- {
+			sortedVersions = append(sortedVersions, versions[i])
+		}
+
+		ti.ProgramVersions[prog] = ArtifactsIndexVersions{
+			Versions:      sortedVersions,
+			VersionsFiles: versionsMap,
+		}
+	}
+	return ti
 }
 
 func generateArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, error) {
@@ -393,19 +472,30 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 					<button onclick="toggleProject('tools')" id="project-tools-expand" class="release-title-expand expand-active">hide</button>
 				</div>
 				<div id="project-tools-releases">
-					{{ range $i, $version := .Tools.Versions }}
-					<div id="tools-{{ $version }}" class="release-{{ $version }} release">
+					{{ range $p_i, $program := .Tools.Programs }}
+					<div class="project-{{ $program }} project" style="margin-left: 20px;">
 						<div class="flex-row">
-							<a class="anchor" href="#tools-{{ $version }}">#</a>
-							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<h3 id="tools-{{ $program }}" class="project-title"><a class="anchor" href="#tools-{{ $program }}">#</a>{{ $program }}</h3>
+							<button onclick="toggleProject('tools-{{ $program }}')" id="project-tools-{{ $program }}-expand" class="release-title-expand expand-active">hide</button>
 						</div>
-						<div class="files" id="release-{{ $version }}-files">
-							<ul>
-							{{ range index $.Tools.VersionsFiles $version }}
-							<li><a href="{{ $.BaseURL }}/tools/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $version }}/{{ . }}</a></li>
+						<div id="project-tools-{{ $program }}-releases">
+							{{ $progData := index $.Tools.ProgramVersions $program }}
+							{{ range $i, $version := $progData.Versions }}
+							<div id="tools-{{ $program }}-{{ $version }}" class="release-{{ $version }} release">
+								<div class="flex-row">
+									<a class="anchor" href="#tools-{{ $program }}-{{ $version }}">#</a>
+									<b class="release-title-tag">{{ $version }}</b>
+									<button onclick="toggleFiles('tools-{{ $program }}-{{ $version }}')" id="release-tools-{{ $program }}-{{ $version }}-expand" class="release-title-expand">show</button>
+								</div>
+								<div class="files" id="release-tools-{{ $program }}-{{ $version }}-files">
+									<ul>
+									{{ range index $progData.VersionsFiles $version }}
+									<li><a href="{{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $program }}/{{ $version }}/{{ . }}</a></li>
+									{{ end }}
+									</ul>
+								</div>
+							</div>
 							{{ end }}
-							</ul>
 						</div>
 					</div>
 					{{ end }}
