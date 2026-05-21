@@ -18,8 +18,6 @@ import (
 	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
-
-	//"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/text/cases"
