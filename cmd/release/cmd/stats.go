@@ -83,6 +83,16 @@ var statsCmd = &cobra.Command{
 	},
 }
 
+var cveStatsSubCmd = &cobra.Command{
+	Use:   "cve",
+	Short: "CVE statistics command",
+	Long:  `Retrieve CVE statistics from current releases.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(statsCmd)
 
