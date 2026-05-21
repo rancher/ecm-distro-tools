@@ -9,7 +9,7 @@ func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	rancherKeys := []string{"rancher/v2.10.0/images.txt"}
 	rke2Keys := []string{"rke2/v1.30.1+rke2r1/images.txt"}
 	k3sKeys := []string{"k3s/v1.30.1+k3s1/images.txt"}
-	toolsKeys := []string{"tools/v1.30.1/tools.txt"}
+	toolsKeys := []string{"tools/rke2-patcher/v1.0.0/tools.txt"}
 	got := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil)
 	if !slices.Equal(got.GA.Rancher.Versions, []string{"v2.10.0"}) {
 		t.Fatalf("unexpected GA rancher versions: %v", got.GA.Rancher.Versions)
@@ -29,11 +29,11 @@ func TestGenerateArtifactsIndexContentGA(t *testing.T) {
 	if len(got.PreRelease.K3s.Versions) != 0 {
 		t.Fatalf("expected no prerelease k3s versions, got %v", got.PreRelease.K3s.Versions)
 	}
-	if !slices.Equal(got.GA.Tools.Versions, []string{"v1.30.1"}) {
-		t.Fatalf("unexpected GA tools versions: %v", got.GA.Tools.Versions)
+	if !slices.Equal(got.GA.Tools.ProgramVersions["rke2-patcher"].Versions, []string{"v1.0.0"}) {
+		t.Fatalf("unexpected GA tools versions: %v", got.GA.Tools.ProgramVersions["rke2-patcher"].Versions)
 	}
-	if len(got.PreRelease.Tools.Versions) != 0 {
-		t.Fatalf("expected no prerelease tools versions, got %v", got.PreRelease.Tools.Versions)
+	if len(got.GA.Tools.ProgramVersions["rke2-patcher"].Versions) == 0 {
+		t.Fatalf("expected one prerelease tools versions, got %v", got.GA.Tools.ProgramVersions["rke2-patcher"].Versions)
 	}
 }
 
