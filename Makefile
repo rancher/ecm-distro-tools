@@ -16,8 +16,8 @@ endif
 .PHONY: all
 all: $(BINARIES)
 
-.PHONY: rke2_release
-rke2_release:
+.PHONY: gen_release_report
+gen_release_report:
 	cd cmd/$@ && $(MAKE)
 
 .PHONY: release
