@@ -12,7 +12,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
 	"github.com/rancher/ecm-distro-tools/release/rke2"
-	"github.com/rancher/ecm-distro-tools/release/ui"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -304,7 +303,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		if err := ui.CreateRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert); err != nil {
+		if err := dashboard.CreateUIRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert); err != nil {
 			return err
 		}
 
@@ -316,7 +315,7 @@ var dashboardTagSubCmd = &cobra.Command{
 			Draft:  false,
 		}
 
-		return dashboard.CreateRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert)
+		return dashboard.CreateDashboardRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert)
 	},
 }
 
