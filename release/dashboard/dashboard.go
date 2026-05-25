@@ -1,3 +1,4 @@
+// Package dashboard holds tools to release dashboard and ui
 package dashboard
 
 import (
@@ -13,16 +14,8 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const (
-	dashboardOrg           = "rancher"
-	dashboardRepo          = "dashboard"
-	uiOrg                  = "rancher"
-	uiRepo                 = "ui"
-	dashboardImagesBaseURL = "https://github.com/" + dashboardOrg + "/" + dashboardRepo + "/releases"
-)
-
-// CreateRelease will create a new tag and a new release with given params.
-func CreateRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc, dryRun bool, releaseType, previousTag, releaseAlert string) error {
+// CreateDashboardRelease will create a new tag and a new release with given params.
+func CreateDashboardRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc, dryRun bool, releaseType, previousTag, releaseAlert string) error {
 	if !semver.IsValid(opts.Tag) {
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
@@ -93,4 +86,61 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	releaseBranch := "release-" + v
 
 	return releaseBranch, nil
+}
+
+// CreateUIRelease will create a new tag and a new release with given params.
+func CreateUIRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, preRelease, dryRun bool, releaseType, previousTag, releaseNotesAlert string) error {
+	if !semver.IsValid(opts.Tag) {
+		return errors.New("tag isn't a valid semver: " + opts.Tag)
+	}
+
+	latestPreRelease, err := release.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
+	if err != nil {
+		return err
+	}
+
+	if preRelease {
+		latestRCNumber := 1
+		if latestPreRelease != nil {
+			// v2.9.0-rcN / -alphaN
+			_, trimmedRCNumber, found := strings.Cut(*latestPreRelease, "-"+releaseType)
+			if !found {
+				return errors.New("failed to parse rc number from " + *latestPreRelease)
+			}
+			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
+			if err != nil {
+				return err
+			}
+			latestRCNumber = currentRCNumber + 1
+		}
+		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
+	}
+
+	opts.Name = opts.Tag
+	opts.Prerelease = true
+	opts.ReleaseNotes = ""
+
+	if !preRelease {
+		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, previousTag)
+		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, releaseNotesAlert, client)
+		if err != nil {
+			return err
+		}
+		opts.ReleaseNotes = buff.String()
+	}
+
+	fmt.Printf("create release options: %+v\n", *opts)
+
+	if dryRun {
+		fmt.Println("dry run, skipping creating release")
+		return nil
+	}
+
+	createdRelease, err := repository.CreateRelease(ctx, client, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	return nil
 }
