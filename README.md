@@ -6,22 +6,6 @@ ECM Distro Tools is a collection of utilities that provide for easier administra
 
 The easiest way to install a single utility is to go to the release page, choose the release you want, and download the utility for your operation system and architecture.
 
-### Install Script
-
-To install all executables and shell libraries, run the install script as follows:
-
-**Install the latest version**
-```sh
-curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | sh -
-```
-**Install a specific version**
-```sh
-curl -sfL https://raw.githubusercontent.com/rancher/ecm-distro-tools/master/install.sh | ECM_VERSION=v0.31.2 sh -
-```
-
-This will download all binaries and shell libraries and install them to `/usr/local/bin/ecm-distro-tools`. You'll need to add that directory to your path after installation.
-
-
 ## Release CLI
 ### Configuration
 **New Configuration File**
@@ -36,7 +20,6 @@ release config view -c ./config.json
 ```bash
 release generate rancher missing-images-list v2.7.15 -C '{"rancher": { "versions": {"v2.7.15": {"check_images": ["rancher/rancher:v2.7.15"]}}}}' -i "https://prime.ribs.rancher.io/rancher/v2.7.15/rancher-images.txt" --ignore-validate
 ```
-
 
 ## Building
 

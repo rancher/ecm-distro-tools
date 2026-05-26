@@ -192,11 +192,7 @@ Before making any pull requests, please make sure you understand:
    * set reviewers to `k3s` group
    * assign to yourself
    * example: https://github.com/rancher/rke2/pull/2994
-1. PR triggers [Drone-pr CI](https://drone-pr.rancher.io/rancher/rke2)
-   * example pr ci: https://drone-pr.rancher.io/rancher/rke2/3456
 1. Once your PR gets 2 approvals, and the CI completes successfully, you may merge it
-1. Merge triggers [Drone-publish CI](https://drone-publish.rancher.io/rancher/rke2)
-   * example publish ci: https://drone-publish.rancher.io/rancher/rke2/1847
 </details>
 
 ## Create RKE2 Release Candidate (RC)

@@ -52,9 +52,7 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
    * set reviewers to "k3s" group
    * assign to yourself
    * make sure upstream branch is appropriate for PR (eg. `release-1.23` for `june-release-1.23-r1`)
-1. [Drone-pr CI](https://drone-pr.rancher.io/rancher/rke2)
 1. Once your PR gets 2 approvals and the CI completes successfully, you may merge it
-1. [Drone-publish CI](https://drone-publish.rancher.io/rancher/rke2)
 1. Update release report
 </details>
 
@@ -112,7 +110,6 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
    # '-t' is for testing channel, this will change to '-s' for stable, and '-l' for latest
    edt tag_rke2_packaging_release -t -i $RPM_RELEASE_ITERATION -r "$RKE2_RELEASES"
    ```
-1. [Drone-publish](https://drone-publish.rancher.io/rancher/rke2-packaging/)
 1. Update release report
 </details>
 
@@ -124,10 +121,8 @@ Please see "[Releasing RKE2 Explained](./releasing_rke2_explained.md)" for more 
 1. Update release report
 * system-agent-installer-rke2
   * [Repository](https://github.com/rancher/system-agent-installer-rke2)
-  * [Drone publish job](https://drone-publish.rancher.io/rancher/system-agent-installer-rke2)
 * rke2-upgrade
   * [Repository](https://github.com/rancher/rke2-upgrade)
-  * [Drone publish job](https://drone-publish.rancher.io/rancher/rke2-upgrade)
 </details>
 
 ### Validate RC
