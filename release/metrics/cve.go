@@ -3,20 +3,27 @@ package metrics
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 )
 
+const reportsFolder = "reports"
+
+// Slack severity emojis.
 const (
-	reportsFolder = "reports"
+	emojiCritical = "🔴"
+	emojiHigh     = "🟠"
+	emojiMedium   = "🟡"
+	emojiLow      = "🔵"
 )
 
 type Reports struct {
@@ -29,69 +36,207 @@ type Reports struct {
 	RKE2               []CVE
 }
 
+type SeverityCounts struct {
+	Critical int
+	High     int
+	Medium   int
+	Low      int
+	Other    int
+}
+
+func (s SeverityCounts) Total() int {
+	return s.Critical + s.High + s.Medium + s.Low + s.Other
+}
+
 type ProjectReport struct {
-	Name string
-	CVEs []CVE
+	Name   string
+	CVEs   []CVE
+	Counts SeverityCounts
 }
 
 type ReportData struct {
 	MinSeverity string
 	Projects    []ProjectReport
+	Totals      SeverityCounts
 }
 
-// PrintCVEsBySeverity prints a formatted report of all CVEs that meet or exceed the given severity using a template.
-func (r *Reports) PrintCVEsBySeverity(minSeverity string) error {
+// PrintCVEsBySeverity filters and renders a CVE report as a Slack payload.
+func (r *Reports) CVEsBySeverity(minSeverity string) error {
+	data := r.buildReportData(minSeverity)
+	return renderSlack(data)
+}
+
+// buildReportData filters, sorts, and counts CVEs.
+func (r *Reports) buildReportData(minSeverity string) ReportData {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
-	// Group the projects for easy iteration in the template
 	allProjects := []ProjectReport{
-		{"Harvester", r.Harvester},
-		{"K3s", r.K3s},
-		{"Longhorn", r.Longhorn},
-		{"Observability", r.Observability},
-		{"Observability Agent", r.ObservabilityAgent},
-		{"Rancher", r.Rancher},
-		{"RKE2", r.RKE2},
+		{Name: "Harvester", CVEs: r.Harvester},
+		{Name: "K3s", CVEs: r.K3s},
+		{Name: "Longhorn", CVEs: r.Longhorn},
+		{Name: "Observability", CVEs: r.Observability},
+		{Name: "Observability Agent", CVEs: r.ObservabilityAgent},
+		{Name: "Rancher", CVEs: r.Rancher},
+		{Name: "RKE2", CVEs: r.RKE2},
 	}
 
-	data := ReportData{
-		MinSeverity: minSeverityDisplay,
-	}
+	data := ReportData{MinSeverity: minSeverityDisplay}
 
-	// Filter CVEs based on severity
 	for _, p := range allProjects {
 		var matched []CVE
 		for _, cve := range p.CVEs {
+			// skip any CVE that does not affect the current project
+			if cve.Status == "not_affected" {
+				continue
+			}
 			if severityScore(cve.Severity) >= minScore {
 				matched = append(matched, cve)
 			}
 		}
-		data.Projects = append(data.Projects, ProjectReport{
-			Name: p.Name,
-			CVEs: matched,
+
+		sort.Slice(matched, func(i, j int) bool {
+			si, sj := severityScore(matched[i].Severity), severityScore(matched[j].Severity)
+			if si != sj {
+				return si > sj
+			}
+			return matched[i].VulnerabilityID < matched[j].VulnerabilityID
 		})
+
+		counts := countSeverities(matched)
+
+		data.Projects = append(data.Projects, ProjectReport{
+			Name:   p.Name,
+			CVEs:   matched,
+			Counts: counts,
+		})
+
+		data.Totals.Critical += counts.Critical
+		data.Totals.High += counts.High
+		data.Totals.Medium += counts.Medium
+		data.Totals.Low += counts.Low
+		data.Totals.Other += counts.Other
 	}
 
-	// Register a custom function to format the severity block
-	funcMap := template.FuncMap{
-		"formatSeverity": func(s string) string {
-			return fmt.Sprintf("%-8s", strings.ToUpper(s))
-		},
-	}
-
-	tmpl, err := template.New("cve-report").Funcs(funcMap).Parse(reportTemplate)
-	if err != nil {
-		return fmt.Errorf("failed to parse report template: %w", err)
-	}
-
-	// Execute the template directly to standard output
-	if err := tmpl.Execute(os.Stdout, data); err != nil {
-		return fmt.Errorf("failed to execute report template: %w", err)
-	}
-
-	return nil
+	return data
 }
+
+// ── Slack renderer ───────────────────────────────────────────────────────────
+
+func renderSlack(data ReportData) error {
+	payload := buildSlackPayload(data)
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(payload)
+}
+
+type slackPayload struct {
+	Blocks []slackBlock `json:"blocks"`
+}
+
+type slackBlock struct {
+	Type string     `json:"type"`
+	Text *slackText `json:"text,omitempty"`
+}
+
+type slackText struct {
+	Type  string `json:"type"`
+	Text  string `json:"text"`
+	Emoji bool   `json:"emoji,omitempty"`
+}
+
+func buildSlackPayload(data ReportData) slackPayload {
+	var blocks []slackBlock
+
+	blocks = append(blocks,
+		headerBlock(fmt.Sprintf("🔍 Vulnerability Report · Min Severity: %s", data.MinSeverity)),
+		sectionBlock(fmt.Sprintf("*SUMMARY*\n%s", buildSummaryTable(data))),
+		dividerBlock(),
+		sectionBlock("*DETAILS*"),
+	)
+
+	for _, p := range data.Projects {
+		if p.Counts.Total() == 0 {
+			blocks = append(blocks, sectionBlock(
+				fmt.Sprintf("✅  *%s* — No findings at or above this severity", p.Name),
+			))
+			continue
+		}
+
+		plural := "s"
+		if p.Counts.Total() == 1 {
+			plural = ""
+		}
+		blocks = append(blocks,
+			sectionBlock(fmt.Sprintf("*%s* — %d CVE%s", p.Name, p.Counts.Total(), plural)),
+			sectionBlock(buildCVELines(p.CVEs)),
+			dividerBlock(),
+		)
+	}
+
+	return slackPayload{Blocks: blocks}
+}
+
+func buildSummaryTable(data ReportData) string {
+	const header = "Project                  CRIT   HIGH    MED    LOW   TOTAL"
+	sep := strings.Repeat("─", len(header))
+
+	var sb strings.Builder
+	sb.WriteString("```\n")
+	sb.WriteString(header + "\n")
+	sb.WriteString(sep + "\n")
+
+	for _, p := range data.Projects {
+		fmt.Fprintf(&sb, "%-24s %5d  %5d  %5d  %5d  %6d\n",
+			p.Name,
+			p.Counts.Critical, p.Counts.High, p.Counts.Medium, p.Counts.Low,
+			p.Counts.Total(),
+		)
+	}
+
+	sb.WriteString(sep + "\n")
+	fmt.Fprintf(&sb, "%-24s %5d  %5d  %5d  %5d  %6d\n",
+		"Total",
+		data.Totals.Critical, data.Totals.High, data.Totals.Medium, data.Totals.Low,
+		data.Totals.Total(),
+	)
+	sb.WriteString("```")
+
+	return sb.String()
+}
+
+func buildCVELines(cves []CVE) string {
+	var lines []string
+	for _, cve := range cves {
+		line := fmt.Sprintf("%s  `%s`  %s %s  _%s_",
+			severityEmoji(cve.Severity),
+			cve.VulnerabilityID,
+			cve.PackageName,
+			cve.PackageVersion,
+			cve.Release,
+		)
+		if cve.Status != "" {
+			line += "  ·  " + cve.Status
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func headerBlock(text string) slackBlock {
+	return slackBlock{Type: "header", Text: &slackText{Type: "plain_text", Text: text, Emoji: true}}
+}
+
+func sectionBlock(text string) slackBlock {
+	return slackBlock{Type: "section", Text: &slackText{Type: "mrkdwn", Text: text}}
+}
+
+func dividerBlock() slackBlock {
+	return slackBlock{Type: "divider"}
+}
+
+// ── Shared helpers ───────────────────────────────────────────────────────────
 
 type CVE struct {
 	Image           string
@@ -109,11 +254,59 @@ type CVE struct {
 	Justification   string
 }
 
-// CVEsMetrics fetches and unmarshals CSV reports into the Reports struct.
-func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
-	opts := &github.RepositoryContentGetOptions{
-		Ref: "main",
+func countSeverities(cves []CVE) SeverityCounts {
+	var c SeverityCounts
+	for _, cve := range cves {
+		switch strings.ToLower(strings.TrimSpace(cve.Severity)) {
+		case "critical":
+			c.Critical++
+		case "high":
+			c.High++
+		case "medium":
+			c.Medium++
+		case "low":
+			c.Low++
+		default:
+			c.Other++
+		}
 	}
+	return c
+}
+
+func severityEmoji(severity string) string {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "critical":
+		return emojiCritical
+	case "high":
+		return emojiHigh
+	case "medium":
+		return emojiMedium
+	case "low":
+		return emojiLow
+	default:
+		return "⚪"
+	}
+}
+
+func severityScore(severity string) int {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "critical":
+		return 4
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	case "low":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// ── Data fetching ────────────────────────────────────────────────────────────
+
+func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
+	opts := &github.RepositoryContentGetOptions{Ref: "main"}
 
 	_, directoryContent, _, err := client.Repositories.GetContents(
 		ctx,
@@ -127,10 +320,7 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 			config.RancherGithubOrganization, config.ImageScanningRepositoryName, reportsFolder, err)
 	}
 
-	// Regex to match the project name and ensure we only process -cves.csv files.
-	// the observability-agent should be before observability so the match doesn't clip the name.
 	cveFileRegex := regexp.MustCompile(`^report-(harvester|k3s|longhorn|observability-agent|observability|rancher|rke2)-.*-cves\.csv$`)
-
 	reports := &Reports{}
 
 	for _, item := range directoryContent {
@@ -139,20 +329,16 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 		}
 
 		matches := cveFileRegex.FindStringSubmatch(item.GetName())
-		// Skip files that don't match our CVE reports pattern (like stats.csv)
 		if len(matches) < 2 {
 			continue
 		}
-
-		projectName := matches[1]
 
 		cves, err := downloadAndParseCSV(item.GetDownloadURL())
 		if err != nil {
 			return nil, fmt.Errorf("failed to process %s: %w", item.GetName(), err)
 		}
 
-		// Route the parsed CVEs to the correct project slice
-		switch projectName {
+		switch matches[1] {
 		case "harvester":
 			reports.Harvester = append(reports.Harvester, cves...)
 		case "k3s":
@@ -173,7 +359,6 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 	return reports, nil
 }
 
-// downloadAndParseCSV handles fetching the file and unmarshaling the rows into CVE structs.
 func downloadAndParseCSV(downloadURL string) ([]CVE, error) {
 	resp, err := http.Get(downloadURL)
 	if err != nil {
@@ -185,28 +370,21 @@ func downloadAndParseCSV(downloadURL string) ([]CVE, error) {
 		return nil, fmt.Errorf("unexpected status code %d when downloading csv", resp.StatusCode)
 	}
 
-	reader := csv.NewReader(resp.Body)
-
-	records, err := reader.ReadAll()
+	records, err := csv.NewReader(resp.Body).ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read csv records: %w", err)
 	}
 
 	var cves []CVE
 	for i, row := range records {
-		// Skip the header row
 		if i == 0 {
 			continue
 		}
-
-		// padding the row to avoid "index out of bounds" panics
 		for len(row) < 13 {
 			row = append(row, "")
 		}
-
 		mirrored, _ := strconv.ParseBool(row[10])
-
-		cve := CVE{
+		cves = append(cves, CVE{
 			Image:           row[0],
 			Release:         row[1],
 			PackageName:     row[2],
@@ -220,40 +398,8 @@ func downloadAndParseCSV(downloadURL string) ([]CVE, error) {
 			Mirrored:        mirrored,
 			Status:          row[11],
 			Justification:   row[12],
-		}
-		cves = append(cves, cve)
+		})
 	}
 
 	return cves, nil
-}
-
-const reportTemplate = `=== Vulnerability Report (Severity: {{ .MinSeverity }} or higher) ===
-{{ range .Projects }}
---------------------------------------------------
-Project: {{ .Name }}
---------------------------------------------------
-{{- if not .CVEs }}
-No CVEs found matching or exceeding severity '{{ $.MinSeverity }}'.
-{{- else }}
-{{- range .CVEs }}
-- [{{ formatSeverity .Severity }}] {{ printf "%-15s" .VulnerabilityID }} | Package: {{ .PackageName }} ({{ .PackageVersion }}) | Release: {{ .Release }}
-{{- end }}
-{{- end }}
-{{ end }}
-`
-
-// severityScore assigns a numerical value to severities for easy comparison.
-func severityScore(severity string) int {
-	switch strings.ToLower(strings.TrimSpace(severity)) {
-	case "critical":
-		return 4
-	case "high":
-		return 3
-	case "medium":
-		return 2
-	case "low":
-		return 1
-	default:
-		return 0
-	}
 }

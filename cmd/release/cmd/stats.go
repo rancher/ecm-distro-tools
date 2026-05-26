@@ -103,7 +103,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.PrintCVEsBySeverity("critical")
+		return reports.CVEsBySeverity("critical")
 	},
 }
 
