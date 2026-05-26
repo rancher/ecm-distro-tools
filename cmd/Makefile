@@ -1,4 +1,4 @@
-BINARIES = backport semv test_coverage upstream_go_version rke2_release release
+BINARIES = backport test_coverage rke2_release release
 ARCHS ?= amd64 arm64
 OSs ?= linux darwin
 GO_COMPILE = GOOS=$${os} GOARCH=$${arch} CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v -ldflags "$(LDFLAGS)" -o $@-$${os}-$${arch}
