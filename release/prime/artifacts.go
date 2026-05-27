@@ -326,7 +326,10 @@ func buildToolsIndex(temp map[string]map[string][]string) ToolsIndex {
 }
 
 func generateArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, error) {
-	tmpl, err := template.New("release-artifacts-index").Parse(artifactsIndexTemplate)
+	funcMap := template.FuncMap{
+		"hasSuffix": strings.HasSuffix,
+	}
+	tmpl, err := template.New("release-artifacts-index").Funcs(funcMap).Parse(artifactsIndexTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +392,8 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			.hidden { display: none; overflow: hidden; }
 			.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
 			.flex-row:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
+			.inspect-button { background-color: #2453ff; color: white; border-radius: 3px; border: none; padding: 2px 8px; margin-left: 10px; cursor: pointer; font-size: 12px; }
+			.inspect-button:hover { background-color: white; color: #2453ff; border: 1px solid #2453ff; }
 		</style>
 	</head>
 	<body>
@@ -412,7 +417,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>{{ range index $.Rancher.VersionsFiles $version }}
-							<li><a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a></li>
+							<li>
+								<a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a>
+								{{ if hasSuffix . "sbom-cyclonedx.json" }}
+								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
+									<button class="inspect-button">inspect</button>
+								</a>
+								{{ end }}
+							</li>
 							{{ end }}</ul>
 						</div>
 					</div>{{ end }}
@@ -434,7 +446,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
 							{{ range index $.RKE2.VersionsFiles $version }}
-							<li><a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a></li>
+							<li>
+								<a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a>
+								{{ if hasSuffix . "sbom-cyclonedx.json" }}
+								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
+									<button class="inspect-button">inspect</button>
+								</a>
+								{{ end }}
+							</li>
 							{{ end }}
 							</ul>
 						</div>
@@ -458,7 +477,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
 							{{ range index $.K3s.VersionsFiles $version }}
-							<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
+							<li>
+								<a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a>
+								{{ if hasSuffix . "sbom-cyclonedx.json" }}
+								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
+									<button class="inspect-button">inspect</button>
+								</a>
+								{{ end }}
+							</li>
 							{{ end }}
 							</ul>
 						</div>
@@ -490,7 +516,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<div class="files" id="release-tools-{{ $program }}-{{ $version }}-files">
 									<ul>
 									{{ range index $progData.VersionsFiles $version }}
-									<li><a href="{{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $program }}/{{ $version }}/{{ . }}</a></li>
+									<li>
+										<a href="{{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $program }}/{{ $version }}/{{ . }}</a>
+										{{ if hasSuffix . "sbom-cyclonedx.json" }}
+										<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
+											<button class="inspect-button">inspect</button>
+										</a>
+										{{ end }}
+									</li>
 									{{ end }}
 									</ul>
 								</div>
