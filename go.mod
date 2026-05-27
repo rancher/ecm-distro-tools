@@ -8,7 +8,7 @@ require (
 	github.com/google/go-github/v85 v85.0.0
 	github.com/sirupsen/logrus v1.9.4
 	golang.org/x/crypto v0.50.0
-	golang.org/x/mod v0.35.0
+	golang.org/x/mod v0.36.0
 	golang.org/x/oauth2 v0.36.0
 )
 
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.20.0
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.6.0
 )
