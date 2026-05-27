@@ -16,10 +16,6 @@ endif
 .PHONY: all
 all: $(BINARIES)
 
-.PHONY: gen_release_report
-gen_release_report:
-	cd cmd/$@ && $(MAKE)
-
 .PHONY: release
 release:
 	cd cmd/$@ && $(MAKE)
