@@ -1,3 +1,4 @@
+// Package prime holds tools to generate artifacts for prime releases
 package prime
 
 import (
