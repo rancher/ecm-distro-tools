@@ -16,32 +16,12 @@ endif
 .PHONY: all
 all: $(BINARIES)
 
-.PHONY: gen_release_report
-gen_release_report:
-	cd cmd/$@ && $(MAKE)
-
-.PHONY: rke2_release
-rke2_release:
-	cd cmd/$@ && $(MAKE)
-
 .PHONY: release
 release:
 	cd cmd/$@ && $(MAKE)
 
 .PHONY: backport
 backport:
-	cd cmd/$@ && $(MAKE)
-
-.PHONY: test_coverage
-test_coverage:
-	cd cmd/$@ && $(MAKE)
-
-.PHONY: upstream_go_version
-upstream_go_version:
-	cd cmd/$@ && $(MAKE)
-
-.PHONY: semv
-semv:
 	cd cmd/$@ && $(MAKE)
 
 .PHONY: test

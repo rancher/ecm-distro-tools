@@ -1,3 +1,4 @@
+// Package prime holds tools to generate artifacts for prime releases
 package prime
 
 import (
@@ -7,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -18,6 +20,7 @@ const (
 	rancherArtifactsPrefix  = "rancher/v"
 	rke2ArtifactsPrefix     = "rke2/v"
 	k3sArtifactsPrefix      = "k3s/v"
+	toolsArtifactsPrefix    = "tools/"
 	rancherArtifactsBaseURL = "https://prime.ribs.rancher.io"
 	scansBaseURL            = "https://scans.rancher.com"
 )
@@ -32,16 +35,24 @@ type ArtifactsIndexVersions struct {
 	VersionsFiles map[string][]string
 }
 
+// ToolsIndex supports the Tool sectionÇ
+// tools/<program>/<version>/<files>
+type ToolsIndex struct {
+	Programs        []string
+	ProgramVersions map[string]ArtifactsIndexVersions
+}
+
 type ArtifactsIndexContentGroup struct {
 	Rancher      ArtifactsIndexVersions
 	RKE2         ArtifactsIndexVersions
 	K3s          ArtifactsIndexVersions
+  Tools.       ToolsIndex
 	BaseURL      string
 	ScansBaseURL string
 }
 
 type ArtifactLister interface {
-	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, err error)
+	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, toolsKeys []string, err error)
 }
 
 type ArtifactBucket struct {
@@ -56,20 +67,25 @@ func NewArtifactBucket(client *s3.Client) ArtifactBucket {
 	}
 }
 
-func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, error) {
+func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, []string, error) {
 	rancherKeys, err := listS3Objects(ctx, a.client, a.bucket, rancherArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	rke2Keys, err := listS3Objects(ctx, a.client, a.bucket, rke2ArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	k3sKeys, err := listS3Objects(ctx, a.client, a.bucket, k3sArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, nil
+
+	toolsKeys, err := listS3Objects(ctx, a.client, a.bucket, toolsArtifactsPrefix)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil
 }
 
 type ArtifactDir struct {
@@ -80,8 +96,8 @@ func NewArtifactDir(dir string) ArtifactDir {
 	return ArtifactDir{dir}
 }
 
-func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, error) {
-	var rancherKeys, rke2Keys, k3sKeys []string
+func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, []string, error) {
+	var rancherKeys, rke2Keys, k3sKeys, toolsKeys []string
 	err := filepath.WalkDir(a.dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -94,19 +110,22 @@ func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, er
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if strings.HasPrefix(rel, "rancher/v") {
+		switch {
+		case strings.HasPrefix(rel, rancherArtifactsPrefix):
 			rancherKeys = append(rancherKeys, rel)
-		} else if strings.HasPrefix(rel, "rke2/v") {
+		case strings.HasPrefix(rel, rke2ArtifactsPrefix):
 			rke2Keys = append(rke2Keys, rel)
-		} else if strings.HasPrefix(rel, "k3s/v") {
+		case strings.HasPrefix(rel, k3sArtifactsPrefix):
 			k3sKeys = append(k3sKeys, rel)
+		case strings.HasPrefix(rel, toolsArtifactsPrefix):
+			toolsKeys = append(toolsKeys, rel)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, nil
+	return rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil
 }
 
 // GenerateArtifactsIndex lists artifacts and writes index.html and index-prerelease.html
@@ -115,11 +134,11 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
-	rancherKeys, rke2Keys, k3sKeys, err := lister.List(ctx)
+	rancherKeys, rke2Keys, k3sKeys, toolsKeys, err := lister.List(ctx)
 	if err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, ignore)
+	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys, ignore)
 	gaIndex, err := generateArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -134,7 +153,7 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	return os.WriteFile(filepath.Join(outPath, "index-prerelease.html"), preReleaseIndex, 0o644)
 }
 
-func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
+func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Rancher: ArtifactsIndexVersions{
@@ -151,6 +170,10 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, igno
 			},
 			BaseURL:      rancherArtifactsBaseURL,
 			ScansBaseURL: scansBaseURL,
+			Tools: ToolsIndex{
+				Programs:        []string{},
+				ProgramVersions: map[string]ArtifactsIndexVersions{},
+			},
 		},
 		PreRelease: ArtifactsIndexContentGroup{
 			Rancher: ArtifactsIndexVersions{
@@ -167,12 +190,17 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys []string, igno
 			},
 			BaseURL:      rancherArtifactsBaseURL,
 			ScansBaseURL: scansBaseURL,
+			Tools: ToolsIndex{
+				Programs:        []string{},
+				ProgramVersions: map[string]ArtifactsIndexVersions{},
+			},
 		},
 	}
 
 	indexContent.GA.Rancher, indexContent.PreRelease.Rancher = parseVersionsFromKeys(rancherKeys, "rancher/", ignoreVersions)
 	indexContent.GA.RKE2, indexContent.PreRelease.RKE2 = parseVersionsFromKeys(rke2Keys, "rke2/", ignoreVersions)
 	indexContent.GA.K3s, indexContent.PreRelease.K3s = parseVersionsFromKeys(k3sKeys, "k3s/", ignoreVersions)
+	indexContent.GA.Tools, indexContent.PreRelease.Tools = parseToolsFromKeys(toolsKeys, "tools/", ignoreVersions)
 
 	return indexContent
 }
@@ -238,6 +266,75 @@ func stripBuildMeta(version string) string {
 		return version[:i]
 	}
 	return version
+// parseToolsFromKeys parses tools following the <program>/<version>/<file> structure
+func parseToolsFromKeys(keys []string, prefix string, ignoreVersions map[string]bool) (ToolsIndex, ToolsIndex) {
+	gaTemp := make(map[string]map[string][]string)
+	preTemp := make(map[string]map[string][]string)
+
+	for _, key := range keys {
+		if !strings.Contains(key, prefix) {
+			continue
+		}
+		keyParts := strings.Split(strings.TrimPrefix(key, prefix), "/")
+		// Expecting at least <program>/<version>/<file>
+		if len(keyParts) < 3 || keyParts[1] == "" {
+			continue
+		}
+		program := keyParts[0]
+		version := keyParts[1]
+		file := strings.Join(keyParts[2:], "/")
+
+		if _, ok := ignoreVersions[version]; ok {
+			continue
+		}
+
+		if strings.Contains(version, "-") {
+			if preTemp[program] == nil {
+				preTemp[program] = make(map[string][]string)
+			}
+			preTemp[program][version] = append(preTemp[program][version], file)
+		} else {
+			if gaTemp[program] == nil {
+				gaTemp[program] = make(map[string][]string)
+			}
+			gaTemp[program][version] = append(gaTemp[program][version], file)
+		}
+	}
+
+	return buildToolsIndex(gaTemp), buildToolsIndex(preTemp)
+}
+
+func buildToolsIndex(temp map[string]map[string][]string) ToolsIndex {
+	var programs []string
+	for p := range temp {
+		programs = append(programs, p)
+	}
+	sort.Strings(programs)
+
+	ti := ToolsIndex{
+		Programs:        programs,
+		ProgramVersions: make(map[string]ArtifactsIndexVersions),
+	}
+
+	for _, prog := range programs {
+		versionsMap := temp[prog]
+		var versions []string
+		for v := range versionsMap {
+			versions = append(versions, v)
+		}
+		semver.Sort(versions)
+
+		var sortedVersions []string
+		for i := len(versions) - 1; i >= 0; i-- {
+			sortedVersions = append(sortedVersions, versions[i])
+		}
+
+		ti.ProgramVersions[prog] = ArtifactsIndexVersions{
+			Versions:      sortedVersions,
+			VersionsFiles: versionsMap,
+		}
+	}
+	return ti
 }
 
 func generateArtifactsHTML(content ArtifactsIndexContentGroup) ([]byte, error) {
@@ -651,6 +748,41 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 							<li><a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a></li>
 							{{ end }}
 							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
+			</div>
+			<div class="project-tools project">
+				<div class="flex-row">
+					<h2 id="tools" class="project-title"><a class="anchor" href="#tools">#</a>tools</h2>
+					<button onclick="toggleProject('tools')" id="project-tools-expand" class="release-title-expand expand-active">hide</button>
+				</div>
+				<div id="project-tools-releases">
+					{{ range $p_i, $program := .Tools.Programs }}
+					<div class="project-{{ $program }} project" style="margin-left: 20px;">
+						<div class="flex-row">
+							<h3 id="tools-{{ $program }}" class="project-title"><a class="anchor" href="#tools-{{ $program }}">#</a>{{ $program }}</h3>
+							<button onclick="toggleProject('tools-{{ $program }}')" id="project-tools-{{ $program }}-expand" class="release-title-expand expand-active">hide</button>
+						</div>
+						<div id="project-tools-{{ $program }}-releases">
+							{{ $progData := index $.Tools.ProgramVersions $program }}
+							{{ range $i, $version := $progData.Versions }}
+							<div id="tools-{{ $program }}-{{ $version }}" class="release-{{ $version }} release">
+								<div class="flex-row">
+									<a class="anchor" href="#tools-{{ $program }}-{{ $version }}">#</a>
+									<b class="release-title-tag">{{ $version }}</b>
+									<button onclick="toggleFiles('tools-{{ $program }}-{{ $version }}')" id="release-tools-{{ $program }}-{{ $version }}-expand" class="release-title-expand">show</button>
+								</div>
+								<div class="files" id="release-tools-{{ $program }}-{{ $version }}-files">
+									<ul>
+									{{ range index $progData.VersionsFiles $version }}
+									<li><a href="{{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $program }}/{{ $version }}/{{ . }}</a></li>
+									{{ end }}
+									</ul>
+								</div>
+							</div>
+							{{ end }}
 						</div>
 					</div>
 					{{ end }}

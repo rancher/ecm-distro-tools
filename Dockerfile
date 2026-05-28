@@ -126,12 +126,7 @@ RUN zypper update -y && \
         net-tools    && \
     zypper clean --all
 COPY --from=builder /ecm-distro-tools/cmd/backport/bin/backport-${OS}-${ARCH} /usr/local/bin/backport
-COPY --from=builder /ecm-distro-tools/cmd/gen_release_report/bin/gen_release_report-${OS}-${ARCH} /usr/local/bin/gen_release_report
 COPY --from=builder /ecm-distro-tools/cmd/release/bin/release-${OS}-${ARCH} /usr/local/bin/release
-COPY --from=builder /ecm-distro-tools/cmd/rke2_release/bin/rke2_release-${OS}-${ARCH} /usr/local/bin/rke2_release
-COPY --from=builder /ecm-distro-tools/cmd/semv/bin/semv-${OS}-${ARCH} /usr/local/bin/semv
-COPY --from=builder /ecm-distro-tools/cmd/test_coverage/bin/test_coverage-${OS}-${ARCH} /usr/local/bin/test_coverage
-COPY --from=builder /ecm-distro-tools/cmd/upstream_go_version/bin/upstream_go_version-${OS}-${ARCH} /usr/local/bin/upstream_go_version
 COPY --from=builder /usr/local/bin/etcdctl /usr/local/bin
 COPY --from=builder /usr/local/bin/trivy /usr/local/bin
 COPY --from=builder /usr/local/bin/gh /usr/local/bin
