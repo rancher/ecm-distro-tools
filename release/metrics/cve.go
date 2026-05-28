@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	"github.com/sirupsen/logrus"
 )
 
 const reportsFolder = "reports"
@@ -136,6 +137,10 @@ func (r *Reports) buildReportData(minSeverity string) ReportData {
 }
 
 func notifySlackProject(project ProjectReport, minSeverity, webhookURL string) error {
+	if len(project.CVEs) == 0 {
+		logrus.Infof("Skipping notification for '%s', no CVE of severity '%s' or higher found", project.Name, minSeverity)
+		return nil
+	}
 	payload := buildProjectSlackPayload(project, minSeverity)
 
 	body, err := json.Marshal(payload)
