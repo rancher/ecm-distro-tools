@@ -346,8 +346,12 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 	}
 
 	cveFileRegex := regexp.MustCompile(`^report-(harvester|k3s|longhorn|observability-agent|observability|rancher|rke2)-.*-cves\.csv$`)
-	reports := &Reports{}
 
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	reports := &Reports{}
 	for _, item := range directoryContent {
 		if item.GetType() != "file" {
 			continue
@@ -358,7 +362,7 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 			continue
 		}
 
-		cves, err := downloadAndParseCSV(item.GetDownloadURL())
+		cves, err := downloadAndParseCSV(httpClient, item.GetDownloadURL())
 		if err != nil {
 			return nil, fmt.Errorf("failed to process %s: %w", item.GetName(), err)
 		}
@@ -384,8 +388,14 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 	return reports, nil
 }
 
-func downloadAndParseCSV(downloadURL string) ([]CVE, error) {
-	resp, err := http.Get(downloadURL)
+func downloadAndParseCSV(client *http.Client, downloadURL string) ([]CVE, error) {
+
+	req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download csv: %w", err)
 	}
