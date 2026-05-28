@@ -22,6 +22,7 @@ var (
 	endDate    *string
 	format     *string
 	webhookURL *string
+	severity   *string
 )
 
 var repoToOwner = map[string]string{
@@ -104,7 +105,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.CVEsBySeverity("critical", *webhookURL)
+		return reports.CVEsBySeverity(*severity, *webhookURL)
 	},
 }
 
@@ -119,6 +120,7 @@ func init() {
 	endDate = releasesStatsCmd.Flags().StringP("end", "e", "", "end date")
 	format = releasesStatsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
 	webhookURL = cveStatsSubCmd.Flags().StringP("webhook-url", "u", "", "Slack webhook URL for sending messages")
+	severity = cveStatsSubCmd.Flags().StringP("severity", "s", "critical", "severity (critical|high|medium|low)")
 
 	if err := releasesStatsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
