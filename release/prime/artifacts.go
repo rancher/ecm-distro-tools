@@ -392,7 +392,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			.hidden { display: none; overflow: hidden; }
 			.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
 			.flex-row:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
-			.information-block { background-color: #e7f3ff; border-left: 4px solid #2453ff; border-radius: 3px; padding: 15px 20px; margin: 20px 0; color: #333; }
+			.information-block { background-color: #e7f3ff; border-left: 4px solid #2453ff; border-radius: 3px; padding: 15px 20px; margin: 20px auto; color: #333; max-width: 1000px; }
 		</style>
 	</head>
 	<body>
