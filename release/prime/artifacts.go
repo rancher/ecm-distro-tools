@@ -387,13 +387,12 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			.flex-row { display: flex; flex-direction: row; align-items: center; }
 			.project-title { margin-right: 20px; }
 			.release-title-tag { margin-right: 20px; min-width: 70px; }
-			.release-title-expand { background-color: #2453ff; color: white; border-radius: 5px; border: none; max-height: 20px; }
-			.release-title-expand:hover, .expand-active{ background-color: white; color: #2453ff; border: 1px solid #2453ff; }
+			.small-button { background-color: #2453ff; color: white; border-radius: 5px; border: 1px solid  #2453ff; max-height: 20px; }
+			.small-button:hover, .expand-active { background-color: white; color: #2453ff; border: 1px solid #2453ff; }
 			.hidden { display: none; overflow: hidden; }
 			.anchor { opacity:0; margin-right:8px; text-decoration:none; color:dimgray; }
 			.flex-row:hover .anchor, h2:hover .anchor, .anchor:focus { opacity:1; }
-			.inspect-button { background-color: #2453ff; color: white; border-radius: 3px; border: none; padding: 2px 8px; margin-left: 10px; cursor: pointer; font-size: 12px; }
-			.inspect-button:hover { background-color: white; color: #2453ff; border: 1px solid #2453ff; }
+			.information-block { background-color: #e7f3ff; border-left: 4px solid #2453ff; border-radius: 3px; padding: 15px 20px; margin: 20px 0; color: #333; }
 		</style>
 	</head>
 	<body>
@@ -402,10 +401,13 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<h1>PRIME ARTIFACTS</h1>
 		</header>
 		<main>
+			<div class="information-block">
+			<p><b>About this page:</b> This directory lists software artifacts but is not intended for deployment automation or as a source for official release announcements, as artifacts may appear here before a release is fully complete.</p>
+			</div>
 			<div class="project-rancher project">
 				<div class="flex-row">
 					<h2 id="rancher" class="project-title"><a class="anchor" href="#rancher">#</a>rancher</h2>
-					<button onclick="toggleProject('rancher')" id="project-rancher-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('rancher')" id="project-rancher-expand" class="small-button expand-active">hide</button>
 				</div>
 				<div id="project-rancher-releases">
 					{{ range $i, $version := .Rancher.Versions }}
@@ -413,7 +415,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#rancher-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="small-button">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>{{ range index $.Rancher.VersionsFiles $version }}
@@ -421,7 +423,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a>
 								{{ if hasSuffix . "sbom-cyclonedx.json" }}
 								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
-									<button class="inspect-button">inspect</button>
+									<button class="small-button">inspect [beta]</button>
 								</a>
 								{{ end }}
 							</li>
@@ -433,7 +435,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-rke2 project">
 				<div class="flex-row">
 					<h2 id="rke2" class="project-title"><a class="anchor" href="#rke2">#</a>rke2</h2>
-					<button onclick="toggleProject('rke2')" id="project-rke2-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('rke2')" id="project-rke2-expand" class="small-button expand-active">hide</button>
 				</div>
 				<div id="project-rke2-releases">
 					{{ range $i, $version := .RKE2.Versions }}
@@ -441,7 +443,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#rke2-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="small-button">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
@@ -450,7 +452,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<a href="{{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rke2/{{ $version }}/{{ . }}</a>
 								{{ if hasSuffix . "sbom-cyclonedx.json" }}
 								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/rke2/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
-									<button class="inspect-button">inspect</button>
+									<button class="small-button">inspect</button>
 								</a>
 								{{ end }}
 							</li>
@@ -464,7 +466,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-k3s project">
 				<div class="flex-row">
 					<h2 id="k3s" class="project-title"><a class="anchor" href="#k3s">#</a>k3s</h2>
-					<button onclick="toggleProject('k3s')" id="project-k3s-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('k3s')" id="project-k3s-expand" class="small-button expand-active">hide</button>
 				</div>
 				<div id="project-k3s-releases">
 					{{ range $i, $version := .K3s.Versions }}
@@ -472,7 +474,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 						<div class="flex-row">
 							<a class="anchor" href="#k3s-{{ $version }}">#</a>
 							<b class="release-title-tag">{{ $version }}</b>
-							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="release-title-expand">show</button>
+							<button onclick="toggleFiles('{{ $version }}')" id="release-{{ $version }}-expand" class="small-button">show</button>
 						</div>
 						<div class="files" id="release-{{ $version }}-files">
 							<ul>
@@ -481,7 +483,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a>
 								{{ if hasSuffix . "sbom-cyclonedx.json" }}
 								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
-									<button class="inspect-button">inspect</button>
+									<button class="small-button">inspect</button>
 								</a>
 								{{ end }}
 							</li>
@@ -495,14 +497,14 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 			<div class="project-tools project">
 				<div class="flex-row">
 					<h2 id="tools" class="project-title"><a class="anchor" href="#tools">#</a>tools</h2>
-					<button onclick="toggleProject('tools')" id="project-tools-expand" class="release-title-expand expand-active">hide</button>
+					<button onclick="toggleProject('tools')" id="project-tools-expand" class="small-button expand-active">hide</button>
 				</div>
 				<div id="project-tools-releases">
 					{{ range $p_i, $program := .Tools.Programs }}
 					<div class="project-{{ $program }} project" style="margin-left: 20px;">
 						<div class="flex-row">
 							<h3 id="tools-{{ $program }}" class="project-title"><a class="anchor" href="#tools-{{ $program }}">#</a>{{ $program }}</h3>
-							<button onclick="toggleProject('tools-{{ $program }}')" id="project-tools-{{ $program }}-expand" class="release-title-expand expand-active">hide</button>
+							<button onclick="toggleProject('tools-{{ $program }}')" id="project-tools-{{ $program }}-expand" class="small-button expand-active">hide</button>
 						</div>
 						<div id="project-tools-{{ $program }}-releases">
 							{{ $progData := index $.Tools.ProgramVersions $program }}
@@ -511,7 +513,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<div class="flex-row">
 									<a class="anchor" href="#tools-{{ $program }}-{{ $version }}">#</a>
 									<b class="release-title-tag">{{ $version }}</b>
-									<button onclick="toggleFiles('tools-{{ $program }}-{{ $version }}')" id="release-tools-{{ $program }}-{{ $version }}-expand" class="release-title-expand">show</button>
+									<button onclick="toggleFiles('tools-{{ $program }}-{{ $version }}')" id="release-tools-{{ $program }}-{{ $version }}-expand" class="small-button">show</button>
 								</div>
 								<div class="files" id="release-tools-{{ $program }}-{{ $version }}-files">
 									<ul>
@@ -520,7 +522,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 										<a href="{{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/tools/{{ $program }}/{{ $version }}/{{ . }}</a>
 										{{ if hasSuffix . "sbom-cyclonedx.json" }}
 										<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/tools/{{ $program }}/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
-											<button class="inspect-button">inspect</button>
+											<button class="small-button">inspect</button>
 										</a>
 										{{ end }}
 									</li>
