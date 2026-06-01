@@ -49,98 +49,114 @@ func (s SeverityCounts) Total() int {
 	return s.Critical + s.High + s.Medium + s.Low + s.Other
 }
 
-type ProjectReport struct {
-	Name   string
-	CVEs   []CVE
-	Counts SeverityCounts
+// ReleaseReport holds all filtered CVEs for a single project+release pair.
+type ReleaseReport struct {
+	ProjectName string
+	Release     string
+	CVEs        []CVE
+	Counts      SeverityCounts
 }
 
 type ReportData struct {
 	MinSeverity string
-	Projects    []ProjectReport
+	Releases    []ReleaseReport
 	Totals      SeverityCounts
 }
 
-// CVEsBySeverity filters and renders a CVE report, sending one Slack message per project.
+// CVEsBySeverity filters and renders a CVE report, sending one Slack message per release.
 func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string) error {
 	data := r.buildReportData(minSeverity)
 
-	for i, project := range data.Projects {
-		if err := notifySlackProject(project, data.MinSeverity, webhookURL); err != nil {
-			return fmt.Errorf("failed to send message for project %s: %w", project.Name, err)
+	for i, release := range data.Releases {
+		if err := notifySlackRelease(release, data.MinSeverity, webhookURL); err != nil {
+			return fmt.Errorf("failed to send message for %s · %s: %w", release.ProjectName, release.Release, err)
 		}
 
 		// Slack has a rate limit for Incoming Webhooks, of 1 req / sec.
-		if i < len(data.Projects)-1 {
+		if i < len(data.Releases)-1 {
 			time.Sleep(2 * time.Second)
 		}
 	}
 
-	fmt.Println("Successfully sent all project reports to Slack!")
+	fmt.Println("Successfully sent all release reports to Slack!")
 	return nil
 }
 
-// buildReportData filters, sorts, and counts CVEs.
+// buildReportData filters, sorts, and groups CVEs by project and release.
 func (r *Reports) buildReportData(minSeverity string) ReportData {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
-	allProjects := []ProjectReport{
-		{Name: "Harvester", CVEs: r.Harvester},
-		{Name: "K3s", CVEs: r.K3s},
-		{Name: "Longhorn", CVEs: r.Longhorn},
-		{Name: "Observability", CVEs: r.Observability},
-		{Name: "Observability Agent", CVEs: r.ObservabilityAgent},
-		{Name: "Rancher", CVEs: r.Rancher},
-		{Name: "RKE2", CVEs: r.RKE2},
+	allProjects := []struct {
+		name string
+		cves []CVE
+	}{
+		{"Harvester", r.Harvester},
+		{"K3s", r.K3s},
+		{"Longhorn", r.Longhorn},
+		{"Observability", r.Observability},
+		{"Observability Agent", r.ObservabilityAgent},
+		{"Rancher", r.Rancher},
+		{"RKE2", r.RKE2},
 	}
 
 	data := ReportData{MinSeverity: minSeverityDisplay}
 
 	for _, p := range allProjects {
-		var matched []CVE
-		for _, cve := range p.CVEs {
-			// skip any CVE that does not affect the current project
-			if cve.Status == "not_affected" || cve.Status == "under_investigation" {
+		releaseMap := make(map[string][]CVE)
+		var releaseOrder []string
+
+		for _, cve := range p.cves {
+			if cve.Status != "affected" && cve.Status != "under_investigation" {
 				continue
 			}
-			if severityScore(cve.Severity) >= minScore {
-				matched = append(matched, cve)
+			if severityScore(cve.Severity) < minScore {
+				continue
 			}
+			if _, seen := releaseMap[cve.Release]; !seen {
+				releaseOrder = append(releaseOrder, cve.Release)
+			}
+			releaseMap[cve.Release] = append(releaseMap[cve.Release], cve)
 		}
 
-		sort.Slice(matched, func(i, j int) bool {
-			si, sj := severityScore(matched[i].Severity), severityScore(matched[j].Severity)
-			if si != sj {
-				return si > sj
-			}
-			return matched[i].VulnerabilityID < matched[j].VulnerabilityID
-		})
+		for _, release := range releaseOrder {
+			cves := releaseMap[release]
 
-		counts := countSeverities(matched)
+			sort.Slice(cves, func(i, j int) bool {
+				si, sj := severityScore(cves[i].Severity), severityScore(cves[j].Severity)
+				if si != sj {
+					return si > sj
+				}
+				return cves[i].VulnerabilityID < cves[j].VulnerabilityID
+			})
 
-		data.Projects = append(data.Projects, ProjectReport{
-			Name:   p.Name,
-			CVEs:   matched,
-			Counts: counts,
-		})
+			counts := countSeverities(cves)
+			data.Releases = append(data.Releases, ReleaseReport{
+				ProjectName: p.name,
+				Release:     release,
+				CVEs:        cves,
+				Counts:      counts,
+			})
 
-		data.Totals.Critical += counts.Critical
-		data.Totals.High += counts.High
-		data.Totals.Medium += counts.Medium
-		data.Totals.Low += counts.Low
-		data.Totals.Other += counts.Other
+			data.Totals.Critical += counts.Critical
+			data.Totals.High += counts.High
+			data.Totals.Medium += counts.Medium
+			data.Totals.Low += counts.Low
+			data.Totals.Other += counts.Other
+		}
 	}
 
 	return data
 }
 
-func notifySlackProject(project ProjectReport, minSeverity, webhookURL string) error {
-	if len(project.CVEs) == 0 {
-		fmt.Printf("Skipping notification for '%s', no CVE of severity '%s' or higher found\n", project.Name, minSeverity)
+func notifySlackRelease(release ReleaseReport, minSeverity, webhookURL string) error {
+	if len(release.CVEs) == 0 {
+		fmt.Printf("Skipping notification for '%s · %s', no CVE of severity '%s' or higher found\n",
+			release.ProjectName, release.Release, minSeverity)
 		return nil
 	}
-	payload := buildProjectSlackPayload(project, minSeverity)
+
+	payload := buildReleaseSlackPayload(release, minSeverity)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -187,69 +203,117 @@ type slackText struct {
 	Emoji bool   `json:"emoji,omitempty"`
 }
 
-func buildProjectSlackPayload(project ProjectReport, minSeverity string) slackPayload {
+// buildReleaseSlackPayload builds a Slack message for a single project release.
+//
+// Block budget: Slack enforces a hard limit of 50 blocks per payload. With releases
+// that have hundreds of images and thousands of CVEs, emitting one block per image
+// header and per status label would easily blow past that limit.
+//
+// To stay well under 50 blocks we stream all content (image headers, status labels,
+// and CVE lines) into a single text builder and flush it into section blocks only
+// when the 2900-char mrkdwn limit is approached. The result is:
+//
+//	3 fixed blocks (header + summary + divider)
+//	+ ceil(total_content_chars / 2900) content blocks
+//
+// For a release with 1000 CVEs (~60 chars/line ≈ 60 KB), that yields ~24 blocks total.
+func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPayload {
 	var blocks []slackBlock
 
 	blocks = append(blocks,
-		headerBlock(fmt.Sprintf("🔍 %s Vulnerabilities · Min: %s", project.Name, minSeverity)),
+		headerBlock(fmt.Sprintf("🔍 %s · %s  |  Min: %s", release.ProjectName, release.Release, minSeverity)),
 	)
 
-	if project.Counts.Total() == 0 {
+	if release.Counts.Total() == 0 {
 		blocks = append(blocks, sectionBlock("✅  No findings at or above this severity"))
 		return slackPayload{Blocks: blocks}
 	}
 
 	plural := "s"
-	if project.Counts.Total() == 1 {
+	if release.Counts.Total() == 1 {
 		plural = ""
 	}
 
-	summaryLine := fmt.Sprintf("*%d CVE%s* |  🔴 %d CRIT  |  🟠 %d HIGH  |  🟡 %d MED  |  🔵 %d LOW",
-		project.Counts.Total(), plural,
-		project.Counts.Critical, project.Counts.High, project.Counts.Medium, project.Counts.Low)
+	summaryLine := fmt.Sprintf("*%d CVE%s*  |  🔴 %d CRIT  |  🟠 %d HIGH  |  🟡 %d MED  |  🔵 %d LOW",
+		release.Counts.Total(), plural,
+		release.Counts.Critical, release.Counts.High, release.Counts.Medium, release.Counts.Low)
 
 	blocks = append(blocks,
 		sectionBlock(summaryLine),
 		dividerBlock(),
 	)
 
-	// Append chunked CVE blocks to avoid Slack's 3000 character limit
-	blocks = append(blocks, buildCVEBlocks(project.CVEs)...)
+	// Group CVEs by image, sorted alphabetically for deterministic output.
+	imageMap := make(map[string][]CVE)
+	var imageOrder []string
+	for _, cve := range release.CVEs {
+		if _, seen := imageMap[cve.Image]; !seen {
+			imageOrder = append(imageOrder, cve.Image)
+		}
+		imageMap[cve.Image] = append(imageMap[cve.Image], cve)
+	}
+	sort.Strings(imageOrder)
+
+	statusLabel := map[string]string{
+		"affected":            "⚠️ *Affected*",
+		"under_investigation": "🔎 *Under Investigation*",
+	}
+
+	// stream accumulates all CVE content into a single rolling text buffer.
+	// writeLine flushes it into a new section block whenever the mrkdwn limit
+	// is approached, keeping structural labels and CVE lines in the same flow.
+	var stream strings.Builder
+
+	flush := func() {
+		if stream.Len() > 0 {
+			blocks = append(blocks, sectionBlock(stream.String()))
+			stream.Reset()
+		}
+	}
+
+	writeLine := func(line string) {
+		if stream.Len()+len(line) > 2900 {
+			flush()
+		}
+		stream.WriteString(line)
+	}
+
+	for i, image := range imageOrder {
+		writeLine(fmt.Sprintf("*📦 %s*\n", image))
+
+		// Always render affected before under_investigation.
+		for _, status := range []string{"affected", "under_investigation"} {
+			var group []CVE
+			for _, cve := range imageMap[image] {
+				if cve.Status == status {
+					group = append(group, cve)
+				}
+			}
+			if len(group) == 0 {
+				continue
+			}
+
+			writeLine(statusLabel[status] + "\n")
+			for _, cve := range group {
+				writeLine(fmt.Sprintf("%s `%s` %s %s _%s_\n",
+					severityEmoji(cve.Severity),
+					cve.VulnerabilityID,
+					cve.PackageName,
+					cve.PackageVersion,
+					cve.Type,
+				))
+			}
+		}
+
+		// Blank line between images for visual separation, except after the last one.
+		if i < len(imageOrder)-1 {
+			writeLine("\n")
+		}
+	}
+
+	flush()
 
 	return slackPayload{Blocks: blocks}
-}
-
-func buildCVEBlocks(cves []CVE) []slackBlock {
-	var blocks []slackBlock
-	var currentChunk strings.Builder
-
-	for _, cve := range cves {
-		line := fmt.Sprintf("%s  `%s`  %s %s  _%s_",
-			severityEmoji(cve.Severity),
-			cve.VulnerabilityID,
-			cve.PackageName,
-			cve.PackageVersion,
-			cve.Release,
-		)
-		if cve.Status != "" {
-			line += "  ·  " + cve.Status
-		}
-		line += "\n"
-
-		// Slack mrkdwn limit is 3000 chars. We chunk at 2900 to be perfectly safe.
-		if currentChunk.Len()+len(line) > 2900 {
-			blocks = append(blocks, sectionBlock(currentChunk.String()))
-			currentChunk.Reset()
-		}
-		currentChunk.WriteString(line)
-	}
-
-	// Flush the remaining text as the final block
-	if currentChunk.Len() > 0 {
-		blocks = append(blocks, sectionBlock(currentChunk.String()))
-	}
-
-	return blocks
 }
 
 func headerBlock(text string) slackBlock {
@@ -388,7 +452,6 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 }
 
 func downloadAndParseCSV(client *http.Client, downloadURL string) ([]CVE, error) {
-
 	req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
