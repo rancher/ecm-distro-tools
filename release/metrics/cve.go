@@ -355,9 +355,9 @@ type CVE struct {
 	URL             string
 	Target          string
 	PatchedVersion  string
-	Mirrored        bool
 	Status          string
 	Justification   string
+	Mirrored        bool
 }
 
 func countSeverities(cves []CVE) SeverityCounts {
