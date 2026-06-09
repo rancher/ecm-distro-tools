@@ -318,15 +318,30 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 }
 
 func headerBlock(text string) slackBlock {
-	return slackBlock{Type: "header", Text: &slackText{Type: "plain_text", Text: text, Emoji: true}}
+	return slackBlock{
+		Type: "header",
+		Text: &slackText{
+			Type:  "plain_text",
+			Text:  text,
+			Emoji: true,
+		},
+	}
 }
 
 func sectionBlock(text string) slackBlock {
-	return slackBlock{Type: "section", Text: &slackText{Type: "mrkdwn", Text: text}}
+	return slackBlock{
+		Type: "section",
+		Text: &slackText{
+			Type: "mrkdwn",
+			Text: text,
+		},
+	}
 }
 
 func dividerBlock() slackBlock {
-	return slackBlock{Type: "divider"}
+	return slackBlock{
+		Type: "divider",
+	}
 }
 
 type CVE struct {
