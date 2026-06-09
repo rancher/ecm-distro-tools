@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
+	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 )
 
 const reportsFolder = "reports"
@@ -169,7 +170,7 @@ func notifySlackRelease(release ReleaseReport, minSeverity, webhookURL string) e
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := ecmHTTP.NewClient(time.Second * 30)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request to slack: %w", err)
