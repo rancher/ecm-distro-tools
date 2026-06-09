@@ -282,7 +282,10 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 	}
 
 	for i, image := range imageOrder {
-		writeLine(fmt.Sprintf("*📦 %s*\n", image))
+		// this is a workaround to prevent Slack from auto-linking image names as URLs, which breaks the formatting.
+		// inserting a zero-width space after each dot allows the image name to render correctly.
+		safeImage := strings.ReplaceAll(image, ".", ".\u200B")
+		writeLine(fmt.Sprintf("*📦 %s*\n", safeImage))
 
 		// Always render affected before under_investigation.
 		for _, status := range []string{"affected", "under_investigation"} {
