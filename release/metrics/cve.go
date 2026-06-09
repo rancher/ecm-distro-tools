@@ -28,6 +28,8 @@ const (
 	emojiLow      = "🔵"
 )
 
+const csvHeaderCount = 13
+
 type Reports struct {
 	Harvester          []CVE
 	K3s                []CVE
@@ -430,7 +432,7 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 		Timeout: 30 * time.Second,
 	}
 
-	reports := &Reports{}
+	var reports Reports
 	for _, item := range directoryContent {
 		if item.GetType() != "file" {
 			continue
@@ -464,7 +466,7 @@ func CVEsMetrics(ctx context.Context, client *github.Client) (*Reports, error) {
 		}
 	}
 
-	return reports, nil
+	return &reports, nil
 }
 
 func downloadAndParseCSV(client *http.Client, downloadURL string) ([]CVE, error) {
@@ -493,7 +495,7 @@ func downloadAndParseCSV(client *http.Client, downloadURL string) ([]CVE, error)
 		if i == 0 {
 			continue
 		}
-		for len(row) < 13 {
+		for len(row) < csvHeaderCount {
 			row = append(row, "")
 		}
 		mirrored, _ := strconv.ParseBool(row[10])
