@@ -67,8 +67,8 @@ type ReportData struct {
 }
 
 // CVEsBySeverity filters and renders a CVE report, sending one Slack message per release.
-func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string) error {
-	data := r.buildReportData(minSeverity)
+func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string, skipMirrored bool) error {
+	data := r.buildReportData(minSeverity, skipMirrored)
 
 	for i, release := range data.Releases {
 		if err := notifySlackRelease(release, data.MinSeverity, webhookURL); err != nil {
@@ -86,7 +86,7 @@ func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string) error {
 }
 
 // buildReportData filters, sorts, and groups CVEs by project and release.
-func (r *Reports) buildReportData(minSeverity string) ReportData {
+func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportData {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
@@ -110,6 +110,10 @@ func (r *Reports) buildReportData(minSeverity string) ReportData {
 		var releaseOrder []string
 
 		for _, cve := range p.cves {
+			// Skip mirrored images if the 'skipMirrored' flag is set to true.
+			if skipMirrored && (cve.Mirrored || strings.Contains(strings.ToLower(cve.Image), "mirrored")) {
+				continue
+			}
 			if cve.Status != "affected" && cve.Status != "under_investigation" {
 				continue
 			}
