@@ -10,15 +10,16 @@ import (
 )
 
 const (
-	RancherGithubOrganization  = "rancher"
-	RancherRepositoryName      = "rancher"
-	RancherPrimeRepositoryName = "rancher-prime"
-	UIRepositoryName           = "ui"
-	DashboardRepositoryName    = "dashboard"
-	CLIRepositoryName          = "cli"
-	K3sGithubOrganization      = "k3s-io"
-	K3sRepositoryName          = "k3s"
-	K3sK8sRepositoryName       = "kubernetes"
+	RancherGithubOrganization   = "rancher"
+	RancherRepositoryName       = "rancher"
+	RancherPrimeRepositoryName  = "rancher-prime"
+	UIRepositoryName            = "ui"
+	DashboardRepositoryName     = "dashboard"
+	CLIRepositoryName           = "cli"
+	K3sGithubOrganization       = "k3s-io"
+	K3sRepositoryName           = "k3s"
+	K3sK8sRepositoryName        = "kubernetes"
+	ImageScanningRepositoryName = "image-scanning"
 )
 
 const (

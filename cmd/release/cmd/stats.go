@@ -10,16 +10,20 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/rancher/ecm-distro-tools/release"
+	"github.com/rancher/ecm-distro-tools/release/metrics"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
 
 var (
-	repo      *string
-	startDate *string
-	endDate   *string
-	format    *string
+	repo         *string
+	startDate    *string
+	endDate      *string
+	format       *string
+	webhookURL   *string
+	severity     *string
+	skipMirrored *bool
 )
 
 var repoToOwner = map[string]string{
@@ -28,9 +32,16 @@ var repoToOwner = map[string]string{
 	"k3s":     "k3s-io",
 }
 
-// statsCmd represents the stats command
+// statsCmd represents the base stats parent command
 var statsCmd = &cobra.Command{
 	Use:   "stats",
+	Short: "Statistics commands",
+	Long:  `Retrieve various statistics including releases and CVEs.`,
+}
+
+// releasesStatsCmd represents the release statistics command
+var releasesStatsCmd = &cobra.Command{
+	Use:   "releases",
 	Short: "Release statistics",
 	Long:  `Retrieve release statistics for a time period.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,23 +94,50 @@ var statsCmd = &cobra.Command{
 	},
 }
 
+var cveStatsSubCmd = &cobra.Command{
+	Use:   "cve",
+	Short: "CVE statistics command",
+	Long:  `Retrieve CVE statistics from current releases.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		reports, err := metrics.CVEsMetrics(ctx, ghClient)
+		if err != nil {
+			return err
+		}
+
+		return reports.CVEsBySeverity(*severity, *webhookURL, *skipMirrored)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(statsCmd)
 
-	repo = statsCmd.Flags().StringP("repo", "r", "", "repository")
-	startDate = statsCmd.Flags().StringP("start", "s", "", "start date")
-	endDate = statsCmd.Flags().StringP("end", "e", "", "end date")
-	format = statsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
+	statsCmd.AddCommand(releasesStatsCmd)
+	statsCmd.AddCommand(cveStatsSubCmd)
 
-	if err := statsCmd.MarkFlagRequired("repo"); err != nil {
+	repo = releasesStatsCmd.Flags().StringP("repo", "r", "", "repository")
+	startDate = releasesStatsCmd.Flags().StringP("start", "s", "", "start date")
+	endDate = releasesStatsCmd.Flags().StringP("end", "e", "", "end date")
+	format = releasesStatsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
+	webhookURL = cveStatsSubCmd.Flags().StringP("webhook-url", "u", "", "Slack webhook URL for sending messages")
+	severity = cveStatsSubCmd.Flags().StringP("severity", "s", "critical", "severity (critical|high|medium|low)")
+	skipMirrored = cveStatsSubCmd.Flags().BoolP("skip-mirrored", "m", false, "skip mirrored images when calculating CVE statistics")
+
+	if err := releasesStatsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	if err := statsCmd.MarkFlagRequired("start"); err != nil {
+	if err := releasesStatsCmd.MarkFlagRequired("start"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	if err := statsCmd.MarkFlagRequired("end"); err != nil {
+	if err := releasesStatsCmd.MarkFlagRequired("end"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	if err := cveStatsSubCmd.MarkFlagRequired("webhook-url"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
