@@ -64,7 +64,7 @@ runs:
   using: 'composite'
   steps:
     - name: setup ecm-distro-tools
-      uses: rancher/ecm-distro-tools@da9f5b6e258c327660eeab3db97952b612f1cf9f # v0.69.3
+      uses: rancher/ecm-distro-tools@a7a867a6376bf4a1cee397558f3c85393769f069 # v0.69.4
 
     - name: 'Generate config file'
       shell: bash
