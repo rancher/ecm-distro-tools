@@ -64,7 +64,7 @@ Darwin)
 	# Dockerfile.windows: build-env linux kubectl SHA (trailing ";;" is the discriminator)
 	sed -Ei '' "s/KUBECTL_SHA256=\"[a-f0-9]*\" ;;/KUBECTL_SHA256=\"{{ .LinuxKubectlSHA }}\" ;;/" Dockerfile.windows
 	# Dockerfile.windows: Windows binary case statement version key
-	sed -Ei '' "s/{{ replaceAll .RKE2.OldK8sVersion "." "\\." }})/{{ .RKE2.NewK8sVersion }})/" Dockerfile.windows
+	sed -Ei '' "/RUN case/{ n; s/{{ replaceAll .RKE2.OldK8sVersion "." "\\." }}\)/{{ .RKE2.NewK8sVersion }}\)/; }" Dockerfile.windows
 	# Dockerfile.windows: Windows kubectl SHA (trailing "&&" is the discriminator)
 	sed -Ei '' "s/KUBECTL_SHA256=\"[a-f0-9]*\" &&/KUBECTL_SHA256=\"{{ .WindowsKubectlSHA }}\" \&\&/" Dockerfile.windows
 	# Dockerfile.windows: Windows kubelet + kube-proxy SHAs (each appears only once)
@@ -80,7 +80,7 @@ Linux)
 	sed -Ei "s|rancher/hardened-kubernetes:[^ ]*|rancher/hardened-kubernetes:{{ .NewKubernetesImageTag }}|" Dockerfile
 	sed -Ei "s/^RUN KUBECTL_VERSION=v[0-9][0-9.]*/RUN KUBECTL_VERSION={{ .RKE2.NewK8sVersion }}/" Dockerfile.windows
 	sed -Ei "s/KUBECTL_SHA256=\"[a-f0-9]*\" ;;/KUBECTL_SHA256=\"{{ .LinuxKubectlSHA }}\" ;;/" Dockerfile.windows
-	sed -Ei "s/{{ replaceAll .RKE2.OldK8sVersion "." "\\." }})/{{ .RKE2.NewK8sVersion }})/" Dockerfile.windows
+	sed -Ei "/RUN case/{ n; s/{{ replaceAll .RKE2.OldK8sVersion "." "\\." }}\)/{{ .RKE2.NewK8sVersion }}\)/; }" Dockerfile.windows
 	sed -Ei "s/KUBECTL_SHA256=\"[a-f0-9]*\" &&/KUBECTL_SHA256=\"{{ .WindowsKubectlSHA }}\" \&\&/" Dockerfile.windows
 	sed -Ei "s/KUBELET_SHA256=\"[a-f0-9]*/KUBELET_SHA256=\"{{ .WindowsKubeletSHA }}/" Dockerfile.windows
 	sed -Ei "s/KUBE_PROXY_SHA256=\"[a-f0-9]*/KUBE_PROXY_SHA256=\"{{ .WindowsKubeProxySHA }}/" Dockerfile.windows
