@@ -100,15 +100,6 @@ var cveStatsSubCmd = &cobra.Command{
 	Long:  `Retrieve CVE statistics from current releases.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-
-		if rootConfig.Auth.GithubToken == "" {
-			ghToken := os.Getenv("GITHUB_TOKEN")
-			if ghToken == "" {
-				return errors.New("GITHUB_TOKEN env is empty")
-			}
-			rootConfig.Auth.GithubToken = ghToken
-		}
-
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 		reports, err := metrics.CVEsMetrics(ctx, ghClient)
 		if err != nil {
