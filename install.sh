@@ -6,9 +6,11 @@ TMP_DIR=""
 REPO_NAME="ecm-distro-tools"
 REPO_URL="https://github.com/rancher/${REPO_NAME}"
 REPO_RELEASE_URL="${REPO_URL}/releases"
-INSTALL_DIR="$HOME/.local/bin/ecm-distro-tools"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin/ecm-distro-tools}"
 SUFFIX=""
 DOWNLOADER=""
+USE_SUDO="${USE_SUDO:-false}"
+SUDO=""
 
 
 # setup_arch set arch and suffix fatal if architecture not supported.
@@ -86,14 +88,27 @@ install_binaries() {
     cd "${TMP_DIR}"
     tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
     rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
-    mkdir -p "${INSTALL_DIR}"
+
+    if [ "${USE_SUDO}" = "true" ]; then
+        SUDO="sudo"
+    fi
+
+    # Check if install directory exists, create it if USE_SUDO is false
+    if [ ! -d "${INSTALL_DIR}" ]; then
+        if [ "${USE_SUDO}" = "true" ]; then
+            echo "Error: Install directory ${INSTALL_DIR} does not exist"
+            exit 1
+        else
+            mkdir -p "${INSTALL_DIR}"
+        fi
+    fi
 
     for f in * ; do
       file_name="${f}"
       if echo "${f}" | grep -q "${SUFFIX}"; then
         file_name=${file_name%"-${SUFFIX}"}
       fi
-      cp "${TMP_DIR}/${f}" "${INSTALL_DIR}/${file_name}"
+      ${SUDO} cp "${TMP_DIR}/${f}" "${INSTALL_DIR}/${file_name}"
     done
 }
 
