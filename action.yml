@@ -18,10 +18,19 @@ runs:
       TAG: ${{ inputs.version }}
     run: |
       INSTALL_SCRIPT_PATH="${RUNNER_TEMP}/install.sh"
-      INSTALL_DIR="$HOME/.local/bin/ecm-distro-tools"
 
       wget -O "${INSTALL_SCRIPT_PATH}" "https://raw.githubusercontent.com/rancher/ecm-distro-tools/${INSTALL_SCRIPT_TAG}/install.sh"
-      chmod +x "${INSTALL_SCRIPT_PATH}" 
+      chmod +x "${INSTALL_SCRIPT_PATH}"
+
+      # Use /usr/local/bin with sudo if available (already in PATH on GitHub runners)
+      if command -v sudo >/dev/null 2>&1; then
+        export INSTALL_DIR="/usr/local/bin"
+        export USE_SUDO=true
+        echo "Installing to ${INSTALL_DIR} using sudo"
+      else
+        export INSTALL_DIR="$HOME/.local/bin/ecm-distro-tools"
+        export USE_SUDO=false
+        echo "Installing to ${INSTALL_DIR}"
+      fi
+
       ${INSTALL_SCRIPT_PATH} ${TAG}
-      echo "${INSTALL_DIR}" >> "${GITHUB_PATH}"
-      ls -al "${INSTALL_DIR}"
