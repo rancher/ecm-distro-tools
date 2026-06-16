@@ -73,5 +73,12 @@ func initConfig() {
 		}
 	}
 
+	if conf.Auth.GithubToken == "" {
+		ghToken := os.Getenv("GITHUB_TOKEN")
+		if ghToken != "" {
+			conf.Auth.GithubToken = ghToken
+		}
+	}
+
 	rootConfig = conf
 }
