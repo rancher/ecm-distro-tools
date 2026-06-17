@@ -31,7 +31,7 @@ const (
 	imageBuildBaseRepo   = "image-build-base"
 	updateRKE2ScriptName = "update_rke2_references.sh"
 
-	updateRke2ReferencesScript = `#!/bin/bash
+	updateRke2ReferencesScript = `#!/bin/sh
 set -ex
 OS=$(uname -s)
 DRY_RUN={{ .RKE2.DryRun }}
@@ -42,7 +42,7 @@ cd {{ .RKE2.Workspace }}/rke2
 git remote -v | grep -w upstream || git remote add upstream https://github.com/{{ .RKE2.RKE2RepoOwner }}/{{ .RKE2.RKE2RepoName }}.git
 git fetch upstream
 git stash
-git branch -D "${BRANCH_NAME}" &>/dev/null || true
+git branch -D "${BRANCH_NAME}" >/dev/null 2>&1 || true
 git checkout -B "${BRANCH_NAME}" upstream/{{ .RKE2.ReleaseBranch }}
 git clean -xfd
 
