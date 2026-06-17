@@ -148,7 +148,7 @@ func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r
 	r.NewGoVersion = goVersion
 
 	fmt.Println("getting kubernetes image tag from rancher/image-build-kubernetes")
-	kubernetesImageTag, err := getKubernetesImageTag(ctx, ghClient, r.NewK8sVersion, r.NewSuffix)
+	kubernetesImageTag, err := kubernetesImageTag(ctx, ghClient, r.NewK8sVersion, r.NewSuffix)
 	if err != nil {
 		return err
 	}
@@ -220,10 +220,10 @@ func createRKE2ReferencesPR(ctx context.Context, ghClient *github.Client, r *ecm
 	return err
 }
 
-// getKubernetesImageTag queries the rancher/image-build-kubernetes GitHub
 // releases and returns the first (most recent) tag that contains both the
+// kubernetesImageTag queries the rancher/image-build-kubernetes GitHub
 // Kubernetes version and the RKE2 suffix, e.g. "v1.36.2-rke2r1-build20260612".
-func getKubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion, suffix string) (string, error) {
+func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion, suffix string) (string, error) {
 	searchStr := k8sVersion + "-" + suffix
 
 	opts := &github.ListOptions{
