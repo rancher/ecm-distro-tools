@@ -224,7 +224,7 @@ func createRKE2ReferencesPR(ctx context.Context, ghClient *github.Client, r *ecm
 // kubernetesImageTag queries the rancher/image-build-kubernetes GitHub
 // Kubernetes version and the RKE2 suffix, e.g. "v1.36.2-rke2r1-build20260612".
 func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion, suffix string) (string, error) {
-	searchStr := k8sVersion + "-" + suffix
+	version := k8sVersion + "-" + suffix
 
 	opts := &github.ListOptions{
 		PerPage: 100,
@@ -237,7 +237,7 @@ func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion
 		}
 
 		for _, r := range releases {
-			if r.TagName != nil && strings.Contains(*r.TagName, searchStr) {
+			if r.TagName != nil && strings.Contains(*r.TagName, version) {
 				return *r.TagName, nil
 			}
 		}
@@ -248,7 +248,7 @@ func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion
 		opts.Page = resp.NextPage
 	}
 
-	return "", fmt.Errorf("no %s/%s release found containing %q", config.RancherGithubOrganization, config.ImageBuildKubernetesRepositoryName, searchStr)
+	return "", fmt.Errorf("no %s/%s release found containing %q", config.RancherGithubOrganization, config.ImageBuildKubernetesRepositoryName, version)
 }
 
 // fetchSHA downloads a .sha256 file and returns the hex digest.
