@@ -114,11 +114,11 @@ func Push(ctx context.Context, conf *config.ChartsRelease, user *config.User, gh
 
 	// create a new PR
 	pr := &github.NewPullRequest{
-		Title:               github.String("[" + branch + "] batch release"),
-		Base:                github.String(branch),
-		Head:                github.String(h.Name().Short()),
-		Body:                github.String(chartsReleasePRBody),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new("[" + branch + "] batch release"),
+		Base:                new(branch),
+		Head:                new(h.Name().Short()),
+		Body:                new(chartsReleasePRBody),
+		MaintainerCanModify: new(true),
 	}
 
 	// debug mode

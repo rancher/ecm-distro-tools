@@ -133,10 +133,10 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		newRelease := &github.RepositoryRelease{
-			TagName:         github.Ptr(imageBuildTag),
-			TargetCommitish: github.Ptr("master"),
-			Name:            github.Ptr(imageBuildTag),
-			Draft:           github.Ptr(false),
+			TagName:         new(imageBuildTag),
+			TargetCommitish: new("master"),
+			Name:            new(imageBuildTag),
+			Draft:           new(false),
 		}
 
 		if dryrun {

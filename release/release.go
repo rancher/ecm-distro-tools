@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -991,6 +992,23 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 	}
 
 	return chartsData, nil
+}
+
+func SetWorkspace(dir string) error {
+	fmt.Println("verifying if workspace dir exists")
+	if _, err := os.Stat(dir); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
+		fmt.Println("workspace '" + dir + "' doesn't exist, creating it")
+
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var changelogTemplate = `

@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/rancher"
+	"github.com/rancher/ecm-distro-tools/release/rke2"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,34 @@ var updateK3sReferencesCmd = &cobra.Command{
 		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 
 		return k3s.UpdateK3sReferences(ctx, ghClient, &k3sRelease, rootConfig.User)
+	},
+}
+
+var updateRKE2Cmd = &cobra.Command{
+	Use:   "rke2",
+	Short: "Update rke2 files",
+}
+
+var updateRKE2ReferencesCmd = &cobra.Command{
+	Use:   "references [version]",
+	Short: "Update k8s, k3s and Go references in a rke2 repo and create a PR",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+
+		version := args[0]
+
+		rke2Release, found := rootConfig.RKE2.Versions[version]
+		if !found {
+			return NewVersionNotFoundError(version, "rke2")
+		}
+
+		ctx := context.Background()
+
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+
+		return rke2.UpdateRKE2References(ctx, ghClient, &rke2Release, rootConfig.User)
 	},
 }
 
@@ -337,6 +366,8 @@ func init() {
 	updateRancherCmd.AddCommand(updateRancherDashboardCmd)
 	updateRancherCmd.AddCommand(updateRancherCLICmd)
 	updateCmd.AddCommand(updateCLICmd)
+	updateCmd.AddCommand(updateRKE2Cmd)
+	updateRKE2Cmd.AddCommand(updateRKE2ReferencesCmd)
 }
 
 func validateChartConfig() error {

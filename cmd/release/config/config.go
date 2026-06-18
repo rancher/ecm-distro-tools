@@ -32,6 +32,8 @@ const (
 	ImageBuildBaseRepositoryURL    = "https://github.com/rancher/image-build-base"
 	ImageBuildBaseRepositoryGitURI = "git@github.com:rancher/image-build-base.git"
 
+	ImageBuildKubernetesRepositoryName = "image-build-kubernetes"
+
 	K3sKubernetesRepositoryURL = "https://github.com/k3s-io/kubernetes"
 	K3sKubernetesGitURI        = "git@github.com:k3s-io/kubernetes.git"
 
@@ -95,10 +97,15 @@ type RKE2Release struct {
 	NewK8sVersion string `json:"new_k8s_version"`
 	OldSuffix     string `json:"old_suffix"`
 	NewSuffix     string `json:"new_suffix"`
+	K3sSuffix     string `json:"k3s_suffix"` // defaults to k3s1
 	ReleaseBranch string `json:"release_branch"`
 	RKE2RepoOwner string `json:"rke2_repo_owner"`
 	RKE2RepoName  string `json:"rke2_repo_name"`
+	Workspace     string `json:"workspace"`
 	DryRun        bool   `json:"dry_run"`
+
+	// Templating fields
+	NewGoVersion string `json:"-"`
 }
 
 // RancherRelease

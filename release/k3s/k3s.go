@@ -132,16 +132,8 @@ func writeTagsFile(r *ecmConfig.K3sRelease, tags []string) error {
 func setupK8sRemotes(r *ecmConfig.K3sRelease, u *ecmConfig.User, sshKeyPath string) error {
 	k8sDir := filepath.Join(r.Workspace, "kubernetes")
 
-	fmt.Println("verifying if the k8s dir already exists: " + k8sDir)
-	if _, err := os.Stat(r.Workspace); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		fmt.Println("dir doesn't exists, creating")
-		if err := os.MkdirAll(r.Workspace, 0o755); err != nil {
-			return err
-		}
+	if err := release.SetWorkspace(k8sDir); err != nil {
+		return err
 	}
 
 	// clone the repo
@@ -584,17 +576,8 @@ func UpdateK3sReferences(ctx context.Context, ghClient *github.Client, r *ecmCon
 }
 
 func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
-	fmt.Println("verifying if workspace dir exists")
-	if _, err := os.Stat(r.Workspace); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		fmt.Println("workspace dir doesn't exists, creating it")
-
-		if err := os.MkdirAll(r.Workspace, 0o755); err != nil {
-			return err
-		}
+	if err := release.SetWorkspace(r.Workspace); err != nil {
+		return err
 	}
 
 	fmt.Println("getting k8s go version")
@@ -620,10 +603,10 @@ func createK3sReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmC
 	const repo = "k3s"
 
 	pull := &github.NewPullRequest{
-		Title:               github.String(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
-		Base:                github.String(r.ReleaseBranch),
-		Head:                github.String(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
-		MaintainerCanModify: github.Bool(true),
+		Title:               new(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
+		Base:                new(r.ReleaseBranch),
+		Head:                new(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch
