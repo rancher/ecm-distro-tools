@@ -31,10 +31,10 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 	tag += fmt.Sprintf("-build%d%02d%02d", now.Year(), now.Month(), now.Day())
 
 	newReleaseOpts := &github.RepositoryRelease{
-		TagName:         github.Ptr(tag),
-		TargetCommitish: github.Ptr(targetCommitish),
-		Name:            github.Ptr(tag),
-		Draft:           github.Ptr(false),
+		TagName:         new(tag),
+		TargetCommitish: new(targetCommitish),
+		Name:            new(tag),
+		Draft:           new(false),
 	}
 
 	if dryrun {

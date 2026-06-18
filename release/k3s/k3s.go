@@ -603,10 +603,10 @@ func createK3sReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmC
 	const repo = "k3s"
 
 	pull := &github.NewPullRequest{
-		Title:               github.Ptr(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
-		Base:                github.Ptr(r.ReleaseBranch),
-		Head:                github.Ptr(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
-		MaintainerCanModify: github.Ptr(true),
+		Title:               new(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
+		Base:                new(r.ReleaseBranch),
+		Head:                new(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
+		MaintainerCanModify: new(true),
 	}
 
 	// creating a pr from your fork branch
