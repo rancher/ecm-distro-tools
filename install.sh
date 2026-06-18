@@ -93,14 +93,10 @@ install_binaries() {
         SUDO="sudo"
     fi
 
-    # Check if install directory exists, create it if USE_SUDO is false
+    # Check if install directory exists
     if [ ! -d "${INSTALL_DIR}" ]; then
-        if [ "${USE_SUDO}" = "true" ]; then
-            echo "Error: Install directory ${INSTALL_DIR} does not exist"
-            exit 1
-        else
-            mkdir -p "${INSTALL_DIR}"
-        fi
+      echo "Error: Install directory ${INSTALL_DIR} does not exist"
+      exit 1
     fi
 
     for f in * ; do
