@@ -115,7 +115,7 @@ install_binaries() {
     fi
 
     if [ -z "$RELEASE_VERSION" ]; then
-        RELEASE_VERSION="v0.74.3"
+        RELEASE_VERSION="v0.74.4"
     fi
 
     echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"
