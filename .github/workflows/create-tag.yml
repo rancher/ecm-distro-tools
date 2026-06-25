@@ -13,6 +13,22 @@ jobs:
     name: "Create tag"
     runs-on: ubuntu-latest
     steps:
+      - name: Check user permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          PERMISSION=$(gh api "/repos/$REPO/collaborators/$ACTOR/permission" --jq '.permission')
+          echo "User $ACTOR has permission level: $PERMISSION"
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
+            echo "Error: User $ACTOR does not have sufficient permissions"
+            echo "Required: write, maintain, or admin permission"
+            echo "Current: $PERMISSION"
+            exit 1
+          fi
+          echo "Permission check passed"
+
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
