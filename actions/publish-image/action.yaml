@@ -221,7 +221,7 @@ runs:
   - name: Install slsactl
     uses: rancherlabs/slsactl/actions/install-slsactl@ddd4735b474ca57fac67c5a0a0d36d0a4624ac87 # v0.1.35
     with:
-      version: v0.1.33
+      version: v0.1.35
 
   - name: Build and push image [Prime]
     id: push-prime
