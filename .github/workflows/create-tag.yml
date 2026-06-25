@@ -28,13 +28,13 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          sed -i 's/RELEASE_VERSION="v[0-9]\+\.[0-9]\+\.[0-9]\+"/RELEASE_VERSION="'"$TAG"'"/' install.sh
+          sed -i 's/RELEASE_VERSION="[^"]*"/RELEASE_VERSION="'"$TAG"'"/' install.sh
           if git diff --quiet install.sh; then
             echo "No changes to install.sh"
           else
             git add install.sh
             git commit -m "Update install.sh default version to $TAG"
-            git push origin HEAD
+            git push origin "refs/heads/$GITHUB_REF_NAME"
             echo "Updated install.sh default version to $TAG"
           fi
 
@@ -42,10 +42,10 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Error: Tag $TAG already exists"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Error: Tag $TAG already exists on remote"
             exit 1
           fi
           git tag "$TAG"
-          git push origin "$TAG"
+          git push origin "refs/tags/$TAG"
           echo "Successfully created and pushed tag: $TAG"
