@@ -24,6 +24,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Update install.sh version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          sed -i 's/RELEASE_VERSION="v[0-9]\+\.[0-9]\+\.[0-9]\+"/RELEASE_VERSION="'"$TAG"'"/' install.sh
+          if git diff --quiet install.sh; then
+            echo "No changes to install.sh"
+          else
+            git add install.sh
+            git commit -m "Update install.sh default version to $TAG"
+            git push origin HEAD
+            echo "Updated install.sh default version to $TAG"
+          fi
+
       - name: Create and push tag
         env:
           TAG: ${{ inputs.tag }}
