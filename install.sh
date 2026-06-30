@@ -114,8 +114,8 @@ install_binaries() {
         RELEASE_VERSION=${ECM_VERSION}
     fi
 
-    if [ -z "$RELEASE_VERSION" ]; then 
-        RELEASE_VERSION=$(basename "$(curl -Ls -o /dev/null -w %\{url_effective\} https://github.com/rancher/ecm-distro-tools/releases/latest)")
+    if [ -z "${RELEASE_VERSION}" ]; then
+        RELEASE_VERSION="v0.74.3"
     fi
 
     echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"

@@ -1,0 +1,67 @@
+name: Create ECM Distro Tools Tag
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name (e.g., v1.0.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  create-tag:
+    name: "Create tag"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check user permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          PERMISSION=$(gh api "/repos/$REPO/collaborators/$ACTOR/permission" --jq '.permission')
+          echo "User $ACTOR has permission level: $PERMISSION"
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
+            echo "Error: User $ACTOR does not have sufficient permissions"
+            echo "Required: write, maintain, or admin permission"
+            echo "Current: $PERMISSION"
+            exit 1
+          fi
+          echo "Permission check passed"
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update install.sh version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          sed -i 's/RELEASE_VERSION="[^"]*"/RELEASE_VERSION="'"$TAG"'"/' install.sh
+          if git diff --quiet install.sh; then
+            echo "No changes to install.sh"
+          else
+            git add install.sh
+            git commit -m "Update install.sh default version to $TAG"
+            git push origin "refs/heads/$GITHUB_REF_NAME"
+            echo "Updated install.sh default version to $TAG"
+          fi
+
+      - name: Create and push tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Error: Tag $TAG already exists on remote"
+            exit 1
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+          echo "Successfully created and pushed tag: $TAG"
