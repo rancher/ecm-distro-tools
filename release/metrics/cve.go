@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v88/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 )
