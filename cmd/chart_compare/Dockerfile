@@ -4,8 +4,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     libcurl4-openssl-dev \
-    libyaml-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libyaml-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
