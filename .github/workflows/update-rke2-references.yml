@@ -22,6 +22,7 @@ jobs:
       - name: "Checkout `ecm-config.json`"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          persist-credentials: false
           sparse-checkout: |
             ecm-config.json
 
@@ -34,10 +35,14 @@ jobs:
 
       - name: "Generate GitHub App token"
         id: generate-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ env.APP_ID }}
           private-key: ${{ env.PRIVATE_KEY }}
+          repositories: rancher/rke2
+
+          permission-pull-requests: write
+          permission-contents: write
 
       - name: "Configure git to use HTTPS instead of SSH"
         env:
