@@ -11,10 +11,11 @@ WORKDIR /app
 
 RUN git clone --depth 1 https://github.com/briandowns/librattler && \
     cd librattler && \
-    make && make install
+    make && make install && \
+    ldconfig
 
 COPY . /app
 
 RUN make
 
-CMD ["bin//chart_compare"]
+CMD ["bin/chart_compare"]
