@@ -1,0 +1,74 @@
+name: Update k3s References
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: choice
+        description: 'targetted k3s version'
+        required: true
+        options:
+          - "v1.33.13"
+          - "v1.34.9"
+          - "v1.35.6"
+          - "v1.36.2"
+
+jobs:
+  update-references:
+    name: "Update K3s References"
+    permissions:
+      id-token: write
+    runs-on: runs-on,runner=16cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
+    steps:
+      - name: "Checkout `ecm-config.json`"
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            ecm-config.json
+
+      - name: "Read Secrets"
+        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
+        with:
+          secrets: |
+            secret/data/github/repo/rancher/${{ github.repository }}/github/app-credentials appId | APP_ID ;
+            secret/data/github/repo/rancher/${{ github.repository }}/github/app-credentials privateKey | PRIVATE_KEY ;
+
+      - name: "Generate GitHub App token"
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.PRIVATE_KEY }}
+          repositories: k3s-io/k3s
+
+          permission-pull-requests: write
+          permission-contents: write
+
+      - name: "Configure git to use HTTPS instead of SSH"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global user.name "eio-github-actions-power-enhancer[bot]"
+          git config --global user.email "eio-github-actions-power-enhancer[bot]@users.noreply.github.com"
+
+      - name: "Setup `ecm-distro-tools` CLI"
+        uses: rancher/ecm-distro-tools@016551c414f82e64af8c4c18315ea3093d10be7c # v0.74.3
+
+      - name: "Generate `{{ inputs.version }}` Tags list"
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: release generate k3s tags ${VERSION}
+
+      - name: "Push `{{ inputs.version }}` Kubernetes Tags"
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: release push k3s tags ${VERSION}
+
+      - name: "Open `k3s-io/k3s` PR Updating `{{ inputs.version }}` References"
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: release update k3s references ${VERSION}
