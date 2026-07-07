@@ -454,7 +454,7 @@ main(int argc, char **argv)
         "The charts branch defaults to the rancher branch with '/'\n"
         "replaced by '-' (release/v2.14 -> release-v2.14); override\n"
         "with --charts-branch.");
-    compare->run = compare_cmd;
+    compare->cmd = compare_cmd;
     rattler_set_args(compare, 1, 1);
     rattler_flags_string(compare, "charts-branch", 'c', "",
         "override the derived rancher/charts branch");
