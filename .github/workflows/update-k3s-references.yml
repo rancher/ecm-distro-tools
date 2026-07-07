@@ -2,19 +2,34 @@ name: Update k3s References
 on:
   workflow_dispatch:
     inputs:
-      version:
-        type: choice
-        description: 'targetted k3s version'
+      versions:
+        type: string
+        description: 'targetted k3s versions separated by commas (e.g. v1.33.13,v1.34.9,v1.35.6,v1.36.2)'
         required: true
-        options:
-          - "v1.33.13"
-          - "v1.34.9"
-          - "v1.35.6"
-          - "v1.36.2"
 
 jobs:
+  define-matrix:
+    name: "Define Matrix"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    permissions: {}
+    steps:
+      - name: "Set Matrix"
+        id: set-matrix
+        env:
+          VERSIONS: ${{ github.event.inputs.version }}
+        run: |
+          # jq splits the string into a valid JSON array
+          JSON_ARRAY=$(echo "$VERSIONS" | jq -R 'split(",")' -c)
+          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+
   update-references:
-    name: "Update K3s References"
+    name: "Update K3s ${{ matrix.version }} References"
+    needs: define-matrix
+    strategy:
+      matrix:
+        version: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
     permissions:
       id-token: write
     runs-on: runs-on,runner=16cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
@@ -55,20 +70,20 @@ jobs:
       - name: "Setup `ecm-distro-tools` CLI"
         uses: rancher/ecm-distro-tools@016551c414f82e64af8c4c18315ea3093d10be7c # v0.74.3
 
-      - name: "Generate `{{ inputs.version }}` Tags list"
+      - name: "Generate Tags list"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ matrix.version }}
         run: release generate k3s tags ${VERSION}
 
-      - name: "Push `{{ inputs.version }}` Kubernetes Tags"
+      - name: "Push Kubernetes Tags"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ matrix.version }}
         run: release push k3s tags ${VERSION}
 
-      - name: "Open `k3s-io/k3s` PR Updating `{{ inputs.version }}` References"
+      - name: "Open `k3s-io/k3s` PR Updating References"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ matrix.version }}
         run: release update k3s references ${VERSION}
