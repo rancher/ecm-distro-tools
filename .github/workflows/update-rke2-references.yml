@@ -3,18 +3,30 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        type: choice
-        description: 'targetted RKE2 version'
+        type: string
+        description: 'targetted RKE2 versions separated by commas (e.g. v1.33.13,v1.34.9,v1.35.6,v1.36.2)'
         required: true
-        options:
-          - "v1.33.13"
-          - "v1.34.9"
-          - "v1.35.6"
-          - "v1.36.2"
 
 jobs:
+  define-matrix:
+    name: "Define Matrix"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: "Set Matrix"
+        id: set-matrix
+        run: |
+          # jq splits the string into a valid JSON array
+          JSON_ARRAY=$(echo "${{ github.event.inputs.versions }}" | jq -R 'split(",")' -c)
+          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+
   update-references:
-    name: "Update RKE2 References"
+    name: "Update RKE2 ${{ matrix.version }} References"
+    needs: define-matrix
+    strategy:
+      matrix:
+        version: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
     permissions:
       id-token: write
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
@@ -55,8 +67,8 @@ jobs:
       - name: "Setup `ecm-distro-tools` CLI"
         uses: rancher/ecm-distro-tools@016551c414f82e64af8c4c18315ea3093d10be7c # v0.74.3
 
-      - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
+      - name: "Open `rancher/rke2` PR Updating References"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ matrix.version }}
         run: release update rke2 references ${VERSION}
