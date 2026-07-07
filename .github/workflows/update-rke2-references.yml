@@ -13,12 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+    permissions: {}
     steps:
       - name: "Set Matrix"
         id: set-matrix
+        env:
+          VERSIONS: ${{ github.event.inputs.version }}
         run: |
           # jq splits the string into a valid JSON array
-          JSON_ARRAY=$(echo "${{ github.event.inputs.versions }}" | jq -R 'split(",")' -c)
+          JSON_ARRAY=$(echo "$VERSIONS" | jq -R 'split(",")' -c)
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
   update-references:
