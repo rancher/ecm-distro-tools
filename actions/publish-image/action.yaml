@@ -153,6 +153,12 @@ inputs:
     type: string
     default: ""
 
+  sign-image:
+    description: |
+      Indicates whether the image should be signed and attested using Cosign and slsactl.
+    default: true
+    type: boolean
+
 runs:
   using: composite
 
@@ -248,11 +254,15 @@ runs:
       IDENTITY_REGISTRY=${IDENTITY_REGISTRY:-"$REGISTRY"}
       IDENTITY="$IDENTITY_REGISTRY/${PRIME_REPO}/${DOCKER_IMAGE}"
 
-      cosign sign \
-        --oidc-provider=github-actions \
-        --yes \
-        --sign-container-identity="$IDENTITY" \
-        "${IMG_NAME}"
+      if [[ "${SIGN_IMAGE}" == "true" ]]; then
+        cosign sign \
+          --oidc-provider=github-actions \
+          --yes \
+          --sign-container-identity="$IDENTITY" \
+          "${IMG_NAME}"
+      else
+        echo "Skipping signing of image ${IMG_NAME} as sign-image is set to false"
+      fi
 
       echo "IMG_NAME=${IMG_NAME}" >> "${GITHUB_OUTPUT}"
     env:
@@ -265,6 +275,7 @@ runs:
       PRIME_REPO: ${{ inputs.prime-repo }}
       PRIME_MAKE_TARGET: ${{ steps.make-targets.outputs.PRIME_MAKE_TARGET }}
       DOCKER_IMAGE: ${{ inputs.image }}
+      SIGN_IMAGE: ${{ inputs.sign-image }}
 
   - name: Build and push image [Public]
     shell: bash
@@ -290,7 +301,7 @@ runs:
 
   - name: Attest provenance
     shell: bash
-    if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
+    if: ${{ (inputs.push-to-prime == true || inputs.push-to-prime == 'true') && (inputs.sign-image == true || inputs.sign-image == 'true') }}
     run: |
       max_retries=3
       retry_delay=5
