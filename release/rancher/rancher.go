@@ -404,19 +404,19 @@ func ImagesLocations(username, password string, concurrencyLimit int, checkImage
 
 	missingFromTarget, err := MissingImagesFromRegistry(username, password, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check missing images from target registry: %w", err)
 	}
 
 	lastMissingImages := missingFromTarget
 	for _, registry := range imagesRegiestries {
 		missingFromRegistry, err := MissingImagesFromRegistry(username, password, registry, concurrencyLimit, lastMissingImages, ignoreImages)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to check missing images from registry: %w", err)
 		}
 
 		imagesLocations[registry], err = imagesDiff(lastMissingImages, missingFromRegistry)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to calculate image diff for registry: %w", err)
 		}
 
 		lastMissingImages = missingFromRegistry
@@ -434,7 +434,7 @@ func ImagesLocations(username, password string, concurrencyLimit int, checkImage
 func imagesDiff(source, compare []string) ([]string, error) {
 	cm, err := imageSliceToMap(compare, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create map from compare images: %w", err)
 	}
 
 	diff := make([]string, 0)
@@ -453,7 +453,7 @@ func imagesDiff(source, compare []string) ([]string, error) {
 func MissingImagesFromRegistry(username, password, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
 	ignore, err := imageSliceToMap(ignoreImages, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create ignore list from ignoreImages: %w", err)
 	}
 
 	// create an error group with a limit to prevent accidentaly doing a DOS attack against our registry
@@ -476,7 +476,7 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
 		if err != nil {
 			cancel()
-			return nil, err
+			return nil, fmt.Errorf("failed to split image and version: %w", err)
 		}
 
 		if _, ok := ignore[image]; ok {
@@ -502,7 +502,7 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 						auth, err = registryAuth(rgInfo.AuthURL, rgInfo.Service, image, username, password)
 						if err != nil {
 							cancel()
-							return err
+							return fmt.Errorf("failed to authenticate with registry: %w", err)
 						}
 						repositoryAuths[image] = auth
 					}
@@ -511,7 +511,7 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 					exists, err := checkIfImageExists(rgInfo.BaseURL, image, imageVersion, auth)
 					if err != nil {
 						cancel()
-						return err
+						return fmt.Errorf("failed to check if image exists: %w", err)
 					}
 
 					fullImage := image + ":" + imageVersion
@@ -526,7 +526,7 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 	}
 	if err := errGroup.Wait(); err != nil {
 		cancel()
-		return nil, err
+		return nil, fmt.Errorf("failed to check images in registry: %w", err)
 	}
 	cancel()
 
@@ -601,7 +601,7 @@ func imageSliceToMap(images []string, validate bool) (map[string]bool, error) {
 	for _, image := range images {
 		if validate {
 			if err := validateRepoImage(image); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to validate image: %w", err)
 			}
 		}
 		imagesMap[image] = true
@@ -785,7 +785,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDig
 	httpClient := ecmHTTP.NewClient(time.Second * 15)
 	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("failed to create HTTP request for image manifest: %w", err)
 	}
 
 	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
@@ -799,7 +799,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDig
 	req.Header.Add("Authorization", "Bearer "+auth)
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("failed to execute HTTP request for image manifest: %w", err)
 	}
 	defer func() {
 		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
@@ -820,13 +820,13 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDig
 func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, error) {
 	_, statusCode, err := dockerImageDigest(registryBaseURL, img, imgVersion, auth)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to get image digest: %w", err)
 	}
 	if statusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if statusCode != http.StatusOK {
-		return false, errors.New("expected status code to be 200, got: " + strconv.Itoa(statusCode))
+		return false, fmt.Errorf("unexpected status code when checking image: expected 200, got %d", statusCode)
 	}
 
 	return true, nil
@@ -838,17 +838,17 @@ func registryAuth(authURL, service, image, username, password string) (token str
 	url := authURL + "?scope=" + scope + "&service=" + service
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create auth request: %w", err)
 	}
 	if len(username) > 1 && len(password) > 1 {
 		req.SetBasicAuth(username, password)
 	}
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to execute auth request: %w", err)
 	}
 	if res.StatusCode != http.StatusOK {
-		return "", errors.New("expected status code to be 200, got: " + strconv.Itoa(res.StatusCode))
+		return "", fmt.Errorf("authentication failed: expected status 200, got %d", res.StatusCode)
 	}
 	defer func() {
 		if closeErr := errors.Join(res.Body.Close()); closeErr != nil {
@@ -858,7 +858,7 @@ func registryAuth(authURL, service, image, username, password string) (token str
 
 	var auth registryAuthToken
 	if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decode auth token: %w", err)
 	}
 
 	return auth.Token, nil
