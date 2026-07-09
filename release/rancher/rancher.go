@@ -807,13 +807,16 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDig
 		}
 	}()
 
+	// if the status is 404, the image exists, but the tag doesn't
 	if res.StatusCode == http.StatusNotFound {
 		return "", res.StatusCode, nil
 	}
-	dockerDigest = res.Header.Get("Docker-Content-Digest")
-	if dockerDigest == "" {
-		return "", res.StatusCode, errors.New("empty digest header 'Docker-Content-Digest'")
+	// if the status is 401, the image doesn't exit on this registry
+	if res.StatusCode == http.StatusUnauthorized {
+		return "", res.StatusCode, nil
 	}
+	dockerDigest = res.Header.Get("Docker-Content-Digest")
+
 	return dockerDigest, res.StatusCode, nil
 }
 
@@ -823,6 +826,10 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 		return false, fmt.Errorf("failed to get image digest: %w", err)
 	}
 	if statusCode == http.StatusNotFound {
+		return false, nil
+	}
+	// unauthorized is not a hard fail because it is a valid response when the image doesn't exist on the registry, even though the creds are valid
+	if statusCode == http.StatusUnauthorized {
 		return false, nil
 	}
 	if statusCode != http.StatusOK {
