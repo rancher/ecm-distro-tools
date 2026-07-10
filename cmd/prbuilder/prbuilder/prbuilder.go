@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/config"
 	"github.com/rancher/ecm-distro-tools/exec"
+	"github.com/rancher/ecm-distro-tools/repository"
 	"github.com/sirupsen/logrus"
 )
 
@@ -192,13 +194,13 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		return result
 	}
 
-	prURL, err := pb.createPullRequest(workDir, target.Repo, targetBranch, prBranch)
+	prURL, err := pb.createPullRequest(ctx, target.Repo, targetBranch, prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create PR: %w", err)
 		return result
 	}
 
-	result.PRURL = strings.TrimSpace(prURL)
+	result.PRURL = prURL
 	return result
 }
 
@@ -238,8 +240,24 @@ func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, 
 	return nil
 }
 
-// createPullRequest creates a PR using the gh CLI
-func (pb *PRBuilder) createPullRequest(workDir, repo, base, head string) (string, error) {
+// createPullRequest creates a PR using the GitHub API
+func (pb *PRBuilder) createPullRequest(ctx context.Context, repo, base, head string) (string, error) {
+	// Parse owner/repo from "owner/repo" format
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid repo format %s, expected owner/repo", repo)
+	}
+	owner, repoName := parts[0], parts[1]
+
+	// Get GitHub token from environment
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return "", fmt.Errorf("GITHUB_TOKEN environment variable is required")
+	}
+
+	// Create GitHub client
+	ghClient := repository.NewGithub(ctx, token)
+
 	title := fmt.Sprintf("Bump to %s", pb.tag)
 	body := fmt.Sprintf(`Automated version bump to %s from upstream release.
 
@@ -251,17 +269,21 @@ This PR updates the dependencies to use the newly released version.
 ---
 _This PR was automatically created by prbuilder_`, "`"+pb.tag+"`", pb.tag, base)
 
-	prURL, err := exec.RunCommand(workDir, "gh", "pr", "create",
-		"--base", base,
-		"--head", head,
-		"--title", title,
-		"--body", body)
-
-	if err != nil {
-		return "", err
+	// Create pull request
+	pr := &github.NewPullRequest{
+		Title:               new(title),
+		Base:                new(base),
+		Head:                new(head),
+		Body:                new(body),
+		MaintainerCanModify: new(true),
 	}
 
-	return prURL, nil
+	createdPR, _, err := ghClient.PullRequests.Create(ctx, owner, repoName, pr)
+	if err != nil {
+		return "", fmt.Errorf("failed to create pull request: %w", err)
+	}
+
+	return createdPR.GetHTMLURL(), nil
 }
 
 // WriteGitHubOutput writes the PR results to the GitHub Actions output file
@@ -278,7 +300,7 @@ func WriteGitHubOutput(results []PRResult) error {
 		}
 	}
 
-	jsonData, err := json.Marshal(prURLs)
+	b, err := json.Marshal(prURLs)
 	if err != nil {
 		return fmt.Errorf("failed to marshal PR URLs to JSON: %w", err)
 	}
@@ -289,7 +311,7 @@ func WriteGitHubOutput(results []PRResult) error {
 	}
 	defer f.Close()
 
-	_, err = fmt.Fprintf(f, "prs=%s\n", string(jsonData))
+	_, err = fmt.Fprintf(f, "prs=%s\n", string(b))
 	if err != nil {
 		return fmt.Errorf("failed to write to GITHUB_OUTPUT file: %w", err)
 	}
