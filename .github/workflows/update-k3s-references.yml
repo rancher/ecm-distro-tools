@@ -46,27 +46,9 @@ jobs:
           sparse-checkout: |
             ecm-config.json
 
-      - name: "Read Secrets"
-        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
-        with:
-          secrets: |
-            secret/data/github/repo/rancher/${{ github.repository }}/github/app-credentials appId | APP_ID ;
-            secret/data/github/repo/rancher/${{ github.repository }}/github/app-credentials privateKey | PRIVATE_KEY ;
-
-      - name: "Generate GitHub App token"
-        id: generate-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.PRIVATE_KEY }}
-          repositories: k3s-io/k3s
-
-          permission-pull-requests: write
-          permission-contents: write
-
       - name: "Configure git to use HTTPS instead of SSH"
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.K3S_IO_PAT }}
         run: |
           git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
           git config --global user.name "eio-github-actions-power-enhancer[bot]"
@@ -77,19 +59,19 @@ jobs:
 
       - name: "Generate Tags list"
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.K3S_IO_PAT }}
           VERSION: ${{ matrix.version }}
         run: release generate k3s tags ${VERSION}
 
       - name: "Push Kubernetes Tags"
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.K3S_IO_PAT }}
           VERSION: ${{ matrix.version }}
         run: release push k3s tags ${VERSION}
 
       - name: "Open `k3s-io/k3s` PR Updating References"
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.K3S_IO_PAT }}
           VERSION: ${{ matrix.version }}
         run: release update k3s references ${VERSION}
 
