@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/config"
-	"github.com/rancher/ecm-distro-tools/prbuilder"
+	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/prbuilder"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
