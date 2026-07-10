@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/config"
@@ -69,7 +70,6 @@ func createPRs(cmd *cobra.Command, args []string) error {
 	return outputResults(results)
 }
 
-// validateInputs validates required inputs and environment variables
 func validateInputs(cmd *cobra.Command) error {
 	if createPRsCmdOpts.Tag == "" {
 		logrus.Error("Tag is required (use --tag or set TAG environment variable)")
@@ -87,39 +87,19 @@ func validateInputs(cmd *cobra.Command) error {
 	return nil
 }
 
-// loadAndLogConfig loads the config file and logs configuration details
 func loadAndLogConfig() *config.Config {
 	cfg, err := config.Load(createPRsCmdOpts.ConfigFile)
 	if err != nil {
 		logrus.Fatalf("Failed to load config file: %v", err)
 	}
 
-	mode := "multi-target"
-	if cfg.IsSingleTarget() {
-		mode = "single-target"
-	}
-
-	logrus.Infof("Tag: %s", createPRsCmdOpts.Tag)
-	logrus.Infof("Config: %s", createPRsCmdOpts.ConfigFile)
-	logrus.Infof("Mode: %s", mode)
-	logrus.Infof("Version mapping type: %s", cfg.VersionMappingType)
-	if createPRsCmdOpts.DryRun {
-		logrus.Info("Dry run: true")
-	}
-
-	// Validate --target-dir is only used with single-target configs
 	if createPRsCmdOpts.TargetDir != "" && !cfg.IsSingleTarget() {
 		logrus.Fatal("--target-dir flag requires single-target config mode. Your config uses 'targets' (plural) which enables multi-target mode. Use 'target' (singular) in your config to enable single-target mode with --target-dir support")
-	}
-
-	if createPRsCmdOpts.TargetDir != "" {
-		logrus.Infof("Using local repository at: %s", createPRsCmdOpts.TargetDir)
 	}
 
 	return cfg
 }
 
-// getSourceRepoDir returns the source repository directory
 func getSourceRepoDir() string {
 	sourceRepoDir := os.Getenv("GITHUB_WORKSPACE")
 	if sourceRepoDir == "" {
@@ -132,7 +112,6 @@ func getSourceRepoDir() string {
 	return sourceRepoDir
 }
 
-// buildPRBuilder creates a new PRBuilder instance
 func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.PRBuilder {
 	pb, err := prbuilder.NewPRBuilder(prbuilder.Options{
 		Config:        cfg,
@@ -148,8 +127,17 @@ func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.PRBuild
 	return pb
 }
 
-// outputResults processes and outputs the results of PR creation
 func outputResults(results []prbuilder.PRResult) error {
+	for _, result := range results {
+		if result.Error == nil && result.PRURL != "" {
+			fmt.Println("Pull request created: " + result.PRURL)
+		}
+	}
+
+	if err := prbuilder.WriteGitHubOutput(results); err != nil {
+		logrus.Debugf("failed to write GitHub Actions output: %v", err)
+	}
+
 	successCount := 0
 	for _, result := range results {
 		if result.Error == nil && result.PRURL != "" {
@@ -157,23 +145,6 @@ func outputResults(results []prbuilder.PRResult) error {
 		}
 	}
 
-	if successCount > 0 {
-		logrus.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		logrus.Infof("Created %d PR(s):", successCount)
-		for _, result := range results {
-			if result.Error == nil && result.PRURL != "" {
-				logrus.Infof("  - %s", result.PRURL)
-			}
-		}
-	} else {
-		logrus.Warn("No PRs were created")
-	}
-
-	if err := prbuilder.WriteGitHubOutput(results); err != nil {
-		logrus.Warnf("Failed to write GitHub Actions output: %v", err)
-	}
-
-	// Exit with error if all targets failed
 	if successCount == 0 && len(results) > 0 {
 		hasErrors := false
 		for _, result := range results {
@@ -190,7 +161,6 @@ func outputResults(results []prbuilder.PRResult) error {
 	return nil
 }
 
-// getEnvOrDefault returns environment variable value or default
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -198,7 +168,6 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// getEnvBool returns true if environment variable is set to "true"
 func getEnvBool(key string) bool {
 	return os.Getenv(key) == "true"
 }

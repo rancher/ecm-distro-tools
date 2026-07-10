@@ -70,17 +70,9 @@ func NewPRBuilder(opts Options) (*PRBuilder, error) {
 // ProcessTargets processes all configured targets and creates PRs
 func (pb *PRBuilder) ProcessTargets(ctx context.Context) ([]PRResult, error) {
 	targets := pb.config.GetTargets()
-
-	logrus.Infof("Starting PR creation process for tag: %s", pb.tag)
-	logrus.Infof("Extracted version: %s", pb.version)
-	logrus.Infof("Found %d target(s)", len(targets))
-
 	results := make([]PRResult, 0)
 
-	for i, target := range targets {
-		logrus.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		logrus.Infof("Processing target %d/%d: %s", i+1, len(targets), target.Repo)
-
+	for _, target := range targets {
 		// Get target branches (may be multiple)
 		branches, err := pb.config.GetTargetBranches(pb.version, &target)
 		if err != nil {
@@ -89,77 +81,41 @@ func (pb *PRBuilder) ProcessTargets(ctx context.Context) ([]PRResult, error) {
 				Error:      err,
 			}
 			results = append(results, result)
-			logrus.Warnf("Failed to resolve branches for %s: %v", target.Repo, err)
 			continue
 		}
 
-		logrus.Infof("Target branches: %v", branches)
-
 		// Process each branch
 		for _, branch := range branches {
-			if len(branches) > 1 {
-				logrus.Infof("Processing branch: %s", branch)
-			}
-
 			result := pb.processTarget(ctx, &target, branch)
 			results = append(results, result)
-
-			if result.Error != nil {
-				logrus.Warnf("Failed to process %s (branch: %s): %v", target.Repo, branch, result.Error)
-				continue
-			}
-
-			if result.PRURL != "" {
-				logrus.Infof("Successfully created PR: %s", result.PRURL)
-			}
 		}
 	}
 
 	return results, nil
 }
 
-// processTarget handles a single target repository for a specific branch
 func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, targetBranch string) PRResult {
 	result := PRResult{TargetRepo: target.Repo + " (" + targetBranch + ")"}
-	logrus.Infof("Update script: %s", target.UpdateScript)
-	if target.PostUpdateScript != "" {
-		logrus.Infof("Post-update script: %s", target.PostUpdateScript)
-	}
-	logrus.Infof("Git remote: %s", pb.remote)
 
 	var workDir string
 	var cleanupDir bool
 	var err error
 
-	// Two modes of operation:
-	// 1. Ad-hoc mode (targetDir set): Uses an existing local clone of the target repo.
-	//    This is useful for local development and testing without repeatedly cloning.
-	//    Requires single-target config mode (--target-dir flag).
-	// 2. Normal mode (targetDir empty): Clones the target repo into a temp directory.
-	//    This is used in CI/automation where fresh clones are needed for each run.
-	//    The temp directory is cleaned up after processing.
 	if pb.targetDir != "" {
-		// Ad-hoc mode: use existing repository clone
 		workDir = pb.targetDir
 		cleanupDir = false
-		logrus.Infof("Using existing repository at: %s", workDir)
 
-		// Checkout the target branch to ensure we're on the right branch
-		logrus.Infof("Checking out branch %s...", targetBranch)
 		_, err = exec.RunCommand(workDir, "git", "checkout", targetBranch)
 		if err != nil {
 			result.Error = fmt.Errorf("failed to checkout branch %s: %w", targetBranch, err)
 			return result
 		}
 
-		// Pull latest changes to ensure we're up-to-date
 		_, err = exec.RunCommand(workDir, "git", "pull", pb.remote, targetBranch)
 		if err != nil {
-			// Non-fatal: continue even if pull fails (might be working offline or with local changes)
-			logrus.Warnf("Failed to pull latest changes: %v (continuing anyway)", err)
+			logrus.Debugf("failed to pull latest changes: %v (continuing anyway)", err)
 		}
 	} else {
-		// Normal mode: clone repository into temporary directory
 		workDir, err = os.MkdirTemp("", "prbuilder-*")
 		if err != nil {
 			result.Error = fmt.Errorf("failed to create temp directory: %w", err)
@@ -172,10 +128,6 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 			}
 		}()
 
-		logrus.Infof("Working directory: %s", workDir)
-
-		// Clone target repo with shallow clone for faster operation
-		logrus.Infof("Cloning %s...", target.Repo)
 		_, err = exec.RunCommand(workDir, "gh", "repo", "clone", target.Repo, ".", "--", "--depth=1", fmt.Sprintf("--branch=%s", targetBranch))
 		if err != nil {
 			result.Error = fmt.Errorf("failed to clone %s on branch %s: %w", target.Repo, targetBranch, err)
@@ -183,7 +135,6 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		}
 	}
 
-	// Create PR branch
 	prBranch := fmt.Sprintf("bump-to-%s-%d", pb.tag, time.Now().Unix())
 	_, err = exec.RunCommand(workDir, "git", "checkout", "-b", prBranch)
 	if err != nil {
@@ -191,15 +142,11 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		return result
 	}
 
-	logrus.Infof("Created branch: %s", prBranch)
-
-	// Execute update script
 	if err := pb.executeUpdateScript(workDir, target, targetBranch); err != nil {
 		result.Error = err
 		return result
 	}
 
-	// Check for changes
 	status, err := exec.RunCommand(workDir, "git", "status", "--porcelain")
 	if err != nil {
 		result.Error = fmt.Errorf("failed to check git status: %w", err)
@@ -207,11 +154,9 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 	}
 
 	if strings.TrimSpace(status) == "" {
-		logrus.Warn("No changes detected after running scripts")
 		return result
 	}
 
-	// Commit changes
 	_, err = exec.RunCommand(workDir, "git", "add", "-A")
 	if err != nil {
 		result.Error = fmt.Errorf("failed to stage changes: %w", err)
@@ -237,25 +182,16 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		return result
 	}
 
-	logrus.Info("Changes committed")
-
-	// Handle dry-run mode
 	if pb.dryRun {
-		logrus.Warn("DRY RUN: Would create PR with these changes:")
-		diff, _ := exec.RunCommand(workDir, "git", "diff", "HEAD~1")
-		logrus.Info(diff)
-		logrus.Warn("DRY RUN: Skipping push and PR creation")
 		return result
 	}
 
-	// Push branch
 	_, err = exec.RunCommand(workDir, "git", "push", pb.remote, prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to push branch: %w", err)
 		return result
 	}
 
-	// Create PR
 	prURL, err := pb.createPullRequest(workDir, target.Repo, targetBranch, prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create PR: %w", err)
@@ -268,19 +204,16 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 
 // executeUpdateScript runs the update script with environment variables
 func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
-	logrus.Info("Running update script...")
 	updateScriptPath := filepath.Join(pb.sourceRepoDir, target.UpdateScript)
 
 	if _, err := os.Stat(updateScriptPath); err != nil {
 		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, err)
 	}
 
-	// Make script executable
 	if err := os.Chmod(updateScriptPath, 0755); err != nil {
 		return fmt.Errorf("failed to make update script executable: %w", err)
 	}
 
-	// Set environment variables for the script
 	env := os.Environ()
 	env = append(env,
 		"PRBUILDER_TAG="+pb.tag,
@@ -294,7 +227,6 @@ func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, 
 	logrus.Debugf("Environment variables: PRBUILDER_TAG=%s PRBUILDER_VERSION=%s PRBUILDER_TARGET_REPO=%s PRBUILDER_TARGET_BRANCH=%s",
 		pb.tag, pb.version, target.Repo, targetBranch)
 
-	// Run update script with environment variables
 	output, err := exec.RunCommandWithEnv(workDir, updateScriptPath, env)
 	if err != nil {
 		return fmt.Errorf("update script failed: %w", err)
@@ -336,11 +268,9 @@ _This PR was automatically created by prbuilder_`, "`"+pb.tag+"`", pb.tag, base)
 func WriteGitHubOutput(results []PRResult) error {
 	outputFile := os.Getenv("GITHUB_OUTPUT")
 	if outputFile == "" {
-		// Not running in GitHub Actions, skip
 		return nil
 	}
 
-	// Collect successful PR URLs
 	prURLs := make([]string, 0)
 	for _, result := range results {
 		if result.Error == nil && result.PRURL != "" {
@@ -348,13 +278,11 @@ func WriteGitHubOutput(results []PRResult) error {
 		}
 	}
 
-	// Marshal to JSON
 	jsonData, err := json.Marshal(prURLs)
 	if err != nil {
 		return fmt.Errorf("failed to marshal PR URLs to JSON: %w", err)
 	}
 
-	// Append to output file
 	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %w", err)
