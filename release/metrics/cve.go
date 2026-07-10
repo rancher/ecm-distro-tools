@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ func (s SeverityCounts) Total() int {
 // ReleaseReport holds all filtered CVEs for a single project+release pair.
 type ReleaseReport struct {
 	ProjectName string
+	ProjectTag  string
 	Release     string
 	CVEs        []CVE
 	Counts      SeverityCounts
@@ -67,10 +69,13 @@ type ReportData struct {
 }
 
 // CVEsBySeverity filters and renders a CVE report, sending one Slack message per release.
-func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string, skipMirrored bool) error {
+func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string, skipMirrored bool, projects []string) error {
 	data := r.buildReportData(minSeverity, skipMirrored)
 
 	for i, release := range data.Releases {
+		if !slices.Contains(projects, release.ProjectTag) {
+			continue
+		}
 		if err := notifySlackRelease(release, data.MinSeverity, webhookURL); err != nil {
 			return fmt.Errorf("failed to send message for %s · %s: %w", release.ProjectName, release.Release, err)
 		}
@@ -92,15 +97,16 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 
 	allProjects := []struct {
 		name string
+		tag  string
 		cves []CVE
 	}{
-		{"Harvester", r.Harvester},
-		{"K3s", r.K3s},
-		{"Longhorn", r.Longhorn},
-		{"Observability", r.Observability},
-		{"Observability Agent", r.ObservabilityAgent},
-		{"Rancher", r.Rancher},
-		{"RKE2", r.RKE2},
+		{"Harvester", "harvester", r.Harvester},
+		{"K3s", "k3s", r.K3s},
+		{"Longhorn", "longhorn", r.Longhorn},
+		{"Observability", "observability", r.Observability},
+		{"Observability Agent", "observability-agent", r.ObservabilityAgent},
+		{"Rancher", "rancher", r.Rancher},
+		{"RKE2", "rke2", r.RKE2},
 	}
 
 	data := ReportData{MinSeverity: minSeverityDisplay}
@@ -140,6 +146,7 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 			counts := countSeverities(cves)
 			data.Releases = append(data.Releases, ReleaseReport{
 				ProjectName: p.name,
+				ProjectTag:  p.tag,
 				Release:     release,
 				CVEs:        cves,
 				Counts:      counts,
@@ -289,7 +296,6 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 		// this is a workaround to prevent Slack from auto-linking image names as URLs, which breaks the formatting.
 		// inserting a zero-width space after each dot allows the image name to render correctly.
 		safeImage := strings.ReplaceAll(image, ".", ".\u200B")
-		writeLine(fmt.Sprintf("*📦 %s*\n", safeImage))
 
 		// Always render affected before under_investigation.
 		for _, status := range []string{"affected", "under_investigation"} {
@@ -303,16 +309,15 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 				continue
 			}
 
-			writeLine(statusLabel[status] + "\n")
-			for _, cve := range group {
-				writeLine(fmt.Sprintf("%s `%s` %s %s _%s_\n",
-					severityEmoji(cve.Severity),
-					cve.VulnerabilityID,
-					cve.PackageName,
-					cve.PackageVersion,
-					cve.Type,
-				))
+			counts := countSeverities(group)
+			plural := "s"
+			if len(group) == 1 {
+				plural = ""
 			}
+
+			writeLine(fmt.Sprintf("%s %s, *%d CVE%s* (%s)\n",
+				statusLabel[status], safeImage, len(group), plural, formatSeverityBreakdown(counts)))
+
 		}
 
 		// Blank line between images for visual separation, except after the last one.
@@ -324,6 +329,28 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 	flush()
 
 	return slackPayload{Blocks: blocks}
+}
+
+// formatSeverityBreakdown renders a compact, comma-separated severity breakdown,
+// e.g. "1 critical, 15 high, 10 medium, 3 low". Zero counts are omitted.
+func formatSeverityBreakdown(c SeverityCounts) string {
+	var parts []string
+	if c.Critical > 0 {
+		parts = append(parts, fmt.Sprintf("%d critical", c.Critical))
+	}
+	if c.High > 0 {
+		parts = append(parts, fmt.Sprintf("%d high", c.High))
+	}
+	if c.Medium > 0 {
+		parts = append(parts, fmt.Sprintf("%d medium", c.Medium))
+	}
+	if c.Low > 0 {
+		parts = append(parts, fmt.Sprintf("%d low", c.Low))
+	}
+	if c.Other > 0 {
+		parts = append(parts, fmt.Sprintf("%d other", c.Other))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func headerBlock(text string) slackBlock {
