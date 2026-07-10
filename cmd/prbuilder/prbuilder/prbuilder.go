@@ -16,8 +16,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// PRBuilder handles the creation of PRs in target repositories
-type PRBuilder struct {
+// Builder handles the creation of PRs in target repositories
+type Builder struct {
 	config        *config.Config
 	tag           string
 	version       string
@@ -27,25 +27,25 @@ type PRBuilder struct {
 	remote        string // Git remote name (default: origin)
 }
 
-// PRResult represents the result of processing a single target
-type PRResult struct {
+// Result represents the result of processing a single target
+type Result struct {
 	TargetRepo string
 	PRURL      string
 	Error      error
 }
 
-// Options contains configuration for creating a PRBuilder
+// Options contains configuration for creating a Builder
 type Options struct {
 	Config        *config.Config
 	Tag           string
 	SourceRepoDir string
-	DryRun        bool
 	TargetDir     string // For ad-hoc mode: path to already-cloned repo
 	Remote        string // Git remote name (default: origin)
+	DryRun        bool
 }
 
 // NewPRBuilder creates a new PR builder instance
-func NewPRBuilder(opts Options) (*PRBuilder, error) {
+func NewPRBuilder(opts Options) (*Builder, error) {
 	// Parse version from tag
 	version, err := ParseVersion(opts.Tag, opts.Config.VersionMappingType)
 	if err != nil {
@@ -58,7 +58,7 @@ func NewPRBuilder(opts Options) (*PRBuilder, error) {
 		remote = "origin"
 	}
 
-	return &PRBuilder{
+	return &Builder{
 		config:        opts.Config,
 		tag:           opts.Tag,
 		version:       version,
@@ -70,15 +70,15 @@ func NewPRBuilder(opts Options) (*PRBuilder, error) {
 }
 
 // ProcessTargets processes all configured targets and creates PRs
-func (pb *PRBuilder) ProcessTargets(ctx context.Context) ([]PRResult, error) {
-	targets := pb.config.GetTargets()
-	results := make([]PRResult, 0)
+func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
+	targets := b.config.TargetsList()
+	results := make([]Result, 0)
 
 	for _, target := range targets {
 		// Get target branches (may be multiple)
-		branches, err := pb.config.GetTargetBranches(pb.version, &target)
+		branches, err := b.config.TargetBranches(b.version, &target)
 		if err != nil {
-			result := PRResult{
+			result := Result{
 				TargetRepo: target.Repo,
 				Error:      err,
 			}
@@ -88,7 +88,7 @@ func (pb *PRBuilder) ProcessTargets(ctx context.Context) ([]PRResult, error) {
 
 		// Process each branch
 		for _, branch := range branches {
-			result := pb.processTarget(ctx, &target, branch)
+			result := b.processTarget(ctx, &target, branch)
 			results = append(results, result)
 		}
 	}
@@ -96,15 +96,15 @@ func (pb *PRBuilder) ProcessTargets(ctx context.Context) ([]PRResult, error) {
 	return results, nil
 }
 
-func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, targetBranch string) PRResult {
-	result := PRResult{TargetRepo: target.Repo + " (" + targetBranch + ")"}
+func (b *Builder) processTarget(ctx context.Context, target *config.Target, targetBranch string) Result {
+	result := Result{TargetRepo: target.Repo + " (" + targetBranch + ")"}
 
 	var workDir string
 	var cleanupDir bool
 	var err error
 
-	if pb.targetDir != "" {
-		workDir = pb.targetDir
+	if b.targetDir != "" {
+		workDir = b.targetDir
 		cleanupDir = false
 
 		_, err = exec.RunCommand(workDir, "git", "checkout", targetBranch)
@@ -113,7 +113,7 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 			return result
 		}
 
-		_, err = exec.RunCommand(workDir, "git", "pull", pb.remote, targetBranch)
+		_, err = exec.RunCommand(workDir, "git", "pull", b.remote, targetBranch)
 		if err != nil {
 			logrus.Debugf("failed to pull latest changes: %v (continuing anyway)", err)
 		}
@@ -137,14 +137,14 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		}
 	}
 
-	prBranch := fmt.Sprintf("bump-to-%s-%d", pb.tag, time.Now().Unix())
+	prBranch := fmt.Sprintf("bump-to-%s-%d", b.tag, time.Now().Unix())
 	_, err = exec.RunCommand(workDir, "git", "checkout", "-b", prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create branch %s: %w", prBranch, err)
 		return result
 	}
 
-	if err := pb.executeUpdateScript(workDir, target, targetBranch); err != nil {
+	if err := b.executeUpdateScript(workDir, target, targetBranch); err != nil {
 		result.Error = err
 		return result
 	}
@@ -177,24 +177,24 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 		return result
 	}
 
-	commitMsg := fmt.Sprintf("Bump to %s", pb.tag)
+	commitMsg := fmt.Sprintf("Bump to %s", b.tag)
 	_, err = exec.RunCommand(workDir, "git", "commit", "-m", commitMsg, "-m", "Automated version bump from upstream release")
 	if err != nil {
 		result.Error = fmt.Errorf("failed to commit changes: %w", err)
 		return result
 	}
 
-	if pb.dryRun {
+	if b.dryRun {
 		return result
 	}
 
-	_, err = exec.RunCommand(workDir, "git", "push", pb.remote, prBranch)
+	_, err = exec.RunCommand(workDir, "git", "push", b.remote, prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to push branch: %w", err)
 		return result
 	}
 
-	prURL, err := pb.createPullRequest(ctx, target.Repo, targetBranch, prBranch)
+	prURL, err := b.createPullRequest(ctx, target.Repo, targetBranch, prBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create PR: %w", err)
 		return result
@@ -205,8 +205,8 @@ func (pb *PRBuilder) processTarget(ctx context.Context, target *config.Target, t
 }
 
 // executeUpdateScript runs the update script with environment variables
-func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
-	updateScriptPath := filepath.Join(pb.sourceRepoDir, target.UpdateScript)
+func (b *Builder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
+	updateScriptPath := filepath.Join(b.sourceRepoDir, target.UpdateScript)
 
 	if _, err := os.Stat(updateScriptPath); err != nil {
 		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, err)
@@ -218,16 +218,16 @@ func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, 
 
 	env := os.Environ()
 	env = append(env,
-		"PRBUILDER_TAG="+pb.tag,
-		"PRBUILDER_VERSION="+pb.version,
+		"PRBUILDER_TAG="+b.tag,
+		"PRBUILDER_VERSION="+b.version,
 		"PRBUILDER_TARGET_DIR="+workDir,
 		"PRBUILDER_TARGET_REPO="+target.Repo,
 		"PRBUILDER_TARGET_BRANCH="+targetBranch,
-		"PRBUILDER_SOURCE_DIR="+pb.sourceRepoDir,
+		"PRBUILDER_SOURCE_DIR="+b.sourceRepoDir,
 	)
 
 	logrus.Debugf("Environment variables: PRBUILDER_TAG=%s PRBUILDER_VERSION=%s PRBUILDER_TARGET_REPO=%s PRBUILDER_TARGET_BRANCH=%s",
-		pb.tag, pb.version, target.Repo, targetBranch)
+		b.tag, b.version, target.Repo, targetBranch)
 
 	output, err := exec.RunCommandWithEnv(workDir, updateScriptPath, env)
 	if err != nil {
@@ -241,7 +241,7 @@ func (pb *PRBuilder) executeUpdateScript(workDir string, target *config.Target, 
 }
 
 // createPullRequest creates a PR using the GitHub API
-func (pb *PRBuilder) createPullRequest(ctx context.Context, repo, base, head string) (string, error) {
+func (b *Builder) createPullRequest(ctx context.Context, repo, base, head string) (string, error) {
 	// Parse owner/repo from "owner/repo" format
 	parts := strings.Split(repo, "/")
 	if len(parts) != 2 {
@@ -258,7 +258,7 @@ func (pb *PRBuilder) createPullRequest(ctx context.Context, repo, base, head str
 	// Create GitHub client
 	ghClient := repository.NewGithub(ctx, token)
 
-	title := fmt.Sprintf("Bump to %s", pb.tag)
+	title := fmt.Sprintf("Bump to %s", b.tag)
 	body := fmt.Sprintf(`Automated version bump to %s from upstream release.
 
 This PR updates the dependencies to use the newly released version.
@@ -267,7 +267,7 @@ This PR updates the dependencies to use the newly released version.
 **Target branch:** %s
 
 ---
-_This PR was automatically created by prbuilder_`, "`"+pb.tag+"`", pb.tag, base)
+_This PR was automatically created by prbuilder_`, "`"+b.tag+"`", b.tag, base)
 
 	// Create pull request
 	pr := &github.NewPullRequest{
@@ -287,7 +287,7 @@ _This PR was automatically created by prbuilder_`, "`"+pb.tag+"`", pb.tag, base)
 }
 
 // WriteGitHubOutput writes the PR results to the GitHub Actions output file
-func WriteGitHubOutput(results []PRResult) error {
+func WriteGitHubOutput(results []Result) error {
 	outputFile := os.Getenv("GITHUB_OUTPUT")
 	if outputFile == "" {
 		return nil

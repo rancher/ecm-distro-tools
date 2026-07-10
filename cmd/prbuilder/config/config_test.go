@@ -222,7 +222,7 @@ func TestConfig_GetTargets(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			targets := tt.config.GetTargets()
+			targets := tt.config.TargetsList()
 			if len(targets) != tt.expectedCount {
 				t.Errorf("GetTargets() returned %d targets, want %d", len(targets), tt.expectedCount)
 			}
@@ -321,7 +321,7 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			branches, err := tt.config.GetTargetBranches(tt.version, &tt.target)
+			branches, err := tt.config.TargetBranches(tt.version, &tt.target)
 
 			if tt.expectError {
 				if err == nil {

@@ -111,15 +111,15 @@ func (c *Config) IsSingleTarget() bool {
 	return c.Target != nil
 }
 
-// GetTargets returns the targets list, converting single target if needed
-func (c *Config) GetTargets() []Target {
+// TargetsList returns the targets list, converting single target if needed
+func (c *Config) TargetsList() []Target {
 	if c.Target != nil {
 		return []Target{*c.Target}
 	}
 	return c.Targets
 }
 
-// GetTargetBranches resolves the branch(es) for a given version and target.
+// TargetBranches resolves the branch(es) for a given version and target.
 // Supports both single branch (string) and multiple branches ([]string).
 // Uses a priority-based resolution strategy:
 // 1. Target-specific mapping (allows per-repo overrides for the version)
@@ -128,7 +128,7 @@ func (c *Config) GetTargets() []Target {
 // 4. Global wildcard (final fallback for all repos)
 // This priority order allows repos to override global settings while
 // maintaining a sensible default for most cases.
-func (c *Config) GetTargetBranches(version string, target *Target) ([]string, error) {
+func (c *Config) TargetBranches(version string, target *Target) ([]string, error) {
 	// Priority 1: Target-specific mapping
 	if target.VersionBranchMap != nil {
 		if branches, ok := target.VersionBranchMap[version]; ok {

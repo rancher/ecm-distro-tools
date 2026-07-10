@@ -124,13 +124,13 @@ func TestNewPRBuilder(t *testing.T) {
 func TestPRResult(t *testing.T) {
 	tests := []struct {
 		name     string
-		result   PRResult
+		result   Result
 		hasError bool
 		hasPRURL bool
 	}{
 		{
 			name: "successful result",
-			result: PRResult{
+			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
 				PRURL:      "https://github.com/rancher/rancher/pull/123",
 				Error:      nil,
@@ -140,7 +140,7 @@ func TestPRResult(t *testing.T) {
 		},
 		{
 			name: "error result",
-			result: PRResult{
+			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
 				PRURL:      "",
 				Error:      errors.New("failed to create PR"),
@@ -150,7 +150,7 @@ func TestPRResult(t *testing.T) {
 		},
 		{
 			name: "no changes result",
-			result: PRResult{
+			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
 				PRURL:      "",
 				Error:      nil,

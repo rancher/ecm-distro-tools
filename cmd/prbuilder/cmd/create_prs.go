@@ -12,11 +12,11 @@ import (
 )
 
 type createPRsOpts struct {
-	Tag        string
-	ConfigFile string
-	DryRun     bool
-	TargetDir  string
-	Remote     string
+	tag        string
+	configFile string
+	dryRun     bool
+	targetDir  string
+	remote     string
 }
 
 var createPRsCmdOpts createPRsOpts
@@ -42,11 +42,11 @@ Examples:
 func init() {
 	rootCmd.AddCommand(createPRsCmd)
 
-	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.Tag, "tag", "t", os.Getenv("TAG"), "The tag that was released (e.g., v10.3.2)")
-	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.ConfigFile, "config", "c", getEnvOrDefault("CONFIG_FILE", ".github/pr-consumer-config.yml"), "Path to config file")
-	createPRsCmd.Flags().BoolVarP(&createPRsCmdOpts.DryRun, "dry-run", "n", getEnvBool("DRY_RUN"), "Dry run mode (show changes but don't create PRs)")
-	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.TargetDir, "target-dir", "d", "", "Path to already-cloned target repository (only for single-target configs)")
-	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.Remote, "remote", "r", "origin", "Git remote name to use for push")
+	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.tag, "tag", "t", os.Getenv("TAG"), "The tag that was released (e.g., v10.3.2)")
+	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.configFile, "config", "c", envOrDefault("CONFIG_FILE", ".github/pr-consumer-config.yml"), "Path to config file")
+	createPRsCmd.Flags().BoolVarP(&createPRsCmdOpts.dryRun, "dry-run", "n", envBool("DRY_RUN"), "Dry run mode (show changes but don't create PRs)")
+	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.targetDir, "target-dir", "d", "", "Path to already-cloned target repository (only for single-target configs)")
+	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.remote, "remote", "r", "origin", "Git remote name to use for push")
 }
 
 func createPRs(cmd *cobra.Command, args []string) error {
@@ -71,7 +71,7 @@ func createPRs(cmd *cobra.Command, args []string) error {
 }
 
 func validateInputs(cmd *cobra.Command) error {
-	if createPRsCmdOpts.Tag == "" {
+	if createPRsCmdOpts.tag == "" {
 		logrus.Error("Tag is required (use --tag or set TAG environment variable)")
 		return cmd.Usage()
 	}
@@ -88,12 +88,12 @@ func validateInputs(cmd *cobra.Command) error {
 }
 
 func loadAndLogConfig() *config.Config {
-	cfg, err := config.Load(createPRsCmdOpts.ConfigFile)
+	cfg, err := config.Load(createPRsCmdOpts.configFile)
 	if err != nil {
 		logrus.Fatalf("Failed to load config file: %v", err)
 	}
 
-	if createPRsCmdOpts.TargetDir != "" && !cfg.IsSingleTarget() {
+	if createPRsCmdOpts.targetDir != "" && !cfg.IsSingleTarget() {
 		logrus.Fatal("--target-dir flag requires single-target config mode. Your config uses 'targets' (plural) which enables multi-target mode. Use 'target' (singular) in your config to enable single-target mode with --target-dir support")
 	}
 
@@ -112,14 +112,14 @@ func getSourceRepoDir() string {
 	return sourceRepoDir
 }
 
-func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.PRBuilder {
+func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.Builder {
 	pb, err := prbuilder.NewPRBuilder(prbuilder.Options{
 		Config:        cfg,
-		Tag:           createPRsCmdOpts.Tag,
+		Tag:           createPRsCmdOpts.tag,
 		SourceRepoDir: sourceRepoDir,
-		DryRun:        createPRsCmdOpts.DryRun,
-		TargetDir:     createPRsCmdOpts.TargetDir,
-		Remote:        createPRsCmdOpts.Remote,
+		DryRun:        createPRsCmdOpts.dryRun,
+		TargetDir:     createPRsCmdOpts.targetDir,
+		Remote:        createPRsCmdOpts.remote,
 	})
 	if err != nil {
 		logrus.Fatalf("Failed to create PR builder: %v", err)
@@ -127,7 +127,7 @@ func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.PRBuild
 	return pb
 }
 
-func outputResults(results []prbuilder.PRResult) error {
+func outputResults(results []prbuilder.Result) error {
 	for _, result := range results {
 		if result.Error == nil && result.PRURL != "" {
 			fmt.Println("Pull request created: " + result.PRURL)
@@ -161,13 +161,13 @@ func outputResults(results []prbuilder.PRResult) error {
 	return nil
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
+func envOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
 }
 
-func getEnvBool(key string) bool {
+func envBool(key string) bool {
 	return os.Getenv(key) == "true"
 }
