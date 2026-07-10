@@ -3,6 +3,7 @@ package prbuilder
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -245,14 +246,14 @@ func (b *Builder) createPullRequest(ctx context.Context, repo, base, head string
 	// Parse owner/repo from "owner/repo" format
 	parts := strings.Split(repo, "/")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid repo format %s, expected owner/repo", repo)
+		return "", errors.New("invalid repo format " + repo + ", expected owner/repo")
 	}
 	owner, repoName := parts[0], parts[1]
 
 	// Get GitHub token from environment
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		return "", fmt.Errorf("GITHUB_TOKEN environment variable is required")
+		return "", errors.New("GITHUB_TOKEN environment variable is required")
 	}
 
 	// Create GitHub client

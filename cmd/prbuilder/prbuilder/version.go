@@ -1,7 +1,7 @@
 package prbuilder
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -13,7 +13,7 @@ import (
 //   - "major.minor": v10.3.2 -> "10.3"
 func ParseVersion(tag, mappingType string) (string, error) {
 	if !semver.IsValid(tag) {
-		return "", fmt.Errorf("invalid tag format: %s (expected format: vX.Y.Z or X.Y.Z)", tag)
+		return "", errors.New("invalid tag format: " + tag + " (expected format: vX.Y.Z or X.Y.Z)")
 	}
 
 	switch mappingType {
@@ -22,7 +22,7 @@ func ParseVersion(tag, mappingType string) (string, error) {
 	case "major", "":
 		tag = semver.Major(tag)
 	default:
-		return "", fmt.Errorf("invalid version_mapping_type: %s", mappingType)
+		return "", errors.New("invalid version_mapping_type: " + mappingType)
 	}
 	tag = strings.TrimPrefix(tag, "v")
 

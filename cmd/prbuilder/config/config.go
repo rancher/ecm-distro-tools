@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -71,32 +73,32 @@ func Load(path string) (*Config, error) {
 func (c *Config) Validate() error {
 	// Validate version mapping type
 	if c.VersionMappingType != "major" && c.VersionMappingType != "major.minor" {
-		return fmt.Errorf("invalid version_mapping_type: %s (must be 'major' or 'major.minor')", c.VersionMappingType)
+		return errors.New("invalid version_mapping_type: " + c.VersionMappingType + " (must be 'major' or 'major.minor')")
 	}
 
 	// Check that we have either target (singular) or targets (plural), but not both
 	if c.Target != nil && len(c.Targets) > 0 {
-		return fmt.Errorf("config cannot have both 'target' and 'targets' fields - use 'target' for single-target mode or 'targets' for multi-target mode")
+		return errors.New("config cannot have both 'target' and 'targets' fields - use 'target' for single-target mode or 'targets' for multi-target mode")
 	}
 
 	if c.Target == nil && len(c.Targets) == 0 {
-		return fmt.Errorf("config must define either 'target' (single-target mode) or 'targets' (multi-target mode)")
+		return errors.New("config must define either 'target' (single-target mode) or 'targets' (multi-target mode)")
 	}
 
 	// Validate single-target mode
 	if c.Target != nil {
 		if c.Target.Repo == "" {
-			return fmt.Errorf("target.repo is required")
+			return errors.New("target.repo is required")
 		}
 		if c.Target.UpdateScript == "" {
-			return fmt.Errorf("target.update_script is required")
+			return errors.New("target.update_script is required")
 		}
 	}
 
 	// Validate multi-target mode
 	for i, target := range c.Targets {
 		if target.Repo == "" {
-			return fmt.Errorf("targets[%d]: repo is required", i)
+			return errors.New("targets[" + strconv.Itoa(i) + "]: repo is required")
 		}
 		if target.UpdateScript == "" {
 			return fmt.Errorf("targets[%d] (%s): update_script is required", i, target.Repo)
@@ -158,5 +160,5 @@ func (c *Config) TargetBranches(version string, target *Target) ([]string, error
 		}
 	}
 
-	return nil, fmt.Errorf("no branch mapping found for version %s in config (checked target-specific and global mappings, including wildcards)", version)
+	return nil, errors.New("no branch mapping found for version " + version + " in config (checked target-specific and global mappings, including wildcards)")
 }
