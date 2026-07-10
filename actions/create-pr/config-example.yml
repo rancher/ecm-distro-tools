@@ -1,0 +1,76 @@
+# Example configuration for send-pr-to-consumer action
+#
+# See update-script-example.sh for a complete example update script
+#
+# TWO MODES (choose one):
+# 1. Multi-target mode: Use "targets:" (plural) to update multiple repos
+# 2. Single-target mode: Use "target:" (singular) to update one repo (supports --target-dir for local testing)
+#
+# This example shows MULTI-TARGET mode. For single-target mode, see bottom of file.
+
+# How to parse versions from tags
+# - "major": v10.3.2 -> 10
+# - "major.minor": v10.3.2 -> 10.3
+version_mapping_type: major
+
+# Global version to branch mapping
+# This maps your repo's versions to target branches in consumer repos
+# Can be overridden per-target if needed
+#
+# Supports:
+# - Single branch (string): "10": "dev-v2.14"
+# - Multiple branches (array): "10": ["dev-v2.14", "release-v2.14"]
+# - Wildcard fallback: "*": "main"
+version_branch_map:
+  "11": "dev-v2.15"
+  "10": "dev-v2.14"
+  "9": "dev-v2.13"
+  "8": "dev-v2.12"
+  "7": "dev-v2.11"
+  "6": "dev-v2.10"
+  "5": "dev-v2.9"
+  "*": "main"  # Fallback for all other versions
+
+# List of target repositories to create PRs in
+targets:
+  # Example 1: Simple target using global branch mapping
+  - repo: "rancher/rancher"
+    update_script: "./scripts/bump-rancher-backup.sh"
+
+  # Example 2: Target with custom branch mapping (single release line)
+  - repo: "rancher/charts"
+    version_branch_map:
+      "*": "main"  # All versions go to main branch
+    update_script: "./scripts/bump-in-charts.sh"
+
+  # Example 3: Target with multiple branches for a single version
+  - repo: "rancher/rke2-charts"
+    version_branch_map:
+      "10": ["dev-v2.14", "release-v2.14"]  # Creates 2 PRs
+      "9": "release-v2.13"
+    update_script: "./scripts/bump-in-rke2.sh"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SINGLE-TARGET MODE EXAMPLE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Use this format if you only need to update ONE downstream repository.
+# Benefits:
+# - Simpler config
+# - Supports --target-dir flag for local testing with existing clones
+# - Perfect for repos with a single consumer
+#
+# Example single-target config:
+#
+# version_mapping_type: major
+# version_branch_map:
+#   "11": "dev-v2.15"
+#   "10": "dev-v2.14"
+#   "*": "main"
+#
+# target:  # Note: "target" (singular), not "targets"
+#   repo: "rancher/rancher"
+#   update_script: "./scripts/bump-rancher-backup.sh"
+#   # Optional: override global mapping
+#   version_branch_map:
+#     "*": "main"
+

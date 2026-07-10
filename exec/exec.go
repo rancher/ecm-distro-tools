@@ -54,6 +54,22 @@ func RunTemplatedScript(dir, fileName, scriptTemplate string, funcMap template.F
 }
 
 // UserInput will ask for user input with a given title
+// RunCommandWithEnv runs a command with custom environment variables
+func RunCommandWithEnv(dir, cmd string, env []string, args ...string) (string, error) {
+	command := exec.Command(cmd, args...)
+
+	var outb, errb bytes.Buffer
+	command.Stdout = &outb
+	command.Stderr = &errb
+	command.Dir = dir
+	command.Env = env
+	if err := command.Run(); err != nil {
+		return "", errors.New(errb.String())
+	}
+
+	return outb.String(), nil
+}
+
 func UserInput(title string) bool {
 	fmt.Println(title)
 
