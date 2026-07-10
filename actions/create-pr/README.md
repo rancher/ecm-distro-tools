@@ -48,7 +48,6 @@ The action relies on two key concepts:
 ## Quick Links
 
 - 📋 **[Example Config](config-example.yml)** - Complete configuration example
-- 📝 **[Example Update Script](update-script-example.sh)** - Comprehensive script template with all features
 - 📖 **[Standalone Tool Docs](/cmd/prbuilder/README.md)** - Use prbuilder outside of GitHub Actions
 
 ## Setup
@@ -102,36 +101,41 @@ targets:
 
 ### 2. Create Update Script
 
-The **update script** lives in your **source repo** and receives all context via environment variables.
+The **update script** lives in your **source repo** and performs the actual version bump in the target repository. It receives all necessary context via environment variables (see [Update Script Environment Variables](#update-script-environment-variables) below).
 
-**See [update-script-example.sh](update-script-example.sh)** for a comprehensive example demonstrating all features and best practices.
+**Your script should:**
+- Use the provided environment variables to locate and modify files in the target repository
+- Exit with code `0` on success (any changes will be committed and PR created)
+- Exit with non-zero code on failure (no PR will be created)
+- Be executable and include error handling (`set -e`)
 
-Quick example (`scripts/bump-rancher.sh`):
+**Common patterns:**
 
 ```bash
 #!/bin/bash
-set -e
+set -e  # Exit on error
 
-# Environment variables available:
-# PRBUILDER_TAG - The release tag (e.g., v10.3.2)
-# PRBUILDER_VERSION - Parsed version (e.g., 10)
-# PRBUILDER_TARGET_DIR - Path to cloned target repo
-# PRBUILDER_TARGET_REPO - Target repository (e.g., rancher/rancher)
-# PRBUILDER_TARGET_BRANCH - Target branch (e.g., dev-v2.14)
-# PRBUILDER_SOURCE_DIR - Source repository path
-
-# Update Chart.yaml
-sed -i "s/version: .*/version: ${PRBUILDER_TAG#v}/" \
-  "$PRBUILDER_TARGET_DIR/charts/rancher-backup/Chart.yaml"
-
-# Update go dependency
+# Update dependency versions
 cd "$PRBUILDER_TARGET_DIR"
 go get github.com/your-org/your-repo@"$PRBUILDER_TAG"
 go mod tidy
 
-# Optionally call target repo scripts if needed
-if [ -f "$PRBUILDER_TARGET_DIR/scripts/validate.sh" ]; then
-  "$PRBUILDER_TARGET_DIR/scripts/validate.sh"
+# Update configuration files
+sed -i "s/VERSION=.*/VERSION=${PRBUILDER_TAG}/" "$PRBUILDER_TARGET_DIR/Makefile"
+
+# Branch-specific logic
+case "$PRBUILDER_TARGET_BRANCH" in
+  release-*)
+    echo "Production config for release branch"
+    ;;
+  dev-*)
+    echo "Development config for dev branch"
+    ;;
+esac
+
+# Call target repo's scripts if they exist
+if [ -f "$PRBUILDER_TARGET_DIR/scripts/post-update.sh" ]; then
+  "$PRBUILDER_TARGET_DIR/scripts/post-update.sh" "$PRBUILDER_TAG"
 fi
 ```
 
@@ -235,11 +239,19 @@ All update scripts receive these environment variables:
 | Variable | Example | Description |
 |----------|---------|-------------|
 | `PRBUILDER_TAG` | `v10.3.2` | The release tag |
-| `PRBUILDER_VERSION` | `10` | Parsed version (major or major.minor) |
-| `PRBUILDER_TARGET_DIR` | `/tmp/prbuilder-123` | Path to cloned target repository |
-| `PRBUILDER_TARGET_REPO` | `rancher/rancher` | Target repository (owner/repo) |
-| `PRBUILDER_TARGET_BRANCH` | `dev-v2.14` | Target branch being updated |
-| `PRBUILDER_SOURCE_DIR` | `/github/workspace` | Source repository path |
+| `PRBUILDER_VERSION` | `10` | Parsed version based on `version_mapping_type` (e.g., `10` for major, `10.3` for major.minor) |
+| `PRBUILDER_TARGET_DIR` | `/tmp/prbuilder-123` | Absolute path to cloned target repository (working directory for modifications) |
+| `PRBUILDER_TARGET_REPO` | `rancher/rancher` | Target repository in `owner/repo` format (useful for multi-repo scripts) |
+| `PRBUILDER_TARGET_BRANCH` | `dev-v2.14` | Target branch being updated (useful for branch-specific logic) |
+| `PRBUILDER_SOURCE_DIR` | `/github/workspace` | Absolute path to source repository (your repo with the update script) |
+
+**Usage tips:**
+- Validate required env vars at the start of your script
+- Use `$PRBUILDER_TARGET_DIR` as the base path for all file modifications
+- Use `$PRBUILDER_TARGET_REPO` to implement repo-specific logic in a shared script
+- Use `$PRBUILDER_TARGET_BRANCH` for branch-specific configurations (dev vs release)
+- Reference source repo files via `$PRBUILDER_SOURCE_DIR` if needed
+- Remove `v` prefix from tag: `VERSION="${PRBUILDER_TAG#v}"` → `10.3.2`
 
 ## Authentication
 
