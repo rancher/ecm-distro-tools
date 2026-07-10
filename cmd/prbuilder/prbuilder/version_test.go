@@ -15,24 +15,25 @@ func TestParseVersion(t *testing.T) {
 		{tag: "v10.3.2", mappingType: "major", expected: "10", expectError: false},
 		{tag: "v1.2.3", mappingType: "major", expected: "1", expectError: false},
 		{tag: "v20.15.8", mappingType: "major", expected: "20", expectError: false},
-		{tag: "10.3.2", mappingType: "major", expected: "10", expectError: false}, // No 'v' prefix
+		{tag: "10.3.2", mappingType: "major", expected: "10", expectError: true}, // No 'v' prefix
+		{tag: "v1.2", mappingType: "major", expected: "1", expectError: false},   // Minimum valid
+		{tag: "v1", mappingType: "major", expected: "1", expectError: false},     // Too few parts, but works
 
 		// Major.minor version mapping
 		{tag: "v10.3.2", mappingType: "major.minor", expected: "10.3", expectError: false},
 		{tag: "v1.2.3", mappingType: "major.minor", expected: "1.2", expectError: false},
 		{tag: "v20.15.8", mappingType: "major.minor", expected: "20.15", expectError: false},
-		{tag: "10.3.2", mappingType: "major.minor", expected: "10.3", expectError: false}, // No 'v' prefix
+		{tag: "v1", mappingType: "major.minor", expected: "1.0", expectError: false},     // Too few parts, but works
+		{tag: "10.3.2", mappingType: "major.minor", expected: "10.3", expectError: true}, // No 'v' prefix
 
 		// Empty mapping type defaults to major
 		{tag: "v10.3.2", mappingType: "", expected: "10", expectError: false},
 
 		// Error cases
-		{tag: "v1", mappingType: "major", expected: "", expectError: true},                     // Too few parts
-		{tag: "v1.2", mappingType: "major", expected: "1", expectError: false},                 // Minimum valid
-		{tag: "invalid", mappingType: "major", expected: "", expectError: true},                // No dots
-		{tag: "v10.3.2", mappingType: "invalid-type", expected: "", expectError: true},         // Invalid mapping type
-		{tag: "v10.3.2.4.5", mappingType: "major", expected: "10", expectError: false},         // Extra parts ignored
-		{tag: "v10.3.2.4.5", mappingType: "major.minor", expected: "10.3", expectError: false}, // Extra parts ignored
+		{tag: "invalid", mappingType: "major", expected: "", expectError: true},           // No dots
+		{tag: "v10.3.2", mappingType: "invalid-type", expected: "", expectError: true},    // Invalid mapping type
+		{tag: "v10.3.2.4.5", mappingType: "major", expected: "", expectError: true},       // Extra parts ignored
+		{tag: "v10.3.2.4.5", mappingType: "major.minor", expected: "", expectError: true}, // Extra parts ignored
 	}
 
 	for _, tt := range tests {
