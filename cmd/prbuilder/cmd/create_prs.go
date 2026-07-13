@@ -138,14 +138,14 @@ func outputResults(results []prbuilder.Result) error {
 		logrus.Debugf("failed to write GitHub Actions output: %v", err)
 	}
 
-	successCount := 0
+	var success int
 	for _, result := range results {
 		if result.Error == nil && result.PRURL != "" {
-			successCount++
+			success++
 		}
 	}
 
-	if successCount == 0 && len(results) > 0 {
+	if success == 0 && len(results) > 0 {
 		hasErrors := false
 		for _, result := range results {
 			if result.Error != nil {
