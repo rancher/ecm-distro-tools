@@ -24,6 +24,10 @@ release:
 backport:
 	cd cmd/$@ && $(MAKE)
 
+.PHONY: prbuilder
+prbuilder:
+	cd cmd/$@ && $(MAKE)
+
 .PHONY: test
 test:
 	go test -v -cover -race ./...
