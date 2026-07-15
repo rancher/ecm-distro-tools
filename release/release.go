@@ -82,6 +82,7 @@ type rke2ReleaseNoteData struct {
 	CalicoURL                             string
 	CiliumVersion                         string
 	MultusVersion                         string
+	MultusChartVersion                    string
 	CiliumChartVersion                    string
 	CanalChartVersion                     string
 	CalicoChartVersion                    string
@@ -136,22 +137,23 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 		return err
 	}
 
-	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
-	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
 	rd.CalicoChartVersion = chartsData["rke2-calico.yaml"].Version
 	rd.CalicoCRDChartVersion = chartsData["rke2-calico-crd.yaml"].Version
+	rd.CanalChartVersion = chartsData["rke2-canal.yaml"].Version
+	rd.CiliumChartVersion = chartsData["rke2-cilium.yaml"].Version
 	rd.CoreDNSChartVersion = chartsData["rke2-coredns.yaml"].Version
+	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
+	rd.MultusChartVersion = chartsData["rke2-multus.yaml"].Version
+	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
 	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
 	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
-	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
-	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
-	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
-	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
 	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
-	rd.TraefikVersion = chartsData["rke2-traefik.yaml"].Version
 	rd.TraefikCRDVersion = chartsData["rke2-traefik-crd.yaml"].Version
+	rd.TraefikVersion = chartsData["rke2-traefik.yaml"].Version
+	rd.VsphereCPIChartVersion = chartsData["rancher-vsphere-cpi.yaml"].Version
+	rd.VsphereCSIChartVersion = chartsData["rancher-vsphere-csi.yaml"].Version
 
 	return nil
 }
@@ -1066,6 +1068,9 @@ cat /var/lib/rancher/rke2/server/token
 {{- end }}
 {{- if not (eq .MetricsServerChartVersion "0.0.0") }}
 | rke2-metrics-server | [{{.MetricsServerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-metrics-server/rke2-metrics-server-{{.MetricsServerChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .MultusChartVersion "0.0.0") }}
+| rke2-multus | [{{.MultusChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-traefik/rke2-multus-{{.MultusChartVersion}}.tgz) |
 {{- end }}
 {{- if not (eq .VsphereCSIChartVersion "0.0.0") }}
 | rancher-vsphere-csi | [{{.VsphereCSIChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rancher-vsphere-csi/rancher-vsphere-csi-{{.VsphereCSIChartVersion}}.tgz) |
