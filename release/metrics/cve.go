@@ -268,11 +268,6 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 	}
 	sort.Strings(imageOrder)
 
-	statusLabel := map[string]string{
-		"affected":            "⚠️ *Affected*",
-		"under_investigation": "🔎 *Under Investigation*",
-	}
-
 	// stream accumulates all CVE content into a single rolling text buffer.
 	// writeLine flushes it into a new section block whenever the mrkdwn limit
 	// is approached, keeping structural labels and CVE lines in the same flow.
@@ -315,8 +310,8 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 				plural = ""
 			}
 
-			writeLine(fmt.Sprintf("%s %s, *%d CVE%s* (%s)\n",
-				statusLabel[status], safeImage, len(group), plural, formatSeverityBreakdown(counts)))
+			writeLine(fmt.Sprintf("`%s` *%d CVE%s* (%s)\n",
+				safeImage, len(group), plural, formatSeverityBreakdown(counts)))
 
 		}
 
