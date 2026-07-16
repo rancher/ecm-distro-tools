@@ -23,6 +23,7 @@ var (
 	format       *string
 	webhookURL   *string
 	severity     *string
+	projects     *[]string
 	skipMirrored *bool
 )
 
@@ -106,7 +107,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.CVEsBySeverity(*severity, *webhookURL, *skipMirrored)
+		return reports.CVEsBySeverity(*severity, *webhookURL, *skipMirrored, *projects)
 	},
 }
 
@@ -123,6 +124,7 @@ func init() {
 	webhookURL = cveStatsSubCmd.Flags().StringP("webhook-url", "u", "", "Slack webhook URL for sending messages")
 	severity = cveStatsSubCmd.Flags().StringP("severity", "s", "critical", "severity (critical|high|medium|low)")
 	skipMirrored = cveStatsSubCmd.Flags().BoolP("skip-mirrored", "m", false, "skip mirrored images when calculating CVE statistics")
+	projects = cveStatsSubCmd.Flags().StringSliceP("projects", "p", []string{"harvester", "longhorn", "rancher", "rke2", "k3s", "observability", "observability-agent"}, "comma-separated list of projects to include in the CVE statistics (harvester,longhorn,rancher,rke2,k3s,observability,observability-agent)")
 
 	if err := releasesStatsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
