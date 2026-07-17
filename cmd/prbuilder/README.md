@@ -1,244 +1,198 @@
 # prbuilder
 
-A CLI tool to create pull requests in downstream/consumer repositories when a new version is tagged.
+A CLI tool to automate version bump PRs across downstream/consumer repositories.
 
 ## Overview
 
-`prbuilder` automates the process of creating PRs across multiple repositories when your project releases a new version. It's designed for scenarios where a library/component is consumed by multiple applications that need coordinated version updates.
+When your project releases a new version, `prbuilder` creates PRs in all downstream repositories that consume it. Define version-to-branch mappings and update scripts once, then run a single command to update everything.
 
-## Installation
-
-Build from source:
-
+**Quick start:**
 ```bash
-cd cmd/prbuilder
+# Build
 go build -o prbuilder .
+
+# Create PRs for all configured repositories
+export GH_TOKEN="ghp_..."
+prbuilder create-prs --tag v10.3.2
 ```
 
-Or use the Makefile for multi-platform builds:
+## Basic Configuration
 
-```bash
-make -C cmd/prbuilder
-```
+Create a config file (e.g., `.github/pr-consumer-config.yml`) defining version mappings and target repositories.
 
-## Usage
+### Single Repository
 
-`prbuilder` uses the `create-prs` command. The mode (single-target or multi-target) is automatically determined by your config file structure.
-
-### Config-Based Modes
-
-**Single-target mode** - Use `target:` (singular) in your config:
-```yaml
-target:
-  repo: "rancher/rancher"
-  update_script_path: "./scripts/bump.sh"
-```
-- Supports `--target-dir` for working with an existing local clone
-- Perfect for local development and testing
-- Ideal for repos that only need to update one downstream repository
-
-**Multi-target mode** - Use `targets:` (plural) in your config:
-```yaml
-targets:
-  - repo: "rancher/rancher"
-    update_script_path: "./scripts/bump-rancher.sh"
-  - repo: "rancher/charts"
-    update_script_path: "./scripts/bump-charts.sh"
-```
-- Automatically clones each target repository
-- Processes all targets in sequence
-- Used in CI/automated workflows
-- `--target-dir` flag is rejected (mode mismatch)
-
-### Examples
-
-**CI/Automation (multi-target):**
-```bash
-prbuilder create-prs --tag v10.3.2 --config .github/pr-consumer-config.yml
-```
-
-**Local testing with existing clone (single-target):**
-```bash
-prbuilder create-prs \
-  --tag v10.3.2 \
-  --config .github/pr-consumer-config.yml \
-  --target-dir ~/repos/rancher \
-  --remote upstream \
-  --dry-run
-```
-
-**Local testing with auto-clone (single-target):**
-```bash
-prbuilder create-prs --tag v10.3.2 --config .github/pr-consumer-config.yml --dry-run
-```
-
-### Command Line Flags
-
-| Flag | Environment Variable | Default | Description |
-|------|---------------------|---------|-------------|
-| `--tag`, `-t` | `TAG` | - | The tag that was released (e.g., v10.3.2) |
-| `--config`, `-c` | `CONFIG_FILE` | `.github/pr-consumer-config.yml` | Path to config file |
-| `--dry-run`, `-n` | `DRY_RUN=true` | false | Dry run mode (show changes but don't create PRs) |
-| `--target-dir`, `-d` | - | - | Path to already-cloned target repo (only for single-target configs) |
-| `--remote`, `-r` | - | `origin` | Git remote name to use for push |
-
-### Environment Variables
-
-- `GH_TOKEN` or `GITHUB_TOKEN` - GitHub authentication token (required)
-- `GITHUB_WORKSPACE` - Source repository path (defaults to current directory)
-- `GITHUB_OUTPUT` - GitHub Actions output file (optional, for CI integration)
-
-## Configuration File
-
-The config file defines version-to-branch mappings and target repositories. The config structure determines the operating mode.
-
-### Single-Target Configuration (with `target:` singular)
+For updating one downstream repository:
 
 ```yaml
-# How to parse version from tags
-version_strategy: major
+version_strategy: major  # v10.3.2 → "10"
 
-# Global version to branch mapping
 publishing_rules:
   "11": "dev-v2.15"
   "10": "dev-v2.14"
   "9": "dev-v2.13"
 
-# Single target repository (note: "target" singular)
 target:
   repo: "rancher/rancher"
   update_script_path: "./scripts/bump-rancher.sh"
-  # Optional: override global mapping
-  publishing_rules:
-    "11": "release-v2.15"
-    "10": "release-v2.14"
 ```
 
-Supports `--target-dir` flag for working with existing clones.
+Usage:
+```bash
+# CI/automation
+prbuilder create-prs --tag v10.3.2
 
-### Multi-Target Configuration (with `targets:` plural)
+# Local testing with existing clone
+prbuilder create-prs --tag v10.3.2 --target-dir ~/repos/rancher --dry-run
+```
+
+### Multiple Repositories
+
+For updating multiple downstream repositories:
 
 ```yaml
-# How to parse version from tags
 version_strategy: major
 
-# Global version to branch mapping
 publishing_rules:
   "11": "dev-v2.15"
   "10": "dev-v2.14"
-  "9": "dev-v2.13"
 
-# Multiple target repositories (note: "targets" plural)
 targets:
   - repo: "rancher/rancher"
     update_script_path: "./scripts/bump-rancher.sh"
   
   - repo: "rancher/charts"
-    # Override global mapping for this target
-    publishing_rules:
-      "11": "release-v2.15"
-      "10": "release-v2.14"
     update_script_path: "./scripts/bump-charts.sh"
 ```
 
-Processes all targets automatically. Does not support `--target-dir`.
-
-### Configuration Fields
-
-#### `version_strategy`
-
-How to extract version from tags:
-- `major`: `v10.3.2` → `10`
-- `major.minor`: `v10.3.2` → `10.3`
-
-Default: `major`
-
-#### `publishing_rules`
-
-Global mapping of versions to target branches. Can be overridden per target.
-
-**Supports:**
-- **Single branch** (string): `"10": "dev-v2.14"`
-- **Multiple branches** (array): `"10": ["dev-v2.14", "release-v2.14"]` - Creates separate PRs for each branch
-- **Wildcard fallback** (special key): `"*": "main"` - Matches any version not explicitly mapped
-
-**Examples:**
-
-```yaml
-# Single release line - all versions go to main
-publishing_rules:
-  "*": "main"
-
-# Specific mappings with fallback
-publishing_rules:
-  "11": "dev-v2.15"
-  "10": "dev-v2.14"
-  "*": "main"  # All other versions (0.x, 9, 8, etc.) go to main
-
-# Multiple target branches for a version
-publishing_rules:
-  "10": ["dev-v2.14", "release-v2.14"]  # Creates 2 PRs for v10.x.x releases
-  "9": "release-v2.13"
+Usage:
+```bash
+# Processes all targets automatically
+prbuilder create-prs --tag v10.3.2
 ```
 
-#### `target` vs `targets`
+### Update Scripts
 
-**Single-target mode** - Use `target:` (singular):
-- `repo` (required): Target repository in `owner/repo` format
-- `update_script` (required): Path to update script in source repo (receives environment variables)
-- `publishing_rules` (optional): Per-target version mapping (overrides global)
-- Supports `--target-dir` flag
-
-**Multi-target mode** - Use `targets:` (plural):
-- Array of target repositories with the same fields as above
-- Does not support `--target-dir` flag
-
-## Update Scripts
-
-The **update script** lives in your **source repository** and is called with environment variables providing all necessary context.
-
-### Environment Variables Available to Scripts
-
-**See [complete example script](../../actions/create-pr/update-script-example.sh)** demonstrating all features.
-
-All scripts receive these environment variables:
-
-| Variable | Example | Description |
-|----------|---------|-------------|
-| `PRBUILDER_TAG` | `v10.3.2` | The release tag |
-| `PRBUILDER_VERSION` | `10` | Parsed version (based on `version_strategy`) |
-| `PRBUILDER_TARGET_DIR` | `/tmp/prbuilder-123` | Path to cloned target repository |
-| `PRBUILDER_TARGET_REPO` | `rancher/rancher` | Target repository (owner/repo) |
-| `PRBUILDER_TARGET_BRANCH` | `dev-v2.14` | Target branch being updated |
-| `PRBUILDER_SOURCE_DIR` | `/github/workspace` | Source repository path |
-
-### Example Update Script
+Update scripts receive context via environment variables:
 
 ```bash
 #!/bin/bash
 set -e
 
-# All context is available via environment variables
+# Environment variables available:
+# PRBUILDER_TAG          = v10.3.2
+# PRBUILDER_VERSION      = 10
+# PRBUILDER_TARGET_DIR   = /tmp/prbuilder-123
+# PRBUILDER_TARGET_REPO  = rancher/rancher
+# PRBUILDER_TARGET_BRANCH = dev-v2.14
+# PRBUILDER_SOURCE_DIR   = /github/workspace
+
 echo "Updating $PRBUILDER_TARGET_REPO to $PRBUILDER_TAG"
 
-# Update Chart.yaml in target repo
-sed -i "s/version: .*/version: ${PRBUILDER_TAG#v}/" \
-  "$PRBUILDER_TARGET_DIR/charts/my-chart/Chart.yaml"
-
-# Update go dependency
 cd "$PRBUILDER_TARGET_DIR"
-go get github.com/myorg/myrepo@"$PRBUILDER_TAG"
+go get github.com/myorg/mylib@"$PRBUILDER_TAG"
 go mod tidy
+```
 
-# Optionally call scripts in the target repo if needed
-if [ -f "$PRBUILDER_TARGET_DIR/scripts/post-update.sh" ]; then
-  "$PRBUILDER_TARGET_DIR/scripts/post-update.sh"
-fi
+## What Gets Created
+
+When you run `prbuilder create-prs --tag v10.3.2`, here's what gets generated:
+
+### Branch Name
+```
+bot/dev-v2.14-backup-restore-operator-bump-v10.3.2-1721234567
+```
+
+Format: `bot/{target-branch}-{component}-bump-{tag}-{timestamp}`
+
+- `bot/` prefix indicates automation
+- Target branch shows where the PR will merge
+- Component name identifies what's being updated
+- Tag and timestamp ensure uniqueness
+
+### PR Title
+```
+[dev-v2.14] Bump backup-restore-operator to v10.3.2
+```
+
+Format: `[{target-branch}] Bump {component} to {tag}`
+
+### PR Body
+```markdown
+Automated version bump to `v10.3.2` from upstream release.
+
+This PR updates the dependencies to use the newly released version.
+
+**Component:** backup-restore-operator
+**Release tag:** v10.3.2
+**Target branch:** dev-v2.14
+**Release notes:** https://github.com/rancher/backup-restore-operator/releases/tag/v10.3.2
+
+---
+_This PR was automatically created by prbuilder_
+```
+
+The component name and release notes link are automatically extracted from your source repository's git remote.
+
+## Advanced Configuration
+
+### Version Strategies
+
+Control how versions are extracted from tags:
+
+```yaml
+# Extract major version only
+version_strategy: major
+# v10.3.2 → "10"
+
+# Extract major.minor version
+version_strategy: major.minor
+# v10.3.2 → "10.3"
+```
+
+### Multiple Target Branches
+
+Create PRs to multiple branches for a single version:
+
+```yaml
+publishing_rules:
+  "10": ["dev-v2.14", "release-v2.14"]  # Creates 2 PRs
+```
+
+When you run `prbuilder create-prs --tag v10.3.2`, it creates separate PRs for both `dev-v2.14` and `release-v2.14`.
+
+### Wildcard Fallback
+
+Use `"*"` to match versions not explicitly mapped:
+
+```yaml
+publishing_rules:
+  "11": "dev-v2.15"
+  "10": "dev-v2.14"
+  "*": "main"  # All other versions go to main
+```
+
+### Per-Target Overrides
+
+Override global mappings for specific targets:
+
+```yaml
+publishing_rules:
+  "10": "dev-v2.14"
+
+targets:
+  - repo: "rancher/rancher"
+    update_script_path: "./scripts/bump.sh"
+  
+  - repo: "rancher/charts"
+    update_script_path: "./scripts/bump.sh"
+    publishing_rules:
+      "10": "release-v2.14"  # Override: charts uses different branch
 ```
 
 ### Single Script for Multiple Targets
 
-Since all context is in environment variables, you can use one script for multiple targets:
+Use `PRBUILDER_TARGET_REPO` to handle multiple targets in one script:
 
 ```bash
 #!/bin/bash
@@ -246,12 +200,10 @@ set -e
 
 case "$PRBUILDER_TARGET_REPO" in
   "rancher/rancher")
-    # Rancher-specific updates
     sed -i "s/backup_version=.*/backup_version=$PRBUILDER_TAG/" \
       "$PRBUILDER_TARGET_DIR/config.yaml"
     ;;
   "rancher/charts")
-    # Charts-specific updates
     sed -i "s/version: .*/version: ${PRBUILDER_TAG#v}/" \
       "$PRBUILDER_TARGET_DIR/Chart.yaml"
     ;;
@@ -262,241 +214,132 @@ case "$PRBUILDER_TARGET_REPO" in
 esac
 ```
 
-### Wrapper for Existing Scripts
+### CLI Flags
 
-If you have existing scripts that expect positional arguments:
+| Flag | Environment Variable | Default | Description |
+|------|---------------------|---------|-------------|
+| `--tag`, `-t` | `TAG` | - | The release tag (e.g., v10.3.2) |
+| `--config`, `-c` | `CONFIG_FILE` | `.github/pr-consumer-config.yml` | Path to config file |
+| `--dry-run`, `-n` | `DRY_RUN=true` | false | Show changes without creating PRs |
+| `--target-dir`, `-d` | - | - | Path to existing clone (single-target only) |
+| `--remote`, `-r` | - | `origin` | Git remote name for push |
 
-```bash
-#!/bin/bash
-# wrapper.sh - adapts prbuilder env vars to existing script
-./my-existing-script.sh "$PRBUILDER_TAG" "$PRBUILDER_TARGET_DIR" "$PRBUILDER_TARGET_REPO"
-```
-
-## How It Works
-
-For each target repository:
-
-1. Parse version from tag using `version_strategy`
-2. Resolve target branch using version mapping
-3. **Single-target mode (--target-dir):**
-   - Open existing repository
-   - Ensure remote exists
-   - **Fetch from remote (mandatory - prevents stale branches)**
-   - Checkout remote branch, creating/resetting local branch from remote ref
-   - This ensures you're always working with the latest code, even if your local branch was stale
-4. **Multi-target mode:**
-   - Clone target repository (shallow clone with depth=1 for speed)
-5. Create a new PR branch (`bump-to-{TAG}-{timestamp}`)
-6. Run update script from source repo with environment variables
-7. Check for changes via git status
-   - **If no changes:** Log a message, clean up the PR branch (single-target mode), and skip PR creation
-   - **If changes:** Continue to commit and PR creation
-8. Commit changes (author: github-actions[bot])
-9. Push branch and create PR using GitHub API
-
-**Key improvements:**
-- **Stale branch fix:** In single-target mode with `--target-dir`, the tool fetches from the remote and creates/resets the local branch from the remote reference, preventing PRs from stale code
-- **Clean no-changes handling:** If the update script makes no changes, the tool cleans up the PR branch it created (in single-target mode) and leaves your repo in a clean state
-
-If any target fails, the tool continues processing other targets.
-
-## Examples
-
-### Multi-Target Mode: CI/Automation
-
-```bash
-# Config with "targets:" (plural)
-export GH_TOKEN="ghp_..."
-prbuilder create-prs --tag v10.3.2
-```
-
-### Multi-Target Mode: Dry Run
-
-```bash
-# Config with "targets:" (plural)
-prbuilder create-prs --tag v10.3.2 --dry-run
-```
-
-### Single-Target Mode: Local with Existing Clone
-
-Test your update scripts with a repository you already have cloned:
-
-```bash
-# Config must use "target:" (singular)
-# 1. Navigate to your cloned repository
-cd ~/repos/rancher
-
-# 2. Make sure you're on the right branch
-git checkout dev-v2.14
-
-# 3. Run prbuilder pointing to current directory
-export GH_TOKEN="ghp_..."
-prbuilder create-prs \
-  --tag v10.3.2 \
-  --config ~/source-repo/.github/pr-consumer-config.yml \
-  --target-dir . \
-  --dry-run
-
-# 4. Review the changes
-git diff
-
-# 5. If changes look good, run without dry-run to create the PR
-prbuilder create-prs \
-  --tag v10.3.2 \
-  --config ~/source-repo/.github/pr-consumer-config.yml \
-  --target-dir .
-```
-
-### Single-Target Mode: Custom Remote Name
-
-If your repository uses a different remote name:
-
-```bash
-# Config must use "target:" (singular)
-cd ~/repos/rancher
-
-prbuilder create-prs \
-  --tag v10.3.2 \
-  --config ~/source/.github/pr-consumer-config.yml \
-  --target-dir . \
-  --remote upstream
-```
-
-### Single-Target Mode: Auto-Clone
-
-Let prbuilder clone the repository for you:
-
-```bash
-# Config must use "target:" (singular)
-export GH_TOKEN="ghp_..."
-prbuilder create-prs --tag v10.3.2 --config .github/pr-consumer-config.yml --dry-run
-```
-
-### Single Release Line (All Versions → Same Branch)
-
-For repos where all versions go to the same branch:
+### GitHub Actions Integration
 
 ```yaml
-version_strategy: major
-publishing_rules:
-  "*": "main"  # All versions (0.x, 1.x, 2.x, etc.) go to main
-targets:
-  - repo: "myorg/consumer"
-    update_script_path: "./scripts/bump.sh"
-```
-
-```bash
-# Any tag will create a PR to main branch
-prbuilder create-prs --tag v0.5.2
-prbuilder create-prs --tag v1.0.0
-prbuilder create-prs --tag v2.3.1  # All go to main
-```
-
-### Multiple Target Branches
-
-Create PRs to multiple branches for a single release:
-
-```yaml
-publishing_rules:
-  "10": ["dev-v2.14", "release-v2.14"]
-targets:
-  - repo: "myorg/consumer"
-    update_script_path: "./scripts/bump.sh"
-```
-
-```bash
-# Creates 2 PRs: one to dev-v2.14, one to release-v2.14
-prbuilder create-prs --tag v10.3.2
-```
-
-### GitHub Actions (CI Mode)
-
-```yaml
-- name: Create PRs in All Consumer Repos
+- name: Create PRs
   env:
     GH_TOKEN: ${{ secrets.PAT_TOKEN }}
     TAG: ${{ github.ref_name }}
   run: prbuilder create-prs
 ```
 
-### Checking Your Config Mode
-
-To see which mode your config uses:
-
-```bash
-# Single-target config will support --target-dir
-# Multi-target config will reject --target-dir with an error message
-prbuilder create-prs --tag v10.0.0 --config config.yml --target-dir /tmp/test --dry-run
-```
-
-## Exit Codes
-
-- `0` - Success (at least one PR created or no errors occurred)
-- `1` - All targets failed or critical error (config parse, missing token)
-
-## Requirements
-
-- Go 1.21 or later
-- `gh` CLI tool (for creating PRs only)
-- GitHub Personal Access Token with `repo` scope
-
-**Note:** Git operations (clone, fetch, checkout, commit, push) are performed using the go-git library, not shell commands. The `gh` CLI is only used for creating pull requests via the GitHub API.
-
-## Integration with GitHub Actions
-
-When running in GitHub Actions, `prbuilder` automatically:
-- Reads configuration from environment variables
-- Writes PR URLs to `$GITHUB_OUTPUT` in JSON format
-- Uses github-actions[bot] as the commit author
+When running in GitHub Actions:
+- Reads config from environment variables
+- Writes PR URLs to `$GITHUB_OUTPUT`
+- Uses `github-actions[bot]` as commit author
 
 ## Troubleshooting
 
 ### "GH_TOKEN or GITHUB_TOKEN environment variable is required"
 
-Set the `GH_TOKEN` or `GITHUB_TOKEN` environment variable with a GitHub Personal Access Token.
+Set the GitHub token:
+```bash
+export GH_TOKEN="ghp_..."
+```
+
+Generate a token with `repo` scope at https://github.com/settings/tokens
 
 ### "No branch mapping found for version X"
 
-Ensure your `publishing_rules` includes an entry for the extracted version. Check your `version_strategy` setting.
+Your `publishing_rules` doesn't include the extracted version. Check:
+- Your tag format matches `version_strategy` (e.g., `v10.3.2` with `major` → `"10"`)
+- You have an entry for that version or a `"*"` wildcard
 
-### "Failed to clone repository" or "Failed to open repository"
+Example fix:
+```yaml
+publishing_rules:
+  "10": "dev-v2.14"
+  "*": "main"  # Fallback for other versions
+```
 
-- Verify your PAT has access to the target repository
-- Ensure the target branch exists on the remote
-- Check the repository name format (`owner/repo`)
-- For `--target-dir`, ensure the path points to a valid git repository
+### "Failed to clone repository"
 
-### "Failed to fetch from remote"
-
-- Check your network connection
-- Verify your GitHub token has not expired
-- Ensure the remote exists: the tool will create the remote if needed, but the repository must be accessible
+Check:
+- Your token has access to the target repository
+- Repository name format is correct (`owner/repo`)
+- The target branch exists on the remote
 
 ### "Branch X does not exist on remote Y"
 
-The target branch specified in your `publishing_rules` doesn't exist on the remote repository. Check:
-- Branch name is correct in your config
-- Branch has been pushed to the remote repository
-- You have permission to access the branch
-
-### "Failed to checkout X from remote/branch"
-
-This usually means:
-- The branch doesn't exist on the remote (see above)
-- There are uncommitted changes in your `--target-dir` that conflict with the checkout
-- Permission issues with the repository
-
-**Tip for local development:** The tool will now automatically fetch and reset your local branch to match the remote, so you don't need to manually pull before running.
+The target branch in your `publishing_rules` doesn't exist. Verify the branch exists:
+```bash
+git ls-remote https://github.com/OWNER/REPO refs/heads/BRANCH_NAME
+```
 
 ### "Update script not found"
 
-- Ensure the script path is relative to your source repo root
-- Verify the script is committed to your repository
-- Check the script path starts with `./`
+Ensure:
+- Script path is relative to source repo root
+- Script is committed to your repository
+- Path starts with `./`
 
-### "GitHub token does not have permission to push"
+Example:
+```yaml
+update_script_path: "./scripts/bump.sh"  # ✓ Correct
+update_script_path: "scripts/bump.sh"    # ✗ Wrong
+```
 
-Your token needs the `repo` scope to push branches. Generate a new token with proper permissions at https://github.com/settings/tokens
+### No changes detected
+
+If your update script runs but no PR is created, the script made no changes to the target repository. This is expected behavior when:
+- The version is already up to date
+- The script logic determined no update is needed
+
+To debug:
+```bash
+# Run with --dry-run and check what the script does
+prbuilder create-prs --tag v10.3.2 --dry-run
+```
+
+## Contributing
+
+### Building
+
+```bash
+# Build for current platform
+go build -o prbuilder .
+
+# Build for all platforms
+make -C cmd/prbuilder
+```
+
+### Testing
+
+```bash
+# Run tests
+go test ./...
+
+# Run linter
+golangci-lint run --timeout=5m
+```
+
+### Code Structure
+
+- `cmd/` - CLI commands
+- `config/` - Configuration file parsing
+- `git/` - Git operations (clone, fetch, commit, push)
+- `prbuilder/` - Core logic
+  - `branchbuilder.go` - Local operations (clone, branch creation, commits)
+  - `publisher.go` - Remote operations (push, PR creation)
+  - `prbuilder.go` - Orchestrates the workflow
+
+### Requirements
+
+- Go 1.26 or later
+- GitHub Personal Access Token with `repo` scope
+
+All git operations and GitHub API calls are handled via Go libraries ([go-git](https://github.com/go-git/go-git) and [go-github](https://github.com/google/go-github)). No external CLI tools required.
 
 ## License
 
