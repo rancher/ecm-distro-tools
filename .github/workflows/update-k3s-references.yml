@@ -73,7 +73,7 @@ jobs:
           git config --global user.email "eio-github-actions-power-enhancer[bot]@users.noreply.github.com"
 
       - name: "Setup `ecm-distro-tools` CLI"
-        uses: rancher/ecm-distro-tools@49656efa72e90062a70fac1a85ad121f4873a6a0 # v0.74.4
+        uses: rancher/ecm-distro-tools@e9b6789032dbe9e289ccc6f7532da8fd349922b3 # v0.75.0
 
       - name: "Generate Tags list"
         env:
