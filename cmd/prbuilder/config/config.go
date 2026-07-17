@@ -117,7 +117,7 @@ func (c *Config) IsSingleTarget() bool {
 }
 
 // TargetsList returns the targets list, converting single target if needed
-func (c *Config) TargetsList() []Target {
+func (c *Config) Targets() []Target {
 	if c.Target != nil {
 		return []Target{*c.Target}
 	}
