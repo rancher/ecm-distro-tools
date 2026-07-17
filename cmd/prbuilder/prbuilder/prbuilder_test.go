@@ -17,10 +17,10 @@ func TestNewPRBuilder(t *testing.T) {
 			name: "valid options with major version mapping",
 			opts: Options{
 				Config: &config.Config{
-					VersionMappingType: "major",
-					Target: &config.Target{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+					VersionStrategy: "major",
+					target: &config.Target{
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 				Tag:           "v10.3.2",
@@ -33,10 +33,10 @@ func TestNewPRBuilder(t *testing.T) {
 			name: "valid options with major.minor version mapping",
 			opts: Options{
 				Config: &config.Config{
-					VersionMappingType: "major.minor",
-					Target: &config.Target{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+					VersionStrategy: "major.minor",
+					target: &config.Target{
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 				Tag:           "v10.3.2",
@@ -49,10 +49,10 @@ func TestNewPRBuilder(t *testing.T) {
 			name: "invalid tag format",
 			opts: Options{
 				Config: &config.Config{
-					VersionMappingType: "major",
-					Target: &config.Target{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+					VersionStrategy: "major",
+					target: &config.Target{
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 				Tag:           "invalid",
@@ -64,10 +64,10 @@ func TestNewPRBuilder(t *testing.T) {
 			name: "default remote",
 			opts: Options{
 				Config: &config.Config{
-					VersionMappingType: "major",
-					Target: &config.Target{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+					VersionStrategy: "major",
+					target: &config.Target{
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 				Tag:           "v10.3.2",
@@ -105,13 +105,13 @@ func TestNewPRBuilder(t *testing.T) {
 			}
 
 			// Verify version was parsed correctly
-			if tt.opts.Config.VersionMappingType == "major" {
+			if tt.opts.Config.VersionStrategy == "major" {
 				expectedVersion := "10"
 				if pb.version != expectedVersion {
 					t.Errorf("NewPRBuilder() version = %q, want %q", pb.version, expectedVersion)
 				}
 			}
-			if tt.opts.Config.VersionMappingType == "major.minor" {
+			if tt.opts.Config.VersionStrategy == "major.minor" {
 				expectedVersion := "10.3"
 				if pb.version != expectedVersion {
 					t.Errorf("NewPRBuilder() version = %q, want %q", pb.version, expectedVersion)

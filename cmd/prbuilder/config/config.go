@@ -9,13 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BranchOrBranches handles a value that can be a single branch or a list of branches.
-type BranchOrBranches []string
+// Branches handles a value that can be a single branch or a list of branches.
+type Branches []string
 
-func (s *BranchOrBranches) UnmarshalYAML(value *yaml.Node) error {
+func (b *Branches) UnmarshalYAML(value *yaml.Node) error {
 	var str string
 	if err := value.Decode(&str); err == nil {
-		*s = []string{str}
+		*b = []string{str}
 		return nil
 	}
 
@@ -24,24 +24,24 @@ func (s *BranchOrBranches) UnmarshalYAML(value *yaml.Node) error {
 		return fmt.Errorf("failed to parse string or list of strings: %w", err)
 	}
 
-	*s = slice
+	*b = slice
 	return nil
 }
 
 // Config represents the prbuilder configuration file
 type Config struct {
-	VersionMappingType string                      `yaml:"version_mapping_type"` // "major" or "major.minor"
-	VersionBranchMap   map[string]BranchOrBranches `yaml:"version_branch_map"`   // Can be string or []string
-	Target             *Target                     `yaml:"target,omitempty"`     // Single-target mode (singular)
-	Targets            []Target                    `yaml:"targets,omitempty"`    // Multi-target mode (plural)
+	VersionStrategy string              `yaml:"version_strategy"`  // "major" or "major.minor"
+	PublishingRules map[string]Branches `yaml:"publishing_rules"`  // Can be string or []string
+	Target          *Target             `yaml:"target,omitempty"`  // Single-target mode (singular)
+	TargetList      []Target            `yaml:"targets,omitempty"` // Multi-target mode (plural)
 }
 
 // Target represents a target repository configuration
 type Target struct {
-	Repo             string                      `yaml:"repo"`                         // e.g. "rancher/rancher"
-	UpdateScript     string                      `yaml:"update_script"`                // e.g. "./scripts/bump.sh"
-	PostUpdateScript string                      `yaml:"post_update_script,omitempty"` // Optional post-update script
-	VersionBranchMap map[string]BranchOrBranches `yaml:"version_branch_map,omitempty"` // Optional per-target version mapping (can be string or []string)
+	Repo                 string              `yaml:"repo"`                              // e.g. "rancher/rancher"
+	UpdateScriptPath     string              `yaml:"update_script_path"`                // e.g. "./scripts/bump.sh"
+	PostUpdateScriptPath string              `yaml:"post_update_script_path,omitempty"` // Optional post-update script
+	PublishingRules      map[string]Branches `yaml:"publishing_rules,omitempty"`        // Optional per-target version mapping (can be string or []string)
 }
 
 // Load reads and parses the config file from the given path
@@ -52,16 +52,14 @@ func Load(path string) (*Config, error) {
 	}
 	defer f.Close()
 
-	d := yaml.NewDecoder(f)
-
 	var cfg Config
-	if err := d.Decode(&cfg); err != nil {
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
 	// Set defaults
-	if cfg.VersionMappingType == "" {
-		cfg.VersionMappingType = "major"
+	if cfg.VersionStrategy == "" {
+		cfg.VersionStrategy = "major"
 	}
 
 	// Validate config
@@ -75,16 +73,16 @@ func Load(path string) (*Config, error) {
 // Validate checks that the config has all required fields and valid values
 func (c *Config) Validate() error {
 	// Validate version mapping type
-	if c.VersionMappingType != "major" && c.VersionMappingType != "major.minor" {
-		return errors.New("invalid version_mapping_type: " + c.VersionMappingType + " (must be 'major' or 'major.minor')")
+	if c.VersionStrategy != "major" && c.VersionStrategy != "major.minor" {
+		return errors.New("invalid version_strategy: " + c.VersionStrategy + " (must be 'major' or 'major.minor')")
 	}
 
 	// Check that we have either target (singular) or targets (plural), but not both
-	if c.Target != nil && len(c.Targets) > 0 {
+	if c.Target != nil && len(c.TargetList) > 0 {
 		return errors.New("config cannot have both 'target' and 'targets' fields - use 'target' for single-target mode or 'targets' for multi-target mode")
 	}
 
-	if c.Target == nil && len(c.Targets) == 0 {
+	if c.Target == nil && len(c.TargetList) == 0 {
 		return errors.New("config must define either 'target' (single-target mode) or 'targets' (multi-target mode)")
 	}
 
@@ -93,35 +91,33 @@ func (c *Config) Validate() error {
 		if c.Target.Repo == "" {
 			return errors.New("target.repo is required")
 		}
-		if c.Target.UpdateScript == "" {
-			return errors.New("target.update_script is required")
+		if c.Target.UpdateScriptPath == "" {
+			return errors.New("target.update_script_path is required")
 		}
 	}
 
 	// Validate multi-target mode
-	for i, target := range c.Targets {
+	for i, target := range c.TargetList {
 		if target.Repo == "" {
 			return errors.New("targets[" + strconv.Itoa(i) + "]: repo is required")
 		}
-		if target.UpdateScript == "" {
-			return fmt.Errorf("targets[%d] (%s): update_script is required", i, target.Repo)
+		if target.UpdateScriptPath == "" {
+			return fmt.Errorf("targets[%d] (%s): update_script_path is required", i, target.Repo)
 		}
 	}
 
 	return nil
 }
 
-// IsSingleTarget returns true if this is a single-target config
 func (c *Config) IsSingleTarget() bool {
 	return c.Target != nil
 }
 
-// TargetsList returns the targets list, converting single target if needed
 func (c *Config) Targets() []Target {
 	if c.Target != nil {
 		return []Target{*c.Target}
 	}
-	return c.Targets
+	return c.TargetList
 }
 
 // TargetBranches resolves the branch(es) for a given version and target.
@@ -135,14 +131,14 @@ func (c *Config) Targets() []Target {
 // maintaining a sensible default for most cases.
 func (c *Config) TargetBranches(version string, target *Target) ([]string, error) {
 	// Priority 1: Target-specific mapping
-	if target.VersionBranchMap != nil {
-		if branches, ok := target.VersionBranchMap[version]; ok {
+	if target.PublishingRules != nil {
+		if branches, ok := target.PublishingRules[version]; ok {
 			if len(branches) > 0 {
 				return branches, nil
 			}
 		}
 		// Priority 2: Target-specific wildcard
-		if branches, ok := target.VersionBranchMap["*"]; ok {
+		if branches, ok := target.PublishingRules["*"]; ok {
 			if len(branches) > 0 {
 				return branches, nil
 			}
@@ -150,14 +146,14 @@ func (c *Config) TargetBranches(version string, target *Target) ([]string, error
 	}
 
 	// Priority 3: Global mapping
-	if branches, ok := c.VersionBranchMap[version]; ok {
+	if branches, ok := c.PublishingRules[version]; ok {
 		if len(branches) > 0 {
 			return branches, nil
 		}
 	}
 
 	// Priority 4: Global wildcard (final fallback)
-	if branches, ok := c.VersionBranchMap["*"]; ok {
+	if branches, ok := c.PublishingRules["*"]; ok {
 		if len(branches) > 0 {
 			return branches, nil
 		}

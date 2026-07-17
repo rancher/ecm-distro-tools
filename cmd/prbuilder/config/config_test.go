@@ -17,10 +17,10 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid single-target config",
 			config: Config{
-				VersionMappingType: "major",
+				VersionStrategy: "major",
 				Target: &Target{
-					Repo:         "rancher/rancher",
-					UpdateScript: "./scripts/bump.sh",
+					Repo:             "rancher/rancher",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
 			},
 			expectError: false,
@@ -28,15 +28,15 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid multi-target config",
 			config: Config{
-				VersionMappingType: "major.minor",
-				Targets: []Target{
+				VersionStrategy: "major.minor",
+				TargetList: []Target{
 					{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 					{
-						Repo:         "rancher/rke2",
-						UpdateScript: "./scripts/update.sh",
+						Repo:             "rancher/rke2",
+						UpdateScriptPath: "./scripts/update.sh",
 					},
 				},
 			},
@@ -45,10 +45,10 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid version mapping type",
 			config: Config{
-				VersionMappingType: "invalid",
+				VersionStrategy: "invalid",
 				Target: &Target{
-					Repo:         "rancher/rancher",
-					UpdateScript: "./scripts/bump.sh",
+					Repo:             "rancher/rancher",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
 			},
 			expectError: true,
@@ -56,15 +56,15 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "both target and targets defined",
 			config: Config{
-				VersionMappingType: "major",
+				VersionStrategy: "major",
 				Target: &Target{
-					Repo:         "rancher/rancher",
-					UpdateScript: "./scripts/bump.sh",
+					Repo:             "rancher/rancher",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
-				Targets: []Target{
+				TargetList: []Target{
 					{
-						Repo:         "rancher/rke2",
-						UpdateScript: "./scripts/update.sh",
+						Repo:             "rancher/rke2",
+						UpdateScriptPath: "./scripts/update.sh",
 					},
 				},
 			},
@@ -73,16 +73,16 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "neither target nor targets defined",
 			config: Config{
-				VersionMappingType: "major",
+				VersionStrategy: "major",
 			},
 			expectError: true,
 		},
 		{
 			name: "single-target missing repo",
 			config: Config{
-				VersionMappingType: "major",
+				VersionStrategy: "major",
 				Target: &Target{
-					UpdateScript: "./scripts/bump.sh",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
 			},
 			expectError: true,
@@ -90,7 +90,7 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "single-target missing update_script",
 			config: Config{
-				VersionMappingType: "major",
+				VersionStrategy: "major",
 				Target: &Target{
 					Repo: "rancher/rancher",
 				},
@@ -100,10 +100,10 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "multi-target missing repo",
 			config: Config{
-				VersionMappingType: "major",
-				Targets: []Target{
+				VersionStrategy: "major",
+				TargetList: []Target{
 					{
-						UpdateScript: "./scripts/bump.sh",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 			},
@@ -112,8 +112,8 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "multi-target missing update_script",
 			config: Config{
-				VersionMappingType: "major",
-				Targets: []Target{
+				VersionStrategy: "major",
+				TargetList: []Target{
 					{
 						Repo: "rancher/rancher",
 					},
@@ -146,8 +146,8 @@ func TestConfig_IsSingleTarget(t *testing.T) {
 			name: "single-target config",
 			config: Config{
 				Target: &Target{
-					Repo:         "rancher/rancher",
-					UpdateScript: "./scripts/bump.sh",
+					Repo:             "rancher/rancher",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
 			},
 			expected: true,
@@ -155,10 +155,10 @@ func TestConfig_IsSingleTarget(t *testing.T) {
 		{
 			name: "multi-target config",
 			config: Config{
-				Targets: []Target{
+				TargetList: []Target{
 					{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 				},
 			},
@@ -191,8 +191,8 @@ func TestConfig_GetTargets(t *testing.T) {
 			name: "single-target config",
 			config: Config{
 				Target: &Target{
-					Repo:         "rancher/rancher",
-					UpdateScript: "./scripts/bump.sh",
+					Repo:             "rancher/rancher",
+					UpdateScriptPath: "./scripts/bump.sh",
 				},
 			},
 			expectedCount: 1,
@@ -200,14 +200,14 @@ func TestConfig_GetTargets(t *testing.T) {
 		{
 			name: "multi-target config",
 			config: Config{
-				Targets: []Target{
+				TargetList: []Target{
 					{
-						Repo:         "rancher/rancher",
-						UpdateScript: "./scripts/bump.sh",
+						Repo:             "rancher/rancher",
+						UpdateScriptPath: "./scripts/bump.sh",
 					},
 					{
-						Repo:         "rancher/rke2",
-						UpdateScript: "./scripts/update.sh",
+						Repo:             "rancher/rke2",
+						UpdateScriptPath: "./scripts/update.sh",
 					},
 				},
 			},
@@ -222,7 +222,7 @@ func TestConfig_GetTargets(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			targets := tt.config.TargetsList()
+			targets := tt.config.Targets()
 			if len(targets) != tt.expectedCount {
 				t.Errorf("GetTargets() returned %d targets, want %d", len(targets), tt.expectedCount)
 			}
@@ -242,7 +242,7 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 		{
 			name: "global mapping found",
 			config: Config{
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"10": {"release-v2.10"},
 				},
 			},
@@ -254,7 +254,7 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 		{
 			name: "global mapping multiple branches",
 			config: Config{
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"10": {"release-v2.10", "dev-v2.10"},
 				},
 			},
@@ -266,13 +266,13 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 		{
 			name: "target-specific mapping overrides global",
 			config: Config{
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"10": {"global-branch"},
 				},
 			},
 			target: Target{
 				Repo: "rancher/rancher",
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"10": {"target-specific-branch"},
 				},
 			},
@@ -283,7 +283,7 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 		{
 			name: "global wildcard fallback",
 			config: Config{
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"*": {"main"},
 				},
 			},
@@ -295,13 +295,13 @@ func TestConfig_GetTargetBranches(t *testing.T) {
 		{
 			name: "target-specific wildcard",
 			config: Config{
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"*": {"global-main"},
 				},
 			},
 			target: Target{
 				Repo: "rancher/rancher",
-				VersionBranchMap: map[string]BranchOrBranches{
+				PublishingRules: map[string]Branches{
 					"*": {"target-main"},
 				},
 			},
@@ -353,24 +353,24 @@ func TestBranchOrBranches_UnmarshalYAML(t *testing.T) {
 	tests := []struct {
 		name     string
 		yaml     string
-		expected BranchOrBranches
+		expected Branches
 	}{
 		{
 			name:     "single string",
 			yaml:     "branch: main",
-			expected: BranchOrBranches{"main"},
+			expected: Branches{"main"},
 		},
 		{
 			name:     "array of strings",
 			yaml:     "branch:\n  - main\n  - develop",
-			expected: BranchOrBranches{"main", "develop"},
+			expected: Branches{"main", "develop"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var result struct {
-				Branch BranchOrBranches `yaml:"branch"`
+				Branch Branches `yaml:"branch"`
 			}
 
 			err := yaml.Unmarshal([]byte(tt.yaml), &result)
@@ -404,7 +404,7 @@ func TestLoad(t *testing.T) {
 			configYAML: `
 target:
   repo: rancher/rancher
-  update_script: ./scripts/bump.sh
+  update_script_path: ./scripts/bump.sh
 version_branch_map:
   "10": release-v2.10
 `,
@@ -416,7 +416,7 @@ version_branch_map:
 version_mapping_type: major.minor
 target:
   repo: rancher/rancher
-  update_script: ./scripts/bump.sh
+  update_script_path: ./scripts/bump.sh
 version_branch_map:
   "10.3": release-v2.10
 `,
@@ -464,7 +464,7 @@ version_mapping_type: major
 			}
 
 			// Verify defaults are set
-			if cfg.VersionMappingType == "" {
+			if cfg.VersionStrategy == "" {
 				t.Errorf("Load() did not set default version_mapping_type")
 			}
 		})

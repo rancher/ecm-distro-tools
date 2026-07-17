@@ -48,7 +48,7 @@ type Options struct {
 // NewPRBuilder creates a new PR builder instance
 func NewPRBuilder(opts Options) (*Builder, error) {
 	// Parse version from tag
-	version, err := ParseVersion(opts.Tag, opts.Config.VersionMappingType)
+	version, err := ParseVersion(opts.Tag, opts.Config.VersionStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version from tag %s: %w", opts.Tag, err)
 	}
@@ -72,7 +72,7 @@ func NewPRBuilder(opts Options) (*Builder, error) {
 
 // ProcessTargets processes all configured targets and creates PRs
 func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
-	targets := b.config.TargetsList()
+	targets := b.config.Targets()
 	results := make([]Result, 0)
 
 	for _, target := range targets {
@@ -207,7 +207,7 @@ func (b *Builder) processTarget(ctx context.Context, target *config.Target, targ
 
 // executeUpdateScript runs the update script with environment variables
 func (b *Builder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
-	updateScriptPath := filepath.Join(b.sourceRepoDir, target.UpdateScript)
+	updateScriptPath := filepath.Join(b.sourceRepoDir, target.UpdateScriptPath)
 
 	if _, err := os.Stat(updateScriptPath); err != nil {
 		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, err)

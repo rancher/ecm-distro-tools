@@ -31,7 +31,7 @@ make -C cmd/prbuilder
 ```yaml
 target:
   repo: "rancher/rancher"
-  update_script: "./scripts/bump.sh"
+  update_script_path: "./scripts/bump.sh"
 ```
 - Supports `--target-dir` for working with an existing local clone
 - Perfect for local development and testing
@@ -41,9 +41,9 @@ target:
 ```yaml
 targets:
   - repo: "rancher/rancher"
-    update_script: "./scripts/bump-rancher.sh"
+    update_script_path: "./scripts/bump-rancher.sh"
   - repo: "rancher/charts"
-    update_script: "./scripts/bump-charts.sh"
+    update_script_path: "./scripts/bump-charts.sh"
 ```
 - Automatically clones each target repository
 - Processes all targets in sequence
@@ -96,10 +96,10 @@ The config file defines version-to-branch mappings and target repositories. The 
 
 ```yaml
 # How to parse version from tags
-version_mapping_type: major
+version_strategy: major
 
 # Global version to branch mapping
-version_branch_map:
+publishing_rules:
   "11": "dev-v2.15"
   "10": "dev-v2.14"
   "9": "dev-v2.13"
@@ -107,9 +107,9 @@ version_branch_map:
 # Single target repository (note: "target" singular)
 target:
   repo: "rancher/rancher"
-  update_script: "./scripts/bump-rancher.sh"
+  update_script_path: "./scripts/bump-rancher.sh"
   # Optional: override global mapping
-  version_branch_map:
+  publishing_rules:
     "11": "release-v2.15"
     "10": "release-v2.14"
 ```
@@ -120,10 +120,10 @@ Supports `--target-dir` flag for working with existing clones.
 
 ```yaml
 # How to parse version from tags
-version_mapping_type: major
+version_strategy: major
 
 # Global version to branch mapping
-version_branch_map:
+publishing_rules:
   "11": "dev-v2.15"
   "10": "dev-v2.14"
   "9": "dev-v2.13"
@@ -131,21 +131,21 @@ version_branch_map:
 # Multiple target repositories (note: "targets" plural)
 targets:
   - repo: "rancher/rancher"
-    update_script: "./scripts/bump-rancher.sh"
+    update_script_path: "./scripts/bump-rancher.sh"
   
   - repo: "rancher/charts"
     # Override global mapping for this target
-    version_branch_map:
+    publishing_rules:
       "11": "release-v2.15"
       "10": "release-v2.14"
-    update_script: "./scripts/bump-charts.sh"
+    update_script_path: "./scripts/bump-charts.sh"
 ```
 
 Processes all targets automatically. Does not support `--target-dir`.
 
 ### Configuration Fields
 
-#### `version_mapping_type`
+#### `version_strategy`
 
 How to extract version from tags:
 - `major`: `v10.3.2` → `10`
@@ -153,7 +153,7 @@ How to extract version from tags:
 
 Default: `major`
 
-#### `version_branch_map`
+#### `publishing_rules`
 
 Global mapping of versions to target branches. Can be overridden per target.
 
@@ -166,17 +166,17 @@ Global mapping of versions to target branches. Can be overridden per target.
 
 ```yaml
 # Single release line - all versions go to main
-version_branch_map:
+publishing_rules:
   "*": "main"
 
 # Specific mappings with fallback
-version_branch_map:
+publishing_rules:
   "11": "dev-v2.15"
   "10": "dev-v2.14"
   "*": "main"  # All other versions (0.x, 9, 8, etc.) go to main
 
 # Multiple target branches for a version
-version_branch_map:
+publishing_rules:
   "10": ["dev-v2.14", "release-v2.14"]  # Creates 2 PRs for v10.x.x releases
   "9": "release-v2.13"
 ```
@@ -186,7 +186,7 @@ version_branch_map:
 **Single-target mode** - Use `target:` (singular):
 - `repo` (required): Target repository in `owner/repo` format
 - `update_script` (required): Path to update script in source repo (receives environment variables)
-- `version_branch_map` (optional): Per-target version mapping (overrides global)
+- `publishing_rules` (optional): Per-target version mapping (overrides global)
 - Supports `--target-dir` flag
 
 **Multi-target mode** - Use `targets:` (plural):
@@ -206,7 +206,7 @@ All scripts receive these environment variables:
 | Variable | Example | Description |
 |----------|---------|-------------|
 | `PRBUILDER_TAG` | `v10.3.2` | The release tag |
-| `PRBUILDER_VERSION` | `10` | Parsed version (based on `version_mapping_type`) |
+| `PRBUILDER_VERSION` | `10` | Parsed version (based on `version_strategy`) |
 | `PRBUILDER_TARGET_DIR` | `/tmp/prbuilder-123` | Path to cloned target repository |
 | `PRBUILDER_TARGET_REPO` | `rancher/rancher` | Target repository (owner/repo) |
 | `PRBUILDER_TARGET_BRANCH` | `dev-v2.14` | Target branch being updated |
@@ -276,7 +276,7 @@ If you have existing scripts that expect positional arguments:
 
 For each target repository:
 
-1. Parse version from tag using `version_mapping_type`
+1. Parse version from tag using `version_strategy`
 2. Resolve target branch using version mapping
 3. Clone target repository on the specified branch
 4. Create a new PR branch (`bump-to-{TAG}-{timestamp}`)
@@ -364,12 +364,12 @@ prbuilder create-prs --tag v10.3.2 --config .github/pr-consumer-config.yml --dry
 For repos where all versions go to the same branch:
 
 ```yaml
-version_mapping_type: major
-version_branch_map:
+version_strategy: major
+publishing_rules:
   "*": "main"  # All versions (0.x, 1.x, 2.x, etc.) go to main
 targets:
   - repo: "myorg/consumer"
-    update_script: "./scripts/bump.sh"
+    update_script_path: "./scripts/bump.sh"
 ```
 
 ```bash
@@ -384,11 +384,11 @@ prbuilder create-prs --tag v2.3.1  # All go to main
 Create PRs to multiple branches for a single release:
 
 ```yaml
-version_branch_map:
+publishing_rules:
   "10": ["dev-v2.14", "release-v2.14"]
 targets:
   - repo: "myorg/consumer"
-    update_script: "./scripts/bump.sh"
+    update_script_path: "./scripts/bump.sh"
 ```
 
 ```bash
@@ -443,7 +443,7 @@ Set the `GH_TOKEN` or `GITHUB_TOKEN` environment variable with a GitHub Personal
 
 ### "No branch mapping found for version X"
 
-Ensure your `version_branch_map` includes an entry for the extracted version. Check your `version_mapping_type` setting.
+Ensure your `publishing_rules` includes an entry for the extracted version. Check your `version_strategy` setting.
 
 ### "Failed to clone repository"
 
