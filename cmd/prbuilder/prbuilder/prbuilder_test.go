@@ -18,7 +18,7 @@ func TestNewPRBuilder(t *testing.T) {
 			opts: Options{
 				Config: &config.Config{
 					VersionStrategy: "major",
-					target: &config.Target{
+					Target: &config.Target{
 						Repo:             "rancher/rancher",
 						UpdateScriptPath: "./scripts/bump.sh",
 					},
@@ -34,7 +34,7 @@ func TestNewPRBuilder(t *testing.T) {
 			opts: Options{
 				Config: &config.Config{
 					VersionStrategy: "major.minor",
-					target: &config.Target{
+					Target: &config.Target{
 						Repo:             "rancher/rancher",
 						UpdateScriptPath: "./scripts/bump.sh",
 					},
@@ -50,7 +50,7 @@ func TestNewPRBuilder(t *testing.T) {
 			opts: Options{
 				Config: &config.Config{
 					VersionStrategy: "major",
-					target: &config.Target{
+					Target: &config.Target{
 						Repo:             "rancher/rancher",
 						UpdateScriptPath: "./scripts/bump.sh",
 					},
@@ -65,7 +65,7 @@ func TestNewPRBuilder(t *testing.T) {
 			opts: Options{
 				Config: &config.Config{
 					VersionStrategy: "major",
-					target: &config.Target{
+					Target: &config.Target{
 						Repo:             "rancher/rancher",
 						UpdateScriptPath: "./scripts/bump.sh",
 					},

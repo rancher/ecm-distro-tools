@@ -2,92 +2,77 @@ package prbuilder
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/google/go-github/v85/github"
 	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/config"
-	"github.com/rancher/ecm-distro-tools/exec"
-	"github.com/rancher/ecm-distro-tools/repository"
+	"github.com/rancher/ecm-distro-tools/cmd/prbuilder/git"
 	"github.com/sirupsen/logrus"
 )
 
-// Builder handles the creation of PRs in target repositories
 type Builder struct {
 	config        *config.Config
-	tag           string
 	version       string
-	sourceRepoDir string
-	dryRun        bool
-	targetDir     string // For ad-hoc mode: path to already-cloned repo
-	remote        string // Git remote name (default: origin)
+	targetDir     string
+	remote        string
+	branchBuilder *BranchBuilder
+	publisher     *Publisher
 }
 
-// Result represents the result of processing a single target
 type Result struct {
 	TargetRepo string
 	PRURL      string
 	Error      error
 }
 
-// Options contains configuration for creating a Builder
 type Options struct {
 	Config        *config.Config
 	Tag           string
 	SourceRepoDir string
-	TargetDir     string // For ad-hoc mode: path to already-cloned repo
-	Remote        string // Git remote name (default: origin)
+	TargetDir     string
+	Remote        string
 	DryRun        bool
 }
 
-// NewPRBuilder creates a new PR builder instance
 func NewPRBuilder(opts Options) (*Builder, error) {
-	// Parse version from tag
 	version, err := ParseVersion(opts.Tag, opts.Config.VersionStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version from tag %s: %w", opts.Tag, err)
 	}
 
-	// Set default remote if not specified
 	remote := opts.Remote
 	if remote == "" {
 		remote = "origin"
 	}
 
+	componentOwner, componentRepo, componentName := extractComponentInfo(opts.SourceRepoDir)
+
+	branchBuilder := NewBranchBuilder(opts.SourceRepoDir, opts.Tag, version, componentName)
+	publisher := NewPublisher(remote, opts.Tag, componentName, componentOwner, componentRepo, opts.DryRun)
+
 	return &Builder{
 		config:        opts.Config,
-		tag:           opts.Tag,
 		version:       version,
-		sourceRepoDir: opts.SourceRepoDir,
-		dryRun:        opts.DryRun,
 		targetDir:     opts.TargetDir,
 		remote:        remote,
+		branchBuilder: branchBuilder,
+		publisher:     publisher,
 	}, nil
 }
 
-// ProcessTargets processes all configured targets and creates PRs
 func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
 	targets := b.config.Targets()
 	results := make([]Result, 0)
 
 	for _, target := range targets {
-		// Get target branches (may be multiple)
 		branches, err := b.config.TargetBranches(b.version, &target)
 		if err != nil {
-			result := Result{
+			results = append(results, Result{
 				TargetRepo: target.Repo,
 				Error:      err,
-			}
-			results = append(results, result)
+			})
 			continue
 		}
 
-		// Process each branch
 		for _, branch := range branches {
 			result := b.processTarget(ctx, &target, branch)
 			results = append(results, result)
@@ -100,222 +85,67 @@ func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
 func (b *Builder) processTarget(ctx context.Context, target *config.Target, targetBranch string) Result {
 	result := Result{TargetRepo: target.Repo + " (" + targetBranch + ")"}
 
-	var workDir string
-	var cleanupDir bool
-	var err error
+	branchResult := b.branchBuilder.BuildBranch(BranchOptions{
+		Target:       target,
+		TargetBranch: targetBranch,
+		TargetDir:    b.targetDir,
+		Remote:       b.remote,
+	})
 
-	if b.targetDir != "" {
-		workDir = b.targetDir
-		cleanupDir = false
+	defer branchResult.Cleanup()
 
-		_, err = exec.RunCommand(workDir, "git", "checkout", targetBranch)
-		if err != nil {
-			result.Error = fmt.Errorf("failed to checkout branch %s: %w", targetBranch, err)
-			return result
-		}
-
-		_, err = exec.RunCommand(workDir, "git", "pull", b.remote, targetBranch)
-		if err != nil {
-			logrus.Debugf("failed to pull latest changes: %v (continuing anyway)", err)
-		}
-	} else {
-		workDir, err = os.MkdirTemp("", "prbuilder-*")
-		if err != nil {
-			result.Error = fmt.Errorf("failed to create temp directory: %w", err)
-			return result
-		}
-		cleanupDir = true
-		defer func() {
-			if cleanupDir {
-				os.RemoveAll(workDir)
-			}
-		}()
-
-		_, err = exec.RunCommand(workDir, "gh", "repo", "clone", target.Repo, ".", "--", "--depth=1", fmt.Sprintf("--branch=%s", targetBranch))
-		if err != nil {
-			result.Error = fmt.Errorf("failed to clone %s on branch %s: %w", target.Repo, targetBranch, err)
-			return result
-		}
-	}
-
-	prBranch := fmt.Sprintf("bump-to-%s-%d", b.tag, time.Now().Unix())
-	_, err = exec.RunCommand(workDir, "git", "checkout", "-b", prBranch)
-	if err != nil {
-		result.Error = fmt.Errorf("failed to create branch %s: %w", prBranch, err)
+	if branchResult.Error != nil {
+		result.Error = branchResult.Error
 		return result
 	}
 
-	if err := b.executeUpdateScript(workDir, target, targetBranch); err != nil {
-		result.Error = err
+	if !branchResult.HasChanges {
 		return result
 	}
 
-	status, err := exec.RunCommand(workDir, "git", "status", "--porcelain")
-	if err != nil {
-		result.Error = fmt.Errorf("failed to check git status: %w", err)
+	publishResult := b.publisher.Publish(ctx, PublishOptions{
+		BranchResult: branchResult,
+		TargetRepo:   target.Repo,
+		TargetBranch: targetBranch,
+	})
+
+	if publishResult.Error != nil {
+		result.Error = publishResult.Error
 		return result
 	}
 
-	if strings.TrimSpace(status) == "" {
-		return result
-	}
-
-	_, err = exec.RunCommand(workDir, "git", "add", "-A")
-	if err != nil {
-		result.Error = fmt.Errorf("failed to stage changes: %w", err)
-		return result
-	}
-
-	_, err = exec.RunCommand(workDir, "git", "config", "user.name", "github-actions[bot]")
-	if err != nil {
-		result.Error = fmt.Errorf("failed to set git user.name: %w", err)
-		return result
-	}
-
-	_, err = exec.RunCommand(workDir, "git", "config", "user.email", "github-actions[bot]@users.noreply.github.com")
-	if err != nil {
-		result.Error = fmt.Errorf("failed to set git user.email: %w", err)
-		return result
-	}
-
-	commitMsg := fmt.Sprintf("Bump to %s", b.tag)
-	_, err = exec.RunCommand(workDir, "git", "commit", "-m", commitMsg, "-m", "Automated version bump from upstream release")
-	if err != nil {
-		result.Error = fmt.Errorf("failed to commit changes: %w", err)
-		return result
-	}
-
-	if b.dryRun {
-		return result
-	}
-
-	_, err = exec.RunCommand(workDir, "git", "push", b.remote, prBranch)
-	if err != nil {
-		result.Error = fmt.Errorf("failed to push branch: %w", err)
-		return result
-	}
-
-	prURL, err := b.createPullRequest(ctx, target.Repo, targetBranch, prBranch)
-	if err != nil {
-		result.Error = fmt.Errorf("failed to create PR: %w", err)
-		return result
-	}
-
-	result.PRURL = prURL
+	result.PRURL = publishResult.PRURL
 	return result
 }
 
-// executeUpdateScript runs the update script with environment variables
-func (b *Builder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
-	updateScriptPath := filepath.Join(b.sourceRepoDir, target.UpdateScriptPath)
+func extractComponentInfo(sourceRepoDir string) (owner, repo, name string) {
+	owner, repo, name = "", "", "component"
 
-	if _, err := os.Stat(updateScriptPath); err != nil {
-		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, err)
+	if sourceRepoDir == "" {
+		return
 	}
 
-	if err := os.Chmod(updateScriptPath, 0755); err != nil {
-		return fmt.Errorf("failed to make update script executable: %w", err)
-	}
-
-	env := os.Environ()
-	env = append(env,
-		"PRBUILDER_TAG="+b.tag,
-		"PRBUILDER_VERSION="+b.version,
-		"PRBUILDER_TARGET_DIR="+workDir,
-		"PRBUILDER_TARGET_REPO="+target.Repo,
-		"PRBUILDER_TARGET_BRANCH="+targetBranch,
-		"PRBUILDER_SOURCE_DIR="+b.sourceRepoDir,
-	)
-
-	logrus.Debugf("Environment variables: PRBUILDER_TAG=%s PRBUILDER_VERSION=%s PRBUILDER_TARGET_REPO=%s PRBUILDER_TARGET_BRANCH=%s",
-		b.tag, b.version, target.Repo, targetBranch)
-
-	output, err := exec.RunCommandWithEnv(workDir, updateScriptPath, env)
+	sourceRepo, err := git.Open(sourceRepoDir)
 	if err != nil {
-		return fmt.Errorf("update script failed: %w", err)
+		logrus.Warnf("Failed to open source repository for component extraction: %v", err)
+		return
 	}
 
-	if len(output) > 0 {
-		logrus.Debugf("Update script output: %s", output)
-	}
-	return nil
-}
-
-// createPullRequest creates a PR using the GitHub API
-func (b *Builder) createPullRequest(ctx context.Context, repo, base, head string) (string, error) {
-	// Parse owner/repo from "owner/repo" format
-	parts := strings.Split(repo, "/")
-	if len(parts) != 2 {
-		return "", errors.New("invalid repo format " + repo + ", expected owner/repo")
-	}
-	owner, repoName := parts[0], parts[1]
-
-	// Get GitHub token from environment
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		return "", errors.New("GITHUB_TOKEN environment variable is required")
-	}
-
-	// Create GitHub client
-	ghClient := repository.NewGithub(ctx, token)
-
-	title := fmt.Sprintf("Bump to %s", b.tag)
-	body := fmt.Sprintf(`Automated version bump to %s from upstream release.
-
-This PR updates the dependencies to use the newly released version.
-
-**Release tag:** %s
-**Target branch:** %s
-
----
-_This PR was automatically created by prbuilder_`, "`"+b.tag+"`", b.tag, base)
-
-	// Create pull request
-	pr := &github.NewPullRequest{
-		Title:               new(title),
-		Base:                new(base),
-		Head:                new(head),
-		Body:                new(body),
-		MaintainerCanModify: new(true),
-	}
-
-	createdPR, _, err := ghClient.PullRequests.Create(ctx, owner, repoName, pr)
+	remoteURL, err := sourceRepo.GetRemoteURL("origin")
 	if err != nil {
-		return "", fmt.Errorf("failed to create pull request: %w", err)
+		logrus.Warnf("Failed to get remote 'origin' from source repository: %v", err)
+		return
 	}
 
-	return createdPR.GetHTMLURL(), nil
-}
-
-// WriteGitHubOutput writes the PR results to the GitHub Actions output file
-func WriteGitHubOutput(results []Result) error {
-	outputFile := os.Getenv("GITHUB_OUTPUT")
-	if outputFile == "" {
-		return nil
-	}
-
-	prURLs := make([]string, 0)
-	for _, result := range results {
-		if result.Error == nil && result.PRURL != "" {
-			prURLs = append(prURLs, result.PRURL)
-		}
-	}
-
-	b, err := json.Marshal(prURLs)
+	extractedOwner, extractedRepo, err := git.ExtractOwnerRepo(remoteURL)
 	if err != nil {
-		return fmt.Errorf("failed to marshal PR URLs to JSON: %w", err)
+		logrus.Warnf("Failed to extract owner/repo from remote URL %s: %v", remoteURL, err)
+		return
 	}
 
-	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %w", err)
-	}
-	defer f.Close()
-
-	_, err = fmt.Fprintf(f, "prs=%s\n", string(b))
-	if err != nil {
-		return fmt.Errorf("failed to write to GITHUB_OUTPUT file: %w", err)
-	}
-
-	return nil
+	owner = extractedOwner
+	repo = extractedRepo
+	name = extractedRepo
+	logrus.Debugf("Extracted component information: owner=%s, repo=%s, name=%s", owner, repo, name)
+	return
 }

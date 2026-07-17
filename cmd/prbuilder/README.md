@@ -278,12 +278,25 @@ For each target repository:
 
 1. Parse version from tag using `version_strategy`
 2. Resolve target branch using version mapping
-3. Clone target repository on the specified branch
-4. Create a new PR branch (`bump-to-{TAG}-{timestamp}`)
-5. Run update script from source repo with environment variables
-6. Check for changes via git status
-7. Commit changes (author: github-actions[bot])
-8. Push branch and create PR using `gh` CLI
+3. **Single-target mode (--target-dir):**
+   - Open existing repository
+   - Ensure remote exists
+   - **Fetch from remote (mandatory - prevents stale branches)**
+   - Checkout remote branch, creating/resetting local branch from remote ref
+   - This ensures you're always working with the latest code, even if your local branch was stale
+4. **Multi-target mode:**
+   - Clone target repository (shallow clone with depth=1 for speed)
+5. Create a new PR branch (`bump-to-{TAG}-{timestamp}`)
+6. Run update script from source repo with environment variables
+7. Check for changes via git status
+   - **If no changes:** Log a message, clean up the PR branch (single-target mode), and skip PR creation
+   - **If changes:** Continue to commit and PR creation
+8. Commit changes (author: github-actions[bot])
+9. Push branch and create PR using GitHub API
+
+**Key improvements:**
+- **Stale branch fix:** In single-target mode with `--target-dir`, the tool fetches from the remote and creates/resets the local branch from the remote reference, preventing PRs from stale code
+- **Clean no-changes handling:** If the update script makes no changes, the tool cleans up the PR branch it created (in single-target mode) and leaves your repo in a clean state
 
 If any target fails, the tool continues processing other targets.
 
@@ -424,9 +437,10 @@ prbuilder create-prs --tag v10.0.0 --config config.yml --target-dir /tmp/test --
 ## Requirements
 
 - Go 1.21 or later
-- `gh` CLI tool (for cloning and creating PRs)
-- `git` command line tool
+- `gh` CLI tool (for creating PRs only)
 - GitHub Personal Access Token with `repo` scope
+
+**Note:** Git operations (clone, fetch, checkout, commit, push) are performed using the go-git library, not shell commands. The `gh` CLI is only used for creating pull requests via the GitHub API.
 
 ## Integration with GitHub Actions
 
@@ -445,17 +459,44 @@ Set the `GH_TOKEN` or `GITHUB_TOKEN` environment variable with a GitHub Personal
 
 Ensure your `publishing_rules` includes an entry for the extracted version. Check your `version_strategy` setting.
 
-### "Failed to clone repository"
+### "Failed to clone repository" or "Failed to open repository"
 
 - Verify your PAT has access to the target repository
-- Ensure the target branch exists
+- Ensure the target branch exists on the remote
 - Check the repository name format (`owner/repo`)
+- For `--target-dir`, ensure the path points to a valid git repository
+
+### "Failed to fetch from remote"
+
+- Check your network connection
+- Verify your GitHub token has not expired
+- Ensure the remote exists: the tool will create the remote if needed, but the repository must be accessible
+
+### "Branch X does not exist on remote Y"
+
+The target branch specified in your `publishing_rules` doesn't exist on the remote repository. Check:
+- Branch name is correct in your config
+- Branch has been pushed to the remote repository
+- You have permission to access the branch
+
+### "Failed to checkout X from remote/branch"
+
+This usually means:
+- The branch doesn't exist on the remote (see above)
+- There are uncommitted changes in your `--target-dir` that conflict with the checkout
+- Permission issues with the repository
+
+**Tip for local development:** The tool will now automatically fetch and reset your local branch to match the remote, so you don't need to manually pull before running.
 
 ### "Update script not found"
 
 - Ensure the script path is relative to your source repo root
 - Verify the script is committed to your repository
 - Check the script path starts with `./`
+
+### "GitHub token does not have permission to push"
+
+Your token needs the `repo` scope to push branches. Generate a new token with proper permissions at https://github.com/settings/tokens
 
 ## License
 

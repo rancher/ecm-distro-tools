@@ -49,7 +49,7 @@ func init() {
 	createPRsCmd.Flags().StringVarP(&createPRsCmdOpts.remote, "remote", "r", "origin", "Git remote name to use for push")
 }
 
-func createPRs(cmd *cobra.Command, args []string) error {
+func createPRs(cmd *cobra.Command, _ []string) error {
 	ctx := context.Background()
 
 	if err := validateInputs(cmd); err != nil {
