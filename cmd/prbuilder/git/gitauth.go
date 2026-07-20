@@ -19,6 +19,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -280,7 +281,7 @@ func expandHome(p, home string) string {
 func ExtractOwnerRepo(remoteURL string) (owner, repo string, err error) {
 	_, _, _, path := ParseRemote(remoteURL)
 	if path == "" {
-		return "", "", fmt.Errorf("no path found in remote URL: %s", remoteURL)
+		return "", "", errors.New("no path found in remote URL: " + remoteURL)
 	}
 
 	// Strip leading slash and .git suffix
@@ -290,7 +291,7 @@ func ExtractOwnerRepo(remoteURL string) (owner, repo string, err error) {
 	// Split on slash to get owner/repo
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
-		return "", "", fmt.Errorf("invalid path format in remote URL %s: expected owner/repo, got %s", remoteURL, path)
+		return "", "", errors.New("invalid path format in remote URL " + remoteURL + ": expected owner/repo, got " + path)
 	}
 
 	// Handle paths like "owner/repo" or "owner/repo/extra" (use first two parts)

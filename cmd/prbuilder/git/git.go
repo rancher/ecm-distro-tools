@@ -126,7 +126,7 @@ func (r *Repository) Fetch(remoteName string) error {
 		return fmt.Errorf("failed to get remote %s: %w", remoteName, err)
 	}
 	if len(remote.Config().URLs) == 0 {
-		return fmt.Errorf("remote %s has no URL configured", remoteName)
+		return errors.New("remote " + remoteName + " has no URL configured")
 	}
 	remoteURL := remote.Config().URLs[0]
 
@@ -306,7 +306,7 @@ func (r *Repository) Push(remoteName string) error {
 		return fmt.Errorf("failed to get remote %s: %w", remoteName, err)
 	}
 	if len(remote.Config().URLs) == 0 {
-		return fmt.Errorf("remote %s has no URL configured", remoteName)
+		return errors.New("remote " + remoteName + " has no URL configured")
 	}
 	remoteURL := remote.Config().URLs[0]
 
