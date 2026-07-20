@@ -9,7 +9,6 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	golang.org/x/crypto v0.53.0
 	golang.org/x/mod v0.37.0
-	golang.org/x/oauth2 v0.36.0
 )
 
 require (
