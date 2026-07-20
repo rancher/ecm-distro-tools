@@ -26,7 +26,7 @@ type Result struct {
 }
 
 func (r Result) OK() bool {
-	return r.Error == nil
+	return r.Error == nil && r.ErrorStr == ""
 }
 
 // NewResult creates a Result and automatically sets ErrorStr if an error exists.

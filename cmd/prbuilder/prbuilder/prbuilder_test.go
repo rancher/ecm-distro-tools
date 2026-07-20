@@ -122,6 +122,8 @@ func TestNewPRBuilder(t *testing.T) {
 }
 
 func TestPRResult(t *testing.T) {
+	successPRURL := "https://github.com/rancher/rancher/pull/123"
+
 	tests := []struct {
 		name     string
 		result   Result
@@ -132,7 +134,7 @@ func TestPRResult(t *testing.T) {
 			name: "successful result",
 			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
-				PRURL:      new("https://github.com/rancher/rancher/pull/123"),
+				PRURL:      &successPRURL,
 				Error:      nil,
 			},
 			hasError: false,
@@ -142,7 +144,7 @@ func TestPRResult(t *testing.T) {
 			name: "error result",
 			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
-				PRURL:      new(""),
+				PRURL:      nil,
 				Error:      errors.New("failed to create PR"),
 			},
 			hasError: true,
@@ -152,7 +154,7 @@ func TestPRResult(t *testing.T) {
 			name: "no changes result",
 			result: Result{
 				TargetRepo: "rancher/rancher (release-v2.10)",
-				PRURL:      new(""),
+				PRURL:      nil,
 				Error:      nil,
 			},
 			hasError: false,
@@ -162,8 +164,8 @@ func TestPRResult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if (tt.result.Error != nil) != tt.hasError {
-				t.Errorf("PRResult.Error presence = %v, want %v", tt.result.Error != nil, tt.hasError)
+			if (!tt.result.OK()) != tt.hasError {
+				t.Errorf("PRResult.Error presence = %v, want %v", !tt.result.OK(), tt.hasError)
 			}
 			if (tt.result.PRURL != nil) != tt.hasPRURL {
 				t.Errorf("PRResult.PRURL presence = %v, want %v", tt.result.PRURL != nil, tt.hasPRURL)

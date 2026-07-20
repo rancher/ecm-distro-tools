@@ -129,7 +129,7 @@ func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.Builder
 
 func outputResults(results []prbuilder.Result) error {
 	for _, result := range results {
-		if result.Error == nil && result.PRURL != nil {
+		if result.OK() && result.PRURL != nil {
 			fmt.Println("Pull request created: " + *result.PRURL)
 		}
 	}
@@ -140,7 +140,7 @@ func outputResults(results []prbuilder.Result) error {
 
 	var success int
 	for _, result := range results {
-		if result.Error == nil && result.PRURL != nil {
+		if result.OK() && result.PRURL != nil {
 			success++
 		}
 	}
@@ -148,7 +148,7 @@ func outputResults(results []prbuilder.Result) error {
 	if success == 0 && len(results) > 0 {
 		hasErrors := false
 		for _, result := range results {
-			if result.Error != nil {
+			if !result.OK() {
 				hasErrors = true
 				break
 			}
