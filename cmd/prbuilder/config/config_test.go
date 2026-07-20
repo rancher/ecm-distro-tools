@@ -443,7 +443,7 @@ version_mapping_type: major
 			// Create temp file
 			tmpDir := t.TempDir()
 			configFile := filepath.Join(tmpDir, "config.yml")
-			err := os.WriteFile(configFile, []byte(tt.configYAML), 0644)
+			err := os.WriteFile(configFile, []byte(tt.configYAML), 0o600)
 			if err != nil {
 				t.Fatalf("Failed to write test config: %v", err)
 			}

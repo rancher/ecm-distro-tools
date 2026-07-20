@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -39,15 +40,16 @@ type Config struct {
 
 // Target represents a target repository configuration
 type Target struct {
+	PublishingRules      map[string]Branches `yaml:"publishing_rules,omitempty"`        // Optional per-target version mapping (can be string or []string)
 	Repo                 string              `yaml:"repo"`                              // e.g. "rancher/rancher"
 	UpdateScriptPath     string              `yaml:"update_script_path"`                // e.g. "./scripts/bump.sh"
 	PostUpdateScriptPath string              `yaml:"post_update_script_path,omitempty"` // Optional post-update script
-	PublishingRules      map[string]Branches `yaml:"publishing_rules,omitempty"`        // Optional per-target version mapping (can be string or []string)
 }
 
 // Load reads and parses the config file from the given path
 func Load(path string) (*Config, error) {
-	f, err := os.Open(path)
+	cleanPath := filepath.Clean(path)
+	f, err := os.Open(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}

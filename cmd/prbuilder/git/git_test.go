@@ -41,7 +41,7 @@ func createTestRepo(t *testing.T) (string, *git.Repository) {
 
 	// Create a test file
 	testFile := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o600); err != nil {
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("Failed to clean up test directory: %v", err)
 		}
@@ -218,7 +218,7 @@ func TestHasChanges(t *testing.T) {
 
 	// Modify a file
 	testFile := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("modified content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("modified content"), 0o600); err != nil {
 		t.Fatalf("Failed to modify file: %v", err)
 	}
 
@@ -247,7 +247,7 @@ func TestAddAll(t *testing.T) {
 
 	// Create a new file
 	newFile := filepath.Join(dir, "new.txt")
-	if err := os.WriteFile(newFile, []byte("new content"), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte("new content"), 0o600); err != nil {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 
@@ -284,7 +284,7 @@ func TestCommit(t *testing.T) {
 
 	// Create and stage a new file
 	newFile := filepath.Join(dir, "new.txt")
-	if err := os.WriteFile(newFile, []byte("new content"), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte("new content"), 0o600); err != nil {
 		t.Fatalf("Failed to create new file: %v", err)
 	}
 

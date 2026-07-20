@@ -30,11 +30,11 @@ type BranchOptions struct {
 }
 
 type BranchResult struct {
+	Error      error
 	WorkDir    string
 	Branch     string
 	HasChanges bool
 	TempDir    bool
-	Error      error
 }
 
 type LocalRepo struct {
@@ -55,9 +55,9 @@ func NewBranchBuilder(sourceRepoDir, tag, version, componentName string) *Branch
 func (bb *BranchBuilder) BuildBranch(opts BranchOptions) *BranchResult {
 	result := &BranchResult{}
 
-	repoInfo, err := bb.getRepository(opts)
-	if err != nil {
-		result.Error = err
+	repoInfo, repoErr := bb.getRepository(opts)
+	if repoErr != nil {
+		result.Error = repoErr
 		return result
 	}
 
@@ -76,9 +76,9 @@ func (bb *BranchBuilder) BuildBranch(opts BranchOptions) *BranchResult {
 		return result
 	}
 
-	hasChanges, err := repoInfo.Repo.HasChanges()
-	if err != nil {
-		result.Error = fmt.Errorf("failed to check git status: %w", err)
+	hasChanges, changeErr := repoInfo.Repo.HasChanges()
+	if changeErr != nil {
+		result.Error = fmt.Errorf("failed to check git status: %w", changeErr)
 		return result
 	}
 
@@ -103,7 +103,7 @@ func (bb *BranchBuilder) BuildBranch(opts BranchOptions) *BranchResult {
 		return result
 	}
 
-	commitMsg := fmt.Sprintf("Bump to %s", bb.tag)
+	commitMsg := "Bump to " + bb.tag
 	commitBody := "Automated version bump from upstream release"
 	if err := repoInfo.Repo.Commit(git.CommitOptions{
 		Message:     commitMsg + "\n\n" + commitBody,
@@ -164,8 +164,8 @@ func (bb *BranchBuilder) getRepository(opts BranchOptions) (LocalRepo, error) {
 	repoURL := "https://github.com/" + opts.Target.Repo + ".git"
 	repo, err := git.Clone(repoURL, workDir, opts.TargetBranch, 1) // depth=1 for shallow clone
 	if err != nil {
-		if rerr := os.RemoveAll(workDir); rerr != nil {
-			logrus.Warnf("Failed to clean up temp directory %s: %v", workDir, rerr)
+		if rErr := os.RemoveAll(workDir); rErr != nil {
+			logrus.Warnf("Failed to clean up temp directory %s: %v", workDir, rErr)
 		}
 		return LocalRepo{
 			nil, "", false,
@@ -183,12 +183,18 @@ func (bb *BranchBuilder) generateBranchName(targetBranch string) string {
 func (bb *BranchBuilder) executeUpdateScript(workDir string, target *config.Target, targetBranch string) error {
 	updateScriptPath := filepath.Join(bb.sourceRepoDir, target.UpdateScriptPath)
 
-	if _, err := os.Stat(updateScriptPath); err != nil {
-		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, err)
+	info, sErr := os.Stat(updateScriptPath)
+	if sErr != nil {
+		return fmt.Errorf("update script not found: %s: %w", updateScriptPath, sErr)
 	}
 
-	if err := os.Chmod(updateScriptPath, 0755); err != nil {
-		return fmt.Errorf("failed to make update script executable: %w", err)
+	currentMode := info.Mode().Perm()
+	// Check if the owner has execute bit missing
+	if currentMode&0o100 == 0 {
+		newMode := currentMode | 0o100
+		if err := os.Chmod(updateScriptPath, newMode); err != nil {
+			return fmt.Errorf("failed to make update script executable: %w", err)
+		}
 	}
 
 	env := os.Environ()
@@ -205,7 +211,6 @@ func (bb *BranchBuilder) executeUpdateScript(workDir string, target *config.Targ
 		bb.tag, bb.version, target.Repo, targetBranch)
 
 	output, err := exec.RunCommandWithEnv(workDir, updateScriptPath, env)
-
 	if err != nil {
 		// On error, the error contains stderr from the script
 		// Log both for debugging context

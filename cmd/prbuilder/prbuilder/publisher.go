@@ -29,19 +29,8 @@ type PublishOptions struct {
 }
 
 type PublishResult struct {
-	PRURL string
 	Error error
-}
-
-func NewPublisher(remote, tag, componentName, componentOwner, componentRepo string, dryRun bool) *Publisher {
-	return &Publisher{
-		remote:         remote,
-		tag:            tag,
-		componentName:  componentName,
-		componentOwner: componentOwner,
-		componentRepo:  componentRepo,
-		dryRun:         dryRun,
-	}
+	PRURL string
 }
 
 func (p *Publisher) Publish(ctx context.Context, opts PublishOptions) *PublishResult {
@@ -129,19 +118,19 @@ func (p *Publisher) generatePRTitle(targetBranch string) string {
 
 func (p *Publisher) generatePRBody(targetBranch string) string {
 	bodyParts := []string{
-		fmt.Sprintf("Automated version bump to %s from upstream release.", "`"+p.tag+"`"),
+		"Automated version bump to `" + p.tag + "` from upstream release.",
 		"",
 		"This PR updates the dependencies to use the newly released version.",
 		"",
-		fmt.Sprintf("**Component:** %s", p.componentName),
-		fmt.Sprintf("**Release tag:** %s", p.tag),
-		fmt.Sprintf("**Target branch:** %s", targetBranch),
+		"**Component:** " + p.componentName,
+		"**Release tag:** " + p.tag,
+		"**Target branch:** " + targetBranch,
 	}
 
 	if p.componentOwner != "" && p.componentRepo != "" {
 		releaseURL := fmt.Sprintf("https://github.com/%s/%s/releases/tag/%s",
 			p.componentOwner, p.componentRepo, p.tag)
-		bodyParts = append(bodyParts, fmt.Sprintf("**Release notes:** %s", releaseURL))
+		bodyParts = append(bodyParts, "**Release notes:** "+releaseURL)
 	}
 
 	bodyParts = append(bodyParts, "", "---", "_This PR was automatically created by prbuilder_")

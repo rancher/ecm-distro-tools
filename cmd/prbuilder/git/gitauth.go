@@ -202,7 +202,7 @@ func (m *authManager) resolveSSHAuth(host, user string) (transport.AuthMethod, e
 	return &gitssh.PublicKeysCallback{
 		User: user,
 		Callback: func() ([]gossh.Signer, error) {
-			all := make([]gossh.Signer, len(fileSigners))
+			all := make([]gossh.Signer, 0, len(fileSigners))
 			copy(all, fileSigners)
 			if agentCallback != nil {
 				if agentSigners, err := agentCallback(); err == nil {

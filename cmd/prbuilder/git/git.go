@@ -46,7 +46,7 @@ func Clone(url, path, branch string, depth int) (*Repository, error) {
 		return nil, fmt.Errorf("failed to resolve auth for %s: %w", url, err)
 	}
 
-	cloneOpts := &git.CloneOptions{
+	opts := &git.CloneOptions{
 		URL:           url,
 		Auth:          auth,
 		Progress:      os.Stdout,
@@ -55,10 +55,10 @@ func Clone(url, path, branch string, depth int) (*Repository, error) {
 	}
 
 	if depth > 0 {
-		cloneOpts.Depth = depth
+		opts.Depth = depth
 	}
 
-	r, err := git.PlainClone(path, false, cloneOpts)
+	r, err := git.PlainClone(path, false, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to clone %s: %w", url, err)
 	}
@@ -78,8 +78,8 @@ func Clone(url, path, branch string, depth int) (*Repository, error) {
 // This handles the case where a remote might already exist with a different URL
 func (r *Repository) EnsureRemote(name, url string) error {
 	// Try to get existing remote
-	remote, err := r.r.Remote(name)
-	if err == nil {
+	remote, rErr := r.r.Remote(name)
+	if rErr == nil {
 		// Remote exists, check if URL matches
 		urls := remote.Config().URLs
 		if len(urls) > 0 && urls[0] == url {
@@ -92,12 +92,13 @@ func (r *Repository) EnsureRemote(name, url string) error {
 		}
 	}
 
-	// Create the remote
-	_, err = r.r.CreateRemote(&config.RemoteConfig{
+	conf := config.RemoteConfig{
 		Name: name,
 		URLs: []string{url},
-	})
-	if err != nil && !errors.Is(err, git.ErrRemoteExists) {
+	}
+
+	// Create the remote
+	if _, err := r.r.CreateRemote(&conf); err != nil && !errors.Is(err, git.ErrRemoteExists) {
 		return fmt.Errorf("failed to create remote %s: %w", name, err)
 	}
 
@@ -135,15 +136,15 @@ func (r *Repository) Fetch(remoteName string) error {
 		return fmt.Errorf("failed to resolve auth for %s: %w", remoteURL, err)
 	}
 
-	err = r.r.Fetch(&git.FetchOptions{
+	opts := git.FetchOptions{
 		RemoteName: remoteName,
 		Auth:       auth,
 		Progress:   os.Stdout,
 		Tags:       git.AllTags,
 		Force:      true, // Force update of remote-tracking branches
-	})
+	}
 
-	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+	if err = r.r.Fetch(&opts); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return fmt.Errorf("failed to fetch from %s: %w", remoteName, err)
 	}
 
@@ -161,16 +162,15 @@ func (r *Repository) CheckoutRemoteBranch(remote, remoteBranch, localBranch stri
 	remoteRef := plumbing.NewRemoteReferenceName(remote, remoteBranch)
 
 	// Check if the remote reference exists
-	_, err := r.r.Reference(remoteRef, true)
-	if err != nil {
+	if _, err := r.r.Reference(remoteRef, true); err != nil {
 		return fmt.Errorf("branch %s does not exist on remote %s: %w", remoteBranch, remote, err)
 	}
 
-	// Checkout the remote reference (this creates a detached HEAD at the remote branch)
-	err = r.wt.Checkout(&git.CheckoutOptions{
+	opts := git.CheckoutOptions{
 		Branch: remoteRef,
-	})
-	if err != nil {
+	}
+	// Checkout the remote reference (this creates a detached HEAD at the remote branch)
+	if err := r.wt.Checkout(&opts); err != nil {
 		return fmt.Errorf("failed to checkout remote reference %s: %w", remoteRef, err)
 	}
 
@@ -183,16 +183,15 @@ func (r *Repository) CheckoutRemoteBranch(remote, remoteBranch, localBranch stri
 	// Create or update the local branch to point to the same commit
 	localRef := plumbing.NewBranchReferenceName(localBranch)
 	ref := plumbing.NewHashReference(localRef, headRef.Hash())
-	err = r.r.Storer.SetReference(ref)
-	if err != nil {
+	if err = r.r.Storer.SetReference(ref); err != nil {
 		return fmt.Errorf("failed to create/update local branch %s: %w", localBranch, err)
 	}
 
-	// Checkout the local branch
-	err = r.wt.Checkout(&git.CheckoutOptions{
+	opts = git.CheckoutOptions{
 		Branch: localRef,
-	})
-	if err != nil {
+	}
+	// Checkout the local branch
+	if err = r.wt.Checkout(&opts); err != nil {
 		return fmt.Errorf("failed to checkout local branch %s: %w", localBranch, err)
 	}
 
@@ -211,16 +210,15 @@ func (r *Repository) CreateBranch(branchName string) error {
 	// Create the new branch reference
 	branchRef := plumbing.NewBranchReferenceName(branchName)
 	ref := plumbing.NewHashReference(branchRef, headRef.Hash())
-	err = r.r.Storer.SetReference(ref)
-	if err != nil {
+	if err := r.r.Storer.SetReference(ref); err != nil {
 		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
 	}
 
-	// Checkout the new branch
-	err = r.wt.Checkout(&git.CheckoutOptions{
+	opts := git.CheckoutOptions{
 		Branch: branchRef,
-	})
-	if err != nil {
+	}
+	// Checkout the new branch
+	if err := r.wt.Checkout(&opts); err != nil {
 		return fmt.Errorf("failed to checkout branch %s: %w", branchName, err)
 	}
 
@@ -241,10 +239,10 @@ func (r *Repository) HasChanges() (bool, error) {
 // AddAll stages all changes in the working tree
 // This is equivalent to: git add -A
 func (r *Repository) AddAll() error {
-	err := r.wt.AddWithOptions(&git.AddOptions{
+	opts := git.AddOptions{
 		All: true,
-	})
-	if err != nil {
+	}
+	if err := r.wt.AddWithOptions(&opts); err != nil {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 
@@ -261,29 +259,28 @@ type CommitOptions struct {
 // Commit creates a commit with the staged changes
 // This is equivalent to: git commit -m <message>
 // The author information is set in the commit, not the repository config
-func (r *Repository) Commit(opts CommitOptions) error {
-	if opts.Message == "" {
+func (r *Repository) Commit(optsIn CommitOptions) error {
+	if optsIn.Message == "" {
 		return errors.New("commit message is required")
 	}
-	if opts.AuthorName == "" {
+	if optsIn.AuthorName == "" {
 		return errors.New("author name is required")
 	}
-	if opts.AuthorEmail == "" {
+	if optsIn.AuthorEmail == "" {
 		return errors.New("author email is required")
 	}
 
 	author := &object.Signature{
-		Name:  opts.AuthorName,
-		Email: opts.AuthorEmail,
+		Name:  optsIn.AuthorName,
+		Email: optsIn.AuthorEmail,
 		When:  time.Now(),
 	}
-
-	_, err := r.wt.Commit(opts.Message, &git.CommitOptions{
+	opts := git.CommitOptions{
 		Author:    author,
 		Committer: author,
 		All:       true,
-	})
-	if err != nil {
+	}
+	if _, err := r.wt.Commit(optsIn.Message, &opts); err != nil {
 		return fmt.Errorf("failed to commit: %w", err)
 	}
 
@@ -319,13 +316,13 @@ func (r *Repository) Push(remoteName string) error {
 		return fmt.Errorf("failed to resolve auth for %s: %w", remoteURL, err)
 	}
 
-	// Push with authentication
-	err = r.r.Push(&git.PushOptions{
+	opts := git.PushOptions{
 		RemoteName: remoteName,
 		Auth:       auth,
 		Progress:   os.Stdout,
-	})
-	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+	}
+	// Push with authentication
+	if err = r.r.Push(&opts); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return fmt.Errorf("failed to push to %s: %w", remoteName, err)
 	}
 
@@ -363,11 +360,11 @@ func (r *Repository) CheckoutBranch(branchName string) error {
 		return fmt.Errorf("branch %s does not exist: %w", branchName, err)
 	}
 
-	// Checkout the branch
-	err = r.wt.Checkout(&git.CheckoutOptions{
+	opts := git.CheckoutOptions{
 		Branch: branchRef,
-	})
-	if err != nil {
+	}
+	// Checkout the branch
+	if err = r.wt.Checkout(&opts); err != nil {
 		return fmt.Errorf("failed to checkout branch %s: %w", branchName, err)
 	}
 
@@ -387,8 +384,7 @@ func (r *Repository) DeleteBranch(branchName string) error {
 	branchRef := plumbing.NewBranchReferenceName(branchName)
 
 	// Delete the branch reference
-	err = r.r.Storer.RemoveReference(branchRef)
-	if err != nil {
+	if err = r.r.Storer.RemoveReference(branchRef); err != nil {
 		return fmt.Errorf("failed to delete branch %s: %w", branchName, err)
 	}
 

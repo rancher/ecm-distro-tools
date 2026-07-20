@@ -14,9 +14,9 @@ import (
 type createPRsOpts struct {
 	tag        string
 	configFile string
-	dryRun     bool
 	targetDir  string
 	remote     string
+	dryRun     bool
 }
 
 var createPRsCmdOpts createPRsOpts
@@ -129,8 +129,8 @@ func buildPRBuilder(cfg *config.Config, sourceRepoDir string) *prbuilder.Builder
 
 func outputResults(results []prbuilder.Result) error {
 	for _, result := range results {
-		if result.Error == nil && result.PRURL != "" {
-			fmt.Println("Pull request created: " + result.PRURL)
+		if result.Error == nil && result.PRURL != nil {
+			fmt.Println("Pull request created: " + *result.PRURL)
 		}
 	}
 
@@ -140,7 +140,7 @@ func outputResults(results []prbuilder.Result) error {
 
 	var success int
 	for _, result := range results {
-		if result.Error == nil && result.PRURL != "" {
+		if result.Error == nil && result.PRURL != nil {
 			success++
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // WriteGitHubOutput writes the PR results to the GitHub Actions output file.
@@ -19,8 +20,8 @@ func WriteGitHubOutput(results []Result) error {
 
 	prURLs := make([]string, 0)
 	for _, result := range results {
-		if result.Error == nil && result.PRURL != "" {
-			prURLs = append(prURLs, result.PRURL)
+		if result.Error == nil && result.PRURL != nil {
+			prURLs = append(prURLs, *result.PRURL)
 		}
 	}
 
@@ -29,7 +30,8 @@ func WriteGitHubOutput(results []Result) error {
 		return fmt.Errorf("failed to marshal PR URLs to JSON: %w", err)
 	}
 
-	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	cleanPath := filepath.Clean(outputFile)
+	f, err := os.OpenFile(cleanPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %w", err)
 	}

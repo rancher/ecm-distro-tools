@@ -11,17 +11,35 @@ import (
 
 type Builder struct {
 	config        *config.Config
+	branchBuilder *BranchBuilder
+	publisher     *Publisher
 	version       string
 	targetDir     string
 	remote        string
-	branchBuilder *BranchBuilder
-	publisher     *Publisher
 }
 
 type Result struct {
-	TargetRepo string
-	PRURL      string
-	Error      error
+	Error      error   `json:"-"` // Ignored by standard JSON marshal
+	PRURL      *string `json:"pr_url,omitempty"`
+	ErrorStr   string  `json:"error,omitempty"` // Helper for JSON string representation
+	TargetRepo string  `json:"target_repo"`
+}
+
+func (r Result) OK() bool {
+	return r.Error == nil
+}
+
+// NewResult creates a Result and automatically sets ErrorStr if an error exists.
+func NewResult(repo string, prURL *string, err error) Result {
+	res := Result{
+		Error:      err,
+		TargetRepo: repo,
+		PRURL:      prURL,
+	}
+	if err != nil {
+		res.ErrorStr = err.Error()
+	}
+	return res
 }
 
 type Options struct {
@@ -47,7 +65,14 @@ func NewPRBuilder(opts Options) (*Builder, error) {
 	componentOwner, componentRepo, componentName := extractComponentInfo(opts.SourceRepoDir)
 
 	branchBuilder := NewBranchBuilder(opts.SourceRepoDir, opts.Tag, version, componentName)
-	publisher := NewPublisher(remote, opts.Tag, componentName, componentOwner, componentRepo, opts.DryRun)
+	publisher := Publisher{
+		remote,
+		opts.Tag,
+		componentName,
+		componentOwner,
+		componentRepo,
+		opts.DryRun,
+	}
 
 	return &Builder{
 		config:        opts.Config,
@@ -55,7 +80,7 @@ func NewPRBuilder(opts Options) (*Builder, error) {
 		targetDir:     opts.TargetDir,
 		remote:        remote,
 		branchBuilder: branchBuilder,
-		publisher:     publisher,
+		publisher:     &publisher,
 	}, nil
 }
 
@@ -66,10 +91,7 @@ func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
 	for _, target := range targets {
 		branches, err := b.config.TargetBranches(b.version, &target)
 		if err != nil {
-			results = append(results, Result{
-				TargetRepo: target.Repo,
-				Error:      err,
-			})
+			results = append(results, NewResult(target.Repo, nil, err))
 			continue
 		}
 
@@ -83,7 +105,7 @@ func (b *Builder) ProcessTargets(ctx context.Context) ([]Result, error) {
 }
 
 func (b *Builder) processTarget(ctx context.Context, target *config.Target, targetBranch string) Result {
-	result := Result{TargetRepo: target.Repo + " (" + targetBranch + ")"}
+	repoTitle := target.Repo + " (" + targetBranch + ")"
 
 	branchResult := b.branchBuilder.BuildBranch(BranchOptions{
 		Target:       target,
@@ -95,12 +117,11 @@ func (b *Builder) processTarget(ctx context.Context, target *config.Target, targ
 	defer branchResult.Cleanup()
 
 	if branchResult.Error != nil {
-		result.Error = branchResult.Error
-		return result
+		return NewResult(repoTitle, nil, branchResult.Error)
 	}
 
 	if !branchResult.HasChanges {
-		return result
+		return NewResult(repoTitle, nil, nil)
 	}
 
 	publishResult := b.publisher.Publish(ctx, PublishOptions{
@@ -110,12 +131,10 @@ func (b *Builder) processTarget(ctx context.Context, target *config.Target, targ
 	})
 
 	if publishResult.Error != nil {
-		result.Error = publishResult.Error
-		return result
+		return NewResult(repoTitle, nil, publishResult.Error)
 	}
 
-	result.PRURL = publishResult.PRURL
-	return result
+	return NewResult(repoTitle, &publishResult.PRURL, publishResult.Error)
 }
 
 func extractComponentInfo(sourceRepoDir string) (owner, repo, name string) {
