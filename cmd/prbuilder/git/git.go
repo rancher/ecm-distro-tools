@@ -111,7 +111,7 @@ func (r *Repository) GetRemoteURL(remoteName string) (string, error) {
 		return "", fmt.Errorf("failed to get remote %s: %w", remoteName, err)
 	}
 	if len(remote.Config().URLs) == 0 {
-		return "", fmt.Errorf("remote %s has no URL configured", remoteName)
+		return "", errors.New("remote " + remoteName + " has no URL configured")
 	}
 	return remote.Config().URLs[0], nil
 }
