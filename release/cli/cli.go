@@ -66,7 +66,7 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 

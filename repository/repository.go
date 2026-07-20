@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -19,7 +18,6 @@ import (
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -28,7 +26,6 @@ const (
 	releaseNoteSection = "```release-note"
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
-	httpTimeout        = time.Second * 10
 )
 
 // stripBackportTag returns a string with a prefix backport tag removed
@@ -42,32 +39,18 @@ func stripBackportTag(s string) string {
 	return s
 }
 
-type TokenSource struct {
-	AccessToken string
-}
-
-func (t *TokenSource) Token() (*oauth2.Token, error) {
-	token := &oauth2.Token{
-		AccessToken: t.AccessToken,
-	}
-
-	return token, nil
-}
-
 // NewGithub creates a value of type github.Client pointer
 // with the given context and Github token.
-func NewGithub(ctx context.Context, token string) *github.Client {
-	if token == "" {
-		return github.NewClient(nil)
+func NewGithub(_ context.Context, token string) *github.Client {
+	var opts []github.ClientOptionsFunc
+	if token != "" {
+		opts = append(opts, github.WithAuthToken(token))
 	}
-
-	ts := TokenSource{
-		AccessToken: token,
+	client, err := github.NewClient(opts...)
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create github client")
 	}
-	oauthClient := oauth2.NewClient(ctx, &ts)
-	oauthClient.Timeout = httpTimeout
-
-	return github.NewClient(oauthClient)
+	return client
 }
 
 type CreateReleaseOpts struct {
@@ -124,9 +107,9 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		return nil, errors.New("CreateReleaseOpts cannot be nil")
 	}
 
-	rr := github.RepositoryRelease{
+	rr := github.CreateReleaseRequest{
 		Name:            &cro.Name,
-		TagName:         &cro.Tag,
+		TagName:         cro.Tag,
 		Prerelease:      &cro.Prerelease,
 		TargetCommitish: &cro.Branch,
 		Draft:           &cro.Draft,
@@ -137,7 +120,7 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		rr.GenerateReleaseNotes = &genReleaseNotes
 	}
 
-	release, _, err := client.Repositories.CreateRelease(ctx, cro.Owner, cro.Repo, &rr)
+	release, _, err := client.Repositories.CreateRelease(ctx, cro.Owner, cro.Repo, rr)
 	if err != nil {
 		return nil, err
 	}
