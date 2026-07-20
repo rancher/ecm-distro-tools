@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v89/github"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -66,7 +66,7 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 

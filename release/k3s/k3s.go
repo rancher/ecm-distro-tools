@@ -17,7 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v89/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -773,7 +773,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v89/github"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -67,7 +67,7 @@ func CreateDashboardRelease(ctx context.Context, client *github.Client, opts *re
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 
@@ -141,6 +141,6 @@ func CreateUIRelease(ctx context.Context, client *github.Client, opts *repositor
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }

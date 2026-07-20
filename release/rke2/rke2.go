@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v89/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/docker"
@@ -237,8 +237,8 @@ func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion
 		}
 
 		for _, r := range releases {
-			if r.TagName != nil && strings.Contains(*r.TagName, version) {
-				return *r.TagName, nil
+			if strings.Contains(r.TagName, version) {
+				return r.TagName, nil
 			}
 		}
 
@@ -318,10 +318,11 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
 			return nil
 		}
-		release := &github.RepositoryRelease{
-			TagName:    new(imageBuildBaseTag),
-			Name:       new(imageBuildBaseTag),
-			Prerelease: new(false),
+		falseVal := false
+		release := github.CreateReleaseRequest{
+			TagName:    imageBuildBaseTag,
+			Name:       github.String(imageBuildBaseTag),
+			Prerelease: &falseVal,
 		}
 		if _, _, err := ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, release); err != nil {
 			return err
