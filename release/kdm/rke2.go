@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v2"
 )
 
 type RKE2ChannelsUpdater struct {
