@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 )
 
 type RKE2ChannelsUpdater struct {
@@ -83,7 +83,7 @@ func UpdateRKE2Channels(versions []string) error {
 		return err
 	}
 
-	return os.WriteFile(rke2ChannelsFile, b, 0644)
+	return os.WriteFile(rke2ChannelsFile, b, 0o644)
 }
 
 func (u *RKE2ChannelsUpdater) parseYaml(filename string) error {
