@@ -183,7 +183,7 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 
 	// for +rke2r2 and forward
 	if release > 1 {
-		for i := release - 1; i > 0; i-- {
+		for i := release; i > 0; i-- {
 			prevVersion := fmt.Sprintf(rke2VersionTemplate, major, minor, patch, i)
 			fmt.Println("checking for previous version: ", prevVersion)
 			_, err := u.previousReleasePos(prevVersion)
@@ -207,22 +207,18 @@ func (u *RKE2ChannelsUpdater) getPreviousVersion(version string) (string, error)
 		return prevVersion, nil
 	}
 
-	// checking the previous
-	prevVersion := ""
-	for i := 1; i < 10; i++ {
-		// this version may exists, so we first store it in a separate variable
-		// and if the version exists it is assigned to prevVersion
+	// checking the previous patch release by searching backwards
+	// This ensures we find the highest +rke2rX even if +rke2r1 does not exist.
+	for i := 10; i > 0; i-- {
 		v := fmt.Sprintf(rke2VersionTemplate, major, minor, patch-1, i)
-		if _, err := u.previousReleasePos(v); err != nil {
-			if prevVersion == "" {
-				return "", err
-			}
-		} else {
-			prevVersion = v
+		if _, err := u.previousReleasePos(v); err == nil {
+			// As soon as err is nil, we've found the highest existing previous release.
+			return v, nil
 		}
 	}
 
-	return prevVersion, nil
+	// If the loop finishes without returning, no previous release was found at all.
+	return "", fmt.Errorf("no previous release found for patch %d.%d.%d", major, minor, patch-1)
 }
 
 func (u *RKE2ChannelsUpdater) rke2LatestMinor(major, minor int) (string, error) {
