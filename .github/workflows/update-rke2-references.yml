@@ -35,7 +35,7 @@ jobs:
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
     steps:
       - name: "Checkout `ecm-config.json`"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -68,7 +68,7 @@ jobs:
           git config --global user.email "eio-github-actions-power-enhancer[bot]@users.noreply.github.com"
 
       - name: "Setup `ecm-distro-tools` CLI"
-        uses: rancher/ecm-distro-tools@e9b6789032dbe9e289ccc6f7532da8fd349922b3 # v0.75.0
+        uses: rancher/ecm-distro-tools@b558c3371d4a363f131e31a87d5c47dae2bbebe7 # v0.75.1
 
       - name: "Open `rancher/rke2` PR Updating References"
         env:
