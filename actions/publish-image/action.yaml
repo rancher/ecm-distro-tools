@@ -195,7 +195,7 @@ runs:
     # of only one registry getting updated while the other fails.
   - name: Login to registry [Public]
     if: ${{ inputs.push-to-public == true || inputs.push-to-public == 'true' }}
-    uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4.5.2
+    uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
     with:
       registry: ${{ inputs.public-registry }}
       username: ${{ inputs.public-username }}
@@ -203,7 +203,7 @@ runs:
 
   - name: Login to registry [Prime]
     if: ${{ inputs.push-to-prime == true || inputs.push-to-prime == 'true' }}
-    uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4.5.2
+    uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
     with:
       registry: ${{ inputs.prime-registry }}
       username: ${{ inputs.prime-username }}
