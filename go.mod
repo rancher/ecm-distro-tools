@@ -8,7 +8,7 @@ require (
 	github.com/google/go-github/v85 v85.0.0
 	github.com/sirupsen/logrus v1.9.4
 	golang.org/x/crypto v0.55.0
-	golang.org/x/mod v0.38.0
+	golang.org/x/mod v0.40.0
 	golang.org/x/oauth2 v0.36.0
 )
 
