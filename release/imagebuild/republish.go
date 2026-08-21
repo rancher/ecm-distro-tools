@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,8 +30,8 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 	now := time.Now()
 	tag += fmt.Sprintf("-build%d%02d%02d", now.Year(), now.Month(), now.Day())
 
-	newReleaseOpts := &github.RepositoryRelease{
-		TagName:         new(tag),
+	newReleaseOpts := github.CreateReleaseRequest{
+		TagName:         tag,
 		TargetCommitish: new(targetCommitish),
 		Name:            new(tag),
 		Draft:           new(false),

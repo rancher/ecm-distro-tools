@@ -60,7 +60,10 @@ var releasesStatsCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		s := spinner.New(spinner.CharSets[31], 100*time.Millisecond)
 		s.HideCursor = true
@@ -100,7 +103,10 @@ var cveStatsSubCmd = &cobra.Command{
 	Long:  `Retrieve CVE statistics from current releases.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		reports, err := metrics.CVEsMetrics(ctx, ghClient)
 		if err != nil {
 			return err

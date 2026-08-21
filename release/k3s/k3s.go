@@ -17,7 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -602,10 +602,10 @@ func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) erro
 func createK3sReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
 	const repo = "k3s"
 
-	pull := &github.NewPullRequest{
+	pull := github.CreatePullRequest{
 		Title:               new(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
-		Base:                new(r.ReleaseBranch),
-		Head:                new(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
+		Base:                r.ReleaseBranch,
+		Head:                u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix,
 		MaintainerCanModify: new(true),
 	}
 
@@ -620,7 +620,7 @@ func NewGithubClient(ctx context.Context, token string) (*github.Client, error) 
 		return nil, errors.New("error: github token required")
 	}
 
-	return repository.NewGithub(ctx, token), nil
+	return repository.NewGithub(ctx, token)
 }
 
 // tagsFileExists verify if there is a tags file at the release workspace
@@ -773,7 +773,7 @@ func CreateRelease(ctx context.Context, client *github.Client, r *ecmConfig.K3sR
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 

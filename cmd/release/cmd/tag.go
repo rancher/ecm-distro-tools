@@ -50,7 +50,10 @@ var k3sTagSubCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		opts := repository.CreateRefOpts{
 			Tag:    tag,
@@ -82,7 +85,10 @@ var rke2TagSubCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		opts := repository.CreateRefOpts{
 			Tag:    tag,
@@ -136,7 +142,10 @@ var rancherTagSubCmd = &cobra.Command{
 		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
 
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
 		if err != nil {
 			return err
@@ -168,7 +177,10 @@ var systemAgentInstallerK3sTagSubCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		opts := &repository.CreateReleaseOpts{
 			Tag:    tag,
 			Repo:   "system-agent-installer-k3s",
@@ -222,7 +234,10 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
 
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
 		if err != nil {
@@ -268,7 +283,10 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		tag := args[1]
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		dashboardRelease, found := rootConfig.Dashboard.Versions[tag]
 		if !found {
@@ -354,7 +372,10 @@ var cliTagSubCmd = &cobra.Command{
 
 		tag := args[1]
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		cliRelease, found := rootConfig.CLI.Versions[tag]
 		if !found {

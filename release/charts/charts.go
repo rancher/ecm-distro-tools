@@ -11,7 +11,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -113,10 +113,10 @@ func Push(ctx context.Context, conf *config.ChartsRelease, user *config.User, gh
 	}
 
 	// create a new PR
-	pr := &github.NewPullRequest{
+	pr := github.CreatePullRequest{
 		Title:               new("[" + branch + "] batch release"),
-		Base:                new(branch),
-		Head:                new(h.Name().Short()),
+		Base:                branch,
+		Head:                h.Name().Short(),
 		Body:                new(chartsReleasePRBody),
 		MaintainerCanModify: new(true),
 	}

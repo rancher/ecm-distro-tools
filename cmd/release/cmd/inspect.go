@@ -163,7 +163,10 @@ Currently supports inspecting the image list for published rke2 releases.`,
 		}
 
 		ctx := context.Background()
-		gh := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		gh, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		filesystem, err := release.NewFS(ctx, gh, "rancher", "rke2", args[0])
 		if err != nil {
 			return err

@@ -3,9 +3,8 @@ module github.com/rancher/ecm-distro-tools
 go 1.26.6
 
 require (
-	github.com/go-git/go-git/v5 v5.19.2
-	github.com/google/go-containerregistry v0.21.9
-	github.com/google/go-github/v85 v85.0.0
+	github.com/go-git/go-git/v5 v5.19.1
+	github.com/google/go-containerregistry v0.21.7
 	github.com/sirupsen/logrus v1.9.4
 	golang.org/x/crypto v0.55.0
 	golang.org/x/mod v0.38.0
@@ -17,6 +16,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.36
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.1
 	github.com/briandowns/spinner v1.23.2
+	github.com/google/go-github/v90 v90.0.0
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sync v0.22.0

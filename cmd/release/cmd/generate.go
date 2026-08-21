@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/k3s"
 	"github.com/rancher/ecm-distro-tools/release/kdm"
@@ -81,7 +81,10 @@ var k3sGenerateReleaseNotesSubCmd = &cobra.Command{
 	Short: "Generate k3s release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		notes, err := release.GenReleaseNotes(ctx, "k3s-io", "k3s", k3sMilestone, k3sPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
@@ -107,7 +110,10 @@ var k3sGenerateTagsSubCmd = &cobra.Command{
 			return NewVersionNotFoundError(version, "k3s")
 		}
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		return k3s.GenerateTags(ctx, ghClient, &k3sRelease, rootConfig.User, rootConfig.Auth.SSHKeyPath)
 	},
 }
@@ -122,7 +128,10 @@ var rke2GenerateReleaseNotesSubCmd = &cobra.Command{
 	Short: "Generate rke2 release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		notes, err := release.GenReleaseNotes(ctx, "rancher", "rke2", rke2Milestone, rke2PrevMilestone, releaseNotesAlert, client)
 		if err != nil {
@@ -320,7 +329,10 @@ var uiGenerateReleaseNotesSubCmd = &cobra.Command{
 	Short: "Generate ui release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		notes, err := release.GenReleaseNotes(ctx, "rancher", "ui", dashboardMilestone, dashboardPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
@@ -343,7 +355,10 @@ var dashboardGenerateReleaseNotesSubCmd = &cobra.Command{
 	Short: "Generate dashboard release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		notes, err := release.GenReleaseNotes(ctx, "rancher", "dashboard", dashboardMilestone, dashboardPrevMilestone, releaseNotesAlert, client)
 		if err != nil {
@@ -366,7 +381,10 @@ var cliGenerateReleaseNotesSubCmd = &cobra.Command{
 	Short: "Generate cli release notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		client, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		notes, err := release.GenReleaseNotes(ctx, "rancher", "cli", cliMilestone, cliPrevMilestone, releaseNotesAlert, client)
 		if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -68,7 +69,10 @@ func backport(cmd *cobra.Command, args []string) error {
 		return errors.New("env variable GITHUB_TOKEN is required")
 	}
 	ctx := context.Background()
-	githubClient := repository.NewGithub(ctx, githubToken)
+	githubClient, err := repository.NewGithub(ctx, githubToken)
+	if err != nil {
+		return fmt.Errorf("failed to create github client: %v", err)
+	}
 
 	pbo := &repository.PerformBackportOpts{
 		Owner:           backportCmdOpts.Owner,
