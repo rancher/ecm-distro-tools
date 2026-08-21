@@ -8,14 +8,13 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
@@ -28,7 +27,6 @@ const (
 	releaseNoteSection = "```release-note"
 	emptyReleaseNote   = "```release-note\r\n\r\n```"
 	noneReleaseNote    = "```release-note\r\nNONE\r\n```"
-	httpTimeout        = time.Second * 10
 )
 
 // stripBackportTag returns a string with a prefix backport tag removed
@@ -56,18 +54,12 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 
 // NewGithub creates a value of type github.Client pointer
 // with the given context and Github token.
-func NewGithub(ctx context.Context, token string) *github.Client {
+func NewGithub(ctx context.Context, token string) (*github.Client, error) {
 	if token == "" {
 		return github.NewClient(nil)
 	}
 
-	ts := TokenSource{
-		AccessToken: token,
-	}
-	oauthClient := oauth2.NewClient(ctx, &ts)
-	oauthClient.Timeout = httpTimeout
-
-	return github.NewClient(oauthClient)
+	return github.NewClient(github.WithAuthToken(token))
 }
 
 type CreateReleaseOpts struct {
@@ -124,20 +116,20 @@ func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleas
 		return nil, errors.New("CreateReleaseOpts cannot be nil")
 	}
 
-	rr := github.RepositoryRelease{
-		Name:            &cro.Name,
-		TagName:         &cro.Tag,
-		Prerelease:      &cro.Prerelease,
-		TargetCommitish: &cro.Branch,
-		Draft:           &cro.Draft,
+	rr := github.CreateReleaseRequest{
+		Name:                 &cro.Name,
+		TagName:              cro.Tag,
+		Prerelease:           new(cro.Prerelease),
+		TargetCommitish:      new(cro.Branch),
+		Draft:                new(cro.Draft),
+		GenerateReleaseNotes: new(true),
 	}
 	if cro.ReleaseNotes != "" {
-		genReleaseNotes := true
 		rr.Body = &cro.ReleaseNotes
-		rr.GenerateReleaseNotes = &genReleaseNotes
+		rr.GenerateReleaseNotes = new(false)
 	}
 
-	release, _, err := client.Repositories.CreateRelease(ctx, cro.Owner, cro.Repo, &rr)
+	release, _, err := client.Repositories.CreateRelease(ctx, cro.Owner, cro.Repo, rr)
 	if err != nil {
 		return nil, err
 	}
@@ -201,14 +193,13 @@ type CreateReleaseIssueOpts struct {
 
 func CreateReleaseIssue(ctx context.Context, client *github.Client, cri *CreateReleaseIssueOpts) (*github.Issue, error) {
 	body := fmt.Sprintf(cutRKE2ReleaseIssue, cri.Release, cri.Release)
-	ir := github.IssueRequest{
-		Title:    types.StringPtr("Cut " + cri.Release),
+	ir := github.CreateIssueRequest{
+		Title:    "Cut " + cri.Release,
 		Body:     types.StringPtr(body),
 		Assignee: types.StringPtr(cri.Captain),
-		State:    types.StringPtr("open"),
 	}
 
-	issue, _, err := client.Issues.Create(ctx, cri.Owner, cri.Repo, &ir)
+	issue, _, err := client.Issues.Create(ctx, cri.Owner, cri.Repo, ir)
 	if err != nil {
 		return nil, err
 	}
@@ -254,10 +245,10 @@ func CreateBackportIssues(ctx context.Context, client *github.Client, origIssue 
 	} else {
 		assignee = types.StringPtr("")
 	}
-	issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
-		Title:    &title,
+	issue, _, err := client.Issues.Create(ctx, owner, repo, github.CreateIssueRequest{
+		Title:    title,
 		Body:     &body,
-		Labels:   &[]string{"kind/backport"},
+		Labels:   []string{"kind/backport"},
 		Assignee: assignee,
 	})
 	if err != nil {

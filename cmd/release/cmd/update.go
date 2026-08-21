@@ -45,7 +45,10 @@ var updateK3sReferencesCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return k3s.UpdateK3sReferences(ctx, ghClient, &k3sRelease, rootConfig.User)
 	},
@@ -73,7 +76,10 @@ var updateRKE2ReferencesCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return rke2.UpdateRKE2References(ctx, ghClient, &rke2Release, rootConfig.User)
 	},
@@ -214,7 +220,10 @@ var updateRancherDashboardCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return rancher.UpdateDashboardReferences(ctx, ghClient, &dashboardRelease, rootConfig.User, tag, rancherReleaseBranch, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
 	},
@@ -263,7 +272,10 @@ var updateRancherCLICmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return rancher.UpdateCLIReferences(ctx, ghClient, tag, rancherReleaseBranch, githubUsername, rancherRepo, rancherRepoOwner, rancherRepoURL, dryRun)
 	},
@@ -312,7 +324,10 @@ var updateCLICmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return cli.UpdateRancherReferences(ctx, ghClient, tag, rancherRepo, rancherRepoOwner, cliUpstreamURL, cliBranch, cliRepo, githubUsername, dryRun)
 	},

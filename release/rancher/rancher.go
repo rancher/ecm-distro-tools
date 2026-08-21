@@ -20,7 +20,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -180,10 +180,10 @@ func updateDashboardReferencesAndPush(tag, rancherReleaseBranch, rancherUpstream
 }
 
 func createDashboardReferencesPR(ctx context.Context, ghClient *github.Client, u *ecmConfig.User, tag, rancherReleaseBranch, rancherRepoName, rancherRepoOwner string) error {
-	pull := &github.NewPullRequest{
+	pull := github.CreatePullRequest{
 		Title:               new("Bump Dashboard to " + tag),
-		Base:                new(rancherReleaseBranch),
-		Head:                new(u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag)),
+		Base:                rancherReleaseBranch,
+		Head:                u.GithubUsername + ":" + UpdateDashboardRefsBranchName(tag),
 		MaintainerCanModify: new(true),
 	}
 
@@ -227,10 +227,10 @@ func updateCLIReferencesAndPush(tag, rancherUpstreamURL, rancherReleaseBranch st
 }
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, rancherReleaseBranch, githubUsername, rancherRepoName, rancherRepoOwner string) error {
-	pull := &github.NewPullRequest{
+	pull := github.CreatePullRequest{
 		Title:               new("Bump Rancher CLI version to " + tag),
-		Base:                new(rancherReleaseBranch),
-		Head:                new(githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag)),
+		Base:                rancherReleaseBranch,
+		Head:                githubUsername + ":" + cli.UpdateCLIRefsBranchName(tag),
 		MaintainerCanModify: new(true),
 	}
 
@@ -316,7 +316,10 @@ func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps
 	files := []string{"Dockerfile.dapper", "go.mod", "/package/Dockerfile", "/pkg/apis/go.mod", "/pkg/settings/setting.go", "/scripts/package-env"}
 	devDependencyPattern := regexp.MustCompile(`dev-v[0-9]+\.[0-9]+`)
 	rcTagPattern := regexp.MustCompile(`-rc[0-9]+`)
-	ghClient := repository.NewGithub(ctx, "")
+	ghClient, err := repository.NewGithub(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github client: %v", err)
+	}
 
 	for _, filePath := range files {
 		var scanner *bufio.Scanner

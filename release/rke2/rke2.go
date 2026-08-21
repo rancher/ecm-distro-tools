@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/docker"
@@ -209,10 +209,10 @@ func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r
 }
 
 func createRKE2ReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.RKE2Release, u *ecmConfig.User) error {
-	pull := &github.NewPullRequest{
+	pull := github.CreatePullRequest{
 		Title:               new(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
-		Base:                new(r.ReleaseBranch),
-		Head:                new(u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix),
+		Base:                r.ReleaseBranch,
+		Head:                u.GithubUsername + ":" + r.NewK8sVersion + "-" + r.NewSuffix,
 		MaintainerCanModify: new(true),
 	}
 
@@ -237,8 +237,8 @@ func kubernetesImageTag(ctx context.Context, ghClient *github.Client, k8sVersion
 		}
 
 		for _, r := range releases {
-			if r.TagName != nil && strings.Contains(*r.TagName, version) {
-				return *r.TagName, nil
+			if strings.Contains(r.TagName, version) {
+				return r.TagName, nil
 			}
 		}
 
@@ -318,8 +318,8 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
 			return nil
 		}
-		release := &github.RepositoryRelease{
-			TagName:    new(imageBuildBaseTag),
+		release := github.CreateReleaseRequest{
+			TagName:    imageBuildBaseTag,
 			Name:       new(imageBuildBaseTag),
 			Prerelease: new(false),
 		}

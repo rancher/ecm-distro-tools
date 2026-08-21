@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
@@ -66,7 +66,7 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 		return err
 	}
 
-	fmt.Println("release created: " + *createdRelease.HTMLURL)
+	fmt.Println("release created: " + createdRelease.HTMLURL)
 	return nil
 }
 
@@ -118,10 +118,10 @@ func updateRancherReferencesAndPush(tag, releaseBranch, rancherCommitSHA, cliUps
 }
 
 func createCLIReferencesPR(ctx context.Context, ghClient *github.Client, tag, tagSHA, releaseBranch, cliRepoName, rancherRepoOwner, githubUsername string) error {
-	pull := &github.NewPullRequest{
+	pull := github.CreatePullRequest{
 		Title:               new("Bump Rancher version to " + tag),
-		Base:                new(releaseBranch),
-		Head:                new(githubUsername + ":" + UpdateCLIRefsBranchName(tag)),
+		Base:                releaseBranch,
+		Head:                githubUsername + ":" + UpdateCLIRefsBranchName(tag),
 		Body:                new("```" + tag + ": " + tagSHA + "```"),
 		MaintainerCanModify: new(true),
 	}

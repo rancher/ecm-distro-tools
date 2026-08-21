@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v85/github"
+	"github.com/google/go-github/v90/github"
 	"github.com/sirupsen/logrus"
 )
 
@@ -132,8 +132,8 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 			imageBuildTag += fmt.Sprintf("-build%d%02d%02d", now.Year(), now.Month(), now.Day())
 		}
 
-		newRelease := &github.RepositoryRelease{
-			TagName:         new(imageBuildTag),
+		newRelease := github.CreateReleaseRequest{
+			TagName:         imageBuildTag,
 			TargetCommitish: new("master"),
 			Name:            new(imageBuildTag),
 			Draft:           new(false),

@@ -34,7 +34,10 @@ var syncImageBuildCmd = &cobra.Command{
 		if ghToken == "" {
 			return errors.New("GITHUB_TOKEN env is empty")
 		}
-		ghClient := repository.NewGithub(ctx, ghToken)
+		ghClient, err := repository.NewGithub(ctx, ghToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return imagebuild.Sync(ctx, ghClient, owner, *repo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
 	},
@@ -50,7 +53,10 @@ var syncRepublishLatestReleaseCmd = &cobra.Command{
 		if ghToken == "" {
 			return errors.New("GITHUB_TOKEN env is empty")
 		}
-		ghClient := repository.NewGithub(ctx, ghToken)
+		ghClient, err := repository.NewGithub(ctx, ghToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		return imagebuild.Republish(ctx, ghClient, owner, *repo, commitish, dryRun)
 	},

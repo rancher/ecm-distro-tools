@@ -35,7 +35,10 @@ var pushK3sTagsCmd = &cobra.Command{
 			return NewVersionNotFoundError(version, "k3s")
 		}
 		ctx := context.Background()
-		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 		return k3s.PushTags(ghClient, &k3sRelease, rootConfig.User, rootConfig.Auth.SSHKeyPath)
 	},
 }
@@ -83,7 +86,10 @@ var pushChartsCmd = &cobra.Command{
 		token := rootConfig.Auth.GithubToken
 
 		ctx := context.Background()
-		ghc := repository.NewGithub(ctx, token)
+		ghc, err := repository.NewGithub(ctx, token)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %v", err)
+		}
 
 		prURL, err := charts.Push(ctx, rootConfig.Charts, rootConfig.User, ghc, releaseBranch, token, debug)
 		if err != nil {
