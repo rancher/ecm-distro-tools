@@ -21,7 +21,7 @@ func CreateRelease(ctx context.Context, client *github.Client, opts *repository.
 		return errors.New("tag isn't a valid semver: " + opts.Tag)
 	}
 
-	latestPreRelease, err := release.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
+	latestPreRelease, err := repository.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
 	if err != nil {
 		return err
 	}

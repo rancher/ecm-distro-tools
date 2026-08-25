@@ -24,7 +24,6 @@ import (
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
-	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -257,58 +256,6 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	releaseBranch := "release/" + majorMinor
 
 	return releaseBranch, nil
-}
-
-// CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
-// If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
-// Returns tag, commit sha, error
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease, dryRun bool) (string, string, error) {
-	if !semver.IsValid(baseTag) {
-		return "", "", errors.New("the base tag is invalid: " + baseTag)
-	}
-
-	if sha == "" {
-		commitSHA, err := repository.RefCommitSHA(ctx, ghClient, owner, repo, "heads/"+branch)
-		if err != nil {
-			return "", "", err
-		}
-		sha = commitSHA
-	}
-
-	tag := baseTag
-
-	if preRelease {
-		latestVersionNumber := 1
-		latestVersion, err := release.LatestPreRelease(ctx, ghClient, owner, repo, baseTag, releaseType)
-		if err != nil {
-			return "", "", err
-		}
-
-		if latestVersion != nil {
-			trimmedVersionNumber := strings.TrimPrefix(*latestVersion, baseTag+"-"+releaseType)
-			currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
-			if err != nil {
-				return "", "", errors.New("failed to parse trimmed latest version number: " + err.Error())
-			}
-			latestVersionNumber = currentVersionNumber + 1
-		}
-		tag = baseTag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
-	}
-
-	if !semver.IsValid(tag) {
-		return "", "", errors.New("the tag is invalid: " + tag)
-	}
-
-	if dryRun {
-		fmt.Println("dry run, skipping creating tag")
-		return tag, sha, nil
-	}
-
-	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
-	if err != nil {
-		return "", "", err
-	}
-	return tag, sha, nil
 }
 
 func CheckRancherRCDeps(ctx context.Context, org, gitRef string) (*RancherRCDeps, error) {
@@ -551,6 +498,38 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 	}
 
 	return os.WriteFile(outputPath, b, 0o644)
+}
+
+// CreateTag is a wrapper for the repository.CreateTag function, it takes more information and automatically finds what are the
+// references it needs to create, such as the latest prerelease version (e.g: alpha1, alpha2) and what is the latest commit in
+// a branch to create the tag based on that.
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease, dryRun bool) (string, string, error) {
+	if !semver.IsValid(baseTag) {
+		return "", "", errors.New("the base tag is invalid: " + baseTag)
+	}
+
+	if sha == "" {
+		latestCommit, err := repository.BranchLatestCommitSHA(ctx, ghClient, owner, repo, branch)
+		if err != nil {
+			return "", "", err
+		}
+		sha = latestCommit
+	}
+
+	tag := baseTag
+	if preRelease {
+		preReleaseTag, err := repository.LatestPreReleaseTag(ctx, ghClient, owner, repo, releaseType, baseTag)
+		if err != nil {
+			return "", "", err
+		}
+		tag = preReleaseTag
+	}
+
+	if dryRun {
+		fmt.Println("dry run, skipping creating tag")
+		return tag, sha, nil
+	}
+	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {

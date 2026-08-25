@@ -5,71 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/google/go-github/v90/github"
-	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
 )
-
-// CreateDashboardRelease will create a new tag and a new release with given params.
-func CreateDashboardRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, rc, dryRun bool, releaseType, previousTag, releaseAlert string) error {
-	if !semver.IsValid(opts.Tag) {
-		return errors.New("tag isn't a valid semver: " + opts.Tag)
-	}
-
-	latestPreRelease, err := release.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
-	if err != nil {
-		return err
-	}
-
-	if rc {
-		latestRCNumber := 1
-		if latestPreRelease != nil {
-			// v2.9.0-rcN / -alphaN
-			_, trimmedRCNumber, found := strings.Cut(*latestPreRelease, "-"+releaseType)
-			if !found {
-				return errors.New("failed to parse rc number from " + *latestPreRelease)
-			}
-			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
-			if err != nil {
-				return err
-			}
-			latestRCNumber = currentRCNumber + 1
-		}
-		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
-	}
-
-	opts.Name = opts.Tag
-	opts.Prerelease = true
-	opts.ReleaseNotes = ""
-
-	if !rc {
-		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, previousTag)
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, releaseAlert, client)
-		if err != nil {
-			return err
-		}
-		opts.ReleaseNotes = buff.String()
-	}
-
-	fmt.Printf("create release options: %+v\n", *opts)
-
-	if dryRun {
-		fmt.Println("dry run, skipping creating release")
-		return nil
-	}
-
-	createdRelease, err := repository.CreateRelease(ctx, client, opts)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("release created: " + createdRelease.HTMLURL)
-	return nil
-}
 
 // ReleaseBranchFromTag generates the ui release branch for a release line with the format of 'release-{major}.{minor}'. The generated release branch might not be valid depending on multiple factors that cannot be treated on this function such as it being 'master'.
 // Please make sure that this is the expected format before using the generated release branch.
@@ -88,59 +29,31 @@ func ReleaseBranchFromTag(tag string) (string, error) {
 	return releaseBranch, nil
 }
 
-// CreateUIRelease will create a new tag and a new release with given params.
-func CreateUIRelease(ctx context.Context, client *github.Client, opts *repository.CreateReleaseOpts, preRelease, dryRun bool, releaseType, previousTag, releaseNotesAlert string) error {
-	if !semver.IsValid(opts.Tag) {
-		return errors.New("tag isn't a valid semver: " + opts.Tag)
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease, dryRun bool) (string, string, error) {
+	if !semver.IsValid(baseTag) {
+		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
 
-	latestPreRelease, err := release.LatestPreRelease(ctx, client, opts.Owner, opts.Repo, opts.Tag, releaseType)
-	if err != nil {
-		return err
-	}
-
-	if preRelease {
-		latestRCNumber := 1
-		if latestPreRelease != nil {
-			// v2.9.0-rcN / -alphaN
-			_, trimmedRCNumber, found := strings.Cut(*latestPreRelease, "-"+releaseType)
-			if !found {
-				return errors.New("failed to parse rc number from " + *latestPreRelease)
-			}
-			currentRCNumber, err := strconv.Atoi(trimmedRCNumber)
-			if err != nil {
-				return err
-			}
-			latestRCNumber = currentRCNumber + 1
-		}
-		opts.Tag = fmt.Sprintf("%s-%s%d", opts.Tag, releaseType, latestRCNumber)
-	}
-
-	opts.Name = opts.Tag
-	opts.Prerelease = true
-	opts.ReleaseNotes = ""
-
-	if !preRelease {
-		fmt.Printf("release.GenReleaseNotes(ctx, %s, %s, %s, %s, client)", opts.Owner, opts.Repo, opts.Branch, previousTag)
-		buff, err := release.GenReleaseNotes(ctx, opts.Owner, opts.Repo, opts.Branch, previousTag, releaseNotesAlert, client)
+	if sha == "" {
+		latestCommit, err := repository.BranchLatestCommitSHA(ctx, ghClient, owner, repo, branch)
 		if err != nil {
-			return err
+			return "", "", err
 		}
-		opts.ReleaseNotes = buff.String()
+		sha = latestCommit
 	}
 
-	fmt.Printf("create release options: %+v\n", *opts)
+	tag := baseTag
+	if preRelease {
+		preReleaseTag, err := repository.LatestPreReleaseTag(ctx, ghClient, owner, repo, releaseType, baseTag)
+		if err != nil {
+			return "", "", err
+		}
+		tag = preReleaseTag
+	}
 
 	if dryRun {
-		fmt.Println("dry run, skipping creating release")
-		return nil
+		fmt.Println("dry run, skipping creating tag")
+		return tag, sha, nil
 	}
-
-	createdRelease, err := repository.CreateRelease(ctx, client, opts)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("release created: " + createdRelease.HTMLURL)
-	return nil
+	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha)
 }
