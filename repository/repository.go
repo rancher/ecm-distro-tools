@@ -6,18 +6,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -109,6 +112,72 @@ func LatestTag(ctx context.Context, client *github.Client, owner, repo string) (
 	}
 
 	return tags[0], nil
+}
+
+func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, version, preReleaseSuffix string) (*string, error) {
+	var latestFoundPreRelease *string
+	preReleaseNumber := 1
+
+	for {
+		tagName := fmt.Sprintf("%s-%s%d", version, preReleaseSuffix, preReleaseNumber)
+
+		ref := "tags/" + tagName
+
+		_, resp, err := client.Git.GetRef(ctx, owner, repo, ref)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				break
+			}
+			return nil, err
+		}
+		found := tagName
+		latestFoundPreRelease = &found
+		preReleaseNumber++
+	}
+
+	return latestFoundPreRelease, nil
+}
+
+func LatestPreReleaseTag(ctx context.Context, ghClient *github.Client, owner, repo, releaseType, baseTag string) (string, error) {
+	latestVersionNumber := 1
+	latestVersion, err := LatestPreRelease(ctx, ghClient, owner, repo, baseTag, releaseType)
+	if err != nil {
+		return "", err
+	}
+
+	if latestVersion != nil {
+		trimmedVersionNumber := strings.TrimPrefix(*latestVersion, baseTag+"-"+releaseType)
+		currentVersionNumber, err := strconv.Atoi(trimmedVersionNumber)
+		if err != nil {
+			return "", errors.New("failed to parse trimmed latest version number: " + err.Error())
+		}
+		latestVersionNumber = currentVersionNumber + 1
+	}
+	tag := baseTag + "-" + releaseType + strconv.Itoa(latestVersionNumber)
+	return tag, nil
+}
+
+func BranchLatestCommitSHA(ctx context.Context, ghClient *github.Client, owner, repo, branch string) (string, error) {
+	commitSHA, err := RefCommitSHA(ctx, ghClient, owner, repo, "heads/"+branch)
+	if err != nil {
+		return "", err
+	}
+	return commitSHA, nil
+}
+
+// CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
+// If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
+// Returns tag, commit sha, error
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, sha string) (string, string, error) {
+	if !semver.IsValid(tag) {
+		return "", "", errors.New("the tag is invalid: " + tag)
+	}
+
+	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	if err != nil {
+		return "", "", err
+	}
+	return tag, sha, nil
 }
 
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
@@ -581,7 +650,7 @@ func PushRemoteBranch(r *git.Repository, remote, user, token string, debug bool)
 
 	branchRef := h.Name().String()
 
-	auth := &http.BasicAuth{
+	auth := &githttp.BasicAuth{
 		Username: user,
 		Password: token,
 	}

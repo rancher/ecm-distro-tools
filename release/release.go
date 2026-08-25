@@ -1,3 +1,4 @@
+// Package release provides general tools to verify, create and manage github releases
 package release
 
 import (
@@ -808,30 +809,6 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string
 	}
 
 	return latestFoundRC, nil
-}
-
-func LatestPreRelease(ctx context.Context, client *github.Client, owner, repo, version, preReleaseSuffix string) (*string, error) {
-	var latestFoundPreRelease *string
-	preReleaseNumber := 1
-
-	for {
-		tagName := fmt.Sprintf("%s-%s%d", version, preReleaseSuffix, preReleaseNumber)
-
-		ref := "tags/" + tagName
-
-		_, resp, err := client.Git.GetRef(ctx, owner, repo, ref)
-		if err != nil {
-			if resp != nil && resp.StatusCode == http.StatusNotFound {
-				break
-			}
-			return nil, err
-		}
-		found := tagName
-		latestFoundPreRelease = &found
-		preReleaseNumber++
-	}
-
-	return latestFoundPreRelease, nil
 }
 
 // StatsMonthly

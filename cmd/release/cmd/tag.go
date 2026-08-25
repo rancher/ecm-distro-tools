@@ -22,7 +22,10 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-var tagRKE2Flags tagRKE2CmdFlags
+var (
+	tagRKE2Flags    tagRKE2CmdFlags
+	createUITagFlag *bool
+)
 
 // tagCmd represents the tag command.
 var tagCmd = &cobra.Command{
@@ -304,36 +307,21 @@ var dashboardTagSubCmd = &cobra.Command{
 
 		releaseBranch = config.ValueOrDefault(dashboardRelease.ReleaseBranch, releaseBranch)
 
-		previousTag := dashboardRelease.PreviousTag
-
-		if previousTag == "" {
-			previousTag, err = previousPatch(tag)
+		if createUITagFlag != nil && *createUITagFlag {
+			tag, sha, err := dashboard.CreateTag(ctx, ghClient, repoOwner, uiRepo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create ui tag: %v", err)
 			}
+
+			fmt.Println("created tag: " + tag + " - " + sha)
 		}
 
-		uiOpts := &repository.CreateReleaseOpts{
-			Tag:    tag,
-			Repo:   uiRepo,
-			Owner:  repoOwner,
-			Branch: releaseBranch,
-			Draft:  false,
+		tag, sha, err := dashboard.CreateTag(ctx, ghClient, repoOwner, dashboardRepo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
+		if err != nil {
+			return fmt.Errorf("failed to create dashboard tag: %v", err)
 		}
-
-		if err := dashboard.CreateUIRelease(ctx, ghClient, uiOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert); err != nil {
-			return err
-		}
-
-		dashboardOpts := &repository.CreateReleaseOpts{
-			Tag:    tag,
-			Repo:   dashboardRepo,
-			Owner:  repoOwner,
-			Branch: releaseBranch,
-			Draft:  false,
-		}
-
-		return dashboard.CreateDashboardRelease(ctx, ghClient, dashboardOpts, preRelease, dryRun, releaseType, previousTag, releaseNotesAlert)
+		fmt.Println("created tag: " + tag + " - " + sha)
+		return nil
 	},
 }
 
@@ -457,6 +445,8 @@ func init() {
 	tagRKE2Flags.ReleaseVersion = rke2TagSubCmd.Flags().StringP("release-version", "r", "r1", "Release version")
 	tagRKE2Flags.RCVersion = rke2TagSubCmd.Flags().String("rc", "", "RC version")
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
+
+	createUITagFlag = dashboardTagSubCmd.Flags().BoolP("create-ui-tag", "t", false, "Also create a rancher/ui tag and not just the dashboard tag")
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {
