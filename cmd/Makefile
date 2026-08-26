@@ -5,7 +5,9 @@ GO_COMPILE = GOOS=$${os} GOARCH=$${arch} CGO_ENABLED=1 $(GO) build -tags $(TAGS)
 OS := $(shell uname)
 
 ifeq ($(OS),Darwin)
-GEN_HASH = shasum -a 256 $@-$${os}-$${arch} >> $(BINDIR)/sha256sums-$(BINARY).txt
+SHA256SUM = shasum -a 256
 else
-GEN_HASH = sha256sum $@-$${os}-$${arch} >> $(BINDIR)/sha256sums-$(BINARY).txt
+SHA256SUM = sha256sum
 endif
+
+GEN_HASH = (cd $(BINDIR) && $(SHA256SUM) $(notdir $@)-$${os}-$${arch} >> sha256sums-$(BINARY).txt)

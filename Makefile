@@ -76,3 +76,11 @@ package-binaries: $(BINARIES)
 			rm -f dist/ecm-distro-tools.$${SUFFIX}.tar; \
 		done; \
 	done
+
+	rm -f dist/sha256sum.txt
+	cd dist && \
+	for file in *; do \
+		case "$${file}" in sha256sum*.txt) continue;; esac; \
+		[ -f "$${file}" ] || continue; \
+		$(SHA256SUM) "$${file}" >> sha256sum.txt; \
+	done
