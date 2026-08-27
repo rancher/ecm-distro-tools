@@ -46,20 +46,25 @@ func main() {
 	cmd.Flags().BoolVarP(&backportCmdOpts.SkipCreateIssue, "skip-create-issue", "s", false, "skip creating issues")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
-		panic(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("owner"); err != nil {
-		panic(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("issue"); err != nil {
-		panic(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("branches"); err != nil {
-		panic(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 
 	if err := cmd.Execute(); err != nil {
-		panic(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 }
 
