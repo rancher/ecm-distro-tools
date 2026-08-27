@@ -58,10 +58,7 @@ func initLogger() {
 		opts.Level = slog.LevelDebug
 	}
 
-	// Create a new Text or JSON handler
 	handler := slog.NewTextHandler(os.Stdout, opts)
-
-	// Set it as the default global logger
 	slog.SetDefault(slog.New(handler))
 }
 
