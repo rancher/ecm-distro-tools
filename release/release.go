@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,7 +22,6 @@ import (
 	"github.com/google/go-github/v90/github"
 	httpecm "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 	"sigs.k8s.io/yaml"
@@ -158,8 +158,8 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 
 	return nil
 }
-func (_ *rke2ReleaseNoteData) Template() string { return rke2ReleaseNoteTemplate }
-func (_ *rke2ReleaseNoteData) Repo() string     { return rke2Repo }
+func (*rke2ReleaseNoteData) Template() string { return rke2ReleaseNoteTemplate }
+func (*rke2ReleaseNoteData) Repo() string     { return rke2Repo }
 
 type k3sReleaseNoteData struct {
 	K8sVersion                  string
@@ -210,36 +210,36 @@ func (rd *k3sReleaseNoteData) Fill(milestone string) error {
 	return nil
 }
 
-func (_ *k3sReleaseNoteData) Template() string { return k3sReleaseNoteTemplate }
-func (_ *k3sReleaseNoteData) Repo() string     { return k3sRepo }
+func (*k3sReleaseNoteData) Template() string { return k3sReleaseNoteTemplate }
+func (*k3sReleaseNoteData) Repo() string     { return k3sRepo }
 
 type uiReleaseNoteData struct {
 	releaseNoteData
 }
 
-func (_ *uiReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *uiReleaseNoteData) Template() string    { return fmt.Sprintf(defaultReleaseNoteTemplate, uiRepo) }
-func (_ *uiReleaseNoteData) Repo() string        { return uiRepo }
+func (*uiReleaseNoteData) Fill(_ string) error { return nil }
+func (*uiReleaseNoteData) Template() string    { return fmt.Sprintf(defaultReleaseNoteTemplate, uiRepo) }
+func (*uiReleaseNoteData) Repo() string        { return uiRepo }
 
 type dashboardReleaseNoteData struct {
 	releaseNoteData
 }
 
-func (_ *dashboardReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *dashboardReleaseNoteData) Template() string {
+func (*dashboardReleaseNoteData) Fill(_ string) error { return nil }
+func (*dashboardReleaseNoteData) Template() string {
 	return fmt.Sprintf(defaultReleaseNoteTemplate, dashboardRepo)
 }
-func (_ *dashboardReleaseNoteData) Repo() string { return dashboardRepo }
+func (*dashboardReleaseNoteData) Repo() string { return dashboardRepo }
 
 type cliReleaseNoteData struct {
 	releaseNoteData
 }
 
-func (_ *cliReleaseNoteData) Fill(_ string) error { return nil }
-func (_ *cliReleaseNoteData) Template() string {
+func (*cliReleaseNoteData) Fill(_ string) error { return nil }
+func (*cliReleaseNoteData) Template() string {
 	return fmt.Sprintf(defaultReleaseNoteTemplate, cliRepo)
 }
-func (_ *cliReleaseNoteData) Repo() string { return cliRepo }
+func (*cliReleaseNoteData) Repo() string { return cliRepo }
 
 func majMin(v string) (string, error) {
 	majMin := semver.MajorMinor(v)
@@ -577,23 +577,23 @@ func goModLibVersion(libraryName, repo, branchVersion string) string {
 
 	resp, err := http.Get(goModURL)
 	if err != nil {
-		logrus.Debugf("failed to fetch url %s: %v", goModURL, err)
+		slog.Debug("failed to fetch url", slog.String("url", goModURL), slog.String("error", err.Error()))
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, goModURL)
+		slog.Debug("error when fetching url", slog.Int("status-code", resp.StatusCode), slog.String("url", goModURL))
 		return ""
 	}
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logrus.Debugf("read body error: %v", err)
+		slog.Debug("read body error", slog.String("error", err.Error()))
 		return ""
 	}
 
 	modFile, err := modfile.Parse("go.mod", b, nil)
 	if err != nil {
-		logrus.Debugf("failed to parse go.mod file: %v", err)
+		slog.Debug("failed to parse go.mod file", slog.String("error", err.Error()))
 		return ""
 	}
 
@@ -610,7 +610,7 @@ func goModLibVersion(libraryName, repo, branchVersion string) string {
 			return require.Mod.Version
 		}
 	}
-	logrus.Debugf("library %s not found", libraryName)
+	slog.Debug("library not found", slog.String("library", libraryName))
 
 	return ""
 }
@@ -689,7 +689,7 @@ func imageEnvVersion(envName, repo, branchVersion string) string {
 	regex := fmt.Sprintf(`^(%s)=.+$`, envName)
 	submatch := findInURL(imageListURL, regex, envName, true)
 	if len(submatch) == 0 {
-		logrus.Debugf("env %s not found in %s", envName, imageListURL)
+		slog.Debug("env not found", slog.String("env", envName), slog.String("list", imageListURL))
 		return ""
 	}
 
@@ -748,19 +748,19 @@ func findInURL(url, regex, str string, checkStatusCode bool) []string {
 	client := httpecm.NewClient(defaultTimeout)
 	resp, err := client.Get(url)
 	if err != nil {
-		logrus.Debugf("failed to fetch url %s: %v", url, err)
+		slog.Debug("failed to fetch url", slog.String("url", url), slog.String("error", err.Error()))
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if checkStatusCode && resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, url)
+		slog.Debug("status error when fetching url", slog.Int("status-code", resp.StatusCode), slog.String("error", url))
 		return nil
 	}
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logrus.Debugf("read body error: %v", err)
+		slog.Debug("read body error", slog.String("error", err.Error()))
 		return nil
 	}
 
@@ -811,20 +811,17 @@ func LatestRC(ctx context.Context, owner, repo, k8sVersion, projectSuffix string
 	return latestFoundRC, nil
 }
 
-// StatsMonthly
 type StatsMonthly struct {
 	Count    int
 	Captains []string
 	Tags     []string
 }
 
-// RelStats
 type RelStats struct {
 	Count   int
 	Monthly map[time.Month]StatsMonthly
 }
 
-// StatsData
 type StatsData struct {
 	Total    int64            `json:"total"`
 	Data     map[int]RelStats `json:"data"`
@@ -944,13 +941,13 @@ func rke2ChartsVersion(branchVersion string) (map[string]chart, error) {
 	client := httpecm.NewClient(defaultTimeout)
 	resp, err := client.Get(chartVersionsURL)
 	if err != nil {
-		logrus.Debugf("failed to fetch url %s: %v", chartVersionsURL, err)
+		slog.Debug("failed to fetch url", slog.String("url", chartVersionsURL), slog.String("error", err.Error()))
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("status error: %v when fetching %s", resp.StatusCode, err)
+		slog.Debug("error when fetching", slog.Int("status-cdoe", resp.StatusCode))
 		return nil, err
 	}
 

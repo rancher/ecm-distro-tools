@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -16,13 +17,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
-	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	"github.com/rancher/ecm-distro-tools/docker"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
 	"github.com/rancher/ecm-distro-tools/repository"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -106,8 +105,8 @@ type goVersionRecord struct {
 }
 
 type UpdateScriptVars struct {
-	RKE2                  *ecmConfig.RKE2Release
-	User                  *ecmConfig.User
+	RKE2                  *config.RKE2Release
+	User                  *config.User
 	NewKubernetesImageTag string // fetched from rancher/image-build-kubernetes releases
 	LinuxKubectlSHA       string // dl.k8s.io linux/amd64 kubectl SHA256
 	WindowsKubectlSHA     string // dl.k8s.io windows/amd64 kubectl.exe SHA256
@@ -117,7 +116,7 @@ type UpdateScriptVars struct {
 
 // UpdateRKE2References updates k8s, k3s and Go references in a local RKE2
 // checkout and optionally opens a pull request.
-func UpdateRKE2References(ctx context.Context, ghClient *github.Client, r *ecmConfig.RKE2Release, u *ecmConfig.User) error {
+func UpdateRKE2References(ctx context.Context, ghClient *github.Client, r *config.RKE2Release, u *config.User) error {
 	if err := updateRKE2ReferencesAndPush(ctx, ghClient, r, u); err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func UpdateRKE2References(ctx context.Context, ghClient *github.Client, r *ecmCo
 	return createRKE2ReferencesPR(ctx, ghClient, r, u)
 }
 
-func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r *ecmConfig.RKE2Release, u *ecmConfig.User) error {
+func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r *config.RKE2Release, u *config.User) error {
 	if err := release.SetWorkspace(r.Workspace); err != nil {
 		return err
 	}
@@ -208,7 +207,7 @@ func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r
 	return nil
 }
 
-func createRKE2ReferencesPR(ctx context.Context, ghClient *github.Client, r *ecmConfig.RKE2Release, u *ecmConfig.User) error {
+func createRKE2ReferencesPR(ctx context.Context, ghClient *github.Client, r *config.RKE2Release, u *config.User) error {
 	pull := github.CreatePullRequest{
 		Title:               new(fmt.Sprintf("[%s] Update to %s-%s and Go %s", r.ReleaseBranch, r.NewK8sVersion, r.NewSuffix, r.NewGoVersion)),
 		Base:                r.ReleaseBranch,
@@ -286,9 +285,9 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 	}
 
 	for _, version := range versions {
-		logrus.Info("version: " + version.Version)
+		slog.Info("version: " + version.Version)
 		if !version.Stable {
-			logrus.Info("version " + version.Version + " is not stable")
+			slog.Info("version " + version.Version + " is not stable")
 			continue
 		}
 		goVersion := strings.Split(version.Version, "go")[1]
@@ -298,7 +297,7 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 		if err != nil {
 			return fmt.Errorf("failed to find a corresponding alpine version for go %s: %v", goVersion, err)
 		}
-		logrus.Infof("found alpine v%s for go v%s", alpineVersion, goVersion)
+		slog.Info("found versions", slog.String("alpine-version", alpineVersion), slog.String("go-version", goVersion))
 
 		alpineTag := goVersion + "-alpine" + alpineVersion
 
@@ -307,15 +306,15 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 		}
 
 		imageBuildBaseTag := "v" + goVersion + "b1"
-		logrus.Info("stripped version: " + imageBuildBaseTag)
+		slog.Info("stripped version: " + imageBuildBaseTag)
 		if _, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "rancher", imageBuildBaseRepo, imageBuildBaseTag); err == nil {
-			logrus.Info("release " + imageBuildBaseTag + " already exists")
+			slog.Info("release " + imageBuildBaseTag + " already exists")
 			continue
 		}
-		logrus.Info("release " + imageBuildBaseTag + " doesn't exists, creating release")
+		slog.Info("release " + imageBuildBaseTag + " doesn't exists, creating release")
 		if dryRun {
-			logrus.Info("dry run, release won't be created")
-			logrus.Infof("Release:\n  Owner: rancher\n  Repo: %s\n  TagName: %s\n  Name: %s\n", imageBuildBaseRepo, imageBuildBaseTag, imageBuildBaseTag)
+			slog.Info("dry run, release won't be created")
+			slog.Info("Release:", slog.String("owner", "rancher"), slog.String("repo", imageBuildBaseRepo), slog.String("tagName", imageBuildBaseTag), slog.String("name", imageBuildBaseTag))
 			return nil
 		}
 		release := github.CreateReleaseRequest{
@@ -326,12 +325,12 @@ func ImageBuildBaseRelease(ctx context.Context, ghClient *github.Client, dryRun 
 		if _, _, err := ghClient.Repositories.CreateRelease(ctx, "rancher", imageBuildBaseRepo, release); err != nil {
 			return err
 		}
-		logrus.Info("created release for version: " + imageBuildBaseTag)
+		slog.Info("created release for version: " + imageBuildBaseTag)
 	}
 	return nil
 }
 
-func CreateRef(ctx context.Context, client *github.Client, r *ecmConfig.RKE2Release, opts *repository.CreateRefOpts, rc bool) error {
+func CreateRef(ctx context.Context, client *github.Client, r *config.RKE2Release, opts *repository.CreateRefOpts, rc bool) error {
 	fmt.Println("validating tag")
 	_, err := semver.NewVersion(opts.Tag)
 	if err != nil {

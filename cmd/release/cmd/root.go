@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -30,7 +31,7 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, initLogger)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println("error: ", err)
 		os.Exit(1)
@@ -47,6 +48,21 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "V", false, "Verbose output")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
+}
+
+func initLogger() {
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+	if debug {
+		opts.Level = slog.LevelDebug
+	}
+
+	// Create a new Text or JSON handler
+	handler := slog.NewTextHandler(os.Stdout, opts)
+
+	// Set it as the default global logger
+	slog.SetDefault(slog.New(handler))
 }
 
 func initConfig() {

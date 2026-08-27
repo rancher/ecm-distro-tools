@@ -3,15 +3,15 @@ package imagebuild
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v90/github"
-	"github.com/sirupsen/logrus"
 )
 
 func Republish(ctx context.Context, client *github.Client, owner, repo, targetCommitish string, dryrun bool) error {
-	logrus.Infof("Retrieving latest release of '%s/%s'...", owner, repo)
+	slog.Info("retrieving latest release", slog.String("owner", owner), slog.String("repo", repo))
 
 	release, _, err := client.Repositories.GetLatestRelease(ctx, owner, repo)
 	if err != nil {
@@ -38,7 +38,7 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 	}
 
 	if dryrun {
-		logrus.Infof("Dry run, skipping tag '%s' creation for '%s/%s'", tag, owner, repo)
+		slog.Info("dry run, skipping tag creation", slog.String("tag", tag), slog.String("owner", owner), slog.String("repo", repo))
 		return nil
 	}
 
@@ -47,7 +47,7 @@ func Republish(ctx context.Context, client *github.Client, owner, repo, targetCo
 		return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, tag, err)
 	}
 
-	logrus.Infof("Successfully created '%s/%s' release '%s': %s", owner, repo, tag, newRelease.GetHTMLURL())
+	slog.Info("successfully created release", slog.String("owner", owner), slog.String("repo", repo), slog.String("tag", tag), slog.String("release-url", newRelease.GetHTMLURL()))
 
 	return nil
 }

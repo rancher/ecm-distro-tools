@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,7 +20,6 @@ import (
 	"github.com/google/go-github/v90/github"
 	"github.com/rancher/ecm-distro-tools/exec"
 	"github.com/rancher/ecm-distro-tools/types"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
 	"golang.org/x/text/cases"
@@ -362,20 +362,20 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 	}
 	if cherryPick {
 		// we're assuming this code is called from the repository itself
-		logrus.Info("getting working directory")
+		slog.Info("getting working directory")
 		cwd, err = os.Getwd()
 		if err != nil {
 			return nil, err
 		}
-		logrus.Info("working directory: " + cwd)
+		slog.Info("working directory: " + cwd)
 
-		logrus.Info("opening git repository at working directory")
+		slog.Info("opening git repository at working directory")
 		r, err = git.PlainOpen(cwd)
 		if err != nil {
 			return nil, errors.New("not in a git repository, make sure you are executing this inside the " + pbo.Repo + " repo: " + err.Error())
 		}
 
-		logrus.Info("getting repository worktree")
+		slog.Info("getting repository worktree")
 		w, err = r.Worktree()
 		if err != nil {
 			return nil, err
@@ -405,24 +405,24 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 	for _, branch := range pbo.Branches {
 		if cherryPick {
 			coo := git.CheckoutOptions{Branch: plumbing.ReferenceName("refs/remotes/upstream/" + branch)}
-			logrus.Info("checking out on reference refs/remotes/upstream/" + branch)
-			logrus.Infof("checkout options: %+v", coo)
+			slog.Info("checking out on reference refs/remotes/upstream/" + branch)
+			slog.Info(fmt.Sprintf("checkout options: %+v\n", coo))
 			if err := w.Checkout(&coo); err != nil {
 				return nil, errors.New("failed checkout: " + err.Error())
 			}
 
 			newBranchName := fmt.Sprintf("issue-%d_%s", pbo.IssueID, branch)
-			logrus.Info("new branch name: " + newBranchName)
+			slog.Info("new branch name: " + newBranchName)
 
-			logrus.Info("getting head reference")
+			slog.Info("getting head reference")
 			headRef, err := r.Head()
 			if err != nil {
 				return nil, err
 			}
 
-			logrus.Info("getting new hash reference")
+			slog.Info("getting new hash reference")
 			ref := plumbing.NewHashReference(plumbing.NewBranchReferenceName(newBranchName), headRef.Hash())
-			logrus.Info("setting new hash reference")
+			slog.Info("setting new hash reference")
 			if err := r.Storer.SetReference(ref); err != nil {
 				return nil, err
 			}
@@ -430,35 +430,35 @@ func PerformBackport(ctx context.Context, client *github.Client, pbo *PerformBac
 			coo = git.CheckoutOptions{
 				Branch: plumbing.ReferenceName("refs/heads/" + newBranchName),
 			}
-			logrus.Info("checkout out on reference refs/heads/" + newBranchName)
+			slog.Info("checkout out on reference refs/heads/" + newBranchName)
 			if err := w.Checkout(&coo); err != nil {
 				return nil, errors.New("failed checkout: " + err.Error())
 			}
 
 			for _, commit := range pbo.Commits {
-				logrus.Info("cherry picking commit: " + commit)
+				slog.Info("cherry picking commit: " + commit)
 				cherryPickOut, err := exec.RunCommand(cwd, "git", "cherry-pick", commit)
 				if err != nil {
 					return nil, err
 				}
-				logrus.Info(cherryPickOut)
+				slog.Info(cherryPickOut)
 
 				if pbo.DryRun {
-					logrus.Info("dry run, skipping push to origin for branch " + newBranchName)
+					slog.Info("dry run, skipping push to origin for branch " + newBranchName)
 					continue
 				}
-				logrus.Info("pushing " + newBranchName + " to origin")
+				slog.Info("pushing " + newBranchName + " to origin")
 				pushOut, err := exec.RunCommand(cwd, "git", "push", "origin", newBranchName)
 				if err != nil {
 					return nil, err
 				}
-				logrus.Info(pushOut)
+				slog.Info(pushOut)
 			}
 		}
 
-		logrus.Info("creating issue | owner: " + pbo.Owner + " | Repo: " + pbo.Repo + " | Branch: " + branch)
+		slog.Info("creating issue | owner: " + pbo.Owner + " | Repo: " + pbo.Repo + " | Branch: " + branch)
 		if pbo.DryRun || pbo.SkipCreateIssue {
-			logrus.Info("skipping issue creation")
+			slog.Info("skipping issue creation")
 			continue
 		}
 		newIssue, err := CreateBackportIssues(ctx, client, origIssue, pbo.Owner, pbo.Repo, branch, pbo.User, &issue)
