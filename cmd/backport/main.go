@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/rancher/ecm-distro-tools/repository"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -46,20 +46,25 @@ func main() {
 	cmd.Flags().BoolVarP(&backportCmdOpts.SkipCreateIssue, "skip-create-issue", "s", false, "skip creating issues")
 
 	if err := cmd.MarkFlagRequired("repo"); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("owner"); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("issue"); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 	if err := cmd.MarkFlagRequired("branches"); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 
 	if err := cmd.Execute(); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprint(os.Stderr, err.Error())
+		return
 	}
 }
 
@@ -90,7 +95,7 @@ func backport(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, issue := range issues {
-		logrus.Info("Backport issue created: " + issue.GetHTMLURL())
+		slog.Info("Backport issue created: " + issue.GetHTMLURL())
 	}
 
 	return nil

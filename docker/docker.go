@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
-	"github.com/sirupsen/logrus"
 )
 
 const registryURL = "https://hub.docker.com"
@@ -34,13 +34,13 @@ func CheckImageArchs(ctx context.Context, org, repo, tag string, archs []string)
 	}
 
 	for _, arch := range archs {
-		logrus.Info("checking " + arch)
+		slog.Info("checking " + arch)
 
 		if _, ok := images[arch]; !ok {
 			return errors.New("arch " + arch + "not found")
 		}
 
-		logrus.Info("passed, " + arch + " exists")
+		slog.Info("passed, " + arch + " exists")
 	}
 
 	return nil

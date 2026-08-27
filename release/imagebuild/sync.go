@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v90/github"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -31,7 +31,7 @@ var k3sPrereleaseRE = regexp.MustCompile(`^k3s\d+$`)
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
 func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
-	logrus.Infof("Retrieving all upstream tags for '%s/%s'...", upstreamOwner, upstreamRepo)
+	slog.Info("Retrieving all upstream tags for", slog.String("owner", upstreamOwner), slog.String("repo", upstreamRepo))
 
 	// This slice will hold all tags gathered from all pages.
 	var upstreamTags []*github.RepositoryTag
@@ -81,19 +81,19 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 
 		// skip if the current upstream tag name isn't valid.
 		if !validateTagFormat(upstreamTagName, tagPrefix) {
-			logrus.Infof("'%s/%s' tag '%s' is not in expected format, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+			slog.Info("tag is not in expected format, skipping release.", slog.String("upstream-owner", upstreamOwner), slog.String("upstream-repo", upstreamRepo), slog.String("upstream-tag-name", upstreamTagName))
 			continue
 		}
 
 		isOlder, err := isTagOlderThanCutoff(ctx, client, upstreamOwner, upstreamRepo, upstreamTagName, cutoff)
 		if err != nil {
-			logrus.Warnf("Could not determine age of upstream tag '%s', skipping: %v", upstreamTagName, err)
+			slog.Warn("Could not determine age of upstream tag skipping", slog.String("upstream-tag-name", upstreamTagName), slog.String("error", err.Error()))
 			continue
 		}
 
 		// if the tag is older than the defined cutoff time
 		if isOlder {
-			logrus.Infof("'%s/%s' tag '%s' is older than 2 days, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+			slog.Info("tag is older than 2 days, skipping release.", slog.String("upstream-owner", upstreamOwner), slog.String("upstream-repo", upstreamRepo), slog.String("upstream-tag-name", upstreamTagName))
 			continue
 		}
 		// if the release is older than a couple of day it can be ignored
@@ -110,11 +110,11 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		if _, found := tagsMap[upstreamTagName]; found {
-			logrus.Infof("'%s/%s' tag '%s' found in '%s/%s', skipping release.", upstreamOwner, upstreamRepo, upstreamTagName, owner, repo)
+			slog.Info("tag found, skipping release.", slog.String("upstream-owner", upstreamOwner), slog.String("upstream-repo", upstreamRepo), slog.String("upstream-tag-name", upstreamTagName), slog.String("owner", owner), slog.String("repo", repo))
 			continue
 		}
 
-		logrus.Infof("'%s/%s' tag '%s' not found in 'rancher/%s'.", upstreamOwner, upstreamRepo, upstreamTagName, repo)
+		slog.Info("tag not found in repo.", slog.String("upstream-owner", upstreamOwner), slog.String("upstream-repo", upstreamRepo), slog.String("upstream-tag-name", upstreamTagName), slog.String("repo", repo))
 
 		imageBuildTag := upstreamTagName
 
@@ -140,14 +140,14 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		}
 
 		if dryrun {
-			logrus.Infof("Dry run, skipping tag '%s' creation for '%s/%s'", imageBuildTag, owner, repo)
+			slog.Info("dry run, skipping tag creation", slog.String("image-build-tag", imageBuildTag), slog.String("owner", owner), slog.String("repo", repo))
 			continue
 		}
 		if _, _, err := client.Repositories.CreateRelease(ctx, owner, repo, newRelease); err != nil {
 			return fmt.Errorf("failed to create '%s/%s' release '%s': %v", owner, repo, imageBuildTag, err)
 		}
 
-		logrus.Infof("Successfully created '%s/%s' release '%s'", owner, repo, imageBuildTag)
+		slog.Info("successfully created release", slog.String("owner", owner), slog.String("repo", repo), slog.String("image-build-tag", imageBuildTag))
 	}
 	return nil
 }
