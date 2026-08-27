@@ -491,13 +491,13 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 		if err != nil {
 			return nil, err
 		}
-		if len(prs) == 1 {
-			if exists := addedPRs[prs[0].GetNumber()]; exists {
+		for _, pr := range prs {
+			if exists := addedPRs[pr.GetNumber()]; exists {
 				continue
 			}
 
-			title := stripBackportTag(strings.TrimSpace(prs[0].GetTitle()))
-			body := prs[0].GetBody()
+			title := stripBackportTag(strings.TrimSpace(pr.GetTitle()))
+			body := pr.GetBody()
 
 			var releaseNote string
 			var inNote bool
@@ -522,10 +522,10 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 			found = append(found, ChangeLog{
 				Title:  title,
 				Note:   releaseNote,
-				Number: prs[0].GetNumber(),
-				URL:    prs[0].GetHTMLURL(),
+				Number: pr.GetNumber(),
+				URL:    pr.GetHTMLURL(),
 			})
-			addedPRs[prs[0].GetNumber()] = true
+			addedPRs[pr.GetNumber()] = true
 		}
 	}
 
