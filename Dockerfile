@@ -57,11 +57,11 @@ RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         cp /tmp/gh-download/bin/gh /usr/local/bin; \
     fi
 # renovate: datasource=github-release-attachments depName=mikefarah/yq
-ENV YQ_VERSION=v4.53.4
-# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.4
-ENV YQ_CHECKSUM_amd64=479362713c4b7d14b4f69a35024c764459f0a55d22f63d6b6d77ed20207b12d1
-# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.4
-ENV YQ_CHECKSUM_arm64=08af32b79f8d177f84e2c495ea5aa122033aa7b97afc07413d8baa6ea6d44360
+ENV YQ_VERSION=v4.53.6
+# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.6
+ENV YQ_CHECKSUM_amd64=38b907b21b1b04327fb9481c595331d925a67c6ee1aabd0ef419d0b7d12dfb3d
+# renovate: datasource=github-release-attachments depName=mikefarah/yq digestVersion=v4.53.6
+ENV YQ_CHECKSUM_arm64=d5e7531273d45c5d4b7abb4a1597c47a0fecb5d6b081dfa755064b38ffcc34f4
 RUN if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
         if [ "${ARCH}" = "amd64" ]; then \
             YQ_CHECKSUM="${YQ_CHECKSUM_amd64}"; \
