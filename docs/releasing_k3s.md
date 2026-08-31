@@ -245,6 +245,12 @@ Before cutting GAs, make sure all KDM PRs are passing CI, a KDM PR failure has p
    - name: stable
      latest: v1.32.3+k3s1 # This Line
    ```
+   - If a new minor version is released, you will also need to add a new entry for it, e.g.:
+   ```yaml
+   - name: v1.36
+     latestRegexp: v1\.36\..*
+     excludeRegexp: ^[^+]+-
+   ```
 1. Only bump the minor version if the patch is `.2` or `.3`, ping k3s developers and managers first to confirm.
 1. Get PR approval, this PR should only merge after the GAs' pre-release checkbox is unchecked
 </details>

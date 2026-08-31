@@ -327,6 +327,12 @@ Before cutting GAs, make sure all KDM PRs are passing CI, a KDM PR failure has p
    - name: stable
      latest: v1.35.6+rke2r1 # THIS LINE
    ```
+   - If a new minor version is released, you will also need to add a new entry for it, e.g.:
+   ```yaml
+   - name: v1.36
+     latestRegexp: v1\.36\..*
+     excludeRegexp: ^[^+]+-
+   ```
 1. Only bump the minor version if the new patch number is higher than `3`, e.g. `v1.36.3+rke2r1` does **not** trigger a minor bump, but `v1.36.4+rke2r1` does.
 1. Get PR approval, this PR should only merge after the GA `stable` RPMs are validated
 1. Validate CI passes
