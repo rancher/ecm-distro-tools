@@ -492,6 +492,10 @@ func RetrieveChangeLogContents(ctx context.Context, client *github.Client, owner
 			return nil, err
 		}
 		for _, pr := range prs {
+			if pr.GetMergedAt().IsZero() {
+				// skip PRs that are not merged
+				continue
+			}
 			if exists := addedPRs[pr.GetNumber()]; exists {
 				continue
 			}
