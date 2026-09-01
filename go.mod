@@ -46,16 +46,26 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/cli v29.7.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
+	github.com/f-amaral/go-async v0.3.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/hhrutter/lzw v1.0.0 // indirect
+	github.com/hhrutter/pkcs7 v0.2.0 // indirect
+	github.com/hhrutter/tiff v1.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/johnfercher/go-tree v1.1.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/pdfcpu/pdfcpu v0.11.1 // indirect
+	github.com/phpdave11/gofpdf v1.4.3 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect

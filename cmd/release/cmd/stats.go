@@ -17,14 +17,15 @@ import (
 )
 
 var (
-	repo         *string
-	startDate    *string
-	endDate      *string
-	format       *string
-	webhookURL   *string
-	severity     *string
-	projects     *[]string
-	skipMirrored *bool
+	repo           *string
+	startDate      *string
+	endDate        *string
+	format         *string
+	slackToken     *string
+	slackChannel   *string
+	slackUsergroup *string
+	severity       *string
+	skipMirrored   *bool
 )
 
 var repoToOwner = map[string]string{
@@ -113,7 +114,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.CVEsBySeverity(*severity, *webhookURL, *skipMirrored, *projects)
+		return reports.CVEsBySeverity(*severity, *slackToken, *slackChannel, *slackUsergroup, *skipMirrored)
 	},
 }
 
@@ -127,7 +128,9 @@ func init() {
 	startDate = releasesStatsCmd.Flags().StringP("start", "s", "", "start date")
 	endDate = releasesStatsCmd.Flags().StringP("end", "e", "", "end date")
 	format = releasesStatsCmd.Flags().StringP("format", "f", "json", "format (json|yaml)")
-	webhookURL = cveStatsSubCmd.Flags().StringP("webhook-url", "u", "", "Slack webhook URL for sending messages")
+	slackToken = cveStatsSubCmd.Flags().String("slack-token", "", "Slack bot token (xoxb-...) used to upload the report")
+	slackChannel = cveStatsSubCmd.Flags().String("slack-channel", "", "Slack channel ID to post the report to")
+	slackUsergroup = cveStatsSubCmd.Flags().String("slack-usergroup", "", "Slack usergroup ID to tag in the report message (optional)")
 	severity = cveStatsSubCmd.Flags().StringP("severity", "s", "critical", "severity (critical|high|medium|low)")
 	skipMirrored = cveStatsSubCmd.Flags().BoolP("skip-mirrored", "m", false, "skip mirrored images when calculating CVE statistics")
 	projects = cveStatsSubCmd.Flags().StringSliceP("projects", "p", []string{"harvester", "longhorn", "rancher", "rke2", "k3s", "observability", "observability-agent"}, "comma-separated list of projects to include in the CVE statistics (harvester,longhorn,rancher,rke2,k3s,observability,observability-agent)")
@@ -145,7 +148,11 @@ func init() {
 		os.Exit(1)
 	}
 
-	if err := cveStatsSubCmd.MarkFlagRequired("webhook-url"); err != nil {
+	if err := cveStatsSubCmd.MarkFlagRequired("slack-token"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := cveStatsSubCmd.MarkFlagRequired("slack-channel"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
