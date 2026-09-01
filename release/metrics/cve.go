@@ -68,25 +68,31 @@ type ReportData struct {
 	Totals      SeverityCounts
 }
 
-// CVEsBySeverity filters and renders a CVE report, sending one Slack message per release.
-func (r *Reports) CVEsBySeverity(minSeverity, webhookURL string, skipMirrored bool, projects []string) error {
+// CVEsBySeverity filters CVEs, renders them into a single PDF report, and
+// uploads it to Slack, tagging usergroupID in channelID.
+func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
 	data := r.buildReportData(minSeverity, skipMirrored)
 
-	for i, release := range data.Releases {
-		if !slices.Contains(projects, release.ProjectTag) {
-			continue
-		}
-		if err := notifySlackRelease(release, data.MinSeverity, webhookURL); err != nil {
-			return fmt.Errorf("failed to send message for %s · %s: %w", release.ProjectName, release.Release, err)
-		}
-
-		// Slack has a rate limit for Incoming Webhooks, of 1 req / sec.
-		if i < len(data.Releases)-1 {
-			time.Sleep(2 * time.Second)
-		}
+	if data.Totals.Total() == 0 {
+		fmt.Printf("No CVEs of severity '%s' or higher found, nothing to report\n", minSeverity)
+		return nil
 	}
 
-	fmt.Println("Successfully sent all release reports to Slack!")
+	pdf, err := buildReportPDF(data)
+	if err != nil {
+		return fmt.Errorf("failed to build pdf report: %w", err)
+	}
+
+	filename := fmt.Sprintf("cve-report-%s.pdf", time.Now().Format(time.DateOnly))
+	summary := fmt.Sprintf("*CVE Report* — Min severity: %s — %d total findings",
+		data.MinSeverity, data.Totals.Total())
+
+	client := newSlackClient(botToken)
+	if err := client.uploadReport(filename, pdf, channelID, usergroupID, summary); err != nil {
+		return fmt.Errorf("failed to upload report to slack: %w", err)
+	}
+
+	fmt.Println("Successfully sent CVE report to Slack!")
 	return nil
 }
 
