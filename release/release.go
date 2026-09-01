@@ -19,11 +19,12 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v90/github"
 	httpecm "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/semver"
+	gosemver "golang.org/x/mod/semver"
 	"sigs.k8s.io/yaml"
 )
 
@@ -183,7 +184,7 @@ func (rd *k3sReleaseNoteData) Fill(milestone string) error {
 	var runcVersion string
 	var containerdVersion string
 
-	if semver.Compare(rd.K8sVersion, "v1.24.0") == 1 && semver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
+	if gosemver.Compare(rd.K8sVersion, "v1.24.0") == 1 && gosemver.Compare(rd.K8sVersion, "v1.26.5") == -1 {
 		containerdVersion = buildScriptVersion("VERSION_CONTAINERD", k3sRepo, milestone)
 	} else {
 		containerdVersion = goModLibVersion(containerdV2ModLib, k3sRepo, milestone)
@@ -242,7 +243,7 @@ func (*cliReleaseNoteData) Template() string {
 func (*cliReleaseNoteData) Repo() string { return cliRepo }
 
 func majMin(v string) (string, error) {
-	majMin := semver.MajorMinor(v)
+	majMin := gosemver.MajorMinor(v)
 	if majMin == "" {
 		return "", errors.New("version is not valid")
 	}
@@ -453,6 +454,67 @@ func KubernetesGoVersion(ctx context.Context, client *github.Client, version str
 	}
 
 	return strings.Trim(goVersion, "\n"), nil
+}
+
+func GoLatestPatchVersion(k8sVersion string) (string, error) {
+	httpClient := httpecm.NewClient(time.Second * 30)
+	k8sGoVersionURL := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + k8sVersion + "/.go-version"
+
+	req, err := http.NewRequest(http.MethodGet, k8sGoVersionURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch .go-version: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch '.go-version', unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, k8sGoVersionURL)
+	}
+
+	dat, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read .go-version content: %w", err)
+	}
+
+	verStr := strings.TrimSpace(string(dat))
+	ver, err := semver.NewVersion(verStr)
+	if err != nil {
+		return "", errors.New("invalid '.go-version' content: " + verStr)
+	}
+
+	currentVer := *ver
+	for {
+		nextVer := currentVer.IncPatch()
+
+		tagURL := "https://github.com/golang/go/releases/tag/go" + nextVer.String()
+
+		tagReq, err := http.NewRequest(http.MethodGet, tagURL, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to create tag check request: %w", err)
+		}
+
+		tagResp, err := httpClient.Do(tagReq)
+		if err != nil {
+			return "", fmt.Errorf("error getting tag %s: %w", nextVer.String(), err)
+		}
+
+		tagResp.Body.Close()
+
+		if tagResp.StatusCode == http.StatusNotFound {
+			// If tag is not found, return the last existing version
+			return currentVer.String(), nil
+		}
+
+		if tagResp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("unexpected status %d checking tag %s", tagResp.StatusCode, nextVer.String())
+		}
+
+		currentVer = nextVer
+	}
 }
 
 // VerifyAssets checks the number of assets for the

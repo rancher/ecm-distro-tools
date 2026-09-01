@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -225,7 +224,7 @@ func rebaseAndTag(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3s
 		return nil, err
 	}
 	fmt.Println(rebaseOut)
-	wrapperImageTag, err := buildGoWrapper(r)
+	wrapperImageTag, err := buildGoWrapper(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -325,35 +324,9 @@ func previousK3sReleaseTag(ctx context.Context, ghClient *github.Client, r *ecmC
 	return "", errors.New("no Git ref found with k8s version: " + r.OldK8sVersion)
 }
 
-func goVersion(r *ecmConfig.K3sRelease) (string, error) {
-	url := "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/tags/" + r.NewK8sVersion + "/.go-version"
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch '.go-version', unexpected status code: %d %s (URL: %s)", resp.StatusCode, resp.Status, url)
-	}
-
-	dat, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	verStr := strings.TrimSpace(string(dat))
-	ver, err := semver.NewVersion(verStr)
-	if err != nil {
-		return "", errors.New("invalid '.go-version' content: " + verStr)
-	}
-
-	return ver.String(), nil
-}
-
-func buildGoWrapper(r *ecmConfig.K3sRelease) (string, error) {
+func buildGoWrapper(ctx context.Context, r *ecmConfig.K3sRelease) (string, error) {
 	fmt.Println("getting go version for k8s")
-	goVersion, err := goVersion(r)
+	goVersion, err := release.GoLatestPatchVersion(r.NewK8sVersion)
 	if err != nil {
 		return "", err
 	}
@@ -563,7 +536,7 @@ func PushTags(ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.Use
 }
 
 func UpdateK3sReferences(ctx context.Context, ghClient *github.Client, r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
-	if err := updateK3sReferencesAndPush(r, u); err != nil {
+	if err := updateK3sReferencesAndPush(ctx, r, u); err != nil {
 		return err
 	}
 
@@ -575,14 +548,14 @@ func UpdateK3sReferences(ctx context.Context, ghClient *github.Client, r *ecmCon
 	return createK3sReferencesPR(ctx, ghClient, r, u)
 }
 
-func updateK3sReferencesAndPush(r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
+func updateK3sReferencesAndPush(ctx context.Context, r *ecmConfig.K3sRelease, u *ecmConfig.User) error {
 	if err := release.SetWorkspace(r.Workspace); err != nil {
 		return err
 	}
 
 	fmt.Println("getting k8s go version")
 
-	goVersion, err := goVersion(r)
+	goVersion, err := release.GoLatestPatchVersion(r.NewK8sVersion)
 	if err != nil {
 		return err
 	}

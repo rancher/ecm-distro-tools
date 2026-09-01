@@ -140,7 +140,7 @@ func updateRKE2ReferencesAndPush(ctx context.Context, ghClient *github.Client, r
 	}
 
 	fmt.Println("getting k8s go version")
-	goVersion, err := release.KubernetesGoVersion(ctx, ghClient, r.NewK8sVersion)
+	goVersion, err := release.GoLatestPatchVersion(r.NewK8sVersion)
 	if err != nil {
 		return err
 	}
