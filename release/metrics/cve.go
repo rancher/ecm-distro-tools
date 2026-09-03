@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,14 +61,21 @@ type ReleaseReport struct {
 	Counts      SeverityCounts
 }
 
+// ProjectReport holds all releases and their CVEs for a single project(Harvester, RKE2, etc.)
+type ProjectReport struct {
+	Name     string
+	Releases []ReleaseReport
+	Totals   SeverityCounts
+}
+
 type ReportData struct {
 	MinSeverity string
-	Releases    []ReleaseReport
+	Projects    []ProjectReport
 	Totals      SeverityCounts
 }
 
-// CVEsBySeverity filters CVEs, renders them into a single PDF report, and
-// uploads it to Slack, tagging usergroupID in channelID.
+// CVEsBySeverity filters CVEs, renders one PDF report per project, and
+// uploads each to Slack, tagging usergroupID in channelID.
 func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
 	data := r.buildReportData(minSeverity, skipMirrored)
 
@@ -78,21 +84,40 @@ func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID s
 		return nil
 	}
 
-	pdf, err := buildReportPDF(data)
-	if err != nil {
-		return fmt.Errorf("failed to build pdf report: %w", err)
-	}
-
-	filename := fmt.Sprintf("cve-report-%s.pdf", time.Now().Format(time.DateOnly))
-	summary := fmt.Sprintf("*CVE Report* — Min severity: %s — %d total findings",
-		data.MinSeverity, data.Totals.Total())
-
 	client := newSlackClient(botToken)
-	if err := client.uploadReport(filename, pdf, channelID, usergroupID, summary); err != nil {
-		return fmt.Errorf("failed to upload report to slack: %w", err)
+
+	for i, project := range data.Projects {
+		if project.Totals.Total() == 0 {
+			continue
+		}
+
+		pdf, err := buildReportPDF(minSeverity, project)
+		if err != nil {
+			return fmt.Errorf("failed to build pdf report for %s: %w", project.Name, err)
+		}
+
+		filename := fmt.Sprintf(
+			"cve-report-%s-%s.pdf",
+			strings.ToLower(strings.ReplaceAll(project.Name, " ", "-")),
+			time.Now().Format(time.DateOnly),
+		)
+
+		summary := fmt.Sprintf(
+			"*%s CVE Report* - Min severity: %s - %d total findings",
+			project.Name, data.MinSeverity, project.Totals.Total(),
+		)
+
+		if err := client.uploadReport(filename, pdf, channelID, usergroupID, summary); err != nil {
+			return fmt.Errorf("failed to upload report for %s to slack: %w", project.Name, err)
+		}
+
+		if i < len(data.Projects)-1 {
+			// small delay between uploads to avoid hitting Slack rate limits
+			time.Sleep(2 * time.Second)
+		}
 	}
 
-	fmt.Println("Successfully sent CVE report to Slack!")
+	fmt.Println("Successfully sent CVE reports to Slack!")
 	return nil
 }
 
@@ -118,6 +143,8 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 	data := ReportData{MinSeverity: minSeverityDisplay}
 
 	for _, p := range allProjects {
+		projectReport := ProjectReport{Name: p.name}
+
 		releaseMap := make(map[string][]CVE)
 		var releaseOrder []string
 
@@ -150,7 +177,7 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 			})
 
 			counts := countSeverities(cves)
-			data.Releases = append(data.Releases, ReleaseReport{
+			projectReport.Releases = append(projectReport.Releases, ReleaseReport{
 				ProjectName: p.name,
 				ProjectTag:  p.tag,
 				Release:     release,
@@ -158,12 +185,20 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 				Counts:      counts,
 			})
 
+			projectReport.Totals.Critical += counts.Critical
+			projectReport.Totals.High += counts.High
+			projectReport.Totals.Medium += counts.Medium
+			projectReport.Totals.Low += counts.Low
+			projectReport.Totals.Other += counts.Other
+
 			data.Totals.Critical += counts.Critical
 			data.Totals.High += counts.High
 			data.Totals.Medium += counts.Medium
 			data.Totals.Low += counts.Low
 			data.Totals.Other += counts.Other
 		}
+
+		data.Projects = append(data.Projects, projectReport)
 	}
 
 	return data
