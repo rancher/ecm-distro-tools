@@ -24,18 +24,18 @@ const (
 	colStatus   = 3
 )
 
-// buildReportPDF renders the full CVE report (all releases, in order) into a
-// single PDF document and returns its raw bytes.
-func buildReportPDF(data ReportData) ([]byte, error) {
+// buildReportPDF renders a single project's CVE report into a PDF document
+// and returns its raw bytes
+func buildReportPDF(minSeverity string, project ProjectReport) ([]byte, error) {
 	cfg := config.NewBuilder().
 		WithOrientation(orientation.Vertical).
 		WithPageNumber().
 		Build()
 
 	m := maroto.New(cfg)
-	m.AddRows(reportHeaderRows(data)...)
+	m.AddRows(reportHeaderRows(minSeverity, project)...)
 
-	for _, release := range data.Releases {
+	for _, release := range project.Releases {
 		if len(release.CVEs) == 0 {
 			continue
 		}
@@ -50,26 +50,38 @@ func buildReportPDF(data ReportData) ([]byte, error) {
 	return doc.GetBytes(), nil
 }
 
-func reportHeaderRows(data ReportData) []core.Row {
+func reportHeaderRows(minSeverity string, project ProjectReport) []core.Row {
 	return []core.Row{
 		row.New(14).Add(
-			text.NewCol(12, "CVE Report", props.Text{
-				Size:  18,
-				Style: fontstyle.Bold,
-				Align: align.Center,
-			}),
+			text.NewCol(
+				12,
+				fmt.Sprintf("%s CVE Report", project.Name),
+				props.Text{
+					Size:  18,
+					Style: fontstyle.Bold,
+					Align: align.Center,
+				},
+			),
 		),
 		row.New(8).Add(
-			text.NewCol(12, fmt.Sprintf("Minimum severity: %s", data.MinSeverity), props.Text{
-				Size:  10,
-				Align: align.Center,
-			}),
+			text.NewCol(
+				12,
+				fmt.Sprintf("Minimum severity: %s", minSeverity),
+				props.Text{
+					Size:  10,
+					Align: align.Center,
+				},
+			),
 		),
 		row.New(8).Add(
-			text.NewCol(12,
+			text.NewCol(
+				12,
 				fmt.Sprintf("Totals — Critical: %d  High: %d  Medium: %d  Low: %d  Other: %d",
-					data.Totals.Critical, data.Totals.High, data.Totals.Medium, data.Totals.Low, data.Totals.Other),
-				props.Text{Size: 10, Align: align.Center},
+					project.Totals.Critical, project.Totals.High, project.Totals.Medium, project.Totals.Low, project.Totals.Other),
+				props.Text{
+					Size:  10,
+					Align: align.Center,
+				},
 			),
 		),
 	}
