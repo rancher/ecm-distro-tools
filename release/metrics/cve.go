@@ -257,7 +257,7 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 		dividerBlock(),
 	)
 
-	// Group CVEs by image, sorted alphabetically for deterministic output.
+	// Group CVEs by image.
 	imageMap := make(map[string][]CVE)
 	var imageOrder []string
 	for _, cve := range release.CVEs {
@@ -266,7 +266,25 @@ func buildReleaseSlackPayload(release ReleaseReport, minSeverity string) slackPa
 		}
 		imageMap[cve.Image] = append(imageMap[cve.Image], cve)
 	}
-	sort.Strings(imageOrder)
+
+	// Sort images by severity count descending (critical, high, medium, low), then alphabetically.
+	sort.Slice(imageOrder, func(i, j int) bool {
+		ci := countSeverities(imageMap[imageOrder[i]])
+		cj := countSeverities(imageMap[imageOrder[j]])
+		if ci.Critical != cj.Critical {
+			return ci.Critical > cj.Critical
+		}
+		if ci.High != cj.High {
+			return ci.High > cj.High
+		}
+		if ci.Medium != cj.Medium {
+			return ci.Medium > cj.Medium
+		}
+		if ci.Low != cj.Low {
+			return ci.Low > cj.Low
+		}
+		return imageOrder[i] < imageOrder[j]
+	})
 
 	// stream accumulates all CVE content into a single rolling text buffer.
 	// writeLine flushes it into a new section block whenever the mrkdwn limit
