@@ -21,6 +21,7 @@ var (
 	startDate      *string
 	endDate        *string
 	format         *string
+	projects       *[]string
 	slackToken     *string
 	slackChannel   *string
 	slackUsergroup *string
