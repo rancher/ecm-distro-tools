@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/johnfercher/maroto/v2"
-	"github.com/johnfercher/maroto/v2/pkg/components/col"
 	"github.com/johnfercher/maroto/v2/pkg/components/row"
 	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/config"
@@ -15,13 +14,14 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
-// column widths, out of a 12-col grid.
+// column widths, out of a 13-col grid.
 const (
-	colSeverity = 1
-	colID       = 2
-	colImage    = 3
-	colPackage  = 3
-	colStatus   = 3
+	colImage    = 8
+	colCritical = 1
+	colHigh     = 1
+	colMedium   = 1
+	colLow      = 1
+	colTotal    = 1
 )
 
 // buildReportPDF renders a single project's CVE report into a PDF document
@@ -106,31 +106,61 @@ func releaseSectionRows(release ReleaseReport) []core.Row {
 		tableHeaderRow(),
 	}
 
-	for _, cve := range release.CVEs {
-		rows = append(rows, cveRow(cve))
+	for _, img := range imagesForRelease(release.CVEs) {
+		rows = append(rows, imageRow(img))
 	}
 
 	return rows
 }
 
 func tableHeaderRow() core.Row {
-	headerProps := props.Text{Size: 8, Style: fontstyle.Bold}
+	headerProps := props.Text{
+		Size:  8,
+		Style: fontstyle.Bold,
+		Align: align.Left,
+	}
 	return row.New(6).Add(
-		text.NewCol(colSeverity, "Sev", headerProps),
-		text.NewCol(colID, "CVE ID", headerProps),
 		text.NewCol(colImage, "Image", headerProps),
-		text.NewCol(colPackage, "Package / Version", headerProps),
-		text.NewCol(colStatus, "Status", headerProps),
+		text.NewCol(colCritical, "Critical", headerProps),
+		text.NewCol(colHigh, "High", headerProps),
+		text.NewCol(colMedium, "Medium", headerProps),
+		text.NewCol(colLow, "Low", headerProps),
+		text.NewCol(colTotal, "Total", headerProps),
 	)
 }
 
-func cveRow(cve CVE) core.Row {
+func imageRow(img ImageReport) core.Row {
 	cellProps := props.Text{Size: 8}
+	countProps := props.Text{
+		Size:  8,
+		Align: align.Left,
+	}
 	return row.New(5).Add(
-		col.New(colSeverity).Add(text.New(severityEmoji(cve.Severity), cellProps)),
-		text.NewCol(colID, cve.VulnerabilityID, cellProps),
-		text.NewCol(colImage, cve.Image, cellProps),
-		text.NewCol(colPackage, fmt.Sprintf("%s %s", cve.PackageName, cve.PackageVersion), cellProps),
-		text.NewCol(colStatus, cve.Status, cellProps),
+		text.NewCol(colImage, img.Image, cellProps),
+		text.NewCol(
+			colCritical,
+			fmt.Sprintf("%d", img.Counts.Critical),
+			countProps,
+		),
+		text.NewCol(
+			colHigh,
+			fmt.Sprintf("%d", img.Counts.High),
+			countProps,
+		),
+		text.NewCol(
+			colMedium,
+			fmt.Sprintf("%d", img.Counts.Medium),
+			countProps,
+		),
+		text.NewCol(
+			colLow,
+			fmt.Sprintf("%d", img.Counts.Low),
+			countProps,
+		),
+		text.NewCol(
+			colTotal,
+			fmt.Sprintf("%d", img.Counts.Total()),
+			countProps,
+		),
 	)
 }

@@ -61,6 +61,55 @@ type ReleaseReport struct {
 	Counts      SeverityCounts
 }
 
+// ImageReport holds the CVE severity for a single image within an image.
+type ImageReport struct {
+	Image  string
+	Counts SeverityCounts
+}
+
+// imagesForRelease groups a release's CVEs by image and returns per-image
+// severity counts, sorted alphabetically by image name for deterministic output.
+func imagesForRelease(cves []CVE) []ImageReport {
+	countsByImage := make(map[string]SeverityCounts)
+
+	var imageOrder []string
+
+	for _, cve := range cves {
+		if _, seen := countsByImage[cve.Image]; !seen {
+			imageOrder = append(imageOrder, cve.Image)
+		}
+
+		c := countsByImage[cve.Image]
+
+		switch strings.ToLower(strings.TrimSpace(cve.Severity)) {
+		case "critical":
+			c.Critical++
+		case "high":
+			c.High++
+		case "medium":
+			c.Medium++
+		case "low":
+			c.Low++
+		default:
+			c.Other++
+		}
+
+		countsByImage[cve.Image] = c
+	}
+
+	sort.Strings(imageOrder)
+
+	images := make([]ImageReport, 0, len(imageOrder))
+	for _, img := range imageOrder {
+		images = append(images, ImageReport{
+			Image:  img,
+			Counts: countsByImage[img],
+		})
+	}
+
+	return images
+}
+
 // ProjectReport holds all releases and their CVEs for a single project(Harvester, RKE2, etc.)
 type ProjectReport struct {
 	Name     string
