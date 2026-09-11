@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/google/go-containerregistry v0.22.0
+	github.com/google/go-containerregistry v0.22.1
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	golang.org/x/crypto v0.56.0
 	golang.org/x/mod v0.40.0
