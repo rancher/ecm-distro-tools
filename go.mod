@@ -7,8 +7,8 @@ require (
 	github.com/google/go-containerregistry v0.22.0
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	golang.org/x/crypto v0.56.0
-	golang.org/x/mod v0.40.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/mod v0.41.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
@@ -19,7 +19,7 @@ require (
 	github.com/google/go-github/v90 v90.0.0
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.41.0
 	sigs.k8s.io/yaml v1.6.0
 )
