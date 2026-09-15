@@ -1,0 +1,67 @@
+name: 'Send PR to Consumer'
+description: 'Creates PRs in downstream repos when a new version is tagged'
+author: 'SUSE'
+
+inputs:
+  tag:
+    description: 'The tag that was just released (e.g., v10.3.2)'
+    required: true
+  config-file:
+    description: 'Path to the config file defining version mappings and targets'
+    required: false
+    default: '.github/pr-consumer-config.yml'
+  github-token:
+    description: 'GitHub token with permissions to create PRs in target repos'
+    required: true
+  dry-run:
+    description: 'If true, will not create PRs, just show what would happen'
+    required: false
+    default: 'false'
+
+outputs:
+  prs-created:
+    description: 'JSON array of PR URLs that were created'
+    value: ${{ steps.create-prs.outputs.prs }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        CONFIG_FILE: ${{ inputs.config-file }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        if [[ ! -f "${CONFIG_FILE}" ]]; then
+          echo "::error::Config file not found: ${CONFIG_FILE}"
+          exit 1
+        fi
+
+        if [[ -z "${TAG}" ]]; then
+          echo "::error::Tag input is required"
+          exit 1
+        fi
+
+        echo "✓ Tag: ${TAG}"
+        echo "✓ Config: ${CONFIG_FILE}"
+        echo "✓ Dry run: ${DRY_RUN}"
+
+    - name: setup ecm-distro-tools
+      uses: rancher/ecm-distro-tools@016551c414f82e64af8c4c18315ea3093d10be7c # v0.74.3
+
+    - name: Create PRs
+      id: create-prs
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        TAG: ${{ inputs.tag }}
+        CONFIG_FILE: ${{ inputs.config-file }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        prbuilder create-prs
+
+branding:
+  icon: 'git-pull-request'
+  color: 'blue'

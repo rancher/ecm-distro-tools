@@ -1,4 +1,4 @@
-BINARIES = backport release
+BINARIES = backport release prbuilder
 ARCHS ?= amd64 arm64
 OSs ?= linux darwin
 GO_COMPILE = GOOS=$${os} GOARCH=$${arch} CGO_ENABLED=1 $(GO) build -tags $(TAGS) -v -ldflags "$(LDFLAGS)" -o $@-$${os}-$${arch}
