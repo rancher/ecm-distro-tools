@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v90/github"
+	"github.com/google/go-github/v91/github"
 )
 
 func Republish(ctx context.Context, client *github.Client, owner, repo, targetCommitish string, dryrun bool) error {
