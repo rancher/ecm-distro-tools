@@ -1,6 +1,6 @@
 module github.com/rancher/ecm-distro-tools
 
-go 1.26.6
+go 1.27.0
 
 require (
 	github.com/go-git/go-git/v5 v5.19.2
