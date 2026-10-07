@@ -53,7 +53,6 @@ inputs:
       The image name component in a fully qualified image. For reference:
       <registry>/<repo>/<image>:<tag>.
     required: true
-    type: string
 
   tag:
     description: |
@@ -61,7 +60,6 @@ inputs:
       will be either github.ref_name or that with an architecture
       specific suffix.
     required: true
-    type: string
 
   identity-registry:
     description: |
@@ -69,93 +67,76 @@ inputs:
       value will be the prime registry or any final target registry. This
       option can be used when pushing a signed image to a staging registry
       before pushing to the prime registry.
-    type: string
 
   platforms:
     description: |
       The Docker buildx platforms for the images to target.
-    type: string
     default: linux/amd64,linux/arm64
 
   skip-buildx-setup:
     description: skip buildx setup when making sequential calls to this action
     default: false
-    type: boolean
 
   push-to-public:
     description: |
       Indicates whether the image should be pushed to the Public container
       registry.
     default: true
-    type: boolean
  
   public-registry:
     description: The container registry used for Public images.
-    type: string
     default: docker.io
 
   public-repo:
     description: |
       The repository component in a fully qualified image. For reference:
       <public-registry>/<public-repo>/<image>:<tag>.
-    type: string
 
   public-username:
     description: |
       The username used to authenticate against the Public registry.
-    type: string
 
   public-password:
     description: |
       The password used to authenticate against the Public registry.
-    type: string
 
   push-to-prime:
     description: |
       Indicates whether the image should be pushed to the Prime container
       registry.
     default: true
-    type: boolean
 
   prime-registry:
     description: The container registry used for Prime images.
-    type: string
 
   prime-repo:
     description: |
       The repository component in a fully qualified image. For reference:
       <prime-registry>/<prime-repo>/<image>:<tag>.
-    type: string
 
   prime-username:
     description: |
       The username used to authenticate against the Prime registry.
-    type: string
 
   prime-password:
     description: |
       The password used to authenticate against the Prime registry.
-    type: string
 
   make-target:
     description: |
       The make target used to build and push the container image.
     default: push-image
-    type: string
   make-target-directory:
     description: |
       The directory where the Makefile is located.
-    type: string
     default: ""
 
   prime-make-target:
     description: |
       The prime make target used to build and push the container image to the prime registry. When empty, the `make-target` value is used.
-    type: string
   prime-make-target-directory:
     description: |
       The directory where the prime Makefile is located.
-    type: string
     default: ""
 
 runs:
@@ -226,10 +207,7 @@ runs:
   - name: Install Cosign
     uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
   - name: Install slsactl
-    uses: rancherlabs/slsactl/actions/install-slsactl@cfe986cdea97b94b60caa27e963b2f5e79b390c5 # v0.1.41
-    with:
-      version: v0.1.41
-
+    uses: rancherlabs/slsactl/actions/install-slsactl@latest # zizmor: ignore[unpinned-uses] slsactl is an internal trusted tool
   - name: Build and push image [Prime]
     id: push-prime
     shell: bash
