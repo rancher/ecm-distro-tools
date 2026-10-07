@@ -207,7 +207,10 @@ runs:
   - name: Install Cosign
     uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
   - name: Install slsactl
-    uses: rancherlabs/slsactl/actions/install-slsactl@main # zizmor: ignore[unpinned-uses] slsactl is an internal trusted tool
+    uses: rancherlabs/slsactl/actions/install-slsactl@6e55c32f73b1c9abbb3a7edb2a97829912921a06 # v0.1.42
+    with:
+      version: v0.1.42
+
   - name: Build and push image [Prime]
     id: push-prime
     shell: bash
