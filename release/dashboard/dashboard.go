@@ -55,5 +55,5 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 		fmt.Println("dry run, skipping creating tag")
 		return tag, sha, nil
 	}
-	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha, "")
+	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha)
 }
