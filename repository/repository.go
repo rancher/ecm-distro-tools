@@ -167,13 +167,28 @@ func BranchLatestCommitSHA(ctx context.Context, ghClient *github.Client, owner, 
 
 // CreateTag creates a new tag ref on GitHub based on the provided commit SHA or the latest commit on the provided branch.
 // If the tag to be created is a pre-release (rc or alpha) it will automatically find the latest tag and add one to it. E.g: v2.14.0 (pre-release) -> v2.14.0-alpha2
+// If message is not empty, an annotated tag is created with it, otherwise a lightweight tag is created.
 // Returns tag, commit sha, error
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, sha string) (string, string, error) {
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, sha, message string) (string, string, error) {
 	if !semver.IsValid(tag) {
 		return "", "", errors.New("the tag is invalid: " + tag)
 	}
 
-	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: sha})
+	refSHA := sha
+	if message != "" {
+		tagObj, _, err := ghClient.Git.CreateTag(ctx, owner, repo, github.CreateTag{
+			Tag:     tag,
+			Message: message,
+			Object:  sha,
+			Type:    "commit",
+		})
+		if err != nil {
+			return "", "", err
+		}
+		refSHA = tagObj.GetSHA()
+	}
+
+	_, _, err := ghClient.Git.CreateRef(ctx, owner, repo, github.CreateRef{Ref: "refs/tags/" + tag, SHA: refSHA})
 	if err != nil {
 		return "", "", err
 	}

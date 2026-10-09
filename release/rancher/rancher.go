@@ -503,7 +503,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 // CreateTag is a wrapper for the repository.CreateTag function, it takes more information and automatically finds what are the
 // references it needs to create, such as the latest prerelease version (e.g: alpha1, alpha2) and what is the latest commit in
 // a branch to create the tag based on that.
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType string, preRelease, dryRun bool) (string, string, error) {
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType, message string, preRelease, dryRun bool) (string, string, error) {
 	if !semver.IsValid(baseTag) {
 		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
@@ -529,7 +529,7 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 		fmt.Println("dry run, skipping creating tag")
 		return tag, sha, nil
 	}
-	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha)
+	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha, message)
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
