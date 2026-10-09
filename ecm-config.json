@@ -74,6 +74,14 @@
       }
     }
   },
+  "rancher_prime": {
+    "versions": {
+      "v2.x.y": {
+        "release_branch": "release/v2.x",
+        "upstream_commit_sha": ""
+      }
+    }
+  },
   "rke2": {
     "versions": {
       "v1.36.3": {
@@ -159,7 +167,7 @@
   "prime_registry": "example.com",
   "rancher_github_organization": "rancher",
   "rancher_repository_name": "rancher",
-  "rancher_prime_repository_name": "",
+  "rancher_prime_repository_name": "rancher-prime",
   "rancher_repository_git_uri": "git@github.com:rancher/rancher.git",
   "rancher_repository_url": "https://github.com/rancher/rancher",
   "ui_repository_name": "ui",
