@@ -180,6 +180,44 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, s
 	return tag, sha, nil
 }
 
+// CreateSignedTag creates a signed annotated tag with the local git command in the repository at dir and pushes it to
+// its origin remote, which must point to the owner/repo GitHub repository. Signing relies on the git config
+// (user.signingkey, gpg.format) and pushing relies on the credentials configured for origin.
+// Returns tag, commit sha, error
+func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string, error) {
+	if !semver.IsValid(tag) {
+		return "", "", errors.New("the tag is invalid: " + tag)
+	}
+	if message == "" {
+		return "", "", errors.New("a message is required to create a signed tag")
+	}
+
+	originURL, err := exec.RunCommand(dir, "git", "remote", "get-url", "origin")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get origin remote url: %w", err)
+	}
+	originURL = strings.TrimSuffix(strings.TrimSpace(originURL), ".git")
+	if !strings.HasSuffix(originURL, "/"+owner+"/"+repo) && !strings.HasSuffix(originURL, ":"+owner+"/"+repo) {
+		return "", "", fmt.Errorf("origin remote %s does not point to %s/%s", originURL, owner, repo)
+	}
+
+	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", "origin", sha); err != nil {
+		return "", "", fmt.Errorf("failed to fetch commit %s: %w", sha, err)
+	}
+	if _, err := exec.RunCommand(dir, "git", "tag", "--sign", "--message", message, tag, sha); err != nil {
+		return "", "", fmt.Errorf("failed to create signed tag: %w", err)
+	}
+	if _, err := exec.RunCommand(dir, "git", "push", "--quiet", "origin", "refs/tags/"+tag); err != nil {
+		// remove the local tag so the command can be retried
+		if _, delErr := exec.RunCommand(dir, "git", "tag", "--delete", tag); delErr != nil {
+			return "", "", fmt.Errorf("failed to push tag: %w, failed to delete local tag: %w", err, delErr)
+		}
+		return "", "", fmt.Errorf("failed to push tag: %w", err)
+	}
+
+	return tag, sha, nil
+}
+
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
 	if cro == nil {
 		return nil, errors.New("CreateReleaseOpts cannot be nil")

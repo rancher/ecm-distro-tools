@@ -113,6 +113,14 @@ type RancherRelease struct {
 	ReleaseBranch string `json:"release_branch"`
 }
 
+// RancherPrimeRelease
+type RancherPrimeRelease struct {
+	ReleaseBranch string `json:"release_branch"`
+	// UpstreamCommitSHA is the rancher/rancher commit the prime release is based on.
+	// If empty, the latest commit of the upstream release branch is used.
+	UpstreamCommitSHA string `json:"upstream_commit_sha"`
+}
+
 type DashboardRelease struct {
 	PreviousTag   string `json:"previous_tag"`
 	ReleaseBranch string `json:"release_branch"`
@@ -152,6 +160,11 @@ type Rancher struct {
 	Versions map[string]RancherRelease `json:"versions"`
 }
 
+// RancherPrime
+type RancherPrime struct {
+	Versions map[string]RancherPrimeRelease `json:"versions"`
+}
+
 // Dashboard
 type Dashboard struct {
 	Versions map[string]DashboardRelease `json:"versions"`
@@ -176,6 +189,7 @@ type Config struct {
 	User                       *User          `json:"user"`
 	K3s                        *K3s           `json:"k3s"`
 	Rancher                    *Rancher       `json:"rancher"`
+	RancherPrime               *RancherPrime  `json:"rancher_prime"`
 	RKE2                       *RKE2          `json:"rke2"`
 	Charts                     *ChartsRelease `json:"charts"`
 	Auth                       *Auth          `json:"auth"`
@@ -260,6 +274,14 @@ func ExampleConfig() (string, error) {
 			Versions: map[string]RancherRelease{
 				"v2.x.y": {
 					ReleaseBranch: "release/v2.x",
+				},
+			},
+		},
+		RancherPrime: &RancherPrime{
+			Versions: map[string]RancherPrimeRelease{
+				"v2.x.y": {
+					ReleaseBranch:     "release/v2.x",
+					UpstreamCommitSHA: "",
 				},
 			},
 		},
@@ -351,7 +373,12 @@ K3s {{ range $k3sVersion, $k3sValue := .K3s.Versions }}
 Rancher {{ range $rancherVersion, $rancherValue := .Rancher.Versions }}
 	{{ $rancherVersion }}:
 		Release Branch:     {{ $rancherValue.ReleaseBranch }}{{ end }}
-
+{{ with .RancherPrime }}
+Rancher Prime {{ range $rancherPrimeVersion, $rancherPrimeValue := .Versions }}
+	{{ $rancherPrimeVersion }}:
+		Release Branch:      {{ $rancherPrimeValue.ReleaseBranch }}
+		Upstream Commit SHA: {{ $rancherPrimeValue.UpstreamCommitSHA }}{{ end }}
+{{ end }}
 Dashboard {{ range $dashboardVersion, $dashboardValue := .Dashboard.Versions }}
 	{{ $dashboardVersion }}:
 		Release Branch:     {{ $dashboardValue.ReleaseBranch }}
