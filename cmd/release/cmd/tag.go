@@ -22,9 +22,15 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
+type tagRancherPrimeCmdFlags struct {
+	SkipSign *bool
+	RepoDir  *string
+}
+
 var (
-	tagRKE2Flags    tagRKE2CmdFlags
-	createUITagFlag *bool
+	tagRKE2Flags         tagRKE2CmdFlags
+	tagRancherPrimeFlags tagRancherPrimeCmdFlags
+	createUITagFlag      *bool
 )
 
 // tagCmd represents the tag command.
@@ -149,7 +155,7 @@ var rancherTagSubCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create github client: %v", err)
 		}
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, "", preRelease, dryRun)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, "", "", preRelease, false, dryRun)
 		if err != nil {
 			return err
 		}
@@ -258,7 +264,7 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 			}
 		}
 
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, upstreamSHA, preRelease, dryRun)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, upstreamSHA, *tagRancherPrimeFlags.RepoDir, preRelease, *tagRancherPrimeFlags.SkipSign, dryRun)
 		if err != nil {
 			return err
 		}
@@ -476,6 +482,10 @@ func init() {
 	tagRKE2Flags.RPMVersion = rke2TagSubCmd.Flags().Int("rpm-version", 0, "RPM version")
 
 	createUITagFlag = dashboardTagSubCmd.Flags().BoolP("create-ui-tag", "t", false, "Also create a rancher/ui tag and not just the dashboard tag")
+
+	// rancher-prime
+	tagRancherPrimeFlags.SkipSign = rancherPrimeTagSubCmd.Flags().Bool("skip-sign", false, "Create an unsigned tag with the GitHub API instead of a signed tag with the local git command")
+	tagRancherPrimeFlags.RepoDir = rancherPrimeTagSubCmd.Flags().String("repo-dir", ".", "Path to a local checkout of the rancher-prime repository, used to create and push the signed tag")
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {

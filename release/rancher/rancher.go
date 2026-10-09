@@ -503,7 +503,9 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 // CreateTag is a wrapper for the repository.CreateTag function, it takes more information and automatically finds what are the
 // references it needs to create, such as the latest prerelease version (e.g: alpha1, alpha2) and what is the latest commit in
 // a branch to create the tag based on that.
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType, message string, preRelease, dryRun bool) (string, string, error) {
+// If message is not empty, the annotated tag is signed with the local git command in the repository at repoDir and pushed
+// to its origin, unless skipSign is true, in which case it's created unsigned with the GitHub API.
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType, message, repoDir string, preRelease, skipSign, dryRun bool) (string, string, error) {
 	if !semver.IsValid(baseTag) {
 		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
@@ -528,6 +530,9 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 	if dryRun {
 		fmt.Println("dry run, skipping creating tag")
 		return tag, sha, nil
+	}
+	if message != "" && !skipSign {
+		return repository.CreateSignedTag(repoDir, owner, repo, tag, sha, message)
 	}
 	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha, message)
 }
