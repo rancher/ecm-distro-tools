@@ -149,7 +149,7 @@ var rancherTagSubCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create github client: %v", err)
 		}
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, "", preRelease, dryRun)
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		}
 
 		if len(args) == 1 {
-			return copyRancherVersions(), cobra.ShellCompDirectiveNoFileComp
+			return copyRancherPrimeVersions(), cobra.ShellCompDirectiveNoFileComp
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -221,12 +221,16 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 		}
 
 		tag := args[1]
-		rancherRelease, found := rootConfig.Rancher.Versions[tag]
+		if rootConfig.RancherPrime == nil {
+			return NewVersionNotFoundError(tag, "rancher_prime")
+		}
+		rancherPrimeRelease, found := rootConfig.RancherPrime.Versions[tag]
 		if !found {
-			return NewVersionNotFoundError(tag, "rancher")
+			return NewVersionNotFoundError(tag, "rancher_prime")
 		}
 
 		repo := config.ValueOrDefault(rootConfig.RancherPrimeRepositoryName, config.RancherPrimeRepositoryName)
+		upstreamRepo := config.ValueOrDefault(rootConfig.RancherRepositoryName, config.RancherRepositoryName)
 		owner := config.ValueOrDefault(rootConfig.RancherGithubOrganization, config.RancherGithubOrganization)
 
 		releaseBranch, err := rancher.ReleaseBranchFromTag(tag)
@@ -234,7 +238,11 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 			return errors.New("failed to generate release branch from tag: " + err.Error())
 		}
 
-		releaseBranch = config.ValueOrDefault(rancherRelease.ReleaseBranch, releaseBranch)
+		upstreamBranch := releaseBranch
+		if rootConfig.Rancher != nil {
+			upstreamBranch = config.ValueOrDefault(rootConfig.Rancher.Versions[tag].ReleaseBranch, upstreamBranch)
+		}
+		releaseBranch = config.ValueOrDefault(rancherPrimeRelease.ReleaseBranch, releaseBranch)
 
 		ctx := context.Background()
 		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
@@ -242,7 +250,15 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 			return fmt.Errorf("failed to create github client: %v", err)
 		}
 
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, preRelease, dryRun)
+		upstreamSHA := rancherPrimeRelease.UpstreamCommitSHA
+		if upstreamSHA == "" {
+			upstreamSHA, err = repository.BranchLatestCommitSHA(ctx, ghClient, owner, upstreamRepo, upstreamBranch)
+			if err != nil {
+				return fmt.Errorf("failed to get latest commit of upstream branch %s: %v", upstreamBranch, err)
+			}
+		}
+
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, upstreamSHA, preRelease, dryRun)
 		if err != nil {
 			return err
 		}
@@ -425,6 +441,19 @@ func copyDashboardVersions() []string {
 	for version := range rootConfig.Dashboard.Versions {
 		versions[i] = version
 		i++
+	}
+
+	return versions
+}
+
+func copyRancherPrimeVersions() []string {
+	if rootConfig.RancherPrime == nil {
+		return nil
+	}
+
+	versions := make([]string, 0, len(rootConfig.RancherPrime.Versions))
+	for version := range rootConfig.RancherPrime.Versions {
+		versions = append(versions, version)
 	}
 
 	return versions
