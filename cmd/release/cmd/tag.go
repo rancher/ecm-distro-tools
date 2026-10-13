@@ -22,14 +22,10 @@ type tagRKE2CmdFlags struct {
 	RPMVersion     *int
 }
 
-type tagRancherPrimeCmdFlags struct {
-	RepoDir *string
-}
-
 var (
-	tagRKE2Flags         tagRKE2CmdFlags
-	tagRancherPrimeFlags tagRancherPrimeCmdFlags
-	createUITagFlag      *bool
+	tagRKE2Flags           tagRKE2CmdFlags
+	createUITagFlag        *bool
+	tagRancherPrimeRepoDir *string
 )
 
 // tagCmd represents the tag command.
@@ -263,7 +259,7 @@ var rancherPrimeTagSubCmd = &cobra.Command{
 			}
 		}
 
-		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, upstreamSHA, *tagRancherPrimeFlags.RepoDir, preRelease, dryRun)
+		createdTag, tagCommit, err := rancher.CreateTag(ctx, ghClient, owner, repo, tag, "", releaseBranch, releaseType, upstreamSHA, *tagRancherPrimeRepoDir, preRelease, dryRun)
 		if err != nil {
 			return err
 		}
@@ -483,7 +479,7 @@ func init() {
 	createUITagFlag = dashboardTagSubCmd.Flags().BoolP("create-ui-tag", "t", false, "Also create a rancher/ui tag and not just the dashboard tag")
 
 	// rancher-prime
-	tagRancherPrimeFlags.RepoDir = rancherPrimeTagSubCmd.Flags().String("repo-dir", ".", "Path to a local checkout of the rancher-prime repository, used to create and push the signed tag")
+	tagRancherPrimeRepoDir = rancherPrimeTagSubCmd.Flags().String("repo-dir", ".", "Path to a local checkout of the rancher-prime repository, used to create and push the signed tag")
 }
 
 func releaseTypePreRelease(releaseType string) (bool, error) {

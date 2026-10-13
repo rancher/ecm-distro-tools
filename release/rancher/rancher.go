@@ -505,7 +505,7 @@ func GenerateImagesSyncConfig(images []string, sourceRegistry, targetRegistry, o
 // a branch to create the tag based on that.
 // If message is not empty, a signed annotated tag is created with the local git command in the repository at repoDir and
 // pushed to its origin, otherwise a lightweight tag is created with the GitHub API.
-func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType, message, repoDir string, preRelease, dryRun bool) (string, string, error) {
+func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTag, sha, branch, releaseType, upstreamSHA, repoDir string, preRelease, dryRun bool) (string, string, error) {
 	if !semver.IsValid(baseTag) {
 		return "", "", errors.New("the base tag is invalid: " + baseTag)
 	}
@@ -531,8 +531,8 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 		fmt.Println("dry run, skipping creating tag")
 		return tag, sha, nil
 	}
-	if message != "" {
-		return repository.CreateSignedTag(repoDir, owner, repo, tag, sha, message)
+	if upstreamSHA != "" {
+		return repository.CreateSignedTag(repoDir, owner, repo, tag, sha, upstreamSHA)
 	}
 	return repository.CreateTag(ctx, ghClient, owner, repo, tag, sha)
 }
