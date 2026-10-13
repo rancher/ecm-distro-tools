@@ -11,7 +11,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/go-github/v92 v92.0.0
-	github.com/johnfercher/maroto/v2 v2.4.2
+	github.com/johnfercher/maroto/v2 v2.4.3
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.57.0
