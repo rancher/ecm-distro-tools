@@ -198,11 +198,11 @@ func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string
 	}
 	pushURLs := strings.Fields(out)
 	if len(pushURLs) != 1 {
-		return "", "", errors.New("expected origin to have exactly one push url, found " + strconv.Itoa(len(pushURLs)) + ": " + strings.Join(pushURLs, ", "))
+		return "", "", errors.New("expected origin to have exactly one push url, found " + strconv.Itoa(len(pushURLs)))
 	}
 	pushURL := pushURLs[0]
 	if !isGitHubRepoURL(pushURL, owner, repo) {
-		return "", "", errors.New("origin push url " + pushURL + " does not point to github.com/" + owner + "/" + repo)
+		return "", "", errors.New("origin push url does not point to github.com/" + owner + "/" + repo)
 	}
 
 	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", "origin", sha); err != nil {
