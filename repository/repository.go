@@ -205,7 +205,7 @@ func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string
 		return "", "", errors.New("origin push url does not point to github.com/" + owner + "/" + repo)
 	}
 
-	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", "origin", sha); err != nil {
+	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", pushURL, sha); err != nil {
 		return "", "", fmt.Errorf("failed to fetch commit %s: %w", sha, err)
 	}
 	if _, err := exec.RunCommand(dir, "git", "tag", "--sign", "--message", message, tag, sha); err != nil {
