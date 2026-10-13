@@ -180,6 +180,62 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, s
 	return tag, sha, nil
 }
 
+// CreateSignedTag creates a signed annotated tag with the local git command in the repository at dir and pushes it to
+// the push URL of its origin remote, which must be a single URL pointing to the owner/repo repository on github.com.
+// Signing relies on the git config (user.signingkey, gpg.format) and pushing relies on the credentials configured for it.
+// Returns tag, commit sha, error
+func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string, error) {
+	if !semver.IsValid(tag) {
+		return "", "", errors.New("the tag is invalid: " + tag)
+	}
+	if message == "" {
+		return "", "", errors.New("a message is required to create a signed tag")
+	}
+
+	out, err := exec.RunCommand(dir, "git", "remote", "get-url", "--push", "--all", "origin")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get origin push urls: %w", err)
+	}
+	pushURLs := strings.Fields(out)
+	if len(pushURLs) != 1 {
+		return "", "", errors.New("expected origin to have exactly one push url, found " + strconv.Itoa(len(pushURLs)))
+	}
+	pushURL := pushURLs[0]
+	if !isGitHubRepoURL(pushURL, owner, repo) {
+		return "", "", errors.New("origin push url does not point to github.com/" + owner + "/" + repo)
+	}
+
+	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", pushURL, sha); err != nil {
+		return "", "", fmt.Errorf("failed to fetch commit %s: %w", sha, err)
+	}
+	if _, err := exec.RunCommand(dir, "git", "tag", "--sign", "--message", message, tag, sha); err != nil {
+		return "", "", fmt.Errorf("failed to create signed tag: %w", err)
+	}
+	// push to the validated url instead of the remote name, so the destination can't differ from what was checked
+	if _, err := exec.RunCommand(dir, "git", "push", "--quiet", pushURL, "refs/tags/"+tag); err != nil {
+		// remove the local tag so the command can be retried
+		if _, delErr := exec.RunCommand(dir, "git", "tag", "--delete", tag); delErr != nil {
+			return "", "", fmt.Errorf("failed to push tag: %w, failed to delete local tag: %w", err, delErr)
+		}
+		return "", "", fmt.Errorf("failed to push tag: %w", err)
+	}
+
+	return tag, sha, nil
+}
+
+// isGitHubRepoURL reports whether the git remote url is the https (https://github.com/owner/repo) or
+// ssh (git@github.com:owner/repo) url of the owner/repo repository, with or without the .git suffix.
+func isGitHubRepoURL(remoteURL, owner, repo string) bool {
+	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+	if remoteURL == "https://github.com/"+owner+"/"+repo {
+		return true
+	}
+	if remoteURL == "git@github.com:"+owner+"/"+repo {
+		return true
+	}
+	return false
+}
+
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
 	if cro == nil {
 		return nil, errors.New("CreateReleaseOpts cannot be nil")
