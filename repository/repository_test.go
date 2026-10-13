@@ -149,3 +149,33 @@ func TestUpstreamRemote(t *testing.T) {
 		})
 	}
 }
+
+func TestIsGitHubRepoURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"https://github.com/rancher/rancher-prime", true},
+		{"https://github.com/rancher/rancher-prime.git", true},
+		{"git@github.com:rancher/rancher-prime", true},
+		{"git@github.com:rancher/rancher-prime.git", true},
+		{"https://x-access-token:token@github.com/rancher/rancher-prime.git", false},
+		{"ssh://git@github.com/rancher/rancher-prime.git", false},
+		{"git@github.com:Rancher/Rancher-Prime", false},
+		{"https://github.com/rancher/rancher-prime/", false},
+		{"https://gitlab.com/rancher/rancher-prime.git", false},
+		{"https://github.com.example.com/rancher/rancher-prime.git", false},
+		{"git@example.com:rancher/rancher-prime.git", false},
+		{"https://github.com/fork/rancher/rancher-prime.git", false},
+		{"https://github.com/rancher/rancher.git", false},
+		{"http://github.com/rancher/rancher-prime.git", false},
+		{"/tmp/rancher/rancher-prime.git", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			if got := isGitHubRepoURL(tt.url, "rancher", "rancher-prime"); got != tt.want {
+				t.Errorf("isGitHubRepoURL(%q) = %v, want %v", tt.url, got, tt.want)
+			}
+		})
+	}
+}

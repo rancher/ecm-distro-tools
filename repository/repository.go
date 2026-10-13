@@ -181,8 +181,8 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, tag, s
 }
 
 // CreateSignedTag creates a signed annotated tag with the local git command in the repository at dir and pushes it to
-// its origin remote, which must point to the owner/repo GitHub repository. Signing relies on the git config
-// (user.signingkey, gpg.format) and pushing relies on the credentials configured for origin.
+// the push URL of its origin remote, which must be a single URL pointing to the owner/repo repository on github.com.
+// Signing relies on the git config (user.signingkey, gpg.format) and pushing relies on the credentials configured for it.
 // Returns tag, commit sha, error
 func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string, error) {
 	if !semver.IsValid(tag) {
@@ -192,13 +192,17 @@ func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string
 		return "", "", errors.New("a message is required to create a signed tag")
 	}
 
-	originURL, err := exec.RunCommand(dir, "git", "remote", "get-url", "origin")
+	out, err := exec.RunCommand(dir, "git", "remote", "get-url", "--push", "--all", "origin")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get origin remote url: %w", err)
+		return "", "", fmt.Errorf("failed to get origin push urls: %w", err)
 	}
-	originURL = strings.TrimSuffix(strings.TrimSpace(originURL), ".git")
-	if !strings.HasSuffix(originURL, "/"+owner+"/"+repo) && !strings.HasSuffix(originURL, ":"+owner+"/"+repo) {
-		return "", "", fmt.Errorf("origin remote %s does not point to %s/%s", originURL, owner, repo)
+	pushURLs := strings.Fields(out)
+	if len(pushURLs) != 1 {
+		return "", "", errors.New("expected origin to have exactly one push url, found " + strconv.Itoa(len(pushURLs)) + ": " + strings.Join(pushURLs, ", "))
+	}
+	pushURL := pushURLs[0]
+	if !isGitHubRepoURL(pushURL, owner, repo) {
+		return "", "", errors.New("origin push url " + pushURL + " does not point to github.com/" + owner + "/" + repo)
 	}
 
 	if _, err := exec.RunCommand(dir, "git", "fetch", "--quiet", "origin", sha); err != nil {
@@ -207,7 +211,8 @@ func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string
 	if _, err := exec.RunCommand(dir, "git", "tag", "--sign", "--message", message, tag, sha); err != nil {
 		return "", "", fmt.Errorf("failed to create signed tag: %w", err)
 	}
-	if _, err := exec.RunCommand(dir, "git", "push", "--quiet", "origin", "refs/tags/"+tag); err != nil {
+	// push to the validated url instead of the remote name, so the destination can't differ from what was checked
+	if _, err := exec.RunCommand(dir, "git", "push", "--quiet", pushURL, "refs/tags/"+tag); err != nil {
 		// remove the local tag so the command can be retried
 		if _, delErr := exec.RunCommand(dir, "git", "tag", "--delete", tag); delErr != nil {
 			return "", "", fmt.Errorf("failed to push tag: %w, failed to delete local tag: %w", err, delErr)
@@ -216,6 +221,19 @@ func CreateSignedTag(dir, owner, repo, tag, sha, message string) (string, string
 	}
 
 	return tag, sha, nil
+}
+
+// isGitHubRepoURL reports whether the git remote url is the https (https://github.com/owner/repo) or
+// ssh (git@github.com:owner/repo) url of the owner/repo repository, with or without the .git suffix.
+func isGitHubRepoURL(remoteURL, owner, repo string) bool {
+	remoteURL = strings.TrimSuffix(remoteURL, ".git")
+	if remoteURL == "https://github.com/"+owner+"/"+repo {
+		return true
+	}
+	if remoteURL == "git@github.com:"+owner+"/"+repo {
+		return true
+	}
+	return false
 }
 
 func CreateRelease(ctx context.Context, client *github.Client, cro *CreateReleaseOpts) (*github.RepositoryRelease, error) {
