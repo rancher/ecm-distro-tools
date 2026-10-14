@@ -1,6 +1,10 @@
 package rancher
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rancher/ecm-distro-tools/registry"
+)
 
 const (
 	rancherRepoImage = "rancher/rancher"
@@ -97,66 +101,84 @@ func TestRegistryCredentials(t *testing.T) {
 		fallbackPass = "fallback-pass"
 	)
 
-	t.Run("resolves credentials from the registry env vars", func(t *testing.T) {
-		t.Setenv("PRIME_REGISTRY_USERNAME", "prime-user")
-		t.Setenv("PRIME_REGISTRY_PASSWORD", "prime-pass")
-		user, pass := registryCredentials("registry.rancher.com", fallbackUser, fallbackPass)
-		if user != "prime-user" || pass != "prime-pass" {
-			t.Errorf("expected env credentials 'prime-user'/'prime-pass', got '%s'/'%s'", user, pass)
-		}
-	})
+	tests := []struct {
+		name     string
+		env      map[string]string
+		registry string
+		wantUser string
+		wantPass string
+	}{
+		{
+			name:     "resolves credentials from the registry env vars",
+			env:      map[string]string{"PRIME_REGISTRY_USERNAME": "prime-user", "PRIME_REGISTRY_PASSWORD": "prime-pass"},
+			registry: registry.Prime,
+			wantUser: "prime-user",
+			wantPass: "prime-pass",
+		},
+		{
+			name:     "resolves distinct credentials for docker.io",
+			env:      map[string]string{"DOCKERIO_REGISTRY_USERNAME": "docker-user", "DOCKERIO_REGISTRY_PASSWORD": "docker-pass"},
+			registry: registry.DockerIO,
+			wantUser: "docker-user",
+			wantPass: "docker-pass",
+		},
+		{
+			name:     "falls back when the registry env vars are not set",
+			env:      map[string]string{"STAGING_REGISTRY_USERNAME": "", "STAGING_REGISTRY_PASSWORD": ""},
+			registry: registry.SUSEStaging,
+			wantUser: fallbackUser,
+			wantPass: fallbackPass,
+		},
+		{
+			name:     "falls back for an unknown registry",
+			registry: "unknown.registry.io",
+			wantUser: fallbackUser,
+			wantPass: fallbackPass,
+		},
+	}
 
-	t.Run("uses per-registry env vars so multiple registries get distinct credentials", func(t *testing.T) {
-		t.Setenv("PRIME_REGISTRY_USERNAME", "prime-user")
-		t.Setenv("PRIME_REGISTRY_PASSWORD", "prime-pass")
-		t.Setenv("DOCKERIO_REGISTRY_USERNAME", "docker-user")
-		t.Setenv("DOCKERIO_REGISTRY_PASSWORD", "docker-pass")
-
-		primeUser, primePass := registryCredentials("registry.rancher.com", fallbackUser, fallbackPass)
-		dockerUser, dockerPass := registryCredentials("docker.io", fallbackUser, fallbackPass)
-
-		if primeUser != "prime-user" || primePass != "prime-pass" {
-			t.Errorf("expected prime credentials, got '%s'/'%s'", primeUser, primePass)
-		}
-		if dockerUser != "docker-user" || dockerPass != "docker-pass" {
-			t.Errorf("expected docker credentials, got '%s'/'%s'", dockerUser, dockerPass)
-		}
-	})
-
-	t.Run("falls back when the registry env vars are not set", func(t *testing.T) {
-		t.Setenv("STAGING_REGISTRY_USERNAME", "")
-		t.Setenv("STAGING_REGISTRY_PASSWORD", "")
-		user, pass := registryCredentials("stgregistry.suse.com", fallbackUser, fallbackPass)
-		if user != fallbackUser || pass != fallbackPass {
-			t.Errorf("expected fallback credentials, got '%s'/'%s'", user, pass)
-		}
-	})
-
-	t.Run("falls back for an unknown registry", func(t *testing.T) {
-		user, pass := registryCredentials("unknown.registry.io", fallbackUser, fallbackPass)
-		if user != fallbackUser || pass != fallbackPass {
-			t.Errorf("expected fallback credentials, got '%s'/'%s'", user, pass)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			user, pass := registryCredentials(tt.registry, fallbackUser, fallbackPass)
+			if user != tt.wantUser || pass != tt.wantPass {
+				t.Errorf("expected %q/%q, got %q/%q", tt.wantUser, tt.wantPass, user, pass)
+			}
+		})
+	}
 }
 
 func TestGenerateRegsyncConfigCredentials(t *testing.T) {
-	config, err := generateRegsyncConfig(imagesWithVersion, "docker.io", "registry.rancher.com")
+	config, err := generateRegsyncConfig(imagesWithVersion, registry.DockerIO, registry.Prime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string][2]string{
-		"docker.io":            {`{{env "DOCKERIO_REGISTRY_USERNAME"}}`, `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`},
-		"registry.rancher.com": {`{{env "PRIME_REGISTRY_USERNAME"}}`, `{{env "PRIME_REGISTRY_PASSWORD"}}`},
+
+	tests := []struct {
+		registry string
+		wantUser string
+		wantPass string
+	}{
+		{registry.DockerIO, `{{env "DOCKERIO_REGISTRY_USERNAME"}}`, `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`},
+		{registry.Prime, `{{env "PRIME_REGISTRY_USERNAME"}}`, `{{env "PRIME_REGISTRY_PASSWORD"}}`},
 	}
+
+	creds := make(map[string]regsyncCreds, len(config.Creds))
 	for _, cred := range config.Creds {
-		want, ok := expected[cred.Registry]
-		if !ok {
-			t.Errorf("unexpected registry in creds: %s", cred.Registry)
-			continue
-		}
-		if cred.User != want[0] || cred.Pass != want[1] {
-			t.Errorf("registry %s: expected creds %q/%q, got %q/%q", cred.Registry, want[0], want[1], cred.User, cred.Pass)
-		}
+		creds[cred.Registry] = cred
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.registry, func(t *testing.T) {
+			cred, ok := creds[tt.registry]
+			if !ok {
+				t.Fatalf("missing creds for registry %s", tt.registry)
+			}
+			if cred.User != tt.wantUser || cred.Pass != tt.wantPass {
+				t.Errorf("expected %q/%q, got %q/%q", tt.wantUser, tt.wantPass, cred.User, cred.Pass)
+			}
+		})
 	}
 }
