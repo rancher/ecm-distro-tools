@@ -77,3 +77,35 @@ func TestNewClientAuth(t *testing.T) {
 		}
 	})
 }
+
+func TestCredentials(t *testing.T) {
+	t.Run("resolves per-registry env vars", func(t *testing.T) {
+		t.Setenv("PRIME_REGISTRY_USERNAME", "prime-user")
+		t.Setenv("PRIME_REGISTRY_PASSWORD", "prime-pass")
+		t.Setenv("DOCKERIO_REGISTRY_USERNAME", "docker-user")
+		t.Setenv("DOCKERIO_REGISTRY_PASSWORD", "docker-pass")
+
+		if u, p := Credentials("registry.rancher.com"); u != "prime-user" || p != "prime-pass" {
+			t.Errorf("expected prime creds, got %s/%s", u, p)
+		}
+		if u, p := Credentials("docker.io"); u != "docker-user" || p != "docker-pass" {
+			t.Errorf("expected docker creds, got %s/%s", u, p)
+		}
+	})
+
+	t.Run("returns empty for an unknown registry", func(t *testing.T) {
+		if u, p := Credentials("unknown.registry.io"); u != "" || p != "" {
+			t.Errorf("expected empty creds for unknown registry, got %s/%s", u, p)
+		}
+	})
+}
+
+func TestCredentialsEnvVars(t *testing.T) {
+	userEnv, passEnv, ok := CredentialsEnvVars("stgregistry.suse.com")
+	if !ok || userEnv != "STAGING_REGISTRY_USERNAME" || passEnv != "STAGING_REGISTRY_PASSWORD" {
+		t.Errorf("unexpected env vars for staging: %s/%s ok=%v", userEnv, passEnv, ok)
+	}
+	if _, _, ok := CredentialsEnvVars("unknown.registry.io"); ok {
+		t.Error("expected ok=false for unknown registry")
+	}
+}

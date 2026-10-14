@@ -24,6 +24,7 @@ import (
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	"github.com/rancher/ecm-distro-tools/registry"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -67,51 +68,36 @@ var regsyncDefaultMediaTypes = []string{
 
 var registriesInfo = map[string]registryInfo{
 	"registry.rancher.com": {
-		BaseURL:     rancherRegistryBaseURL,
-		AuthURL:     sccSUSEURL,
-		Service:     sccSUSEService,
-		UserEnv:     "PRIME_REGISTRY_USERNAME",
-		PasswordEnv: "PRIME_REGISTRY_PASSWORD",
+		BaseURL: rancherRegistryBaseURL,
+		AuthURL: sccSUSEURL,
+		Service: sccSUSEService,
 	},
 	"stgregistry.suse.com": {
-		BaseURL:     stagingRancherRegistryBaseURL,
-		AuthURL:     stagingSccSUSEURL,
-		Service:     sccSUSEService,
-		UserEnv:     "STAGING_REGISTRY_USERNAME",
-		PasswordEnv: "STAGING_REGISTRY_PASSWORD",
+		BaseURL: stagingRancherRegistryBaseURL,
+		AuthURL: stagingSccSUSEURL,
+		Service: sccSUSEService,
 	},
 	"docker.io": {
-		BaseURL:     dockerRegistryURL,
-		AuthURL:     dockerAuthURL,
-		Service:     dockerService,
-		UserEnv:     "DOCKERIO_REGISTRY_USERNAME",
-		PasswordEnv: "DOCKERIO_REGISTRY_PASSWORD",
+		BaseURL: dockerRegistryURL,
+		AuthURL: dockerAuthURL,
+		Service: dockerService,
 	},
 }
 
 // registryInfo holds the connection and authentication details for a registry.
-// UserEnv and PasswordEnv are the names of the environment variables that hold
-// the registry credentials (the same names used by the regsync config).
 type registryInfo struct {
-	BaseURL     string
-	AuthURL     string
-	Service     string
-	UserEnv     string
-	PasswordEnv string
+	BaseURL string
+	AuthURL string
+	Service string
 }
 
 // registryCredentials resolves the username and password for a given registry.
-// It prefers the registry-specific environment variables defined in registriesInfo,
-// falling back to the provided credentials when those variables aren't set. This
-// allows a single command to authenticate against multiple registries, each with
-// its own credentials.
-func registryCredentials(registry, fallbackUsername, fallbackPassword string) (string, string) {
-	rgInfo, ok := registriesInfo[registry]
-	if !ok {
-		return fallbackUsername, fallbackPassword
-	}
-	username := os.Getenv(rgInfo.UserEnv)
-	password := os.Getenv(rgInfo.PasswordEnv)
+// It prefers the registry-specific environment variables (the same names used by
+// the regsync config), falling back to the provided credentials when those
+// variables aren't set. This allows a single command to authenticate against
+// multiple registries, each with its own credentials.
+func registryCredentials(registryHost, fallbackUsername, fallbackPassword string) (string, string) {
+	username, password := registry.Credentials(registryHost)
 	if username == "" || password == "" {
 		return fallbackUsername, fallbackPassword
 	}
@@ -567,11 +553,11 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
-	sourceRegistryInfo, ok := registriesInfo[sourceRegistry]
+	sourceUserEnv, sourcePasswordEnv, ok := registry.CredentialsEnvVars(sourceRegistry)
 	if !ok {
 		return nil, errors.New("invalid source registry")
 	}
-	targetRegistryInfo, ok := registriesInfo[targetRegistry]
+	targetUserEnv, targetPasswordEnv, ok := registry.CredentialsEnvVars(targetRegistry)
 	if !ok {
 		return nil, errors.New("invalid target registry")
 	}
@@ -581,13 +567,13 @@ func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry strin
 		Creds: []regsyncCreds{
 			{
 				Registry: sourceRegistry,
-				User:     regsyncEnvTemplate(sourceRegistryInfo.UserEnv),
-				Pass:     regsyncEnvTemplate(sourceRegistryInfo.PasswordEnv),
+				User:     regsyncEnvTemplate(sourceUserEnv),
+				Pass:     regsyncEnvTemplate(sourcePasswordEnv),
 			},
 			{
 				Registry: targetRegistry,
-				User:     regsyncEnvTemplate(targetRegistryInfo.UserEnv),
-				Pass:     regsyncEnvTemplate(targetRegistryInfo.PasswordEnv),
+				User:     regsyncEnvTemplate(targetUserEnv),
+				Pass:     regsyncEnvTemplate(targetPasswordEnv),
 			},
 		},
 		Defaults: regsyncDefaults{

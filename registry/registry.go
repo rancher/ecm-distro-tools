@@ -4,12 +4,42 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
+
+// credentialsEnv maps a registry host to the names of the environment variables
+// that hold its credentials, matching the names used by the regsync config.
+var credentialsEnv = map[string]struct {
+	Username string
+	Password string
+}{
+	"docker.io":            {"DOCKERIO_REGISTRY_USERNAME", "DOCKERIO_REGISTRY_PASSWORD"},
+	"registry.rancher.com": {"PRIME_REGISTRY_USERNAME", "PRIME_REGISTRY_PASSWORD"},
+	"stgregistry.suse.com": {"STAGING_REGISTRY_USERNAME", "STAGING_REGISTRY_PASSWORD"},
+}
+
+// CredentialsEnvVars returns the username and password environment variable
+// names for a registry, and whether the registry is known.
+func CredentialsEnvVars(registry string) (usernameEnv, passwordEnv string, ok bool) {
+	env, ok := credentialsEnv[registry]
+	return env.Username, env.Password, ok
+}
+
+// Credentials returns the username and password for a registry read from its
+// environment variables, or empty strings when the registry is unknown or the
+// variables aren't set.
+func Credentials(registry string) (username, password string) {
+	env, ok := credentialsEnv[registry]
+	if !ok {
+		return "", ""
+	}
+	return os.Getenv(env.Username), os.Getenv(env.Password)
+}
 
 type Platform struct {
 	OS           string
