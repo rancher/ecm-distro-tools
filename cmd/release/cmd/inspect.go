@@ -18,10 +18,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	ossRegistry = reg.DockerIO
-)
-
 func archStatus(expected bool, ossInfo, primeInfo reg.Image, platform reg.Platform) string {
 	if !expected {
 		return "-"
@@ -172,7 +168,7 @@ Currently supports inspecting the image list for published rke2 releases.`,
 			return err
 		}
 
-		ossClient := reg.NewClient(ossRegistry, debug, reg.WithBasicAuth(reg.Credentials(ossRegistry)))
+		ossClient := reg.NewClient(reg.OSS, debug, reg.WithBasicAuth(reg.Credentials(reg.OSS)))
 
 		var primeClient *reg.Client
 		if rootConfig.PrimeRegistry != "" {

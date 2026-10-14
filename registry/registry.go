@@ -17,6 +17,9 @@ const (
 	DockerIO    = "docker.io"
 	Prime       = "registry.rancher.com"
 	SUSEStaging = "stgregistry.suse.com"
+
+	// OSS is the registry that hosts the open-source (public) images.
+	OSS = DockerIO
 )
 
 // Info is the single descriptor for a container registry. It holds the host,
