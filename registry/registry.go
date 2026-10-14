@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -26,10 +27,29 @@ type Image struct {
 
 type Client struct {
 	registry string
+	auth     authn.Authenticator
 }
 
-func NewClient(registry string, debug bool) *Client {
-	return &Client{registry}
+// Option configures a Client.
+type Option func(*Client)
+
+// WithBasicAuth authenticates registry requests with the given credentials.
+// When either value is empty the client stays anonymous, so callers can pass
+// optional credentials without extra branching.
+func WithBasicAuth(username, password string) Option {
+	return func(c *Client) {
+		if username != "" && password != "" {
+			c.auth = &authn.Basic{Username: username, Password: password}
+		}
+	}
+}
+
+func NewClient(registry string, debug bool, opts ...Option) *Client {
+	c := &Client{registry: registry, auth: authn.Anonymous}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {
@@ -51,7 +71,7 @@ func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 		return info, err
 	}
 
-	desc, err := remote.Get(tagRef)
+	desc, err := remote.Get(tagRef, remote.WithContext(ctx), remote.WithAuth(c.auth))
 	if err != nil {
 		var transportErr *transport.Error
 		if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {

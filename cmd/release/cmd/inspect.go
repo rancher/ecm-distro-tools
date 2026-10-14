@@ -22,6 +22,25 @@ const (
 	ossRegistry = "docker.io"
 )
 
+// registryEnvVars maps a registry host to the environment variables that hold
+// its credentials, matching the names used by the regsync config and the
+// `release generate rancher` image commands.
+var registryEnvVars = map[string][2]string{
+	"docker.io":            {"DOCKERIO_REGISTRY_USERNAME", "DOCKERIO_REGISTRY_PASSWORD"},
+	"registry.rancher.com": {"PRIME_REGISTRY_USERNAME", "PRIME_REGISTRY_PASSWORD"},
+	"stgregistry.suse.com": {"STAGING_REGISTRY_USERNAME", "STAGING_REGISTRY_PASSWORD"},
+}
+
+// registryCredentials returns the username and password for a registry from its
+// environment variables, or empty strings when they aren't set (anonymous).
+func registryCredentials(registry string) (string, string) {
+	envVars, ok := registryEnvVars[registry]
+	if !ok {
+		return "", ""
+	}
+	return os.Getenv(envVars[0]), os.Getenv(envVars[1])
+}
+
 func archStatus(expected bool, ossInfo, primeInfo reg.Image, platform reg.Platform) string {
 	if !expected {
 		return "-"
@@ -172,11 +191,11 @@ Currently supports inspecting the image list for published rke2 releases.`,
 			return err
 		}
 
-		ossClient := reg.NewClient(ossRegistry, debug)
+		ossClient := reg.NewClient(ossRegistry, debug, reg.WithBasicAuth(registryCredentials(ossRegistry)))
 
 		var primeClient *reg.Client
 		if rootConfig.PrimeRegistry != "" {
-			primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug)
+			primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug, reg.WithBasicAuth(registryCredentials(rootConfig.PrimeRegistry)))
 		}
 
 		inspector := rke2.NewReleaseInspector(filesystem, ossClient, primeClient, debug)

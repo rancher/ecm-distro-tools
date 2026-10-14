@@ -3,6 +3,7 @@ package registry
 import (
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -48,4 +49,31 @@ func TestReplaceRegistry(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewClientAuth(t *testing.T) {
+	t.Run("defaults to anonymous", func(t *testing.T) {
+		c := NewClient("docker.io", false)
+		if c.auth != authn.Anonymous {
+			t.Errorf("expected anonymous auth, got %#v", c.auth)
+		}
+	})
+
+	t.Run("WithBasicAuth sets basic credentials", func(t *testing.T) {
+		c := NewClient("registry.rancher.com", false, WithBasicAuth("user", "pass"))
+		basic, ok := c.auth.(*authn.Basic)
+		if !ok {
+			t.Fatalf("expected *authn.Basic, got %#v", c.auth)
+		}
+		if basic.Username != "user" || basic.Password != "pass" {
+			t.Errorf("expected user/pass credentials, got %s/%s", basic.Username, basic.Password)
+		}
+	})
+
+	t.Run("WithBasicAuth stays anonymous when credentials are empty", func(t *testing.T) {
+		c := NewClient("docker.io", false, WithBasicAuth("", ""))
+		if c.auth != authn.Anonymous {
+			t.Errorf("expected anonymous auth when credentials are empty, got %#v", c.auth)
+		}
+	})
 }
