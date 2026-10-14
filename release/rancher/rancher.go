@@ -70,31 +70,58 @@ var registriesInfo = map[string]registryInfo{
 		BaseURL:     rancherRegistryBaseURL,
 		AuthURL:     sccSUSEURL,
 		Service:     sccSUSEService,
-		UserEnv:     `{{env "PRIME_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "PRIME_REGISTRY_PASSWORD"}}`,
+		UserEnv:     "PRIME_REGISTRY_USERNAME",
+		PasswordEnv: "PRIME_REGISTRY_PASSWORD",
 	},
 	"stgregistry.suse.com": {
 		BaseURL:     stagingRancherRegistryBaseURL,
 		AuthURL:     stagingSccSUSEURL,
 		Service:     sccSUSEService,
-		UserEnv:     `{{env "STAGING_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "STAGING_REGISTRY_PASSWORD"}}`,
+		UserEnv:     "STAGING_REGISTRY_USERNAME",
+		PasswordEnv: "STAGING_REGISTRY_PASSWORD",
 	},
 	"docker.io": {
 		BaseURL:     dockerRegistryURL,
 		AuthURL:     dockerAuthURL,
 		Service:     dockerService,
-		UserEnv:     `{{env "DOCKERIO_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`,
+		UserEnv:     "DOCKERIO_REGISTRY_USERNAME",
+		PasswordEnv: "DOCKERIO_REGISTRY_PASSWORD",
 	},
 }
 
+// registryInfo holds the connection and authentication details for a registry.
+// UserEnv and PasswordEnv are the names of the environment variables that hold
+// the registry credentials (the same names used by the regsync config).
 type registryInfo struct {
 	BaseURL     string
 	AuthURL     string
 	Service     string
 	UserEnv     string
 	PasswordEnv string
+}
+
+// registryCredentials resolves the username and password for a given registry.
+// It prefers the registry-specific environment variables defined in registriesInfo,
+// falling back to the provided credentials when those variables aren't set. This
+// allows a single command to authenticate against multiple registries, each with
+// its own credentials.
+func registryCredentials(registry, fallbackUsername, fallbackPassword string) (string, string) {
+	rgInfo, ok := registriesInfo[registry]
+	if !ok {
+		return fallbackUsername, fallbackPassword
+	}
+	username := os.Getenv(rgInfo.UserEnv)
+	password := os.Getenv(rgInfo.PasswordEnv)
+	if username == "" || password == "" {
+		return fallbackUsername, fallbackPassword
+	}
+	return username, password
+}
+
+// regsyncEnvTemplate wraps an environment variable name in the template syntax
+// expected by regsync, e.g. "PRIME_REGISTRY_USERNAME" -> `{{env "PRIME_REGISTRY_USERNAME"}}`.
+func regsyncEnvTemplate(name string) string {
+	return `{{env "` + name + `"}}`
 }
 
 type imageDigest map[string]string
@@ -422,6 +449,8 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
+	username, password = registryCredentials(registry, username, password)
+
 	for _, imageAndVersion := range checkImages {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
 		if err != nil {
@@ -552,13 +581,13 @@ func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry strin
 		Creds: []regsyncCreds{
 			{
 				Registry: sourceRegistry,
-				User:     sourceRegistryInfo.UserEnv,
-				Pass:     sourceRegistryInfo.PasswordEnv,
+				User:     regsyncEnvTemplate(sourceRegistryInfo.UserEnv),
+				Pass:     regsyncEnvTemplate(sourceRegistryInfo.PasswordEnv),
 			},
 			{
 				Registry: targetRegistry,
-				User:     targetRegistryInfo.UserEnv,
-				Pass:     targetRegistryInfo.PasswordEnv,
+				User:     regsyncEnvTemplate(targetRegistryInfo.UserEnv),
+				Pass:     regsyncEnvTemplate(targetRegistryInfo.PasswordEnv),
 			},
 		},
 		Defaults: regsyncDefaults{
@@ -650,6 +679,8 @@ func dockerImagesDigests(imagesList []string, registry, username, password strin
 	if !ok {
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
+
+	username, password = registryCredentials(registry, username, password)
 
 	imagesDigests := make(imageDigest)
 	repositoryAuths := make(map[string]string)

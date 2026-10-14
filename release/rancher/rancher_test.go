@@ -90,3 +90,73 @@ func TestGenerateRegsyncConfig(t *testing.T) {
 		t.Error("rancher agent image should be: '" + sourceRancherAgentImage + "' instead, got: '" + config.Sync[1].Source + "'")
 	}
 }
+
+func TestRegistryCredentials(t *testing.T) {
+	const (
+		fallbackUser = "fallback-user"
+		fallbackPass = "fallback-pass"
+	)
+
+	t.Run("resolves credentials from the registry env vars", func(t *testing.T) {
+		t.Setenv("PRIME_REGISTRY_USERNAME", "prime-user")
+		t.Setenv("PRIME_REGISTRY_PASSWORD", "prime-pass")
+		user, pass := registryCredentials("registry.rancher.com", fallbackUser, fallbackPass)
+		if user != "prime-user" || pass != "prime-pass" {
+			t.Errorf("expected env credentials 'prime-user'/'prime-pass', got '%s'/'%s'", user, pass)
+		}
+	})
+
+	t.Run("uses per-registry env vars so multiple registries get distinct credentials", func(t *testing.T) {
+		t.Setenv("PRIME_REGISTRY_USERNAME", "prime-user")
+		t.Setenv("PRIME_REGISTRY_PASSWORD", "prime-pass")
+		t.Setenv("DOCKERIO_REGISTRY_USERNAME", "docker-user")
+		t.Setenv("DOCKERIO_REGISTRY_PASSWORD", "docker-pass")
+
+		primeUser, primePass := registryCredentials("registry.rancher.com", fallbackUser, fallbackPass)
+		dockerUser, dockerPass := registryCredentials("docker.io", fallbackUser, fallbackPass)
+
+		if primeUser != "prime-user" || primePass != "prime-pass" {
+			t.Errorf("expected prime credentials, got '%s'/'%s'", primeUser, primePass)
+		}
+		if dockerUser != "docker-user" || dockerPass != "docker-pass" {
+			t.Errorf("expected docker credentials, got '%s'/'%s'", dockerUser, dockerPass)
+		}
+	})
+
+	t.Run("falls back when the registry env vars are not set", func(t *testing.T) {
+		t.Setenv("STAGING_REGISTRY_USERNAME", "")
+		t.Setenv("STAGING_REGISTRY_PASSWORD", "")
+		user, pass := registryCredentials("stgregistry.suse.com", fallbackUser, fallbackPass)
+		if user != fallbackUser || pass != fallbackPass {
+			t.Errorf("expected fallback credentials, got '%s'/'%s'", user, pass)
+		}
+	})
+
+	t.Run("falls back for an unknown registry", func(t *testing.T) {
+		user, pass := registryCredentials("unknown.registry.io", fallbackUser, fallbackPass)
+		if user != fallbackUser || pass != fallbackPass {
+			t.Errorf("expected fallback credentials, got '%s'/'%s'", user, pass)
+		}
+	})
+}
+
+func TestGenerateRegsyncConfigCredentials(t *testing.T) {
+	config, err := generateRegsyncConfig(imagesWithVersion, "docker.io", "registry.rancher.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string][2]string{
+		"docker.io":            {`{{env "DOCKERIO_REGISTRY_USERNAME"}}`, `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`},
+		"registry.rancher.com": {`{{env "PRIME_REGISTRY_USERNAME"}}`, `{{env "PRIME_REGISTRY_PASSWORD"}}`},
+	}
+	for _, cred := range config.Creds {
+		want, ok := expected[cred.Registry]
+		if !ok {
+			t.Errorf("unexpected registry in creds: %s", cred.Registry)
+			continue
+		}
+		if cred.User != want[0] || cred.Pass != want[1] {
+			t.Errorf("registry %s: expected creds %q/%q, got %q/%q", cred.Registry, want[0], want[1], cred.User, cred.Pass)
+		}
+	}
+}
