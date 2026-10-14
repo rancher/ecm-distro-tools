@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	ossRegistry = "docker.io"
+	ossRegistry = reg.DockerIO
 )
 
 func archStatus(expected bool, ossInfo, primeInfo reg.Image, platform reg.Platform) string {

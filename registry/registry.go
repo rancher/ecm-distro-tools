@@ -12,33 +12,71 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
-// credentialsEnv maps a registry host to the names of the environment variables
-// that hold its credentials, matching the names used by the regsync config.
-var credentialsEnv = map[string]struct {
-	Username string
-	Password string
-}{
-	"docker.io":            {"DOCKERIO_REGISTRY_USERNAME", "DOCKERIO_REGISTRY_PASSWORD"},
-	"registry.rancher.com": {"PRIME_REGISTRY_USERNAME", "PRIME_REGISTRY_PASSWORD"},
-	"stgregistry.suse.com": {"STAGING_REGISTRY_USERNAME", "STAGING_REGISTRY_PASSWORD"},
+// Registry hosts used across the release tooling.
+const (
+	DockerIO    = "docker.io"
+	Prime       = "registry.rancher.com"
+	SUSEStaging = "stgregistry.suse.com"
+)
+
+// Info is the single descriptor for a container registry. It holds the host,
+// the endpoints used for the Docker v2 token auth flow, and the names of the
+// environment variables that hold its credentials (the same names used by the
+// regsync config).
+type Info struct {
+	Host        string
+	BaseURL     string
+	AuthURL     string
+	Service     string
+	UsernameEnv string
+	PasswordEnv string
 }
 
-// CredentialsEnvVars returns the username and password environment variable
-// names for a registry, and whether the registry is known.
-func CredentialsEnvVars(registry string) (usernameEnv, passwordEnv string, ok bool) {
-	env, ok := credentialsEnv[registry]
-	return env.Username, env.Password, ok
+const suseRegistryService = "SUSE+Linux+Docker+Registry"
+
+// registries is the single source of truth for registry metadata.
+var registries = map[string]Info{
+	DockerIO: {
+		Host:        DockerIO,
+		BaseURL:     "https://registry-1.docker.io",
+		AuthURL:     "https://auth.docker.io/token",
+		Service:     "registry.docker.io",
+		UsernameEnv: "DOCKERIO_REGISTRY_USERNAME",
+		PasswordEnv: "DOCKERIO_REGISTRY_PASSWORD",
+	},
+	Prime: {
+		Host:        Prime,
+		BaseURL:     "https://registry.rancher.com",
+		AuthURL:     "https://scc.suse.com/api/registry/authorize",
+		Service:     suseRegistryService,
+		UsernameEnv: "PRIME_REGISTRY_USERNAME",
+		PasswordEnv: "PRIME_REGISTRY_PASSWORD",
+	},
+	SUSEStaging: {
+		Host:        SUSEStaging,
+		BaseURL:     "https://stgregistry.suse.com",
+		AuthURL:     "https://stgscc.suse.com/api/registry/authorize",
+		Service:     suseRegistryService,
+		UsernameEnv: "STAGING_REGISTRY_USERNAME",
+		PasswordEnv: "STAGING_REGISTRY_PASSWORD",
+	},
+}
+
+// Lookup returns the descriptor for a registry host and whether it is known.
+func Lookup(host string) (Info, bool) {
+	info, ok := registries[host]
+	return info, ok
 }
 
 // Credentials returns the username and password for a registry read from its
 // environment variables, or empty strings when the registry is unknown or the
 // variables aren't set.
-func Credentials(registry string) (username, password string) {
-	env, ok := credentialsEnv[registry]
+func Credentials(host string) (username, password string) {
+	info, ok := registries[host]
 	if !ok {
 		return "", ""
 	}
-	return os.Getenv(env.Username), os.Getenv(env.Password)
+	return os.Getenv(info.UsernameEnv), os.Getenv(info.PasswordEnv)
 }
 
 type Platform struct {

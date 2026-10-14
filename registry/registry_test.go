@@ -100,12 +100,21 @@ func TestCredentials(t *testing.T) {
 	})
 }
 
-func TestCredentialsEnvVars(t *testing.T) {
-	userEnv, passEnv, ok := CredentialsEnvVars("stgregistry.suse.com")
-	if !ok || userEnv != "STAGING_REGISTRY_USERNAME" || passEnv != "STAGING_REGISTRY_PASSWORD" {
-		t.Errorf("unexpected env vars for staging: %s/%s ok=%v", userEnv, passEnv, ok)
+func TestLookup(t *testing.T) {
+	info, ok := Lookup(SUSEStaging)
+	if !ok {
+		t.Fatal("expected staging registry to be known")
 	}
-	if _, _, ok := CredentialsEnvVars("unknown.registry.io"); ok {
+	if info.Host != SUSEStaging {
+		t.Errorf("unexpected host: %s", info.Host)
+	}
+	if info.UsernameEnv != "STAGING_REGISTRY_USERNAME" || info.PasswordEnv != "STAGING_REGISTRY_PASSWORD" {
+		t.Errorf("unexpected env vars for staging: %s/%s", info.UsernameEnv, info.PasswordEnv)
+	}
+	if info.BaseURL == "" || info.AuthURL == "" || info.Service == "" {
+		t.Errorf("expected endpoints to be populated, got %+v", info)
+	}
+	if _, ok := Lookup("unknown.registry.io"); ok {
 		t.Error("expected ok=false for unknown registry")
 	}
 }
