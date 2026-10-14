@@ -4,11 +4,83 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
+
+// Registry hosts used across the release tooling.
+const (
+	DockerIO    = "docker.io"
+	Prime       = "registry.rancher.com"
+	SUSEStaging = "stgregistry.suse.com"
+
+	// OSS is the registry that hosts the open-source (public) images.
+	OSS = DockerIO
+)
+
+// Info is the single descriptor for a container registry. It holds the host,
+// the endpoints used for the Docker v2 token auth flow, and the names of the
+// environment variables that hold its credentials (the same names used by the
+// regsync config).
+type Info struct {
+	Host        string
+	BaseURL     string
+	AuthURL     string
+	Service     string
+	UsernameEnv string
+	PasswordEnv string
+}
+
+const suseRegistryService = "SUSE+Linux+Docker+Registry"
+
+// registries is the single source of truth for registry metadata.
+var registries = map[string]Info{
+	DockerIO: {
+		Host:        DockerIO,
+		BaseURL:     "https://registry-1.docker.io",
+		AuthURL:     "https://auth.docker.io/token",
+		Service:     "registry.docker.io",
+		UsernameEnv: "DOCKERIO_REGISTRY_USERNAME",
+		PasswordEnv: "DOCKERIO_REGISTRY_PASSWORD",
+	},
+	Prime: {
+		Host:        Prime,
+		BaseURL:     "https://registry.rancher.com",
+		AuthURL:     "https://scc.suse.com/api/registry/authorize",
+		Service:     suseRegistryService,
+		UsernameEnv: "PRIME_REGISTRY_USERNAME",
+		PasswordEnv: "PRIME_REGISTRY_PASSWORD",
+	},
+	SUSEStaging: {
+		Host:        SUSEStaging,
+		BaseURL:     "https://stgregistry.suse.com",
+		AuthURL:     "https://stgscc.suse.com/api/registry/authorize",
+		Service:     suseRegistryService,
+		UsernameEnv: "STAGING_REGISTRY_USERNAME",
+		PasswordEnv: "STAGING_REGISTRY_PASSWORD",
+	},
+}
+
+// Lookup returns the descriptor for a registry host and whether it is known.
+func Lookup(host string) (Info, bool) {
+	info, ok := registries[host]
+	return info, ok
+}
+
+// Credentials returns the username and password for a registry read from its
+// environment variables, or empty strings when the registry is unknown or the
+// variables aren't set.
+func Credentials(host string) (username, password string) {
+	info, ok := registries[host]
+	if !ok {
+		return "", ""
+	}
+	return os.Getenv(info.UsernameEnv), os.Getenv(info.PasswordEnv)
+}
 
 type Platform struct {
 	OS           string
@@ -26,10 +98,29 @@ type Image struct {
 
 type Client struct {
 	registry string
+	auth     authn.Authenticator
 }
 
-func NewClient(registry string, debug bool) *Client {
-	return &Client{registry}
+// Option configures a Client.
+type Option func(*Client)
+
+// WithBasicAuth authenticates registry requests with the given credentials.
+// When either value is empty the client stays anonymous, so callers can pass
+// optional credentials without extra branching.
+func WithBasicAuth(username, password string) Option {
+	return func(c *Client) {
+		if username != "" && password != "" {
+			c.auth = &authn.Basic{Username: username, Password: password}
+		}
+	}
+}
+
+func NewClient(registry string, debug bool, opts ...Option) *Client {
+	c := &Client{registry: registry, auth: authn.Anonymous}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func replaceRegistry(registry string, ref name.Reference) (name.Tag, error) {
@@ -51,7 +142,7 @@ func (c *Client) Image(ctx context.Context, ref name.Reference) (Image, error) {
 		return info, err
 	}
 
-	desc, err := remote.Get(tagRef)
+	desc, err := remote.Get(tagRef, remote.WithContext(ctx), remote.WithAuth(c.auth))
 	if err != nil {
 		var transportErr *transport.Error
 		if errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound {

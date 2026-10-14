@@ -24,6 +24,7 @@ import (
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmExec "github.com/rancher/ecm-distro-tools/exec"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
+	"github.com/rancher/ecm-distro-tools/registry"
 	"github.com/rancher/ecm-distro-tools/release/cli"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/semver"
@@ -34,14 +35,6 @@ import (
 const (
 	rancherOrg                    = "rancher"
 	rancherRepo                   = rancherOrg
-	rancherRegistryBaseURL        = "https://registry.rancher.com"
-	stagingRancherRegistryBaseURL = "https://stgregistry.suse.com"
-	sccSUSEURL                    = "https://scc.suse.com/api/registry/authorize"
-	stagingSccSUSEURL             = "https://stgscc.suse.com/api/registry/authorize"
-	dockerRegistryURL             = "https://registry-1.docker.io"
-	dockerAuthURL                 = "https://auth.docker.io/token"
-	sccSUSEService                = "SUSE+Linux+Docker+Registry"
-	dockerService                 = "registry.docker.io"
 	dashboardUpdateRefsBranchBase = "update-dashboard-refs"
 )
 
@@ -65,36 +58,23 @@ var regsyncDefaultMediaTypes = []string{
 	"application/vnd.oci.image.index.v1+json",
 }
 
-var registriesInfo = map[string]registryInfo{
-	"registry.rancher.com": {
-		BaseURL:     rancherRegistryBaseURL,
-		AuthURL:     sccSUSEURL,
-		Service:     sccSUSEService,
-		UserEnv:     `{{env "PRIME_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "PRIME_REGISTRY_PASSWORD"}}`,
-	},
-	"stgregistry.suse.com": {
-		BaseURL:     stagingRancherRegistryBaseURL,
-		AuthURL:     stagingSccSUSEURL,
-		Service:     sccSUSEService,
-		UserEnv:     `{{env "STAGING_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "STAGING_REGISTRY_PASSWORD"}}`,
-	},
-	"docker.io": {
-		BaseURL:     dockerRegistryURL,
-		AuthURL:     dockerAuthURL,
-		Service:     dockerService,
-		UserEnv:     `{{env "DOCKERIO_REGISTRY_USERNAME"}}`,
-		PasswordEnv: `{{env "DOCKERIO_REGISTRY_PASSWORD"}}`,
-	},
+// registryCredentials resolves the username and password for a given registry.
+// It prefers the registry-specific environment variables (the same names used by
+// the regsync config), falling back to the provided credentials when those
+// variables aren't set. This allows a single command to authenticate against
+// multiple registries, each with its own credentials.
+func registryCredentials(registryHost, fallbackUsername, fallbackPassword string) (string, string) {
+	username, password := registry.Credentials(registryHost)
+	if username == "" || password == "" {
+		return fallbackUsername, fallbackPassword
+	}
+	return username, password
 }
 
-type registryInfo struct {
-	BaseURL     string
-	AuthURL     string
-	Service     string
-	UserEnv     string
-	PasswordEnv string
+// regsyncEnvTemplate wraps an environment variable name in the template syntax
+// expected by regsync, e.g. "PRIME_REGISTRY_USERNAME" -> `{{env "PRIME_REGISTRY_USERNAME"}}`.
+func regsyncEnvTemplate(name string) string {
+	return `{{env "` + name + `"}}`
 }
 
 type imageDigest map[string]string
@@ -400,7 +380,7 @@ func imagesDiff(source, compare []string) ([]string, error) {
 
 // MissingImagesFromRegistry receives registry information and a list of images and checks which images are missing from that registry
 // it uses the docker http api v2 to check images concurrently
-func MissingImagesFromRegistry(username, password, registry string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+func MissingImagesFromRegistry(username, password, registryHost string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
 	ignore, err := imageSliceToMap(ignoreImages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ignore list from ignoreImages: %w", err)
@@ -416,11 +396,13 @@ func MissingImagesFromRegistry(username, password, registry string, concurrencyL
 	repositoryAuths := make(map[string]string)
 	mu := sync.RWMutex{}
 
-	rgInfo, ok := registriesInfo[registry]
+	rgInfo, ok := registry.Lookup(registryHost)
 	if !ok {
 		cancel()
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
+
+	username, password = registryCredentials(registryHost, username, password)
 
 	for _, imageAndVersion := range checkImages {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
@@ -538,11 +520,11 @@ func CreateTag(ctx context.Context, ghClient *github.Client, owner, repo, baseTa
 }
 
 func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry string) (*regsyncConfig, error) {
-	sourceRegistryInfo, ok := registriesInfo[sourceRegistry]
+	sourceInfo, ok := registry.Lookup(sourceRegistry)
 	if !ok {
 		return nil, errors.New("invalid source registry")
 	}
-	targetRegistryInfo, ok := registriesInfo[targetRegistry]
+	targetInfo, ok := registry.Lookup(targetRegistry)
 	if !ok {
 		return nil, errors.New("invalid target registry")
 	}
@@ -552,13 +534,13 @@ func generateRegsyncConfig(images []string, sourceRegistry, targetRegistry strin
 		Creds: []regsyncCreds{
 			{
 				Registry: sourceRegistry,
-				User:     sourceRegistryInfo.UserEnv,
-				Pass:     sourceRegistryInfo.PasswordEnv,
+				User:     regsyncEnvTemplate(sourceInfo.UsernameEnv),
+				Pass:     regsyncEnvTemplate(sourceInfo.PasswordEnv),
 			},
 			{
 				Registry: targetRegistry,
-				User:     targetRegistryInfo.UserEnv,
-				Pass:     targetRegistryInfo.PasswordEnv,
+				User:     regsyncEnvTemplate(targetInfo.UsernameEnv),
+				Pass:     regsyncEnvTemplate(targetInfo.PasswordEnv),
 			},
 		},
 		Defaults: regsyncDefaults{
@@ -624,7 +606,7 @@ func validateRepoImage(repoImage string) error {
 	return nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, password string, imagesList []string, verbose bool) error {
+func GenerateDockerImageDigests(outputFile, imagesFileURL, registryHost, username, password string, imagesList []string, verbose bool) error {
 	var err error
 	if len(imagesList) == 0 {
 		if imagesFileURL == "" {
@@ -636,20 +618,22 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry, username, p
 		}
 	}
 
-	imagesList = cleanImages(imagesList, registry)
+	imagesList = cleanImages(imagesList, registryHost)
 
-	imagesDigests, err := dockerImagesDigests(imagesList, registry, username, password)
+	imagesDigests, err := dockerImagesDigests(imagesList, registryHost, username, password)
 	if err != nil {
 		return err
 	}
 	return createAssetFile(outputFile, imagesDigests)
 }
 
-func dockerImagesDigests(imagesList []string, registry, username, password string) (imageDigest, error) {
-	rgInfo, ok := registriesInfo[registry]
+func dockerImagesDigests(imagesList []string, registryHost, username, password string) (imageDigest, error) {
+	rgInfo, ok := registry.Lookup(registryHost)
 	if !ok {
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
+
+	username, password = registryCredentials(registryHost, username, password)
 
 	imagesDigests := make(imageDigest)
 	repositoryAuths := make(map[string]string)
@@ -677,7 +661,7 @@ func dockerImagesDigests(imagesList []string, registry, username, password strin
 			return nil, err
 		}
 		// e.g: registry.rancher.com/rancher/rancher:v2.9.0 = sha256:1234567890
-		imagesDigests[registry+"/"+imageAndVersion] = digest
+		imagesDigests[registryHost+"/"+imageAndVersion] = digest
 	}
 	return imagesDigests, nil
 }
@@ -721,20 +705,20 @@ func artifactImageList(imagesFileURL string) (list []string, err error) {
 	return list, nil
 }
 
-func cleanImages(images []string, registry string) []string {
+func cleanImages(images []string, registryHost string) []string {
 	for k, im := range images {
 		if im == "" || im == " " {
 			continue
 		}
-		image := cleanImage(im, registry)
+		image := cleanImage(im, registryHost)
 		images[k] = image
 	}
 	return images
 }
 
-func cleanImage(image, registry string) string {
-	switch registry {
-	case "docker.io":
+func cleanImage(image, registryHost string) string {
+	switch registryHost {
+	case registry.DockerIO:
 		if len(strings.Split(image, "/")) == 1 {
 			image = path.Join("library", image)
 		}

@@ -544,8 +544,8 @@ func init() {
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&registries, "registries", "r", make([]string, 0), "Registries where the images should be located")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry where the images should be located")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_USERNAME env vars take precedence)")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_PASSWORD env vars take precedence)")
 
 	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
@@ -554,13 +554,13 @@ func init() {
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&ignoreImages, "ignore-images", "g", make([]string, 0), "Images to ignore when checking for missing images without the version. e.g: rancher/rancher")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
 	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&registry, "registry", "r", "registry.rancher.com", "Registry where the images should be located")
-	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
-	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_USERNAME env vars take precedence)")
+	rancherGenerateMissingImagesListSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_PASSWORD env vars take precedence)")
 
 	// rancher generate docker-images-digests
 	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&rancherImagesDigestsOutputFile, "output-file", "o", "", "Output file with images digests")
-	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username")
-	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password")
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_USERNAME env vars take precedence)")
+	rancherGenerateDockerImagesDigestsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_PASSWORD env vars take precedence)")
 	if err := rancherGenerateDockerImagesDigestsSubCmd.MarkFlagRequired("output-file"); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
