@@ -117,7 +117,7 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 		containerdVersion = dockerfileVersion("hardened-containerd", rke2Repo, milestone)
 	}
 
-	rd.EtcdVersion = buildScriptVersion("ETCD_VERSION", rke2Repo, milestone)
+	rd.EtcdVersion = goModLibVersion("etcd/api/v3", rke2Repo, milestone)
 	rd.RuncVersion = dockerfileVersion("hardened-runc", rke2Repo, milestone)
 	rd.CanalCalicoVersion = imageTagVersion("hardened-calico", rke2Repo, milestone)
 	rd.CanalCalicoURL = createCalicoURL(rd.CanalCalicoVersion)
