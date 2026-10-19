@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -93,7 +94,9 @@ type rke2ReleaseNoteData struct {
 	IngressNginxChartVersion              string
 	MetricsServerChartVersion             string
 	VsphereCSIChartVersion                string
+	GatewayAPICRDChartVersion             string
 	VsphereCPIChartVersion                string
+	SecurityResponderChartVersion         string
 	HarvesterCloudProviderChartVersion    string
 	HarvesterCSIDriverChartVersion        string
 	SnapshotControllerChartVersion        string
@@ -147,8 +150,10 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
 	rd.MultusChartVersion = chartsData["rke2-multus.yaml"].Version
 	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
+	rd.GatewayAPICRDChartVersion = chartsData["rke2-gateway-api-crd.yaml"].Version
 	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
 	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
+	rd.SecurityResponderChartVersion = chartsData["rke2-security-responder.yaml"].Version
 	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
@@ -172,6 +177,7 @@ type k3sReleaseNoteData struct {
 	ContainerdVersion           string
 	RuncVersion                 string
 	FlannelVersion              string
+	GatewayAPICRDVersion        string
 	MetricsServerVersion        string
 	TraefikVersion              string
 	CoreDNSVersion              string
@@ -207,6 +213,12 @@ func (rd *k3sReleaseNoteData) Fill(milestone string) error {
 	rd.MetricsServerVersion = imageTagVersion("metrics-server", k3sRepo, milestone)
 	rd.TraefikVersion = imageTagVersion("traefik", k3sRepo, milestone)
 	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
+
+	gatewayAPIVersion, err := k3sManifestComponentVersion("gateway-api-crd", rd.Milestone)
+	if err != nil {
+		return err
+	}
+	rd.GatewayAPICRDVersion = gatewayAPIVersion
 
 	return nil
 }
@@ -716,6 +728,63 @@ func dockerfileVersion(chartName, repo, branchVersion string) string {
 	return ""
 }
 
+type K3sManifest struct {
+	Spec ManifestSpec `yaml:"spec"`
+}
+
+type ManifestSpec struct {
+	Chart string `yaml:"chart"`
+}
+
+func k3sManifestComponentVersion(componentName, milestone string) (string, error) {
+	manifestURL := fmt.Sprintf(
+		"https://raw.githubusercontent.com/k3s-io/k3s/refs/tags/%s/manifests/%s.yaml",
+		url.PathEscape(milestone),
+		url.PathEscape(componentName),
+	)
+
+	client := httpecm.NewClient(defaultTimeout)
+	resp, err := client.Get(manifestURL)
+	if err != nil {
+		slog.Debug("failed to fetch url", slog.String("url", manifestURL), slog.String("error", err.Error()))
+		return "", fmt.Errorf("failed to fetch k3s %q manifest: %w", componentName, err)
+	}
+	defer resp.Body.Close()
+
+	// Manifests may or may not exists depending on the milestone,
+	// for example currently the manifest for `gateway-api-crd` only exists
+	// in k3s release-1.37 branch.
+	if resp.StatusCode == http.StatusNotFound {
+		return "", nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("error when fetching", slog.Int("status-code", resp.StatusCode))
+		return "", fmt.Errorf("k3s %q manifest fetch not successful: %w", componentName, err)
+	}
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var m K3sManifest
+
+	if err := yaml.Unmarshal(b, &m); err != nil {
+		return "", fmt.Errorf("failed to unmarshal manifest yaml: %w", err)
+	}
+
+	s := strings.Split(m.Spec.Chart, componentName+"-")
+
+	if len(s) < 2 {
+		return "", errors.New("unsupported chart structure: " + m.Spec.Chart)
+	}
+
+	manifestVer, _ := strings.CutSuffix(s[1], ".tgz")
+
+	return manifestVer, nil
+}
+
 func imageTagVersion(ImageName, repo, branchVersion string) string {
 	repoName := "k3s-io/k3s"
 
@@ -1102,6 +1171,9 @@ cat /var/lib/rancher/rke2/server/token
 {{- if not (eq .IngressNginxChartVersion "0.0.0") }}
 | rke2-ingress-nginx | [{{.IngressNginxChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-ingress-nginx/rke2-ingress-nginx-{{.IngressNginxChartVersion}}.tgz) |
 {{- end }}
+{{- if not (eq .GatewayAPICRDChartVersion "0.0.0") }}
+| rke2-gateway-api-crd | [{{.GatewayAPICRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-gateway-api-crd/rke2-gateway-api-crd-{{.GatewayAPICRDChartVersion}}.tgz) |
+{{- end }}
 {{- if not (eq .MetricsServerChartVersion "0.0.0") }}
 | rke2-metrics-server | [{{.MetricsServerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-metrics-server/rke2-metrics-server-{{.MetricsServerChartVersion}}.tgz) |
 {{- end }}
@@ -1119,6 +1191,9 @@ cat /var/lib/rancher/rke2/server/token
 {{- end }}
 {{- if not (eq .HarvesterCSIDriverChartVersion "0.0.0") }}
 | harvester-csi-driver | [{{.HarvesterCSIDriverChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-csi-driver-{{.HarvesterCSIDriverChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .SecurityResponderChartVersion "0.0.0") }}
+| rke2-security-responder | [{{.SecurityResponderChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-security-responder/rke2-security-responder-{{.SecurityResponderChartVersion}}.tgz) |
 {{- end }}
 {{- if not (eq .SnapshotControllerChartVersion "0.0.0") }}
 | rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
@@ -1191,6 +1266,9 @@ For more details on what's new, see the [Kubernetes release notes](https://githu
 | CoreDNS | [v{{.CoreDNSVersion}}](https://github.com/coredns/coredns/releases/tag/v{{.CoreDNSVersion}}) | 
 | Helm-controller | [{{.HelmControllerVersion}}](https://github.com/k3s-io/helm-controller/releases/tag/{{.HelmControllerVersion}}) |
 | Local-path-provisioner | [{{.LocalPathProvisionerVersion}}](https://github.com/rancher/local-path-provisioner/releases/tag/{{.LocalPathProvisionerVersion}}) |
+{{- if not (eq .GatewayAPICRDVersion "") }}
+| Kubernetes Gateway API CRD| [{{.GatewayAPICRDVersion}}](https://github.com/k3s-io/k3s-charts/blob/main/assets/gateway-api-crd/gateway-api-crd-{{.GatewayAPICRDVersion}}.tgz) |
+{{- end }}
 
 ## Helpful Links
 As always, we welcome and appreciate feedback from our community of users. Please feel free to:
