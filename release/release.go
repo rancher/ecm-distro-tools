@@ -748,7 +748,7 @@ func k3sManifestComponentVersion(componentName, milestone string) (string, error
 
 	if err != nil {
 		slog.Debug("failed to fetch url", slog.String("url", manifestURL), slog.String("error", err.Error()))
-		return "", fmt.Errorf("failed to fetch k3s '%s' manifest: %w", componentName, err)
+		return "", fmt.Errorf("failed to fetch k3s %q manifest: %w", componentName, err)
 	}
 	defer resp.Body.Close()
 
@@ -761,7 +761,7 @@ func k3sManifestComponentVersion(componentName, milestone string) (string, error
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Debug("error when fetching", slog.Int("status-code", resp.StatusCode))
-		return "", fmt.Errorf("k3s '%s' manifest fetch not successful: %w", componentName, err)
+		return "", fmt.Errorf("k3s %q manifest fetch not successful: %w", componentName, err)
 	}
 
 	b, err := io.ReadAll(resp.Body)
