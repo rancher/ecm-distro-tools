@@ -745,7 +745,6 @@ func k3sManifestComponentVersion(componentName, milestone string) (string, error
 
 	client := httpecm.NewClient(defaultTimeout)
 	resp, err := client.Get(manifestURL)
-
 	if err != nil {
 		slog.Debug("failed to fetch url", slog.String("url", manifestURL), slog.String("error", err.Error()))
 		return "", fmt.Errorf("failed to fetch k3s %q manifest: %w", componentName, err)
