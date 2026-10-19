@@ -770,8 +770,6 @@ func k3sManifestComponentVersion(componentName, milestone string) (string, error
 
 	var m K3sManifest
 
-	fmt.Println(string(b))
-
 	if err := yaml.Unmarshal(b, &m); err != nil {
 		return "", fmt.Errorf("failed to unmarshal manifest yaml: %w", err)
 	}
