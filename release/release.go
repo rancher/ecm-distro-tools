@@ -93,7 +93,9 @@ type rke2ReleaseNoteData struct {
 	IngressNginxChartVersion              string
 	MetricsServerChartVersion             string
 	VsphereCSIChartVersion                string
+	GatewayAPICRDChartVersion             string
 	VsphereCPIChartVersion                string
+	SecurityResponderChartVersion         string
 	HarvesterCloudProviderChartVersion    string
 	HarvesterCSIDriverChartVersion        string
 	SnapshotControllerChartVersion        string
@@ -147,8 +149,10 @@ func (rd *rke2ReleaseNoteData) Fill(milestone string) error {
 	rd.HarvesterCloudProviderChartVersion = chartsData["harvester-cloud-provider.yaml"].Version
 	rd.MultusChartVersion = chartsData["rke2-multus.yaml"].Version
 	rd.HarvesterCSIDriverChartVersion = chartsData["harvester-csi-driver.yaml"].Version
+	rd.GatewayAPICRDChartVersion = chartsData["rke2-gateway-api-crd.yaml"].Version
 	rd.IngressNginxChartVersion = chartsData["rke2-ingress-nginx.yaml"].Version
 	rd.MetricsServerChartVersion = chartsData["rke2-metrics-server.yaml"].Version
+	rd.SecurityResponderChartVersion = chartsData["rke2-security-responder.yaml"].Version
 	rd.SnapshotControllerChartVersion = chartsData["rke2-snapshot-controller.yaml"].Version
 	rd.SnapshotControllerCRDChartVersion = chartsData["rke2-snapshot-controller-crd.yaml"].Version
 	rd.SnapshotValidationWebhookChartVersion = chartsData["rke2-snapshot-validation-webhook.yaml"].Version
@@ -1102,6 +1106,9 @@ cat /var/lib/rancher/rke2/server/token
 {{- if not (eq .IngressNginxChartVersion "0.0.0") }}
 | rke2-ingress-nginx | [{{.IngressNginxChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-ingress-nginx/rke2-ingress-nginx-{{.IngressNginxChartVersion}}.tgz) |
 {{- end }}
+{{- if not (eq .GatewayAPICRDChartVersion "0.0.0") }}
+| rke2-gateway-api-crd | [{{.GatewayAPICRDChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-gateway-api-crd/rke2-gateway-api-crd-{{.GatewayAPICRDChartVersion}}.tgz) |
+{{- end }}
 {{- if not (eq .MetricsServerChartVersion "0.0.0") }}
 | rke2-metrics-server | [{{.MetricsServerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-metrics-server/rke2-metrics-server-{{.MetricsServerChartVersion}}.tgz) |
 {{- end }}
@@ -1119,6 +1126,9 @@ cat /var/lib/rancher/rke2/server/token
 {{- end }}
 {{- if not (eq .HarvesterCSIDriverChartVersion "0.0.0") }}
 | harvester-csi-driver | [{{.HarvesterCSIDriverChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/harvester-cloud-provider/harvester-csi-driver-{{.HarvesterCSIDriverChartVersion}}.tgz) |
+{{- end }}
+{{- if not (eq .SecurityResponderChartVersion "0.0.0") }}
+| rke2-security-responder | [{{.SecurityResponderChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-security-responder/rke2-security-responder-{{.SecurityResponderChartVersion}}.tgz) |
 {{- end }}
 {{- if not (eq .SnapshotControllerChartVersion "0.0.0") }}
 | rke2-snapshot-controller | [{{.SnapshotControllerChartVersion}}](https://github.com/rancher/rke2-charts/raw/main/assets/rke2-snapshot-controller/rke2-snapshot-controller-{{.SnapshotControllerChartVersion}}.tgz) |
