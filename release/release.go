@@ -215,7 +215,6 @@ func (rd *k3sReleaseNoteData) Fill(milestone string) error {
 	rd.LocalPathProvisionerVersion = imageTagVersion("local-path-provisioner", k3sRepo, milestone)
 
 	gatewayAPIVersion, err := k3sManifestComponentVersion("gateway-api-crd", rd.Milestone)
-
 	if err != nil {
 		return err
 	}
