@@ -11,7 +11,9 @@ permissions: {}
 jobs:
   zizmor:
     runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
-    container: ghcr.io/rancher/ci-image/node24 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
+    container:
+      image: ghcr.io/rancher/ci-image/node24 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
+      options: -v /var/run/docker.sock:/var/run/docker.sock
     permissions:
       security-events: write
       contents: read # only needed for private or internal repos
