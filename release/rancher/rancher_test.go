@@ -1,6 +1,8 @@
 package rancher
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/rancher/ecm-distro-tools/registry"
@@ -145,6 +147,45 @@ func TestRegistryCredentials(t *testing.T) {
 			user, pass := registryCredentials(tt.registry, fallbackUser, fallbackPass)
 			if user != tt.wantUser || pass != tt.wantPass {
 				t.Errorf("expected %q/%q, got %q/%q", tt.wantUser, tt.wantPass, user, pass)
+			}
+		})
+	}
+}
+
+func TestCheckIfImageExists(t *testing.T) {
+	tests := []struct {
+		name          string
+		statusCode    int
+		authenticated bool
+		wantExists    bool
+		wantErr       bool
+	}{
+		{name: "image exists", statusCode: http.StatusOK, authenticated: true, wantExists: true},
+		{name: "not found is missing", statusCode: http.StatusNotFound, authenticated: true, wantExists: false},
+		{name: "anonymous 401 is treated as missing", statusCode: http.StatusUnauthorized, authenticated: false, wantExists: false},
+		{name: "authenticated 401 is an error", statusCode: http.StatusUnauthorized, authenticated: true, wantErr: true},
+		{name: "unexpected status is an error", statusCode: http.StatusInternalServerError, authenticated: true, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+			}))
+			defer server.Close()
+
+			exists, err := checkIfImageExists(server.URL, "rancher/rancher", "v2.9.0", "token", tt.authenticated)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if exists != tt.wantExists {
+				t.Errorf("expected exists=%v, got %v", tt.wantExists, exists)
 			}
 		})
 	}

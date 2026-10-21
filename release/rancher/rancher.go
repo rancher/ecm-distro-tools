@@ -71,6 +71,13 @@ func registryCredentials(registryHost, fallbackUsername, fallbackPassword string
 	return username, password
 }
 
+// credentialsProvided reports whether the given credentials will actually be
+// sent to the registry. It mirrors the condition used by registryAuth so that
+// callers can tell whether a request was authenticated or anonymous.
+func credentialsProvided(username, password string) bool {
+	return len(username) > 1 && len(password) > 1
+}
+
 // regsyncEnvTemplate wraps an environment variable name in the template syntax
 // expected by regsync, e.g. "PRIME_REGISTRY_USERNAME" -> `{{env "PRIME_REGISTRY_USERNAME"}}`.
 func regsyncEnvTemplate(name string) string {
@@ -403,6 +410,7 @@ func MissingImagesFromRegistry(username, password, registryHost string, concurre
 	}
 
 	username, password = registryCredentials(registryHost, username, password)
+	authenticated := credentialsProvided(username, password)
 
 	for _, imageAndVersion := range checkImages {
 		image, imageVersion, err := splitImageAndVersion(imageAndVersion)
@@ -440,7 +448,7 @@ func MissingImagesFromRegistry(username, password, registryHost string, concurre
 					}
 					mu.Unlock()
 
-					exists, err := checkIfImageExists(rgInfo.BaseURL, image, imageVersion, auth)
+					exists, err := checkIfImageExists(rgInfo.BaseURL, image, imageVersion, auth, authenticated)
 					if err != nil {
 						cancel()
 						return fmt.Errorf("failed to check if image exists: %w", err)
@@ -634,6 +642,7 @@ func dockerImagesDigests(imagesList []string, registryHost, username, password s
 	}
 
 	username, password = registryCredentials(registryHost, username, password)
+	authenticated := credentialsProvided(username, password)
 
 	imagesDigests := make(imageDigest)
 	repositoryAuths := make(map[string]string)
@@ -656,9 +665,14 @@ func dockerImagesDigests(imagesList []string, registryHost, username, password s
 			}
 			repositoryAuths[image] = auth
 		}
-		digest, _, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
+		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		if err != nil {
 			return nil, err
+		}
+		// When credentials were provided, a 401 means authentication failed, so
+		// surface it instead of silently storing an empty digest.
+		if statusCode == http.StatusUnauthorized && authenticated {
+			return nil, fmt.Errorf("unauthorized when fetching digest for %s with the provided credentials, verify the registry credentials", imageAndVersion)
 		}
 		// e.g: registry.rancher.com/rancher/rancher:v2.9.0 = sha256:1234567890
 		imagesDigests[registryHost+"/"+imageAndVersion] = digest
@@ -791,7 +805,7 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (dockerDig
 	return dockerDigest, res.StatusCode, nil
 }
 
-func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, error) {
+func checkIfImageExists(registryBaseURL, img, imgVersion, auth string, authenticated bool) (bool, error) {
 	_, statusCode, err := dockerImageDigest(registryBaseURL, img, imgVersion, auth)
 	if err != nil {
 		return false, fmt.Errorf("failed to get image digest: %w", err)
@@ -799,8 +813,14 @@ func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, er
 	if statusCode == http.StatusNotFound {
 		return false, nil
 	}
-	// unauthorized is not a hard fail because it is a valid response when the image doesn't exist on the registry, even though the creds are valid
+	// A 401 is ambiguous when the request is anonymous: the image may be private
+	// or it may not exist, so we treat it as missing. When credentials were
+	// provided, a 401 means authentication failed, so we surface it instead of
+	// silently reporting an existing image as missing.
 	if statusCode == http.StatusUnauthorized {
+		if authenticated {
+			return false, fmt.Errorf("unauthorized when checking image %s:%s with the provided credentials, verify the registry credentials", img, imgVersion)
+		}
 		return false, nil
 	}
 	if statusCode != http.StatusOK {
