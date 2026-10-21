@@ -33,7 +33,7 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKERHUB_USERNAME;
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKERHUB_TOKEN;
       - name: Publish manifest
-        uses: ./actions/publish-image
+        uses: $/actions/publish-image
         with:
           image: ecm-distro-tools
           tag: ${{ github.ref_name }}
