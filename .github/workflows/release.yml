@@ -17,12 +17,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: 'go.mod'
-          check-latest: false
-          cache: false
-          cache-dependency-path: 'go.sum'
       - name: Build ECM Distro Tools
         run: |
           export VERSION=${GITHUB_REF_NAME}
@@ -43,7 +37,6 @@ jobs:
         with:
           image: ecm-distro-tools
           tag: ${{ github.ref_name }}
-          platforms: ${{ matrix.platforms }}
 
           push-to-public: false
 

@@ -28,7 +28,7 @@ jobs:
         run: |
           # jq splits the string into a valid JSON array
           JSON_ARRAY=$(echo "$VERSIONS" | jq -R 'split(",")' -c)
-          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          echo "matrix=$JSON_ARRAY" >> "$GITHUB_OUTPUT"
 
   update-references:
     name: "Update K3s ${{ matrix.version }} References"
@@ -80,19 +80,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release generate k3s tags ${VERSION}
+        run: release generate k3s tags "${VERSION}"
 
       - name: "Push Kubernetes Tags"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release push k3s tags ${VERSION}
+        run: release push k3s tags "${VERSION}"
 
       - name: "Open `k3s-io/k3s` PR Updating References"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release update k3s references ${VERSION}
+        run: release update k3s references "${VERSION}"
 
   trigger-rke2-update:
     name: "Trigger RKE2 References Update"
