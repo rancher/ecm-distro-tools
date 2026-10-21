@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: write # Pushing artifacts to the new release.
       id-token: write # OIDC for cosign's use in actions/publish-image.
-    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    runs-on: runs-on,runner=2cpu-linux-x64,run-id=${{ github.run_id }},spot=false
     container:
       image: ghcr.io/rancher/ci-image/go1.27 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
       options: -v /var/run/docker.sock:/var/run/docker.sock
