@@ -104,11 +104,12 @@ func TestRegistryCredentials(t *testing.T) {
 	)
 
 	tests := []struct {
-		name     string
-		env      map[string]string
-		registry string
-		wantUser string
-		wantPass string
+		name        string
+		env         map[string]string
+		perRegistry map[string]Credentials
+		registry    string
+		wantUser    string
+		wantPass    string
 	}{
 		{
 			name:     "resolves credentials from the registry env vars",
@@ -123,6 +124,21 @@ func TestRegistryCredentials(t *testing.T) {
 			registry: registry.DockerIO,
 			wantUser: "docker-user",
 			wantPass: "docker-pass",
+		},
+		{
+			name:        "explicit per-registry credentials take precedence over env vars",
+			env:         map[string]string{"DOCKERIO_REGISTRY_USERNAME": "docker-user", "DOCKERIO_REGISTRY_PASSWORD": "docker-pass"},
+			perRegistry: map[string]Credentials{registry.DockerIO: {Username: "explicit-user", Password: "explicit-pass"}},
+			registry:    registry.DockerIO,
+			wantUser:    "explicit-user",
+			wantPass:    "explicit-pass",
+		},
+		{
+			name:        "ignores explicit credentials for a different registry",
+			perRegistry: map[string]Credentials{registry.Prime: {Username: "prime-user", Password: "prime-pass"}},
+			registry:    registry.DockerIO,
+			wantUser:    fallbackUser,
+			wantPass:    fallbackPass,
 		},
 		{
 			name:     "falls back when the registry env vars are not set",
@@ -144,7 +160,7 @@ func TestRegistryCredentials(t *testing.T) {
 			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
-			user, pass := registryCredentials(tt.registry, fallbackUser, fallbackPass)
+			user, pass := registryCredentials(tt.registry, tt.perRegistry, fallbackUser, fallbackPass)
 			if user != tt.wantUser || pass != tt.wantPass {
 				t.Errorf("expected %q/%q, got %q/%q", tt.wantUser, tt.wantPass, user, pass)
 			}

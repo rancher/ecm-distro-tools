@@ -58,12 +58,24 @@ var regsyncDefaultMediaTypes = []string{
 	"application/vnd.oci.image.index.v1+json",
 }
 
-// registryCredentials resolves the username and password for a given registry.
-// It prefers the registry-specific environment variables (the same names used by
-// the regsync config), falling back to the provided credentials when those
-// variables aren't set. This allows a single command to authenticate against
-// multiple registries, each with its own credentials.
-func registryCredentials(registryHost, fallbackUsername, fallbackPassword string) (string, string) {
+// Credentials holds a username and password for a registry.
+type Credentials struct {
+	Username string
+	Password string
+}
+
+// registryCredentials resolves the username and password for a given registry,
+// with the following precedence:
+//  1. explicit per-registry credentials (e.g. from the --registry-credentials flag);
+//  2. the registry-specific environment variables (the same names used by the regsync config);
+//  3. the shared fallback credentials.
+//
+// This allows a single command to authenticate against multiple registries,
+// each with its own credentials.
+func registryCredentials(registryHost string, perRegistry map[string]Credentials, fallbackUsername, fallbackPassword string) (string, string) {
+	if c, ok := perRegistry[registryHost]; ok && c.Username != "" && c.Password != "" {
+		return c.Username, c.Password
+	}
 	username, password := registry.Credentials(registryHost)
 	if username == "" || password == "" {
 		return fallbackUsername, fallbackPassword
@@ -335,18 +347,21 @@ func formatContentLine(line string) string {
 }
 
 // ImagesLocations searches for missing images in a registry and creates a map with the locations of the images, or if they are missing
-// this map can be used to identify where which image should be synced from
-func ImagesLocations(username, password string, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
+// this map can be used to identify where which image should be synced from.
+// Because it spans multiple registries, credentials are resolved per-registry:
+// explicit per-registry credentials take precedence, then each registry's
+// environment variables, then the shared username/password fallback.
+func ImagesLocations(username, password string, perRegistry map[string]Credentials, concurrencyLimit int, checkImages, ignoreImages []string, targetRegistry string, imagesRegiestries []string) (map[string][]string, error) {
 	imagesLocations := make(map[string][]string)
 
-	missingFromTarget, err := MissingImagesFromRegistry(username, password, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
+	missingFromTarget, err := MissingImagesFromRegistry(username, password, perRegistry, targetRegistry, concurrencyLimit, checkImages, ignoreImages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check missing images from target registry: %w", err)
 	}
 
 	lastMissingImages := missingFromTarget
 	for _, registry := range imagesRegiestries {
-		missingFromRegistry, err := MissingImagesFromRegistry(username, password, registry, concurrencyLimit, lastMissingImages, ignoreImages)
+		missingFromRegistry, err := MissingImagesFromRegistry(username, password, perRegistry, registry, concurrencyLimit, lastMissingImages, ignoreImages)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check missing images from registry: %w", err)
 		}
@@ -387,7 +402,7 @@ func imagesDiff(source, compare []string) ([]string, error) {
 
 // MissingImagesFromRegistry receives registry information and a list of images and checks which images are missing from that registry
 // it uses the docker http api v2 to check images concurrently
-func MissingImagesFromRegistry(username, password, registryHost string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
+func MissingImagesFromRegistry(username, password string, perRegistry map[string]Credentials, registryHost string, concurrencyLimit int, checkImages, ignoreImages []string) ([]string, error) {
 	ignore, err := imageSliceToMap(ignoreImages, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ignore list from ignoreImages: %w", err)
@@ -409,7 +424,7 @@ func MissingImagesFromRegistry(username, password, registryHost string, concurre
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
-	username, password = registryCredentials(registryHost, username, password)
+	username, password = registryCredentials(registryHost, perRegistry, username, password)
 	authenticated := credentialsProvided(username, password)
 
 	for _, imageAndVersion := range checkImages {
@@ -641,7 +656,7 @@ func dockerImagesDigests(imagesList []string, registryHost, username, password s
 		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
 
-	username, password = registryCredentials(registryHost, username, password)
+	username, password = registryCredentials(registryHost, nil, username, password)
 	authenticated := credentialsProvided(username, password)
 
 	imagesDigests := make(imageDigest)

@@ -43,6 +43,7 @@ var (
 	ignoreImages                          []string
 	checkImages                           []string
 	registries                            []string
+	registryCredentialsFlag               []string
 	username                              string
 	password                              string
 	rancherMissingImagesJSONOutput        bool
@@ -184,6 +185,28 @@ var rancherGenerateArtifactsIndexSubCmd = &cobra.Command{
 	},
 }
 
+// parseRegistryCredentials parses repeatable "host=username:password" entries
+// into a map keyed by registry host. The password may contain ':' since only
+// the first ':' is used as the username/password separator.
+func parseRegistryCredentials(entries []string) (map[string]rancher.Credentials, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	creds := make(map[string]rancher.Credentials, len(entries))
+	for _, entry := range entries {
+		host, userPass, ok := strings.Cut(entry, "=")
+		if !ok || host == "" {
+			return nil, fmt.Errorf("invalid registry credentials %q, expected 'host=username:password'", entry)
+		}
+		user, pass, ok := strings.Cut(userPass, ":")
+		if !ok || user == "" || pass == "" {
+			return nil, fmt.Errorf("invalid registry credentials %q, expected 'host=username:password'", entry)
+		}
+		creds[host] = rancher.Credentials{Username: user, Password: pass}
+	}
+	return creds, nil
+}
+
 var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
 	Use:   "images-locations",
 	Short: "Generate a json with images locations and if there any missing images",
@@ -201,7 +224,12 @@ var rancherGenerateImagesLocationsSubCmd = &cobra.Command{
 			checkImages = append(checkImages, rancherImages...)
 		}
 
-		imagesLocations, err := rancher.ImagesLocations(username, password, concurrencyLimit, checkImages, ignoreImages, registry, registries)
+		perRegistryCreds, err := parseRegistryCredentials(registryCredentialsFlag)
+		if err != nil {
+			return err
+		}
+
+		imagesLocations, err := rancher.ImagesLocations(username, password, perRegistryCreds, concurrencyLimit, checkImages, ignoreImages, registry, registries)
 		if err != nil {
 			return err
 		}
@@ -231,7 +259,7 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 			checkImages = append(checkImages, rancherImages...)
 		}
 
-		missingImages, err := rancher.MissingImagesFromRegistry(username, password, registry, concurrencyLimit, checkImages, ignoreImages)
+		missingImages, err := rancher.MissingImagesFromRegistry(username, password, nil, registry, concurrencyLimit, checkImages, ignoreImages)
 		if err != nil {
 			return err
 		}
@@ -544,8 +572,9 @@ func init() {
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&checkImages, "check-images", "k", make([]string, 0), "Images to check for when checking for missing images with the version. e.g: rancher/rancher-agent:v2.9.0")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringSliceVarP(&registries, "registries", "r", make([]string, 0), "Registries where the images should be located")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry where the images should be located")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_USERNAME env vars take precedence)")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password (fallback; per-registry PRIME_/STAGING_/DOCKERIO_REGISTRY_PASSWORD env vars take precedence)")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username used as a fallback for registries without their own credentials")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password used as a fallback for registries without their own credentials")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringArrayVar(&registryCredentialsFlag, "registry-credentials", nil, "Per-registry credentials in the form 'host=username:password' (repeatable). Takes precedence over the per-registry env vars and the --username/--password fallback. e.g: --registry-credentials docker.io=user:pass --registry-credentials registry.rancher.com=user2:pass2")
 
 	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")
