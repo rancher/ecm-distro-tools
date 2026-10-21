@@ -168,11 +168,13 @@ Currently supports inspecting the image list for published rke2 releases.`,
 			return err
 		}
 
-		ossClient := reg.NewClient(reg.OSS, debug, reg.WithBasicAuth(reg.Credentials(reg.OSS)))
+		ossUser, ossPass := reg.Credentials(reg.OSS)
+		ossClient := reg.NewClient(reg.OSS, debug, &reg.ClientOpts{Username: ossUser, Password: ossPass})
 
 		var primeClient *reg.Client
 		if rootConfig.PrimeRegistry != "" {
-			primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug, reg.WithBasicAuth(reg.Credentials(rootConfig.PrimeRegistry)))
+			primeUser, primePass := reg.Credentials(rootConfig.PrimeRegistry)
+			primeClient = reg.NewClient(rootConfig.PrimeRegistry, debug, &reg.ClientOpts{Username: primeUser, Password: primePass})
 		}
 
 		inspector := rke2.NewReleaseInspector(filesystem, ossClient, primeClient, debug)

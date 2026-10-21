@@ -74,7 +74,7 @@ func Lookup(host string) (Info, bool) {
 // Credentials returns the username and password for a registry read from its
 // environment variables, or empty strings when the registry is unknown or the
 // variables aren't set.
-func Credentials(host string) (username, password string) {
+func Credentials(host string) (string, string) {
 	info, ok := registries[host]
 	if !ok {
 		return "", ""
@@ -101,24 +101,18 @@ type Client struct {
 	auth     authn.Authenticator
 }
 
-// Option configures a Client.
-type Option func(*Client)
-
-// WithBasicAuth authenticates registry requests with the given credentials.
-// When either value is empty the client stays anonymous, so callers can pass
-// optional credentials without extra branching.
-func WithBasicAuth(username, password string) Option {
-	return func(c *Client) {
-		if username != "" && password != "" {
-			c.auth = &authn.Basic{Username: username, Password: password}
-		}
-	}
+// ClientOpts holds optional configuration for a Client. When Username and
+// Password are both set, the client authenticates with those basic credentials;
+// otherwise it stays anonymous.
+type ClientOpts struct {
+	Username string
+	Password string
 }
 
-func NewClient(registry string, debug bool, opts ...Option) *Client {
+func NewClient(registry string, debug bool, opts *ClientOpts) *Client {
 	c := &Client{registry: registry, auth: authn.Anonymous}
-	for _, opt := range opts {
-		opt(c)
+	if opts != nil && opts.Username != "" && opts.Password != "" {
+		c.auth = &authn.Basic{Username: opts.Username, Password: opts.Password}
 	}
 	return c
 }

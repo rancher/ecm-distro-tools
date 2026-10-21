@@ -54,7 +54,7 @@ func TestReplaceRegistry(t *testing.T) {
 func TestNewClientAuth(t *testing.T) {
 	tests := []struct {
 		name         string
-		opts         []Option
+		opts         *ClientOpts
 		wantBasic    bool
 		wantUser     string
 		wantPassword string
@@ -65,22 +65,22 @@ func TestNewClientAuth(t *testing.T) {
 			wantBasic: false,
 		},
 		{
-			name:         "WithBasicAuth sets basic credentials",
-			opts:         []Option{WithBasicAuth("user", "pass")},
+			name:         "credentials set basic auth",
+			opts:         &ClientOpts{Username: "user", Password: "pass"},
 			wantBasic:    true,
 			wantUser:     "user",
 			wantPassword: "pass",
 		},
 		{
-			name:      "WithBasicAuth stays anonymous when credentials are empty",
-			opts:      []Option{WithBasicAuth("", "")},
+			name:      "stays anonymous when credentials are empty",
+			opts:      &ClientOpts{},
 			wantBasic: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("docker.io", false, tt.opts...)
+			c := NewClient("docker.io", false, tt.opts)
 			if !tt.wantBasic {
 				if c.auth != authn.Anonymous {
 					t.Fatalf("expected anonymous auth, got %#v", c.auth)
