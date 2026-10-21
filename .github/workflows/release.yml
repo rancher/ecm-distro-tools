@@ -10,7 +10,8 @@ jobs:
     permissions:
       contents: write # Pushing artifacts to the new release.
       id-token: write # OIDC for cosign's use in actions/publish-image.
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/go1.27 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

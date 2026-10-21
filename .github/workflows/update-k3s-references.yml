@@ -15,7 +15,8 @@ on:
 jobs:
   define-matrix:
     name: "Define Matrix"
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/charts # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     permissions: {}
@@ -99,7 +100,8 @@ jobs:
     if: ${{ inputs.trigger-rke2 == true }}
     permissions:
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/charts # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     steps:
       - name: "Read Secrets"
         uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
