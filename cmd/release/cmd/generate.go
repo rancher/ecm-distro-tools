@@ -574,7 +574,7 @@ func init() {
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&registry, "target-registry", "t", "registry.rancher.com", "Registry where the images should be located")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&username, "username", "u", "", "Docker registry username used as a fallback for registries without their own credentials")
 	rancherGenerateImagesLocationsSubCmd.Flags().StringVarP(&password, "password", "p", "", "Docker registry password used as a fallback for registries without their own credentials")
-	rancherGenerateImagesLocationsSubCmd.Flags().StringArrayVar(&registryCredentialsFlag, "registry-credentials", nil, "Per-registry credentials in the form 'host=username:password' (repeatable). Takes precedence over the per-registry env vars and the --username/--password fallback. e.g: --registry-credentials docker.io=user:pass --registry-credentials registry.rancher.com=user2:pass2")
+	rancherGenerateImagesLocationsSubCmd.Flags().StringArrayVarP(&registryCredentialsFlag, "registry-credentials", "P", nil, "Per-registry credentials in the form 'host=username:password' (repeatable). Takes precedence over the per-registry env vars and the --username/--password fallback. e.g: --registry-credentials docker.io=user:pass --registry-credentials registry.rancher.com=user2:pass2")
 
 	// rancher generate missing-images-list
 	rancherGenerateMissingImagesListSubCmd.Flags().IntVarP(&concurrencyLimit, "concurrency-limit", "l", defaultConcurrencyLimit, "Concurrency Limit")

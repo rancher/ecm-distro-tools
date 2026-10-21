@@ -137,7 +137,7 @@ release generate rancher docker-images-digests -r registry.rancher.com -k ranche
 
 These commands authenticate against `docker.io`, `registry.rancher.com`, and `stgregistry.suse.com`. Credentials are resolved **per registry**, with the following precedence:
 
-1. `--registry-credentials host=username:password` (repeatable, `images-locations` only)
+1. `-P host=username:password` / `--registry-credentials` (repeatable, `images-locations` only)
 2. the registry's environment variables (the same names used by the regsync config):
    * `DOCKERIO_REGISTRY_USERNAME` / `DOCKERIO_REGISTRY_PASSWORD` → `docker.io`
    * `PRIME_REGISTRY_USERNAME` / `PRIME_REGISTRY_PASSWORD` → `registry.rancher.com`
