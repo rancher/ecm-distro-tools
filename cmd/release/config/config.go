@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"github.com/rancher/ecm-distro-tools/registry"
 )
 
 const (
@@ -69,7 +71,7 @@ const (
 )
 
 const (
-	SuseStageRegistry    = "stgregistry.suse.com"
+	SuseStageRegistry    = registry.SUSEStaging
 	PrimeArtifactsBucket = "prime-artifacts"
 )
 

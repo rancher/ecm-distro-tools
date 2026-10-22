@@ -120,6 +120,33 @@ release tag ui rc v2.9.0
 release tag ui ga v2.9.0
 ```
 
+### Image lists and registry authentication
+
+Check which images are present in a registry, where they are located, or fetch their digests.
+
+```sh
+# images missing from a single registry
+release generate rancher missing-images-list -r registry.rancher.com -k rancher/rancher:v2.9.0
+
+# locate images across multiple registries (and list the ones still missing)
+release generate rancher images-locations -t registry.rancher.com -r stgregistry.suse.com -k rancher/rancher:v2.9.0
+
+# digests of a list of images in a single registry
+release generate rancher docker-images-digests -r registry.rancher.com -k rancher/rancher:v2.9.0 -o digests.txt
+```
+
+These commands authenticate against `docker.io`, `registry.rancher.com`, and `stgregistry.suse.com`. Credentials are resolved **per registry**, with the following precedence:
+
+1. `-P host=username:password` / `--registry-credentials` (repeatable, `images-locations` only)
+2. the registry's environment variables (the same names used by the regsync config):
+   * `DOCKERIO_REGISTRY_USERNAME` / `DOCKERIO_REGISTRY_PASSWORD` → `docker.io`
+   * `PRIME_REGISTRY_USERNAME` / `PRIME_REGISTRY_PASSWORD` → `registry.rancher.com`
+   * `STAGING_REGISTRY_USERNAME` / `STAGING_REGISTRY_PASSWORD` → `stgregistry.suse.com`
+3. the shared `--username` / `--password` flags
+4. anonymous (no credentials)
+
+When credentials are provided, a `401` from the registry is treated as an authentication error rather than a missing image, so misconfigured credentials are surfaced instead of silently reporting images as missing.
+
 ## Charts Release
 
 ```sh
