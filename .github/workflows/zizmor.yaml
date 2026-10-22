@@ -10,7 +10,10 @@ permissions: {}
 
 jobs:
   zizmor:
-    runs-on: ubuntu-latest
+    runs-on: runs-on,runner=2cpu-linux-x64,run-id=${{ github.run_id }},spot=false
+    container:
+      image: ghcr.io/rancher/ci-image/node24 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
+      options: -v /var/run/docker.sock:/var/run/docker.sock
     permissions:
       security-events: write
       contents: read # only needed for private or internal repos

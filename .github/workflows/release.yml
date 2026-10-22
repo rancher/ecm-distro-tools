@@ -10,18 +10,15 @@ jobs:
     permissions:
       contents: write # Pushing artifacts to the new release.
       id-token: write # OIDC for cosign's use in actions/publish-image.
-    runs-on: ubuntu-latest
+    runs-on: runs-on,runner=2cpu-linux-x64,run-id=${{ github.run_id }},spot=false
+    container:
+      image: ghcr.io/rancher/ci-image/go1.27 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
+      options: -v /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version-file: 'go.mod'
-          check-latest: false
-          cache: false
-          cache-dependency-path: 'go.sum'
       - name: Build ECM Distro Tools
         run: |
           export VERSION=${GITHUB_REF_NAME}
@@ -38,11 +35,10 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKERHUB_USERNAME;
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKERHUB_TOKEN;
       - name: Publish manifest
-        uses: ./actions/publish-image
+        uses: $/actions/publish-image
         with:
           image: ecm-distro-tools
           tag: ${{ github.ref_name }}
-          platforms: ${{ matrix.platforms }}
 
           push-to-public: false
 

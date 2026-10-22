@@ -15,7 +15,8 @@ on:
 jobs:
   define-matrix:
     name: "Define Matrix"
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/go1.27 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     permissions: {}
@@ -27,7 +28,7 @@ jobs:
         run: |
           # jq splits the string into a valid JSON array
           JSON_ARRAY=$(echo "$VERSIONS" | jq -R 'split(",")' -c)
-          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          echo "matrix=$JSON_ARRAY" >> "$GITHUB_OUTPUT"
 
   update-references:
     name: "Update K3s ${{ matrix.version }} References"
@@ -79,19 +80,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release generate k3s tags ${VERSION}
+        run: release generate k3s tags "${VERSION}"
 
       - name: "Push Kubernetes Tags"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release push k3s tags ${VERSION}
+        run: release push k3s tags "${VERSION}"
 
       - name: "Open `k3s-io/k3s` PR Updating References"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release update k3s references ${VERSION}
+        run: release update k3s references "${VERSION}"
 
   trigger-rke2-update:
     name: "Trigger RKE2 References Update"
@@ -99,7 +100,8 @@ jobs:
     if: ${{ inputs.trigger-rke2 == true }}
     permissions:
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/node24 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     steps:
       - name: "Read Secrets"
         uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3

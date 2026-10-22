@@ -10,7 +10,8 @@ on:
 jobs:
   define-matrix:
     name: "Define Matrix"
-    runs-on: ubuntu-latest
+    runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+    container: ghcr.io/rancher/ci-image/go1.27 # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     permissions: {}
@@ -22,7 +23,7 @@ jobs:
         run: |
           # jq splits the string into a valid JSON array
           JSON_ARRAY=$(echo "$VERSIONS" | jq -R 'split(",")' -c)
-          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          echo "matrix=$JSON_ARRAY" >> "$GITHUB_OUTPUT"
 
   update-references:
     name: "Update RKE2 ${{ matrix.version }} References"
@@ -74,4 +75,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ matrix.version }}
-        run: release update rke2 references ${VERSION}
+        run: release update rke2 references "${VERSION}"

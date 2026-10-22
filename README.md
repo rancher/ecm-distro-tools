@@ -7,16 +7,23 @@ ECM Distro Tools is a collection of utilities that provide for easier administra
 The easiest way to install a single utility is to go to the release page, choose the release you want, and download the utility for your operation system and architecture.
 
 ## Release CLI
+
 ### Configuration
+
 **New Configuration File**
+
 ```bash
 release config gen > $HOME/.ecm-distro-tools/config.json
 ```
+
 **Load config from custom path**
+
 ```bash
 release config view -c ./config.json
 ```
+
 **Load config from string**
+
 ```bash
 release generate rancher missing-images-list v2.7.15 -C '{"rancher": { "versions": {"v2.7.15": {"check_images": ["rancher/rancher:v2.7.15"]}}}}' -i "https://prime.ribs.rancher.io/rancher/v2.7.15/rancher-images.txt" --ignore-validate
 ```
@@ -60,7 +67,6 @@ and adds the directory to the `PATH`.
 
 ### Usage
 
-The action can be run on ubuntu-latest runners.
 The `version` parameter is required.
 Providing the GH_TOKEN environment variable is recommended to avoid rate limiting by the GitHub API.
 
