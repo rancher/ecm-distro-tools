@@ -21,7 +21,7 @@ import (
 	"unicode"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v92/github"
+	"github.com/google/go-github/v93/github"
 	httpecm "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/repository"
 	"golang.org/x/mod/modfile"
