@@ -13,7 +13,7 @@ require (
 	github.com/google/go-github/v92 v92.0.0
 	github.com/johnfercher/maroto/v2 v2.4.3
 	github.com/spf13/cobra v1.10.2
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/crypto v0.57.0
 	golang.org/x/mod v0.41.0
 	golang.org/x/oauth2 v0.37.0
