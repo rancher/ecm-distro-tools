@@ -90,7 +90,7 @@ func reportHeaderRows(minSeverity string, project ProjectReport) []core.Row {
 func releaseSectionRows(release ReleaseReport) []core.Row {
 	rows := []core.Row{
 		row.New(10).Add(
-			text.NewCol(12, fmt.Sprintf("%s · %s", release.ProjectName, release.Release), props.Text{
+			text.NewCol(12, fmt.Sprintf("%s", release.Release), props.Text{
 				Size:  13,
 				Style: fontstyle.Bold,
 			}),

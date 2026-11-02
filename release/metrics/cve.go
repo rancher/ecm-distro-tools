@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v92/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -125,8 +126,11 @@ type ReportData struct {
 
 // CVEsBySeverity filters CVEs, renders one PDF report per project, and
 // uploads each to Slack, tagging usergroupID in channelID.
-func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
-	data := r.buildReportData(minSeverity, skipMirrored)
+func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
+	data, err := r.buildReportData(projects, minSeverity, skipMirrored)
+	if err != nil {
+		return err
+	}
 
 	if data.Totals.Total() == 0 {
 		fmt.Printf("No CVEs of severity '%s' or higher found, nothing to report\n", minSeverity)
@@ -171,15 +175,17 @@ func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID s
 }
 
 // buildReportData filters, sorts, and groups CVEs by project and release.
-func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportData {
+func (r *Reports) buildReportData(projects []string, minSeverity string, skipMirrored bool) (ReportData, error) {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
-	allProjects := []struct {
+	type projectItem struct {
 		name string
 		tag  string
 		cves []CVE
-	}{
+	}
+
+	allProjects := []projectItem{
 		{"Harvester", "harvester", r.Harvester},
 		{"K3s", "k3s", r.K3s},
 		{"Longhorn", "longhorn", r.Longhorn},
@@ -187,6 +193,23 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 		{"Observability Agent", "observability-agent", r.ObservabilityAgent},
 		{"Rancher", "rancher", r.Rancher},
 		{"RKE2", "rke2", r.RKE2},
+	}
+
+	// if projects isn't nil, we filter out items of allProjects
+	// that are NOT include in projects
+	if len(projects) > 0 {
+		filter := make(map[string]struct{}, len(projects))
+		for _, p := range projects {
+			filter[p] = struct{}{}
+		}
+
+		filtered := make([]projectItem, 0, len(projects))
+		for _, item := range allProjects {
+			if _, exists := filter[item.tag]; exists {
+				filtered = append(filtered, item)
+			}
+		}
+		allProjects = filtered
 	}
 
 	data := ReportData{MinSeverity: minSeverityDisplay}
@@ -212,6 +235,27 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 				releaseOrder = append(releaseOrder, cve.Release)
 			}
 			releaseMap[cve.Release] = append(releaseMap[cve.Release], cve)
+		}
+
+		// Here, we're filtering out any Rancher release prior to v2.15, as requested.
+		minRancherMinor := uint64(15)
+		if p.tag == "rancher" {
+			for releaseName, _ := range releaseMap {
+				if strings.HasPrefix(releaseName, "rancher/") || strings.HasPrefix(releaseName, "rancher/prime/") {
+					s := strings.Split(releaseName, "/")
+
+					releaseVersion := s[len(s)-1]
+
+					ver, err := semver.NewVersion(releaseVersion)
+					if err != nil {
+						return ReportData{}, err
+					}
+
+					if ver.Minor() < minRancherMinor {
+						delete(releaseMap, releaseName)
+					}
+				}
+			}
 		}
 
 		for _, release := range releaseOrder {
@@ -250,7 +294,7 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 		data.Projects = append(data.Projects, projectReport)
 	}
 
-	return data
+	return data, nil
 }
 
 func notifySlackRelease(release ReleaseReport, minSeverity, webhookURL string) error {
