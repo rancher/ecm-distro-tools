@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v92/github"
 	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
@@ -126,7 +127,10 @@ type ReportData struct {
 // CVEsBySeverity filters CVEs, renders one PDF report per project, and
 // uploads each to Slack, tagging usergroupID in channelID.
 func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
-	data := r.buildReportData(projects, minSeverity, skipMirrored)
+	data, err := r.buildReportData(projects, minSeverity, skipMirrored)
+	if err != nil {
+		return err
+	}
 
 	if data.Totals.Total() == 0 {
 		fmt.Printf("No CVEs of severity '%s' or higher found, nothing to report\n", minSeverity)
@@ -171,7 +175,7 @@ func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, chann
 }
 
 // buildReportData filters, sorts, and groups CVEs by project and release.
-func (r *Reports) buildReportData(projects []string, minSeverity string, skipMirrored bool) ReportData {
+func (r *Reports) buildReportData(projects []string, minSeverity string, skipMirrored bool) (ReportData, error) {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
@@ -233,6 +237,27 @@ func (r *Reports) buildReportData(projects []string, minSeverity string, skipMir
 			releaseMap[cve.Release] = append(releaseMap[cve.Release], cve)
 		}
 
+		// Here, we're filtering out any Rancher release prior to v2.15, as requested.
+		minRancherMinor := uint64(15)
+		if p.tag == "rancher" {
+			for releaseName, _ := range releaseMap {
+				if strings.HasPrefix(releaseName, "rancher/") || strings.HasPrefix(releaseName, "rancher/prime/") {
+					s := strings.Split(releaseName, "/")
+
+					releaseVersion := s[len(s)-1]
+
+					ver, err := semver.NewVersion(releaseVersion)
+					if err != nil {
+						return ReportData{}, err
+					}
+
+					if ver.Minor() < minRancherMinor {
+						delete(releaseMap, releaseName)
+					}
+				}
+			}
+		}
+
 		for _, release := range releaseOrder {
 			cves := releaseMap[release]
 
@@ -269,7 +294,7 @@ func (r *Reports) buildReportData(projects []string, minSeverity string, skipMir
 		data.Projects = append(data.Projects, projectReport)
 	}
 
-	return data
+	return data, nil
 }
 
 func notifySlackRelease(release ReleaseReport, minSeverity, webhookURL string) error {
