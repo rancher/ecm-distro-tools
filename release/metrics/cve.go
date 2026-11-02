@@ -125,8 +125,8 @@ type ReportData struct {
 
 // CVEsBySeverity filters CVEs, renders one PDF report per project, and
 // uploads each to Slack, tagging usergroupID in channelID.
-func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
-	data := r.buildReportData(minSeverity, skipMirrored)
+func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
+	data := r.buildReportData(projects, minSeverity, skipMirrored)
 
 	if data.Totals.Total() == 0 {
 		fmt.Printf("No CVEs of severity '%s' or higher found, nothing to report\n", minSeverity)
@@ -171,15 +171,17 @@ func (r *Reports) CVEsBySeverity(minSeverity, botToken, channelID, usergroupID s
 }
 
 // buildReportData filters, sorts, and groups CVEs by project and release.
-func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportData {
+func (r *Reports) buildReportData(projects []string, minSeverity string, skipMirrored bool) ReportData {
 	minScore := severityScore(minSeverity)
 	minSeverityDisplay := strings.ToUpper(minSeverity[:1]) + strings.ToLower(minSeverity[1:])
 
-	allProjects := []struct {
+	type projectItem struct {
 		name string
 		tag  string
 		cves []CVE
-	}{
+	}
+
+	allProjects := []projectItem{
 		{"Harvester", "harvester", r.Harvester},
 		{"K3s", "k3s", r.K3s},
 		{"Longhorn", "longhorn", r.Longhorn},
@@ -187,6 +189,23 @@ func (r *Reports) buildReportData(minSeverity string, skipMirrored bool) ReportD
 		{"Observability Agent", "observability-agent", r.ObservabilityAgent},
 		{"Rancher", "rancher", r.Rancher},
 		{"RKE2", "rke2", r.RKE2},
+	}
+
+	// if projects isn't nil, we filter out items of allProjects
+	// that are NOT include in projects
+	if len(projects) > 0 {
+		filter := make(map[string]struct{}, len(projects))
+		for _, p := range projects {
+			filter[p] = struct{}{}
+		}
+
+		filtered := make([]projectItem, 0, len(projects))
+		for _, item := range allProjects {
+			if _, exists := filter[item.tag]; exists {
+				filtered = append(filtered, item)
+			}
+		}
+		allProjects = filtered
 	}
 
 	data := ReportData{MinSeverity: minSeverityDisplay}

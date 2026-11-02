@@ -115,7 +115,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.CVEsBySeverity(*severity, *slackToken, *slackChannel, *slackUsergroup, *skipMirrored)
+		return reports.CVEsBySeverity(*projects, *severity, *slackToken, *slackChannel, *slackUsergroup, *skipMirrored)
 	},
 }
 
