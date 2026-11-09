@@ -25,6 +25,7 @@ var (
 	slackToken     *string
 	slackChannel   *string
 	slackUsergroup *string
+	reportFormat   *string
 	severity       *string
 	skipMirrored   *bool
 )
@@ -105,6 +106,10 @@ var cveStatsSubCmd = &cobra.Command{
 	Short: "CVE statistics command",
 	Long:  `Retrieve CVE statistics from current releases.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if *reportFormat != metrics.FormatPDF && *reportFormat != metrics.FormatText {
+			return fmt.Errorf("unrecognized format %q (pdf|text)", *reportFormat)
+		}
+
 		ctx := context.Background()
 		ghClient, err := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
 		if err != nil {
@@ -115,7 +120,7 @@ var cveStatsSubCmd = &cobra.Command{
 			return err
 		}
 
-		return reports.CVEsBySeverity(*projects, *severity, *slackToken, *slackChannel, *slackUsergroup, *skipMirrored)
+		return reports.CVEsBySeverity(*projects, *severity, *slackToken, *slackChannel, *slackUsergroup, *reportFormat, *skipMirrored)
 	},
 }
 
@@ -135,6 +140,7 @@ func init() {
 	severity = cveStatsSubCmd.Flags().StringP("severity", "s", "critical", "severity (critical|high|medium|low)")
 	skipMirrored = cveStatsSubCmd.Flags().BoolP("skip-mirrored", "m", false, "skip mirrored images when calculating CVE statistics")
 	projects = cveStatsSubCmd.Flags().StringSliceP("projects", "p", []string{"harvester", "longhorn", "rancher", "rke2", "k3s", "observability", "observability-agent"}, "comma-separated list of projects to include in the CVE statistics (harvester,longhorn,rancher,rke2,k3s,observability,observability-agent)")
+	reportFormat = cveStatsSubCmd.Flags().StringP("format", "f", "pdf", "report format (pdf|text)")
 
 	if err := releasesStatsCmd.MarkFlagRequired("repo"); err != nil {
 		fmt.Println(err.Error())
