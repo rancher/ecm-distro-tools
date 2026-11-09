@@ -39,11 +39,11 @@ func buildProjectText(minSeverity string, project ProjectReport, usergroupID str
 			continue
 		}
 
-		write(fmt.Sprintf("\n*%s*  %s\n", release.Release, countsLine(release.Counts)))
+		write(fmt.Sprintf("\n*%s*\n%s\n", release.Release, countsLine(release.Counts)))
 
 		for _, img := range imagesForRelease(release.CVEs) {
 			// backticks stop Slack from auto-linking image names
-			write(fmt.Sprintf("`%s`  %s\n", img.Image, countsLine(img.Counts)))
+			write(fmt.Sprintf("`%s`\n%s\n", img.Image, countsLine(img.Counts)))
 		}
 	}
 
@@ -52,7 +52,7 @@ func buildProjectText(minSeverity string, project ProjectReport, usergroupID str
 }
 
 func countsLine(c SeverityCounts) string {
-	return fmt.Sprintf("%s %d | %s %d | %s %d | %s %d",
+	return fmt.Sprintf("%s %03d | %s %03d | %s %03d | %s %03d",
 		emojiCritical, c.Critical,
 		emojiHigh, c.High,
 		emojiMedium, c.Medium,
