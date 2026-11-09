@@ -168,3 +168,31 @@ func (s *slackClient) completeUpload(fileID, title, channelID, initialComment st
 
 	return nil
 }
+
+func (s *slackClient) postMessage(channelID, text string) error {
+	body, err := json.Marshal(map[string]interface{}{
+		"channel":      channelID,
+		"text":         text,
+		"unfurl_links": false,
+		"unfurl_media": false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, slackAPIBase+"/chat.postMessage", bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
+	var out slackAPIError
+	if err := s.call(req, &out); err != nil {
+		return err
+	}
+	if !out.OK {
+		return fmt.Errorf("slack error: %s", out.Error)
+	}
+
+	return nil
+}

@@ -124,9 +124,18 @@ type ReportData struct {
 	Totals      SeverityCounts
 }
 
+const (
+	FormatPDF  = "pdf"
+	FormatText = "text"
+)
+
 // CVEsBySeverity filters CVEs, renders one PDF report per project, and
 // uploads each to Slack, tagging usergroupID in channelID.
-func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, channelID, usergroupID string, skipMirrored bool) error {
+func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, channelID, usergroupID, format string, skipMirrored bool) error {
+	if format != FormatPDF && format != FormatText {
+		return fmt.Errorf("unrecognized format %q (pdf|text)", format)
+	}
+
 	data, err := r.buildReportData(projects, minSeverity, skipMirrored)
 	if err != nil {
 		return err
@@ -138,39 +147,58 @@ func (r *Reports) CVEsBySeverity(projects []string, minSeverity, botToken, chann
 	}
 
 	client := newSlackClient(botToken)
+	sent := 0
 
-	for i, project := range data.Projects {
+	for _, project := range data.Projects {
 		if project.Totals.Total() == 0 {
 			continue
 		}
 
-		pdf, err := buildReportPDF(minSeverity, project)
+		// Slack rate limits roughly 1 message/sec per channel.
+		if sent > 0 {
+			time.Sleep(1 * time.Second)
+		}
+
+		var err error
+		switch format {
+		case FormatText:
+			err = sendProjectText(client, data.MinSeverity, project, channelID, usergroupID)
+		default:
+			err = sendProjectPDF(client, data.MinSeverity, project, channelID, usergroupID)
+		}
 		if err != nil {
-			return fmt.Errorf("failed to build pdf report for %s: %w", project.Name, err)
+			return fmt.Errorf("failed to send report for %s: %w", project.Name, err)
 		}
-
-		filename := fmt.Sprintf(
-			"cve-report-%s-%s.pdf",
-			strings.ToLower(strings.ReplaceAll(project.Name, " ", "-")),
-			time.Now().Format(time.DateOnly),
-		)
-
-		summary := fmt.Sprintf(
-			"*%s CVE Report* - Min severity: %s - %d total findings",
-			project.Name, data.MinSeverity, project.Totals.Total(),
-		)
-
-		if err := client.uploadReport(filename, pdf, channelID, usergroupID, summary); err != nil {
-			return fmt.Errorf("failed to upload report for %s to slack: %w", project.Name, err)
-		}
-
-		if i < len(data.Projects)-1 {
-			// small delay between uploads to avoid hitting Slack rate limits
-			time.Sleep(2 * time.Second)
-		}
+		sent++
 	}
 
 	fmt.Println("Successfully sent CVE reports to Slack!")
+	return nil
+}
+
+func sendProjectPDF(client *slackClient, minSeverity string, project ProjectReport, channelID, usergroupID string) error {
+	pdf, err := buildReportPDF(minSeverity, project)
+	if err != nil {
+		return fmt.Errorf("failed to build pdf: %w", err)
+	}
+
+	filename := fmt.Sprintf("cve-report-%s-%s.pdf",
+		strings.ToLower(strings.ReplaceAll(project.Name, " ", "-")), time.Now().Format(time.DateOnly))
+	summary := fmt.Sprintf("*%s CVE Report* | Min severity: %s | %d total findings",
+		project.Name, minSeverity, project.Totals.Total())
+
+	return client.uploadReport(filename, pdf, channelID, usergroupID, summary)
+}
+
+func sendProjectText(client *slackClient, minSeverity string, project ProjectReport, channelID, usergroupID string) error {
+	for i, msg := range buildProjectText(minSeverity, project, usergroupID) {
+		if i > 0 {
+			time.Sleep(1 * time.Second)
+		}
+		if err := client.postMessage(channelID, msg); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
