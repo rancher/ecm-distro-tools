@@ -14,7 +14,8 @@
 # 
 # jobs:
 #   sync:
-#     runs-on: ubuntu-latest
+#     runs-on: org-${{ github.repository_owner_id }}-amd64-k8s
+#     container: ghcr.io/rancher/ci-image/charts # zizmor: ignore[unpinned-images] -- internal image is exempt from this rule
 #     steps:
 #       - name: "Read Secrets"
 #         uses: rancher-eio/read-vault-secrets@main
