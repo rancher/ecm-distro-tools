@@ -21,6 +21,7 @@ const (
 	rke2ArtifactsPrefix     = "rke2/v"
 	k3sArtifactsPrefix      = "k3s/v"
 	toolsArtifactsPrefix    = "tools/"
+	suseVirtArtifactsPrefix = "suse-virtualization/v"
 	rancherArtifactsBaseURL = "https://prime.ribs.rancher.io"
 )
 
@@ -42,15 +43,16 @@ type ToolsIndex struct {
 }
 
 type ArtifactsIndexContentGroup struct {
-	Rancher ArtifactsIndexVersions
-	RKE2    ArtifactsIndexVersions
-	K3s     ArtifactsIndexVersions
-	Tools   ToolsIndex
-	BaseURL string
+	Rancher  ArtifactsIndexVersions
+	RKE2     ArtifactsIndexVersions
+	K3s      ArtifactsIndexVersions
+	SUSEVirt ArtifactsIndexVersions
+	Tools    ToolsIndex
+	BaseURL  string
 }
 
 type ArtifactLister interface {
-	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, toolsKeys []string, err error)
+	List(ctx context.Context) (rancherKeys []string, rke2Keys []string, k3sKeys []string, suseVirtKeys []string, toolsKeys []string, err error)
 }
 
 type ArtifactBucket struct {
@@ -65,25 +67,29 @@ func NewArtifactBucket(client *s3.Client) ArtifactBucket {
 	}
 }
 
-func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, []string, error) {
+func (a ArtifactBucket) List(ctx context.Context) ([]string, []string, []string, []string, []string, error) {
 	rancherKeys, err := listS3Objects(ctx, a.client, a.bucket, rancherArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	rke2Keys, err := listS3Objects(ctx, a.client, a.bucket, rke2ArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	k3sKeys, err := listS3Objects(ctx, a.client, a.bucket, k3sArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
+	suseVirtKeys, err := listS3Objects(ctx, a.client, a.bucket, suseVirtArtifactsPrefix)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 	toolsKeys, err := listS3Objects(ctx, a.client, a.bucket, toolsArtifactsPrefix)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil
+	return rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys, nil
 }
 
 type ArtifactDir struct {
@@ -94,8 +100,8 @@ func NewArtifactDir(dir string) ArtifactDir {
 	return ArtifactDir{dir}
 }
 
-func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, []string, error) {
-	var rancherKeys, rke2Keys, k3sKeys, toolsKeys []string
+func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, []string, []string, error) {
+	var rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys []string
 	err := filepath.WalkDir(a.dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -115,15 +121,17 @@ func (a ArtifactDir) List(ctx context.Context) ([]string, []string, []string, []
 			rke2Keys = append(rke2Keys, rel)
 		case strings.HasPrefix(rel, k3sArtifactsPrefix):
 			k3sKeys = append(k3sKeys, rel)
+		case strings.HasPrefix(rel, suseVirtArtifactsPrefix):
+			suseVirtKeys = append(suseVirtKeys, rel)
 		case strings.HasPrefix(rel, toolsArtifactsPrefix):
 			toolsKeys = append(toolsKeys, rel)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
-	return rancherKeys, rke2Keys, k3sKeys, toolsKeys, nil
+	return rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys, nil
 }
 
 // GenerateArtifactsIndex lists artifacts and writes index.html and index-prerelease.html
@@ -132,11 +140,11 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	for _, v := range ignoreVersions {
 		ignore[v] = true
 	}
-	rancherKeys, rke2Keys, k3sKeys, toolsKeys, err := lister.List(ctx)
+	rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys, err := lister.List(ctx)
 	if err != nil {
 		return err
 	}
-	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys, ignore)
+	content := generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys, ignore)
 	gaIndex, err := generateArtifactsHTML(content.GA)
 	if err != nil {
 		return err
@@ -151,7 +159,7 @@ func GenerateArtifactsIndex(ctx context.Context, outPath string, ignoreVersions 
 	return os.WriteFile(filepath.Join(outPath, "index-prerelease.html"), preReleaseIndex, 0o644)
 }
 
-func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
+func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, suseVirtKeys, toolsKeys []string, ignoreVersions map[string]bool) ArtifactsIndexContent {
 	indexContent := ArtifactsIndexContent{
 		GA: ArtifactsIndexContentGroup{
 			Rancher: ArtifactsIndexVersions{
@@ -163,6 +171,10 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 				VersionsFiles: map[string][]string{},
 			},
 			K3s: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
+			SUSEVirt: ArtifactsIndexVersions{
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
@@ -185,6 +197,10 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 				Versions:      []string{},
 				VersionsFiles: map[string][]string{},
 			},
+			SUSEVirt: ArtifactsIndexVersions{
+				Versions:      []string{},
+				VersionsFiles: map[string][]string{},
+			},
 			Tools: ToolsIndex{
 				Programs:        []string{},
 				ProgramVersions: map[string]ArtifactsIndexVersions{},
@@ -196,9 +212,32 @@ func generateArtifactsIndexContent(rancherKeys, rke2Keys, k3sKeys, toolsKeys []s
 	indexContent.GA.Rancher, indexContent.PreRelease.Rancher = parseVersionsFromKeys(rancherKeys, "rancher/", ignoreVersions)
 	indexContent.GA.RKE2, indexContent.PreRelease.RKE2 = parseVersionsFromKeys(rke2Keys, "rke2/", ignoreVersions)
 	indexContent.GA.K3s, indexContent.PreRelease.K3s = parseVersionsFromKeys(k3sKeys, "k3s/", ignoreVersions)
+	indexContent.GA.SUSEVirt, indexContent.PreRelease.SUSEVirt = parseVersionsFromKeys(filterFullVersionKeys(suseVirtKeys, "suse-virtualization/"), "suse-virtualization/", ignoreVersions)
 	indexContent.GA.Tools, indexContent.PreRelease.Tools = parseToolsFromKeys(toolsKeys, "tools/", ignoreVersions)
 
 	return indexContent
+}
+
+// filterFullVersionKeys keeps keys whose version directory (the path
+// segment right after prefix) is a full vMAJOR.MINOR.PATCH semver,
+// dropping branch-head directories such as v1.9 or v1.10.
+func filterFullVersionKeys(keys []string, prefix string) []string {
+	var filtered []string
+	for _, key := range keys {
+		version, _, _ := strings.Cut(strings.TrimPrefix(key, prefix), "/")
+		if isFullSemver(version) {
+			filtered = append(filtered, key)
+		}
+	}
+	return filtered
+}
+
+// isFullSemver reports whether v is a valid semver with all three
+// numeric components; semver.Canonical expands shorthand like v1.9 to
+// v1.9.0 and drops build metadata, so only a full version round-trips.
+func isFullSemver(v string) bool {
+	core, _, _ := strings.Cut(v, "+")
+	return semver.IsValid(v) && semver.Canonical(v) == core
 }
 
 // parseVersionsFromKeys extracts versions and files from keys and returns GA and pre-release version structs
@@ -484,6 +523,37 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<a href="{{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/k3s/{{ $version }}/{{ . }}</a>
 								{{ if hasSuffix . "sbom-cyclonedx.json" }}
 								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/k3s/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
+									<button class="small-button">inspect</button>
+								</a>
+								{{ end }}
+							</li>
+							{{ end }}
+							</ul>
+						</div>
+					</div>
+					{{ end }}
+				</div>
+			</div>
+			<div class="project-suse-virtualization project">
+				<div class="flex-row">
+					<h2 id="suse-virtualization" class="project-title"><a class="anchor" href="#suse-virtualization">#</a>suse-virtualization</h2>
+					<button onclick="toggleProject('suse-virtualization')" id="project-suse-virtualization-expand" class="small-button expand-active">hide</button>
+				</div>
+				<div id="project-suse-virtualization-releases">
+					{{ range $i, $version := .SUSEVirt.Versions }}
+					<div id="suse-virtualization-{{ $version }}" class="release-{{ $version }} release">
+						<div class="flex-row">
+							<a class="anchor" href="#suse-virtualization-{{ $version }}">#</a>
+							<b class="release-title-tag">{{ $version }}</b>
+							<button onclick="toggleFiles('suse-virtualization-{{ $version }}')" id="release-suse-virtualization-{{ $version }}-expand" class="small-button">show</button>
+						</div>
+						<div class="files" id="release-suse-virtualization-{{ $version }}-files">
+							<ul>
+							{{ range index $.SUSEVirt.VersionsFiles $version }}
+							<li>
+								<a href="{{ $.BaseURL }}/suse-virtualization/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/suse-virtualization/{{ $version }}/{{ . }}</a>
+								{{ if hasSuffix . "sbom-cyclonedx.json" }}
+								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/suse-virtualization/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
 									<button class="small-button">inspect</button>
 								</a>
 								{{ end }}
