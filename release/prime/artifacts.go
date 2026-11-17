@@ -443,6 +443,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 		<main>
 			<div class="information-block">
 			<p><b>About this page:</b> This directory lists software artifacts but is not intended for deployment automation or as a source for official release announcements, as artifacts may appear here before a release is fully complete.</p>
+			<p>Artifacts on this site are reserved for <b>SUSE Rancher Prime</b> customers with an active subscription under SUSE Terms &amp; Conditions. Authentication will be introduced in an upcoming release; registered customers and partners will be notified in advance. Open source community builds remain freely accessible on <b>GitHub</b> and <b>Docker Hub</b>.</p>
 			</div>
 			<div class="project-rancher project">
 				<div class="flex-row">
@@ -463,7 +464,7 @@ const artifactsIndexTemplate = `{{ define "release-artifacts-index" }}
 								<a href="{{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . }}">{{ $.BaseURL }}/rancher/{{ $version }}/{{ . }}</a>
 								{{ if hasSuffix . "sbom-cyclonedx.json" }}
 								<a href="https://apps.rancher.io/sbom-viewer?file={{ $.BaseURL }}/rancher/{{ $version | urlquery }}/{{ . | urlquery }}" target="_blank">
-									<button class="small-button">inspect [beta]</button>
+									<button class="small-button">inspect</button>
 								</a>
 								{{ end }}
 							</li>
